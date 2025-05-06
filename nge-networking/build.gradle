@@ -1,0 +1,16 @@
+repositories {
+	maven { url 'https://jitpack.io' }
+}
+
+dependencies {
+    api project(':jme3-core')
+    api project(':jme3-networking')
+    implementation 'com.github.NostrGameEngine:nostr4j:c221d82c82f7a6496502605018912a9a45e96a9a'
+}
+
+javadoc {
+    // Disable doclint for JDK8+.
+    if (JavaVersion.current().isJava8Compatible()){
+        options.addStringOption('Xdoclint:none', '-quiet')
+    }
+}
