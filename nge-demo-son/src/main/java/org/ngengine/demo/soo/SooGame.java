@@ -17,6 +17,7 @@ import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 import com.jme3.post.FilterPostProcessor;
+import com.jme3.post.filters.FogFilter;
 import com.jme3.post.filters.ToneMapFilter;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Spatial;
@@ -64,7 +65,11 @@ public class SooGame extends SimpleApplication {
         // envProbe.tag(sky);
         // final EnvironmentCamera envCam = new EnvironmentCamera(256, new Vector3f(0, 0, 0));
         // stateManager.attach(envCam);
-       
+
+        DirectionalLight dl = new DirectionalLight();
+        dl.setDirection(new Vector3f(-1, -1, -1).normalizeLocal());
+        dl.setColor(ColorRGBA.White);
+        rootNode.addLight(dl);
 
         FilterPostProcessor fpp = new FilterPostProcessor(assetManager);
         fpp.setNumSamples(4);
@@ -73,7 +78,6 @@ public class SooGame extends SimpleApplication {
 
     }
 
-    
     public static void main(String[] args) {
         AppSettings settings = new AppSettings(true);
         settings.setWidth(1280);

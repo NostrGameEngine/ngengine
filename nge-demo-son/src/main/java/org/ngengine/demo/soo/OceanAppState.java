@@ -9,6 +9,7 @@ import com.jme3.asset.AssetManager;
 import com.jme3.export.InputCapsule;
 import com.jme3.export.JmeImporter;
 import com.jme3.material.Material;
+import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
@@ -19,6 +20,8 @@ import com.jme3.renderer.Camera;
 import com.jme3.renderer.RenderManager;
 import com.jme3.renderer.ViewPort;
 import com.jme3.renderer.queue.RenderQueue;
+import com.jme3.renderer.queue.RenderQueue.Bucket;
+import com.jme3.renderer.queue.RenderQueue.ShadowMode;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Mesh;
 import com.jme3.scene.Node;
@@ -148,16 +151,26 @@ public class OceanAppState extends BaseAppState {
         Node rootNode = (Node) rm.getMainViews().get(0).getScenes().get(0);
 
         // 1) Generate mesh and geometry
-        Mesh oceanMesh = generateGridMesh(GPU_RES, GPU_RES, 200f);
+        Mesh oceanMesh = generateGridMesh(GPU_RES, GPU_RES, SIZE);
         oceanGeom = new Geometry("OceanSurface", oceanMesh);
         MikktspaceTangentGenerator.generate(oceanGeom);
 
         oceanGeom.setMaterial(oceanMat);
         rootNode.attachChild(oceanGeom);
 
+        oceanMat.getAdditionalRenderState().setBlendMode(BlendMode.AlphaSumA);
+        oceanGeom.setQueueBucket(Bucket.Transparent);
+        oceanGeom.setShadowMode(ShadowMode.Receive);
+
     }
 
+    float SIZE = 200f;
     float time = 0;
+    Vector3f offset = new Vector3f();
+    Vector3f scale = new Vector3f();
+    Vector3f scale2 = new Vector3f();
+    float s1 = 0.03f;
+    float s2 = 0.002f;
     @Override
     public void update(float tpf) {
         super.update(tpf);
@@ -173,6 +186,11 @@ public class OceanAppState extends BaseAppState {
         oceanGeom.setLocalTranslation(t);
 
 
+        scale.set(SIZE * s1, 4, SIZE * s1);
+        oceanMat.setVector3("Scale", scale);
+
+        offset.set(cam.getLocation()).divideLocal(scale);
+        oceanMat.setVector3("Offset", offset);
     }
 
     @Override

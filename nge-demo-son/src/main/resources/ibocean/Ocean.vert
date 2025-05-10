@@ -19,11 +19,9 @@ uniform sampler2DArray m_Crest;
 uniform vec2 m_CrestData;
 
 uniform vec3 m_Scale;
-uniform vec3 m_Scale2;
+uniform vec3 m_Offset;
 void main(){      
-    vec4 normalHeight = textureFlipBook(m_NormalHeight, m_NormalHeightData, inTexCoord*m_Scale.xz) * vec4(1.0,1.0,1.0, m_Scale.y);
-    normalHeight += textureFlipBook(m_NormalHeight, m_NormalHeightData, inTexCoord*m_Scale2.xz) * vec4(1.0,1.0,1.0, m_Scale2.y);
-    normalHeight /= vec4(2.0);
+    vec4 normalHeight = textureFlipBook(m_NormalHeight, m_NormalHeightData, m_Offset.xz+inTexCoord*m_Scale.xz) * vec4(1.0,1.0,1.0, m_Scale.y);
 
 
     vec4 modelSpacePos = vec4(inPosition, 1.0);

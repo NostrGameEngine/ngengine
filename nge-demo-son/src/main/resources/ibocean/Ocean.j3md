@@ -11,8 +11,10 @@ MaterialDef Ocean {
         TextureArray Crest -LINEAR
         Vector2 CrestData
 
-        Vector3 Scale : 3.0 4.0 3.0
-        Vector3 Scale2 : 12.0 1.0 12.0
+        Vector3 Scale : 1.0 1.0 1.0
+        
+        Vector3 Offset : 0.0 0.0 0.0
+        
 
         Texture2D FoamTexture
 
@@ -78,6 +80,7 @@ MaterialDef Ocean {
             WorldNormalMatrix
             ViewProjectionMatrix
             ViewMatrix
+            Time
         }
 
         Defines {  
