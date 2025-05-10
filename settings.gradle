@@ -9,6 +9,7 @@ include 'jme3-effects'
 include 'jme3-networking'
 include 'nge-networking'
 include 'nge-ui'
+include 'nge-demo-son'
 
 include 'jme3-plugins'
 include 'jme3-plugins-json'
