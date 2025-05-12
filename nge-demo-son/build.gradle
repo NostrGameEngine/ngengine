@@ -1,5 +1,6 @@
 repositories {
 	maven { url 'https://jitpack.io' }
+    
 }
 
 dependencies {
@@ -8,7 +9,8 @@ dependencies {
     api project(':jme3-lwjgl3')
     api project(':nge-networking')
     api project(':nge-ui')
-    
+    implementation group: 'com.github.stephengold', name: 'Minie', version: '9.0.1+mt'
+
 }
 
 javadoc {

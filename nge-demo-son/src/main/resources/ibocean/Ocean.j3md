@@ -8,15 +8,15 @@ MaterialDef Ocean {
         TextureArray NormalHeight -LINEAR
         Vector2 NormalHeightData
 
-        TextureArray Crest -LINEAR
-        Vector2 CrestData
-
         Vector3 Scale : 1.0 1.0 1.0
-        
-        Vector3 Offset : 0.0 0.0 0.0
-        
-
+        Vector3 Size : 1.0 1.0 1.0
+               
         Texture2D FoamTexture
+        Texture2D RefMap
+        Texture2D WaterNoise -LINEAR : WrapRepeat Textures/waterNoise.png
+
+        Boolean RenderBuoyancyMap;
+
 
         //shadows
         Int FilterMode
@@ -89,6 +89,9 @@ MaterialDef Ocean {
             INSTANCING : UseInstancing
 
             DEBUG_VALUES_MODE : DebugValuesMode        
+
+
+            RENDER_BUOYANCY_MAP : RenderBuoyancyMap
         
         }
     }

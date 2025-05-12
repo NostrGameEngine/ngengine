@@ -5,7 +5,6 @@ dependencies {
         implementation project(':jme3-core')
     implementation project(':jme3-desktop')
     implementation project(':jme3-effects')
-    implementation project(':jme3-jbullet')
     implementation project(':jme3-jogg')
     implementation project(':jme3-lwjgl3')
 //    implementation project(':jme3-lwjgl3')

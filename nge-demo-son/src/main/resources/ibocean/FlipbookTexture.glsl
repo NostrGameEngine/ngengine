@@ -1,4 +1,5 @@
-
+#ifndef FLIPBOOKTEXTURE_GLSL
+#define FLIPBOOKTEXTURE_GLSL
 vec4 textureFlipBook(
     in sampler2DArray tex, 
     in vec2 texData, 
@@ -10,3 +11,4 @@ vec4 textureFlipBook(
     vec4 color = texture(tex, vec3(texCoord, currentFrame));
     return color;
 }
+#endif
