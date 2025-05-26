@@ -18,6 +18,9 @@ buildscript {
 
 allprojects {
     repositories {
+        mavenLocal()
+        maven { url 'https://maven.rblb.it/NostrGameEngine/nge-platforms' }
+        maven { url 'https://maven.rblb.it/NostrGameEngine/nostr4j' }
         mavenCentral()
         google()
     }
