@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import org.ngengine.network.protocol.GrowableByteBuffer;
-import org.ngengine.network.protocol.messages.ByteMessage;
+import org.ngengine.network.protocol.messages.ByteDataMessage;
 
 import com.jme3.network.serializing.Serializer;
 
@@ -14,7 +14,7 @@ public class ByteMessageSerializer extends DynamicSerializer{
     @Override
     public <T> T readObject(ByteBuffer buffer, Class<T> c) throws IOException {
         try{
-            ByteMessage message = (ByteMessage) c.getDeclaredConstructor().newInstance();
+            ByteDataMessage message = (ByteDataMessage) c.getDeclaredConstructor().newInstance();
             int length = buffer.getInt();
             ByteBuffer bbf = buffer.slice(buffer.position(), length);
             message.setData(bbf);
@@ -27,7 +27,7 @@ public class ByteMessageSerializer extends DynamicSerializer{
  
     @Override
     public void writeObject(GrowableByteBuffer buffer, Object object) throws IOException {
-        ByteMessage message = (ByteMessage) object;
+        ByteDataMessage message = (ByteDataMessage) object;
         ByteBuffer data = message.getData().slice();
         if (data == null) throw new IOException("The message data is null");
         buffer.putInt(data.remaining());

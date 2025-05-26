@@ -7,7 +7,7 @@ import org.ngengine.network.protocol.NetworkSafe;
 import com.jme3.network.AbstractMessage;
 
 @NetworkSafe
-public class BinaryMessage extends AbstractMessage implements ByteMessage {
+public class BinaryMessage extends AbstractMessage implements ByteDataMessage {
 
     private ByteBuffer data;
 

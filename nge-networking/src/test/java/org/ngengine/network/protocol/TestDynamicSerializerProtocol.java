@@ -10,10 +10,10 @@ import java.util.*;
 import org.junit.Before;
 import org.junit.Test;
 import org.ngengine.network.protocol.messages.BinaryMessage;
-import org.ngengine.network.protocol.messages.ByteMessage;
+import org.ngengine.network.protocol.messages.ByteDataMessage;
 import org.ngengine.network.protocol.messages.ChatMessage;
 import org.ngengine.network.protocol.messages.CompressedMessage;
-import org.ngengine.network.protocol.messages.TextMessage;
+import org.ngengine.network.protocol.messages.TextDataMessage;
 
 
 import com.jme3.math.ColorRGBA;
@@ -189,10 +189,10 @@ public class TestDynamicSerializerProtocol {
     @Test
     public void testByteMessage() {
         byte[] data = "Hello, world!".getBytes();
-        ByteMessage original = new BinaryMessage(ByteBuffer.wrap(data));
+        ByteDataMessage original = new BinaryMessage(ByteBuffer.wrap(data));
 
         ByteBuffer buffer = protocol.toByteBuffer(original, null);
-        ByteMessage result = (ByteMessage) protocol.toMessage(buffer);
+        ByteDataMessage result = (ByteDataMessage) protocol.toMessage(buffer);
 
         byte[] resultData = new byte[result.getData().remaining()];
         result.getData().get(resultData);
@@ -205,10 +205,10 @@ public class TestDynamicSerializerProtocol {
 
     @Test
     public void testTextMessage() {
-        TextMessage original = new ChatMessage("This is a text message");
+        TextDataMessage original = new ChatMessage("This is a text message");
 
         ByteBuffer buffer = protocol.toByteBuffer(original, null);
-        TextMessage result = (TextMessage) protocol.toMessage(buffer);
+        TextDataMessage result = (TextDataMessage) protocol.toMessage(buffer);
 
         assertEquals("Text content should match", original.getData(), result.getData());
     }

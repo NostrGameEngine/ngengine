@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.Test;
+import org.ngengine.network.protocol.messages.ChatMessage;
 import org.ngengine.nostr4j.keypair.NostrKeyPair;
 import org.ngengine.nostr4j.keypair.NostrPrivateKey;
 import org.ngengine.nostr4j.keypair.NostrPublicKey;
@@ -32,19 +33,19 @@ public class TestLobbyList {
     public void testLobbyList() throws Exception {
         NostrKeyPairSigner signer = new NostrKeyPairSigner(new NostrKeyPair());
 
-        LobbyManager lobbyList = new LobbyManager(signer, "test-lobby-list"+Math.random(), (int)System.currentTimeMillis(), List.of("wss://nostr.rblb.it"),
+        LobbyManager lobbyList = new LobbyManager(signer, "test-lobby-list"+Math.random(), (int)System.currentTimeMillis(), 
+            List.of("wss://nostr.rblb.it"),
                 "wss://nostr.rblb.it");
 
-        List<Lobby> lobbies =lobbyList.listLobbies("", 100, null);
+        List<Lobby> lobbies = lobbyList.listLobbies("", 100, null).await();
         assertEquals(lobbies.size(), 0);
 
-        Lobby lobby = lobbyList.createLobby("", Map.of("test", "test123"), Duration.ofHours(1));
+        Lobby lobby = lobbyList.createLobby("", Map.of("test", "test123"), Duration.ofHours(1)).await();
         System.out.println("Lobby created: " + lobby);
 
         assertTrue(lobby.getId().length() > 0);
-        assertTrue(lobby.getKey().length() > 0);
 
-        lobbies = lobbyList.listLobbies("", 100, null);
+        lobbies = lobbyList.listLobbies("", 100, null).await();
         assertEquals(lobbies.size(), 1);
 
         System.out.println("Found lobby: " + lobbies.get(0));
@@ -77,15 +78,15 @@ public class TestLobbyList {
                     gameName , gameVersion , List.of("wss://nostr.rblb.it"),
                     "wss://nostr.rblb.it");
 
-            LocalLobby lobby = mng.createLobby("abc", Map.of("test", "test123"), Duration.ofHours(1));
+            LocalLobby lobby = mng.createLobby("abc", Map.of("test", "test123"), Duration.ofHours(1)).await();
             lobby.setData("test2", "test123");
 
-            NetworkChannel chan = mng.connectToLobby(lobby, "abc");
+            P2PChannel chan = mng.connectToLobby(lobby, "abc");
             chan.addMessageListener((c, m) -> {
                 System.out.println("(1)Received message: " + m);
-                if(m instanceof TextMessage){
-                    System.out.println("Received message: " + ((TextMessage)m).getText());
-                    if(((TextMessage)m).getText().equals("Hello from peer2")){
+                if (m instanceof ChatMessage) {
+                    System.out.println("Received message: " + ((ChatMessage) m).getData());
+                    if (((ChatMessage) m).getData().equals("Hello from peer2")) {
                         messageReceived.set(true);
 
                     }
@@ -110,7 +111,7 @@ public class TestLobbyList {
                 
             });
             
-            Serializer.registerClass(TextMessage.class);
+            Serializer.registerClass(ChatMessage.class);
 
             chan.start();
         }
@@ -123,12 +124,12 @@ public class TestLobbyList {
                     gameName,
                     gameVersion, List.of("wss://nostr.rblb.it"), "wss://nostr.rblb.it");
                 
-            List<Lobby> lobbies = mng.listLobbies("", 100, null);
+            List<Lobby> lobbies = mng.listLobbies("", 100, null).await();
             assertEquals(lobbies.size(), 1);
 
             System.out.println("Found lobby: " + lobbies.get(0));
 
-            NetworkChannel chan = mng.connectToLobby(lobbies.get(0), "abc");
+            P2PChannel chan = mng.connectToLobby(lobbies.get(0), "abc");
 
         
             chan.addMessageListener((c, m) -> {
@@ -160,7 +161,7 @@ public class TestLobbyList {
             });
 
             System.out.println("Starting peer2");
-            Serializer.registerClass(TextMessage.class);
+            Serializer.registerClass(ChatMessage.class);
 
             chan.discover();
 
@@ -179,7 +180,7 @@ public class TestLobbyList {
 
             chan.start();
             System.out.println("Peer2 started");
-            chan.broadcast(new TextMessage("Hello from peer2"));
+            chan.broadcast(new ChatMessage("Hello from peer2"));
 
             t=0;
             while(true){

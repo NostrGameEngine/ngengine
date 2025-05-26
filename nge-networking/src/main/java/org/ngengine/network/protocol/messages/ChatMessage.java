@@ -6,7 +6,7 @@ import com.jme3.network.AbstractMessage;
 import com.jme3.network.serializing.Serializable;
 
 @NetworkSafe
-public class ChatMessage extends AbstractMessage implements TextMessage {
+public class ChatMessage extends AbstractMessage implements TextDataMessage {
     private String text;
 
     public ChatMessage() {

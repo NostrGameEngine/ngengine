@@ -14,11 +14,12 @@ import org.ngengine.nostr4j.NostrPool;
 import org.ngengine.nostr4j.keypair.NostrKeyPair;
 import org.ngengine.nostr4j.keypair.NostrPrivateKey;
 import org.ngengine.nostr4j.rtc.NostrRTCRoom;
-import org.ngengine.nostr4j.rtc.NostrRTCSettings;
 import org.ngengine.nostr4j.rtc.listeners.NostrRTCRoomPeerDiscoveredListener;
 import org.ngengine.nostr4j.rtc.signal.NostrRTCLocalPeer;
 import org.ngengine.nostr4j.rtc.turn.NostrTURNSettings;
 import org.ngengine.nostr4j.signer.NostrSigner;
+import org.ngengine.platform.RTCSettings;
+
 import com.jme3.network.ConnectionListener;
 import com.jme3.network.Filter;
 import com.jme3.network.HostedConnection;
@@ -31,8 +32,8 @@ import com.jme3.network.base.protocol.SerializerMessageProtocol;
 import com.jme3.network.service.HostedServiceManager;
 import com.jme3.network.service.serializer.ServerSerializerRegistrationsService;
 
-public class NetworkChannel implements Server, LocalPlayer {
-    private static final Logger log = Logger.getLogger(NetworkChannel.class.getName());
+public class P2PChannel implements Server {
+    private static final Logger log = Logger.getLogger(P2PChannel.class.getName());
     private boolean isStarted = false;    
 
     
@@ -40,7 +41,7 @@ public class NetworkChannel implements Server, LocalPlayer {
     private final String gameName;
     private final int version;
     private final HostedServiceManager services;
-    private final Map<Integer, RemotePlayer> connections = new ConcurrentHashMap<>();
+    private final Map<Integer, RemotePeer> connections = new ConcurrentHashMap<>();
     private final MessageListenerRegistry<HostedConnection> messageListeners = new MessageListenerRegistry<>();                        
     private final List<ConnectionListener> connectionListeners = new CopyOnWriteArrayList<>();
     private final List<NostrRTCRoomPeerDiscoveredListener> peerDiscoveredListeners = new CopyOnWriteArrayList<>();
@@ -50,17 +51,19 @@ public class NetworkChannel implements Server, LocalPlayer {
     private final NostrPool masterServersPool;
     private final NostrRTCRoom rtcRoom;
 
+    private final Lobby lobby;
 
  
-    public NetworkChannel(
+    public P2PChannel(
         NostrSigner localSigner,
 
         String gameName,
         int gameVersion,
 
-        String roomKey,
+        NostrPrivateKey roomKey,
         String turnServer,
-        NostrPool masterServer
+        NostrPool masterServer,
+        Lobby lobby
     ){
         this.services = new HostedServiceManager(this);
         addStandardServices();
@@ -68,18 +71,18 @@ public class NetworkChannel implements Server, LocalPlayer {
         this.version = gameVersion;
         this.localSigner=localSigner;
         this.masterServersPool = masterServer;
-      
+        this.lobby=lobby;
 
         this.rtcRoom = new NostrRTCRoom(
-            NostrRTCSettings.DEFAULT, 
-            NostrTURNSettings.DEFAULT,
+                RTCSettings.DEFAULT,
+                    NostrTURNSettings.DEFAULT,
             new NostrRTCLocalPeer(
                 localSigner, 
-                NostrRTCSettings.PUBLIC_STUN_SERVERS,
-                turnServer, 
+                        RTCSettings.PUBLIC_STUN_SERVERS,
+                        turnServer, 
                 new HashMap<String, Object>()
             ),
-            new NostrKeyPair(NostrPrivateKey.fromBech32(roomKey)),
+            new NostrKeyPair(roomKey),
             masterServersPool
         );
 
@@ -91,19 +94,21 @@ public class NetworkChannel implements Server, LocalPlayer {
 
         rtcRoom.addConnectionListener((peerKey, socket) -> {
             log.fine("New connection from: " + peerKey);
-            RemotePlayer connection = new RemotePlayer(connections.size(), socket, this, protocol);
+            RemotePeer connection = new RemotePeer(connections.size(), socket, this, protocol);
             connections.put(connection.getId(), connection);
 
             for (ConnectionListener listener : connectionListeners) {
                 listener.connectionAdded(this, connection);
             }
+
+            updatePlayerCount();
         });
 
         rtcRoom.addDisconnectionListener((peerKey, socket) -> {
             log.fine("Connection closed: " + peerKey);
-            for (Entry<Integer, RemotePlayer> entry : connections.entrySet()) {
+            for (Entry<Integer, RemotePeer> entry : connections.entrySet()) {
                 if (entry.getValue().getSocket() == socket) {
-                    RemotePlayer connection = entry.getValue();
+                    RemotePeer connection = entry.getValue();
                     connections.remove(connection.getId());
                     for (ConnectionListener listener : connectionListeners) {
                         listener.connectionRemoved(this, connection);
@@ -111,14 +116,15 @@ public class NetworkChannel implements Server, LocalPlayer {
                     break;
                 }
             }
+            updatePlayerCount();
 
         });
 
         rtcRoom.addMessageListener((peerKey, socket, bbf, isTurn) -> {
             log.fine("Message from: " + peerKey);
-            for (Entry<Integer, RemotePlayer> entry : connections.entrySet()) {
+            for (Entry<Integer, RemotePeer> entry : connections.entrySet()) {
                 if (entry.getValue().getSocket() == socket) {
-                    RemotePlayer connection = entry.getValue();
+                    RemotePeer connection = entry.getValue();
                     Message message = protocol.toMessage(bbf);
                     if (message == null) {
                         log.warning("Received null message from: " + peerKey);
@@ -131,6 +137,18 @@ public class NetworkChannel implements Server, LocalPlayer {
             }
 
         });
+    }
+
+    protected void updatePlayerCount() {     
+        if (lobby instanceof LocalLobby) {
+            int playerCount = connections.size();
+            LocalLobby localLobby = (LocalLobby) lobby;
+            try{
+                localLobby.setData("numPeers", String.valueOf(playerCount));
+            } catch (Exception e) {
+                log.warning("Failed to update player count: " + e.getMessage());
+            }
+        }
     }
  
 

@@ -5,7 +5,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
 import org.ngengine.network.protocol.GrowableByteBuffer;
-import org.ngengine.network.protocol.messages.TextMessage;
+import org.ngengine.network.protocol.messages.TextDataMessage;
 
 import com.jme3.network.serializing.Serializer;
 
@@ -14,7 +14,7 @@ public class TextMessageSerializer extends DynamicSerializer{
     @Override
     public <T> T readObject(ByteBuffer buffer, Class<T> c) throws IOException {
         try{
-            TextMessage message = (TextMessage) c.getDeclaredConstructor().newInstance();
+            TextDataMessage message = (TextDataMessage) c.getDeclaredConstructor().newInstance();
             short length = buffer.getShort();
             byte[] bytes = new byte[length];
             buffer.get(bytes);
@@ -28,7 +28,7 @@ public class TextMessageSerializer extends DynamicSerializer{
 
     @Override
     public void writeObject(GrowableByteBuffer buffer, Object object) throws IOException {
-        TextMessage message = (TextMessage) object;
+        TextDataMessage message = (TextDataMessage) object;
         String data = message.getData();
         if (data == null) throw new IOException("The message data is null");
         byte[] bytes = data.getBytes(StandardCharsets.UTF_8);

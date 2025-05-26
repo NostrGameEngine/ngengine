@@ -71,12 +71,7 @@ public class CompressedMessageSerializer extends DynamicSerializer {
             byte[] compressedData = new byte[length];
             data.get(compressedData);
 
-            // print compressed data
-            System.out.println("Compressed data:");
-            for (int i = 0; i < compressedData.length; i++) {
-                System.out.print(compressedData[i] + " ");
-            }
-            System.out.println();
+
 
             Inflater inflater = new Inflater();
             inflater.setInput(compressedData);
@@ -96,12 +91,6 @@ public class CompressedMessageSerializer extends DynamicSerializer {
             byte[] decompressedData = bos.toByteArray();
             ByteBuffer buffer = ByteBuffer.wrap(decompressedData,0, decompressedSize);
 
-            System.out.println("Decompressed data:");
-            for (int i = 0; i < decompressedSize; i++) {
-                System.out.print(buffer.get(i) + " ");
-            }
-            System.out.println();
-
             Message object = (Message) this.deserialize(buffer,Object.class); 
             CompressedMessage compressedMessage = new CompressedMessage(object);         
             return (T) compressedMessage;
@@ -120,12 +109,7 @@ public class CompressedMessageSerializer extends DynamicSerializer {
         this.serialize(object, tmp);
         tmp.flip();
 
-    
-        System.out.println("Uncompressed data:");   
-        for (int i = 0; i < tmp.limit(); i++) {
-            System.out.print(tmp.get(i) + " ");
-        }
-        System.out.println();
+
 
         Deflater deflater = new Deflater();
         byte[] inputBytes = new byte[tmp.limit()];
@@ -150,12 +134,7 @@ public class CompressedMessageSerializer extends DynamicSerializer {
         buffer.putInt(compressedData.length);
         buffer.put(compressedData);
 
-        // print compressed data
-        System.out.println("Compressed data:");
-        for (int i = 0; i < compressedData.length; i++) {
-            System.out.print(compressedData[i] + " ");
-        }
-        System.out.println();
+
 
      
 

@@ -7,6 +7,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
+import org.ngengine.nostr4j.keypair.NostrPrivateKey;
+import org.ngengine.nostr4j.nip49.Nip49;
+import org.ngengine.nostr4j.nip49.Nip49FailedException;
 
 
 public class Lobby implements Cloneable, Serializable{
@@ -32,10 +35,22 @@ public class Lobby implements Cloneable, Serializable{
         return id;
     }
 
-  
+    public boolean isOwnedByLocalPeer() {
+        return false;
+    }
 
-    public String getKey() {
-        return key;
+    public NostrPrivateKey getKey(String passphrase) throws Nip49FailedException {
+        if (Nip49.isEncrypted(key)) {
+            return Nip49.decryptSync(key, passphrase);
+        }
+        return NostrPrivateKey.fromBech32(key);
+    }
+
+    public NostrPrivateKey getKey() {
+        if (Nip49.isEncrypted(key)) {
+            throw new IllegalArgumentException("Key is encrypted, please provide a passphrase");
+        }
+        return NostrPrivateKey.fromBech32(key);
     }
 
     public boolean matches(String words[]){
@@ -67,6 +82,10 @@ public class Lobby implements Cloneable, Serializable{
         return data.get(key);
     }
 
+    public String getDataOrDefault(String key, String defaultValue) {
+        return data.getOrDefault(key, defaultValue);
+    }
+
     public Collection<String> getDataKeys() {
         return data.keySet();
     }
@@ -92,7 +111,7 @@ public class Lobby implements Cloneable, Serializable{
 
 
     public boolean isLocked(){
-        return !key.startsWith("nsec");
+        return Nip49.isEncrypted(key);
     }
 
 

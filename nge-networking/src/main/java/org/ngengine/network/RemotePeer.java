@@ -15,19 +15,19 @@ import com.jme3.network.Message;
 import com.jme3.network.Server;
 import com.jme3.network.base.MessageProtocol;
 
-public class RemotePlayer implements HostedConnection {
-    private static final Logger log = Logger.getLogger(RemotePlayer.class.getName());
+public class RemotePeer implements HostedConnection {
+    private static final Logger log = Logger.getLogger(RemotePeer.class.getName());
 
-    private final NetworkChannel server;
+    private final P2PChannel server;
     private final NostrRTCSocket socket;
     private final int id;
     private final Map<String,Object> sessionData = new ConcurrentHashMap<>();       
     private final MessageProtocol protocol;
 
-    RemotePlayer(
+    RemotePeer(
         int id,
         NostrRTCSocket socket,
-        NetworkChannel server,
+        P2PChannel server,
         MessageProtocol protocol
     ){
         this.socket = socket;      

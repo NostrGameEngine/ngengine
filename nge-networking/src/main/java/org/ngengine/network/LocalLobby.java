@@ -1,27 +1,47 @@
 package org.ngengine.network;
 
 import java.time.Instant;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 
-import org.ngengine.nostr4j.platform.Platform;
-import org.ngengine.nostr4j.utils.NostrUtils;
+import org.ngengine.platform.AsyncExecutor;
+import org.ngengine.platform.AsyncTask;
+import org.ngengine.platform.NGEPlatform;
+import org.ngengine.platform.NGEUtils;
 
 public class LocalLobby  extends Lobby {
-    private transient final LobbyManager lobbyList;
-    public LocalLobby(String roomId, String roomKey, String roomRawData, Instant expiration, LobbyManager lobbyList) {  
+    private static final Logger logger = Logger.getLogger(LocalLobby.class.getName());
+
+    private transient volatile boolean updateNeeded = false;
+
+    public LocalLobby(String roomId, String roomKey, String roomRawData, Instant expiration) {
         super(roomId, roomKey, roomRawData, expiration);
-        this.lobbyList = lobbyList;
+
+    }
+
+    @Override
+    public boolean isOwnedByLocalPeer() {
+        return true;
     }
     
     public void setData(String key, String value) throws Exception{
         super.setData(key, value);
-        Platform p = NostrUtils.getPlatform();
+        NGEPlatform p = NGEUtils.getPlatform();
         String rawData = p.toJSON(this.data);
         this.roomRawData = rawData;
-        lobbyList.updateLobby(this);
+        this.updateNeeded = true;
+
     }
     
     protected void setDataSilent(String key, String value) throws Exception {
         super.setData(key, value);
-    
+    }
+
+    protected boolean isUpdateNeeded() {
+        return updateNeeded;
+    }
+
+    protected void clearUpdateNeeded() {
+        this.updateNeeded = false;
     }
 }

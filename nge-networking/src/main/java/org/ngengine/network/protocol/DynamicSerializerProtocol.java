@@ -27,9 +27,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiFunction;
 import java.util.jar.Attributes;
 
-import org.ngengine.network.protocol.messages.ByteMessage;
+import org.ngengine.network.protocol.messages.ByteDataMessage;
 import org.ngengine.network.protocol.messages.CompressedMessage;
-import org.ngengine.network.protocol.messages.TextMessage;
+import org.ngengine.network.protocol.messages.TextDataMessage;
 import org.ngengine.network.protocol.serializers.BooleanSerializer;
 import org.ngengine.network.protocol.serializers.ByteBufferSerializer;
 import org.ngengine.network.protocol.serializers.ByteMessageSerializer;
@@ -53,6 +53,7 @@ import org.ngengine.network.protocol.serializers.NumberSerializer;
 import org.ngengine.network.protocol.serializers.QuaternionSerializer;
 import org.ngengine.network.protocol.serializers.StringSerializer;
 import org.ngengine.network.protocol.serializers.TextMessageSerializer;
+import org.ngengine.network.protocol.serializers.TransformSerializer;
 import org.ngengine.network.protocol.serializers.Vector2fSerializer;
 import org.ngengine.network.protocol.serializers.Vector3fSerializer;
 import org.ngengine.network.protocol.serializers.Vector4fSerializer;
@@ -66,6 +67,7 @@ import com.jme3.math.ColorRGBA;
 import com.jme3.math.Matrix3f;
 import com.jme3.math.Matrix4f;
 import com.jme3.math.Quaternion;
+import com.jme3.math.Transform;
 import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
 import com.jme3.math.Vector4f;
@@ -154,7 +156,8 @@ public class DynamicSerializerProtocol implements MessageProtocol {
             Vector2f.class,
             Vector3f.class,
             Vector4f.class, 
-            ColorRGBA.class,
+                Transform.class,
+                    ColorRGBA.class,
             Matrix3f.class,
             Matrix4f.class,
             Date.class,
@@ -251,11 +254,12 @@ public class DynamicSerializerProtocol implements MessageProtocol {
         registerSerializer(Matrix3f.class, new Matrix3fSerializer());
         registerSerializer(Matrix4f.class, new Matrix4fSerializer());
         registerSerializer(Quaternion.class, new QuaternionSerializer());
+        registerSerializer(Transform.class, new TransformSerializer());
 
         // messages               
         registerSerializer(Message.class, new GenericMessageSerializer(serializeFun, deserializeFun));
-        registerSerializer(TextMessage.class, new TextMessageSerializer());
-        registerSerializer(ByteMessage.class, new ByteMessageSerializer());
+        registerSerializer(TextDataMessage.class, new TextMessageSerializer());
+        registerSerializer(ByteDataMessage.class, new ByteMessageSerializer());
         registerSerializer(CompressedMessage.class,
                 new CompressedMessageSerializer(serializeFun, deserializeFun));
 
