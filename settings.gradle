@@ -7,9 +7,6 @@ rootProject.name = 'jmonkeyengine'
 include 'jme3-core'
 include 'jme3-effects'
 include 'jme3-networking'
-include 'nge-networking'
-include 'nge-ui'
-include 'nge-demo-son'
 
 include 'jme3-plugins'
 include 'jme3-plugins-json'
@@ -47,3 +44,9 @@ if(buildAndroidExamples == "true"){
 }
 include 'jme3-screenshot-tests'
 
+// nge
+include 'nge-core'
+include 'nge-networking'
+include 'nge-lemur'
+include 'nge-ui'
+include 'nge-demo-son'
