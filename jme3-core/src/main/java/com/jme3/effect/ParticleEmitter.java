@@ -32,6 +32,8 @@
 package com.jme3.effect;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.jme3.bounding.BoundingBox;
 import com.jme3.effect.ParticleMesh.Type;
@@ -940,11 +942,45 @@ public class ParticleEmitter extends Geometry {
     }
 
     /**
+     * Instantly emits all the particles possible to be emitted, and returns a list of the emitted particles.
+     *
+     * @param particles
+     *            the list to which the emitted particles will be added.
+     * @return the list of emitted particles, which may be the same as the <code>particles</code> parameter,
+     *         or a new list if it was null.
+     */
+    public List<Particle> emitAllParticles(List<Particle> particles) {
+        return emitParticles(this.particles.length, particles);
+    }
+
+    /**
      * Instantly emits available particles, up to num.
      *
      * @param num the maximum number of particles to emit
      */
     public void emitParticles(int num) {
+        emitAndReturnParticles(num, null);
+    }
+
+    /**
+     * Instantly emits available particles, up to num, and returns a list of the emitted particles.
+     * 
+     * @param num
+     *            the maximum number of particles to emit
+     * @param particles
+     *            the list to which the emitted particles will be added.
+     * @return the list of emitted particles, which may be the same as the <code>particles</code> parameter,
+     *         or a new list if it was null.
+     */
+    public List<Particle> emitParticles(int num, List<Particle> particles) {
+        if (particles == null) {
+            particles = new ArrayList<>(num);
+        }
+        emitAndReturnParticles(num, particles);
+        return particles;
+    }
+
+    private void emitAndReturnParticles(int num, List<Particle> particles) {
         // Force world transform to update
         this.getWorldTransform();
 
@@ -966,13 +1002,14 @@ public class ParticleEmitter extends Geometry {
         }
 
         for (int i = 0; i < num; i++) {
-            if (emitParticle(min, max) == null)
-                break;
+            Particle p = emitParticle(min, max);
+            if (p == null) break;
+            if (particles != null) {
+                particles.add(p);
+            }
         }
-
         bbox.setMinMax(min, max);
         this.setBoundRefresh();
-
         vars.release();
     }
 
