@@ -11,7 +11,6 @@
 #define ENABLE_PBRLightingUtils_computeProbesContribution 1
 
 #import "Common/ShaderLib/module/pbrlighting/PBRLightingUtils.glsllib"
-#import "Common/ShaderLib/ColorUtils.glsl"
 
 #ifdef DEBUG_VALUES_MODE
     uniform int m_DebugValuesMode;
@@ -24,12 +23,6 @@ uniform vec3 g_CameraPosition;
     #import "Common/ShaderLib/MaterialFog.glsllib"
 #endif
 
-
-
-uniform vec3 m_HSVShift;
-
- 
-
 void main(){
     vec3 wpos = PBRLightingUtils_getWorldPosition();
     vec3 worldViewDir = normalize(g_CameraPosition - wpos);
@@ -39,15 +32,6 @@ void main(){
     
     // Read surface data from standard PBR matParams. (note: matParams are declared in 'PBRLighting.j3md' and initialized as uniforms in 'PBRLightingUtils.glsllib')
     PBRLightingUtils_readPBRSurface(surface);          
-
-
-    vec3 albedoRGB = surface.albedo.rgb;
-    vec3 albedoHSV = rgb2hsv(albedoRGB);
-    vec3 hsvShift = m_HSVShift; // 0.0-1.0 range
-    albedoHSV.r = fract(albedoHSV.r + hsvShift.r); // hue shift
-    albedoHSV.g = clamp(albedoHSV.g + hsvShift.g, 0.0, 1.0); // saturation shift
-    albedoHSV.b = clamp(albedoHSV.b + hsvShift.b, 0.0, 1.0); // value shift
-    surface.albedo.rgb = hsv2rgb(albedoHSV);
 
     //Calculate necessary variables from pbr surface prior to applying lighting. Ensure all texture/param reading and blending occurrs prior to this being called!
     PBRLightingUtils_calculatePreLightingValues(surface);
@@ -83,9 +67,4 @@ void main(){
     #ifdef DEBUG_VALUES_MODE
         gl_FragColor = PBRLightingUtils_getColorOutputForDebugMode(m_DebugValuesMode, vec4(gl_FragColor.rgba), surface);
     #endif   
-
-    #ifdef RENDER_REF
-        gl_FragColor.a = wPosition.y;
-
-    #endif
 }

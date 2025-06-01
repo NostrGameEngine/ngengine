@@ -155,18 +155,13 @@ MaterialDef PBR Lighting {
             //   5  - emissive
             //   6 - exposure
             //   7 - alpha
-
-
-
-        Boolean RenderRef
-        Vector3 HSVShift: 0.0 0.0 0.0
     }
 
     Technique {
         LightMode SinglePassAndImageBased
         
-        VertexShader GLSL330 GLSL300 :   Common/MatDefs/Light/PBRLighting.vert
-        FragmentShader GLSL330 GLSL300: Materials/PBR.frag
+        VertexShader GLSL300 GLSL150 GLSL110:   Common/MatDefs/Light/PBRLighting.vert
+        FragmentShader GLSL300 GLSL150 GLSL110: Common/MatDefs/Light/PBRLighting.frag
 
         WorldParameters {
             WorldViewProjectionMatrix
@@ -219,8 +214,6 @@ MaterialDef PBR Lighting {
             FOG_LINEAR : LinearFog
             FOG_EXP : ExpFog
             FOG_EXPSQ : ExpSqFog
-
-            RENDER_REF : RenderRef
         }
     }
 

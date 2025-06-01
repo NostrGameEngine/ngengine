@@ -1,5 +1,6 @@
 package org.ngengine.network;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -78,8 +79,9 @@ public class P2PChannel implements Server {
 
         this.rtcRoom = new NostrRTCRoom(
                 RTCSettings.DEFAULT,
-                    NostrTURNSettings.DEFAULT,
-            new NostrRTCLocalPeer(
+                // new NostrTURNSettings(NostrTURNSettings.CHUNK_LENGTH, NostrTURNSettings.PACKET_TIMEOUT,
+                        // NostrTURNSettings.MAX_LATENCY, Duration.ofMillis(10), NostrTURNSettings.TURN_KIND),
+                NostrTURNSettings.DEFAULT, new NostrRTCLocalPeer(
                 localSigner, 
                         RTCSettings.PUBLIC_STUN_SERVERS,
                         turnServer, 
@@ -99,7 +101,7 @@ public class P2PChannel implements Server {
 
         rtcRoom.addConnectionListener((peerKey, socket) -> {
             if (forceTurn) {
-                socket.useTURN(true);
+                socket.setForceTURN(true);
             }
             log.fine("New connection from: " + peerKey);
             RemotePeer connection = new RemotePeer(connections.size(), socket, this, protocol);
