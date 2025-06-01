@@ -2,7 +2,8 @@
 
 dependencies {
     api project(':jme3-core')
-     
+    api 'org.ngengine:nostr4j:0.0.0-SNAPSHOT'
+
 }
 
 javadoc {
