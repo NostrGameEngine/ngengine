@@ -56,6 +56,7 @@ import com.jme3.system.JmeContext.Type;
 import com.jme3.system.JmeSystem;
 import com.jme3.system.NanoTimer;
 import com.jme3.system.SystemListener;
+import com.jme3.system.SystemListenerAggregator;
 import com.jme3.system.Timer;
 import com.jme3.util.res.Resources;
 import java.net.MalformedURLException;
@@ -104,6 +105,7 @@ public class LegacyApplication implements Application, SystemListener {
     protected TouchInput touchInput;
     protected InputManager inputManager;
     protected AppStateManager stateManager;
+    protected SystemListenerAggregator systemListenerAggregator = new SystemListenerAggregator();
 
     protected AppProfiler prof;
 
@@ -506,7 +508,8 @@ public class LegacyApplication implements Application, SystemListener {
 
         logger.log(Level.FINE, "Starting application: {0}", getClass().getName());
         context = JmeSystem.newContext(settings, contextType);
-        context.setSystemListener(this);
+        systemListenerAggregator.addListener(this);
+        context.setSystemListener(systemListenerAggregator);
         context.create(waitFor);
     }
 
@@ -912,5 +915,15 @@ public class LegacyApplication implements Application, SystemListener {
      */
     public int getPrimaryDisplay() {
         return context.getPrimaryDisplay();
+    }
+
+    /**
+     * Returns the system listener aggregator for this application. This is used to attach multiple
+     * {@link SystemListener} instances to the application.
+     *
+     * @return the system listener aggregator
+     */
+    protected SystemListenerAggregator getSystemListeners() {
+        return systemListenerAggregator;
     }
 }
