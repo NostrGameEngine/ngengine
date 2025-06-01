@@ -717,7 +717,11 @@ public class LegacyApplication implements Application, SystemListener {
             }
             AudioRenderer audioRenderer = getAudioRenderer();
             if (audioRenderer != null) {
-                audioRenderer.resumeAll();
+                try {
+                    audioRenderer.resumeAll();
+                } catch (Exception e) {
+
+                }
             }
         }
     }
@@ -734,7 +738,10 @@ public class LegacyApplication implements Application, SystemListener {
             context.setAutoFlushFrames(false);
             AudioRenderer audioRenderer = getAudioRenderer();
             if (audioRenderer != null) {
-                audioRenderer.pauseAll();
+                try {
+                    audioRenderer.pauseAll();
+                } catch (Exception e) {
+                }
             }
         }
     }
