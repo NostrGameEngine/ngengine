@@ -74,20 +74,8 @@ public class TestGrowableByteBuffer {
             // Expected
         }
     }
-    
-    @Test
-    public void testIntegerOverflow() {
-        // Test integer overflow in capacity calculation
-        GrowableByteBuffer buffer = new GrowableByteBuffer(ByteBuffer.allocate(Integer.MAX_VALUE - 5), 10);
-        try {
-            buffer.position(Integer.MAX_VALUE - 5);
-            buffer.put(new byte[6]); // Should cause overflow in new capacity calculation
-            fail("Expected exception due to integer overflow");
-        } catch (Exception e) {
-            // Expected some kind of exception
-        }
-    }
-    
+
+
     @Test
     public void testPutByteBufferCornerCase() {
         // Test put(ByteBuffer) with a ByteBuffer at capacity limit

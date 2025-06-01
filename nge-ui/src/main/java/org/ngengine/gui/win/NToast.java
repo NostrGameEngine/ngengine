@@ -5,23 +5,10 @@ import java.time.Instant;
 
 import org.ngengine.gui.components.NIconButton;
 
-import com.jme3.math.ColorRGBA;
-import com.jme3.math.Vector3f;
-import com.jme3.terrain.noise.Color;
-import com.simsilica.lemur.Axis;
 import com.simsilica.lemur.Container;
-import com.simsilica.lemur.FillMode;
-import com.simsilica.lemur.HAlignment;
-import com.simsilica.lemur.Insets3f;
 import com.simsilica.lemur.Label;
-import com.simsilica.lemur.VAlignment;
 import com.simsilica.lemur.component.BorderLayout;
-import com.simsilica.lemur.component.BoxLayout;
 import com.simsilica.lemur.component.DynamicInsetsComponent;
-import com.simsilica.lemur.core.GuiControl;
-import com.simsilica.lemur.core.GuiControlListener;
-import com.simsilica.lemur.core.GuiLayout;
-import com.simsilica.lemur.core.GuiUpdateListener;
 import com.simsilica.lemur.style.ElementId;
 
 public class NToast extends Container   {

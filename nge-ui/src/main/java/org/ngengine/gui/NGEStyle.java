@@ -1,20 +1,11 @@
 package org.ngengine.gui;
 
 import java.util.List;
-import java.util.Map;
-
 import org.ngengine.DevMode;
 import org.ngengine.gui.components.NSVGIcon;
 
 import com.jme3.math.ColorRGBA;
-import com.jme3.math.FastMath;
 import com.jme3.math.Vector2f;
-import com.jme3.math.Vector3f;
-import com.jme3.scene.shape.Quad;
-import com.jme3.terrain.noise.Color;
-import com.simsilica.lemur.Button;
-import com.simsilica.lemur.Button.ButtonAction;
-import com.simsilica.lemur.Command;
 import com.simsilica.lemur.GuiGlobals;
 import com.simsilica.lemur.HAlignment;
 import com.simsilica.lemur.Insets3f;

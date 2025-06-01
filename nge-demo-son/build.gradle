@@ -1,19 +1,250 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'org.graalvm.buildtools.native' version '0.10.6'
+}
+
+group = 'org.ngengine.demo'       // ← Set this to your actual group ID
+version = '0.1.0-SNAPSHOT'        // ← Bump as needed
+
+repositories {
+    mavenCentral()
+    // If you publish some of these projects locally, you might also want:
+    // mavenLocal()
+}
  
+application {
+    // Newer Gradle prefers this block over the old `mainClassName` property
+    mainClass = 'org.ngengine.demo.son.SonGame'
+}
+
 dependencies {
     api 'org.ngengine:nge-platform-jvm:0.0.0-SNAPSHOT'
-     api project(':nge-core')
+    api project(':nge-core')
     api project(':jme3-desktop')
+    api project(':jme3-effects')
     api project(':jme3-lwjgl3')
     api project(':nge-networking')
     api project(':nge-ui')
     api project(':nge-auth')
     api project(':jme3-jbullet')
+    implementation project(':jme3-jogg')
+    implementation project(':jme3-plugins')
+    implementation project(':jme3-plugins-json')
+    implementation project(':jme3-plugins-json-gson')
     implementation 'org.sejda.imageio:webp-imageio:0.1.6'
 }
 
+// --------------------
+// Javadoc adjustments
+// --------------------
 javadoc {
     // Disable doclint for JDK8+.
-    if (JavaVersion.current().isJava8Compatible()){
+    if (JavaVersion.current().isJava8Compatible()) {
         options.addStringOption('Xdoclint:none', '-quiet')
+    }
+}
+
+// ------------------------------
+// GraalVM Native Image settings
+// ------------------------------
+graalvmNative {
+        toolchainDetection = true
+
+    // Enable metadata repository so that native plugins can look up annotation metadata
+    metadataRepository {
+        enabled = true
+    }
+
+    binaries {
+        main {
+            imageName = "${project.name}-${org.gradle.internal.os.OperatingSystem.current().getName().toLowerCase()}"
+            mainClass = 'org.ngengine.demo.son.SonGame'
+
+            buildArgs.addAll([
+                '--report-unsupported-elements-at-runtime',
+                '--install-exit-handlers',
+                '--add-exports=java.desktop/sun.awt=ALL-UNNAMED',
+                '--add-exports=java.desktop/sun.java2d=ALL-UNNAMED',
+                '--add-exports=java.base/sun.nio.ch=ALL-UNNAMED',
+                '-H:+ReportExceptionStackTraces',
+                '-H:+PrintClassInitialization',
+                '--initialize-at-run-time=' + file("${project.projectDir}/graal.initialize-at-runtime.conf").text.split('\n').join(','),
+                '--no-server',
+                '--enable-url-protocols=http,https,file',
+                '--link-at-build-time',
+                '-H:+UnlockExperimentalVMOptions',
+                '--enable-native-access=ALL-UNNAMED',
+                '-H:+StaticExecutableWithDynamicLibC', 
+                '--gc=G1',
+                '-march=compatibility',
+                '-Djava.awt.headless=false',
+                '-H:IncludeResources=.*',
+                '-H:Name=' + "songame-${org.gradle.internal.os.OperatingSystem.current().getName().toLowerCase()}",
+                "-H:ConfigurationFileDirectories=${project.projectDir}/trace"
+
+            ])
+
+      
+            sharedLibrary = false
+
+       
+        }
+    }
+}
+
+task createPgoProfile(type: JavaExec) {
+    mainClass = 'org.ngengine.demo.son.SonGame'
+    classpath = sourceSets.main.runtimeClasspath
+    
+    jvmArgs = [
+        '-XX:+UnlockExperimentalVMOptions',
+        '-XX:+EnableJVMCI',
+        '-XX:+UseJVMCICompiler',
+        '-Dgraal.PGOInstrument=graal.iprof', 
+        '-Djava.awt.headless=false'
+    ]
+    
+    doFirst {
+        println "Creating PGO profile..."
+        println "Exercise ALL features thoroughly!"
+        println "Profile saved to: graal.iprof"
+    }
+}
+ task traceReflection(type: JavaExec) {
+    group = 'graalvm'
+    description = 'Trace reflection and resource usage'
+
+    mainClass = 'org.ngengine.demo.son.SonGame'
+    classpath = sourceSets.main.runtimeClasspath
+
+    // Both output and merge directories - this is key!
+    jvmArgs = [
+        "-agentlib:native-image-agent=config-merge-dir=${project.projectDir}/trace",
+        '-Djava.awt.headless=false'
+    ]
+
+    systemProperty 'java.awt.headless', 'false'
+    systemProperty 'testMode', 'true'
+
+    doFirst {
+        println "Tracing to: ${project.projectDir}/trace"
+        println "Run the application and exercise ALL features:"
+        println "- Load different asset types (textures, models, sounds)"
+        println "- Use UI components"
+        println "- Trigger network operations"
+        println "- Test different game states"
+        println "Then close the application normally."
+    }
+
+    doLast {
+        println "Tracing complete! Generated/updated files:"
+        fileTree("${project.projectDir}/trace").each { file ->
+            if (file.isFile()) {
+                println "  - ${file.name} (${file.length()} bytes)"
+            }
+        }
+    }
+}
+
+// -----------------------------------------
+// Task: build “nativeCompile” for this OS
+// -----------------------------------------
+task buildNativeExecutable {
+    group = 'graalvm'
+    description = 'Build native executable for current platform'
+    dependsOn 'nativeCompile'  // Provided by the GraalVM plugin
+
+    doLast {
+        def buildDirNative = "${project.buildDir}/native/nativeCompile"
+        def executableName = graalvmNative.binaries.main.imageName.get()
+
+        if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
+            executableName += '.exe'
+        }
+
+        println "Native executable built: ${buildDirNative}/${executableName}"
+    }
+}
+
+// … (everything up to and including buildNativeExecutable) …
+
+// --------------------------------------------------------
+// Cross‑compilation: build Windows executable via Docker
+// --------------------------------------------------------
+task buildWindowsExecutable(type: Exec) {
+    group = 'graalvm'
+    description = 'Build Windows executable (requires Docker & GraalVM cross‑compile image)'
+    workingDir = project.projectDir
+
+    // If you are on Linux, configure Docker → GraalVM to cross‑compile for Windows.
+    if (org.gradle.internal.os.OperatingSystem.current().isLinux()) {
+        commandLine(
+            'docker', 'run', '--rm',
+            '-v', "${project.projectDir}:/workspace",
+            '-v', "${gradle.gradleUserHomeDir}:/gradle-cache",
+            'ghcr.io/graalvm/native-image-community:24-ol9',
+            'sh', '-c', """
+                cd /workspace && \
+                ./gradlew nativeCompile -Dgraalvm.target=windows
+            """
+        )
+    } else {
+        // On non‑Linux hosts just emit a warning
+        commandLine 'echo', 'Cross‑compilation to Windows is only supported on Linux hosts in this script.'
+    }
+
+    doFirst {
+        if (!org.gradle.internal.os.OperatingSystem.current().isLinux()) {
+            println("WARNING: You are not running Linux. This task will only echo a message rather than actually cross‑compile.")
+        }
+    }
+}
+
+// --------------------------------------------------------
+// Cross‑compilation: build Linux executable via Docker
+// --------------------------------------------------------
+task buildLinuxExecutable(type: Exec) {
+    group = 'graalvm'
+    description = 'Build Linux executable (requires Docker & GraalVM cross‑compile image)'
+    workingDir = project.projectDir
+
+    // If you are on Windows, configure Docker → GraalVM to cross‑compile for Linux.
+    if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
+        commandLine(
+            'docker', 'run', '--rm',
+            '-v', "${project.projectDir}:/workspace",
+            '-v', "${gradle.gradleUserHomeDir}:/gradle-cache",
+            'ghcr.io/graalvm/native-image-community:24-ol9',
+            'sh', '-c', """
+                cd /workspace && \
+                ./gradlew nativeCompile -Dgraalvm.target=linux
+            """
+        )
+    } else {
+        // On non‑Windows hosts just emit a warning
+        commandLine 'echo', 'Already on Linux (or macOS). Use the buildNativeExecutable task instead.'
+    }
+
+    doFirst {
+        if (!org.gradle.internal.os.OperatingSystem.current().isWindows()) {
+            println("NOTE: You are not on Windows. The Linux executable can already be built with buildNativeExecutable.")
+        }
+    }
+}
+
+// --------------------------------------------------------
+// Convenience task: build for all platforms
+// --------------------------------------------------------
+task buildAllPlatforms {
+    group = 'graalvm'
+    description = 'Build executables for all platforms (host + cross‑compile)'
+
+    if (org.gradle.internal.os.OperatingSystem.current().isLinux()) {
+        dependsOn 'buildNativeExecutable', 'buildWindowsExecutable'
+    } else if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
+        dependsOn 'buildNativeExecutable', 'buildLinuxExecutable'
+    } else {
+        dependsOn 'buildNativeExecutable'
     }
 }

@@ -1,0 +1,362 @@
+[
+{
+  "name":"[Lcom.jme3.app.state.AppState;"
+},
+{
+  "name":"[Lcom.jme3.app.state.ConstantVerifierState$Checker;"
+},
+{
+  "name":"[Lcom.jme3.input.RawInputListener;"
+},
+{
+  "name":"[Lcom.jme3.material.MatParamOverride;"
+},
+{
+  "name":"[Lcom.jme3.scene.Spatial;"
+},
+{
+  "name":"[Lcom.jme3.scene.VertexBuffer;"
+},
+{
+  "name":"[Lcom.jme3.scene.control.Control;"
+},
+{
+  "name":"[Ljava.awt.event.MouseMotionListener;"
+},
+{
+  "name":"com.jme3.asset.cache.SimpleAssetCache",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.jme3.asset.cache.WeakRefCloneAssetCache",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.jme3.asset.plugins.ClasspathLocator",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.jme3.audio.lwjgl.LwjglAL",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.jme3.audio.lwjgl.LwjglALC",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.jme3.audio.lwjgl.LwjglEFX",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.jme3.audio.plugins.OGGLoader"
+},
+{
+  "name":"com.jme3.audio.plugins.WAVLoader"
+},
+{
+  "name":"com.jme3.cursors.plugins.CursorLoader"
+},
+{
+  "name":"com.jme3.export.binary.BinaryLoader"
+},
+{
+  "name":"com.jme3.font.plugins.BitmapFontLoader",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.jme3.material.TechniqueDef",
+  "methods":[{"name":"clone","parameterTypes":[] }]
+},
+{
+  "name":"com.jme3.material.logic.DefaultTechniqueDefLogic",
+  "methods":[{"name":"<init>","parameterTypes":["com.jme3.material.TechniqueDef"] }]
+},
+{
+  "name":"com.jme3.material.plugins.J3MLoader",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.jme3.material.plugins.ShaderNodeDefinitionLoader"
+},
+{
+  "name":"com.jme3.math.ColorRGBA",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.jme3.scene.plugins.MTLLoader"
+},
+{
+  "name":"com.jme3.scene.plugins.OBJLoader"
+},
+{
+  "name":"com.jme3.scene.plugins.fbx.FbxLoader"
+},
+{
+  "name":"com.jme3.scene.plugins.gltf.BinLoader"
+},
+{
+  "name":"com.jme3.scene.plugins.gltf.GlbLoader"
+},
+{
+  "name":"com.jme3.scene.plugins.gltf.GltfLoader"
+},
+{
+  "name":"com.jme3.scene.plugins.ogre.MaterialLoader"
+},
+{
+  "name":"com.jme3.scene.plugins.ogre.MeshLoader"
+},
+{
+  "name":"com.jme3.scene.plugins.ogre.SceneLoader"
+},
+{
+  "name":"com.jme3.scene.plugins.ogre.SkeletonLoader"
+},
+{
+  "name":"com.jme3.shader.plugins.GLSLLoader",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.jme3.system.JmeDesktopSystem",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.jme3.system.JmeDialogsFactoryImpl",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.jme3.system.lwjgl.LwjglDisplay",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.jme3.texture.TextureProcessor",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.jme3.texture.plugins.AWTLoader",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.jme3.texture.plugins.DDSLoader"
+},
+{
+  "name":"com.jme3.texture.plugins.HDRLoader"
+},
+{
+  "name":"com.jme3.texture.plugins.PFMLoader"
+},
+{
+  "name":"com.jme3.texture.plugins.TGALoader"
+},
+{
+  "name":"com.jme3.util.LWJGLBufferAllocator$ConcurrentLWJGLBufferAllocator",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.sun.org.apache.xalan.internal.xsltc.trax.TransformerFactoryImpl",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.sun.org.apache.xerces.internal.jaxp.DocumentBuilderFactoryImpl",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"java.awt.SequencedEvent"
+},
+{
+  "name":"java.awt.event.KeyEvent",
+  "fields":[
+    {"name":"VK_A"}, 
+    {"name":"VK_BACK_SLASH"}, 
+    {"name":"VK_BACK_SPACE"}, 
+    {"name":"VK_C"}, 
+    {"name":"VK_CONTEXT_MENU"}, 
+    {"name":"VK_COPY"}, 
+    {"name":"VK_CUT"}, 
+    {"name":"VK_DELETE"}, 
+    {"name":"VK_DOWN"}, 
+    {"name":"VK_END"}, 
+    {"name":"VK_ENTER"}, 
+    {"name":"VK_ESCAPE"}, 
+    {"name":"VK_F10"}, 
+    {"name":"VK_H"}, 
+    {"name":"VK_HOME"}, 
+    {"name":"VK_INSERT"}, 
+    {"name":"VK_KP_DOWN"}, 
+    {"name":"VK_KP_LEFT"}, 
+    {"name":"VK_KP_RIGHT"}, 
+    {"name":"VK_KP_UP"}, 
+    {"name":"VK_LEFT"}, 
+    {"name":"VK_O"}, 
+    {"name":"VK_PAGE_DOWN"}, 
+    {"name":"VK_PAGE_UP"}, 
+    {"name":"VK_PASTE"}, 
+    {"name":"VK_RIGHT"}, 
+    {"name":"VK_SLASH"}, 
+    {"name":"VK_SPACE"}, 
+    {"name":"VK_UP"}, 
+    {"name":"VK_V"}, 
+    {"name":"VK_X"}
+  ]
+},
+{
+  "name":"java.nio.Buffer",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.ByteBuffer",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.DirectByteBuffer",
+  "allDeclaredFields":true,
+  "unsafeAllocated":true
+},
+{
+  "name":"java.nio.DirectCharBufferU",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.DirectDoubleBufferU",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.DirectFloatBufferU",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.DirectIntBufferU",
+  "allDeclaredFields":true,
+  "unsafeAllocated":true
+},
+{
+  "name":"java.nio.DirectLongBufferU",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.DirectShortBufferU",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.MappedByteBuffer",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.security.AccessController"
+},
+{
+  "name":"java.security.MessageDigestSpi"
+},
+{
+  "name":"javax.imageio.spi.ImageReaderSpi"
+},
+{
+  "name":"javax.imageio.spi.ImageReaderWriterSpi",
+  "methods":[
+    {"name":"getFileSuffixes","parameterTypes":[] }, 
+    {"name":"getFormatNames","parameterTypes":[] }, 
+    {"name":"getMIMETypes","parameterTypes":[] }
+  ]
+},
+{
+  "name":"javax.imageio.spi.ImageWriterSpi"
+},
+{
+  "name":"javax.swing.plaf.basic.BasicListUI",
+  "methods":[{"name":"createUI","parameterTypes":["javax.swing.JComponent"] }]
+},
+{
+  "name":"javax.swing.plaf.basic.BasicPanelUI",
+  "methods":[{"name":"createUI","parameterTypes":["javax.swing.JComponent"] }]
+},
+{
+  "name":"javax.swing.plaf.basic.BasicPopupMenuUI",
+  "methods":[{"name":"createUI","parameterTypes":["javax.swing.JComponent"] }]
+},
+{
+  "name":"javax.swing.plaf.basic.BasicRootPaneUI",
+  "methods":[{"name":"loadActionMap","parameterTypes":["javax.swing.plaf.basic.LazyActionMap"] }]
+},
+{
+  "name":"javax.swing.plaf.basic.BasicViewportUI",
+  "methods":[{"name":"createUI","parameterTypes":["javax.swing.JComponent"] }]
+},
+{
+  "name":"javax.swing.plaf.metal.MetalButtonUI",
+  "methods":[{"name":"createUI","parameterTypes":["javax.swing.JComponent"] }]
+},
+{
+  "name":"javax.swing.plaf.metal.MetalCheckBoxUI",
+  "methods":[{"name":"createUI","parameterTypes":["javax.swing.JComponent"] }]
+},
+{
+  "name":"javax.swing.plaf.metal.MetalComboBoxUI",
+  "methods":[{"name":"createUI","parameterTypes":["javax.swing.JComponent"] }]
+},
+{
+  "name":"javax.swing.plaf.metal.MetalLabelUI",
+  "methods":[{"name":"createUI","parameterTypes":["javax.swing.JComponent"] }]
+},
+{
+  "name":"javax.swing.plaf.metal.MetalRootPaneUI",
+  "methods":[{"name":"createUI","parameterTypes":["javax.swing.JComponent"] }]
+},
+{
+  "name":"javax.swing.plaf.metal.MetalScrollBarUI",
+  "methods":[{"name":"createUI","parameterTypes":["javax.swing.JComponent"] }]
+},
+{
+  "name":"javax.swing.plaf.metal.MetalScrollPaneUI",
+  "methods":[{"name":"createUI","parameterTypes":["javax.swing.JComponent"] }]
+},
+{
+  "name":"javax.swing.plaf.metal.MetalTextFieldUI",
+  "methods":[{"name":"createUI","parameterTypes":["javax.swing.JComponent"] }]
+},
+{
+  "name":"org.lwjgl.system.CallbackI",
+  "methods":[{"name":"callback","parameterTypes":["long","long"] }]
+},
+{
+  "name":"org.lwjgl.system.CustomBuffer",
+  "fields":[
+    {"name":"capacity"}, 
+    {"name":"container"}, 
+    {"name":"limit"}, 
+    {"name":"mark"}, 
+    {"name":"position"}
+  ]
+},
+{
+  "name":"org.lwjgl.system.Pointer$Default",
+  "fields":[{"name":"address"}]
+},
+{
+  "name":"org.lwjgl.system.jemalloc.JEmallocAllocator",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"sun.awt.X11.XToolkit",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"sun.awt.X11FontManager",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"sun.awt.X11GraphicsEnvironment",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"sun.java2d.marlin.DMarlinRenderingEngine",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"sun.misc.Unsafe",
+  "allDeclaredFields":true
+},
+{
+  "name":"sun.security.provider.SHA",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+}
+]

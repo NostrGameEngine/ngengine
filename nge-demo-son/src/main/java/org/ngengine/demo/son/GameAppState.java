@@ -278,19 +278,19 @@ public class GameAppState extends NGEAppState implements ConnectionListener, Mes
             Node playerSpatial = (Node)assetManager.loadModel("Models/boat/boat.gltf");
             playerSpatial.addControl(new BoatAnimationControl());
 
-            playerSpatial.depthFirstTraversal(sx -> {
-                if (sx instanceof Geometry) {
-                    Material mat = ((Geometry) sx).getMaterial();
-                    Material newMat = new Material(assetManager, "Materials/PBR.j3md");
-                    for (MatParam matParam : mat.getParams()) {
-                        newMat.setParam(matParam.getName(), matParam.getVarType(), matParam.getValue());
-                    }
-                    newMat.getAdditionalRenderState().set(mat.getAdditionalRenderState());
-                    sx.setMaterial(newMat);
-                    DevMode.registerForReload(newMat);
+            // playerSpatial.depthFirstTraversal(sx -> {
+            // if (sx instanceof Geometry) {
+            // Material mat = ((Geometry) sx).getMaterial();
+            // Material newMat = new Material(assetManager, "Materials/PBR.j3md");
+            // for (MatParam matParam : mat.getParams()) {
+            // newMat.setParam(matParam.getName(), matParam.getVarType(), matParam.getValue());
+            // }
+            // newMat.getAdditionalRenderState().set(mat.getAdditionalRenderState());
+            // sx.setMaterial(newMat);
+            // DevMode.registerForReload(newMat);
 
-                }
-            });
+            // }
+            // });
             playerSpatial.setShadowMode(ShadowMode.CastAndReceive);
 
             Consumer<Spatial> applyPlayerTexture = (flag) -> {

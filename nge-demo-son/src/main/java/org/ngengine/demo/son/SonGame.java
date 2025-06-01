@@ -55,7 +55,7 @@ public class SonGame extends SimpleApplication {
         assetManager.registerLoader(WebpImageLoader.class, "webp");
 
         flyCam.setEnabled(false);
-        setLostFocusBehavior(LostFocusBehavior.ThrottleOnLostFocus);
+        setLostFocusBehavior(LostFocusBehavior.Disabled);
 
         assetManager.registerLoader(SVGLoader.class, "svg");
         GuiGlobals.initialize(this);
@@ -158,7 +158,7 @@ public class SonGame extends SimpleApplication {
     public static void main(String[] args) throws InterruptedException {
 
         AppSettings settings = new AppSettings(true);
-        settings.setRenderer(AppSettings.LWJGL_OPENGL40);
+        settings.setRenderer(AppSettings.LWJGL_OPENGL32);
         settings.setWidth(1280);
         settings.setHeight(720);
         settings.setGammaCorrection(true);

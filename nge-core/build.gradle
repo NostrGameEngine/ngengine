@@ -3,6 +3,8 @@
 dependencies {
     api project(':jme3-core')
     api 'org.ngengine:nostr4j:0.0.0-SNAPSHOT'
+    implementation 'org.ngengine:nge-platform-common:0.0.0-SNAPSHOT'
+    api "org.ngengine:nge-platform-common:0.0.0-SNAPSHOT"
 
 }
 

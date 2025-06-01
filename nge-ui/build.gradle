@@ -5,7 +5,8 @@ dependencies {
     api project(':nge-core')
     implementation project(':nge-networking')
     implementation 'com.formdev:svgSalamander:1.1.4'
- 
+    implementation project(':jme3-desktop')
+
 }
 
 javadoc {
