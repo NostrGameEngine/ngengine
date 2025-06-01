@@ -120,20 +120,7 @@ public class NWindowManagerAppState extends BaseAppState {
                 for (NWindow window : windowsStack) {
                     window.removeFromParent();
                 }
-                int windowWidth = (int) ((float) width * 0.6f);
-                int windowHeight = (int) ((float) height * 0.6f);
-                if (windowWidth < 800) {
-                    windowWidth = 800;
-                }
-                if (windowHeight < 600) {
-                    windowHeight = 600;
-                }
-                if (windowWidth > width) {
-                    windowWidth = width;
-                }
-                if (windowHeight > height) {
-                    windowHeight = height;
-                }
+
 
                 Consumer<NWindow<?>> backAction = null;
 

@@ -46,7 +46,6 @@ public class FocusGuardAppState extends NGEAppState implements SystemListener, R
 
     @Override
     public void update() {
-        
         if(readyToLoseFocus){
             setFocus(false);
             readyToLoseFocus = false;

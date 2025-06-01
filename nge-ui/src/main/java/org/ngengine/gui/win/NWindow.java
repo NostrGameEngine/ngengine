@@ -39,7 +39,10 @@ public abstract class NWindow<T> extends Container implements GuiUpdateListener,
     private boolean center = true;
  
     private boolean fitContent = true;
+    private boolean fullscreen = false;
+    private boolean withTitleBar = true;
     private T args;
+
 
     private final List<NWindowListener> closeListeners = new CopyOnWriteArrayList<>();
 
@@ -49,6 +52,29 @@ public abstract class NWindow<T> extends Container implements GuiUpdateListener,
 
     protected NWindow(GuiLayout layout, ElementId id){
         super(layout, id);
+    }
+
+    public void setFullscreen(boolean fullscreen) {
+        this.fullscreen = fullscreen;
+        invalidate();
+    }
+
+    public boolean isFullscreen() {
+        return fullscreen;
+    }
+
+    public boolean isWithTitleBar() {
+        return withTitleBar;
+    }
+
+    public void setWithTitleBar(boolean withTitleBar) {
+        this.withTitleBar = withTitleBar;
+        if (withTitleBar) {
+            addChild(titleBar, BorderLayout.Position.North);
+        } else {
+            titleBar.removeFromParent();
+        }
+        invalidate();
     }
 
     protected NWindow(  ElementId id) {
@@ -208,13 +234,20 @@ public abstract class NWindow<T> extends Container implements GuiUpdateListener,
         }
 
         if (!fitContent) {
-            int w = getManager().getWidth() / 2;
-            int h = getManager().getHeight() / 2;
+            int w, h;
+            if (fullscreen) {
+                w = getManager().getWidth();
+                h = getManager().getHeight();
+            } else {
+                w = (int) (getManager().getWidth() * 0.8);
+                h = (int) (getManager().getHeight() * 0.8);
+                if (w == getManager().getWidth()) w -= 2;
+                if (h == getManager().getHeight()) h -= 2;
+            }
             if (w < 800) w = 800;
             if (h < 600) h = 600;
             if (w > getManager().getWidth()) w = getManager().getWidth();
             if (h > getManager().getHeight()) h = getManager().getHeight();
-
             setPreferredSize(new Vector3f(w, h, 0));
         } else {
             setPreferredSize(null);

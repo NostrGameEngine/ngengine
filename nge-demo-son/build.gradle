@@ -8,6 +8,7 @@ dependencies {
     api project(':nge-ui')
     api project(':nge-auth')
     api project(':jme3-jbullet')
+    implementation 'org.sejda.imageio:webp-imageio:0.1.6'
 }
 
 javadoc {

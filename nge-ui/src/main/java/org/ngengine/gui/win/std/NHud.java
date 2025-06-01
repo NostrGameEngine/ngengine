@@ -1,10 +1,13 @@
 package org.ngengine.gui.win.std;
 
+import org.ngengine.gui.NGEStyle;
 import org.ngengine.gui.components.containers.NColumn;
 import org.ngengine.gui.components.containers.NPanel;
 import org.ngengine.gui.components.containers.NRow;
 import org.ngengine.gui.win.NWindow;
 
+import com.jme3.math.ColorRGBA;
+import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
 import com.simsilica.lemur.FillMode;
 import com.simsilica.lemur.component.BorderLayout;
@@ -78,19 +81,15 @@ public class NHud extends NWindow<Void> {
     @Override
     protected void preCompose(Vector3f size, Void args) throws Throwable {
         if(!initialized){
-        
-
-        
-
-
-            
-            
 
             initialize(size);
             initialized = true;
         }
+        setFullscreen(true);
         setFitContent(false);
-        setSize(size);
+        setWithTitleBar(false);
+        // setCenter(false);
+        setPreferredSize(new Vector3f(getManager().getWidth(), 0f, getManager().getHeight()));
 
         NPanel content = getContent();
         content.addChild(top, BorderLayout.Position.North);

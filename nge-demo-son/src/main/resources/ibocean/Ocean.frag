@@ -57,9 +57,9 @@ void main() {
      
 
         float time = g_Time;
-        vec3 deepColor = vec3(35.0/255.0,0.0,110/255.0); // Deep ocean color
+        vec3 deepColor = vec3(35.0/255.0,0.0,110/255.0)*0.6; // Deep ocean color
         
-        vec3 shallowColor = vec3(75.0/255.0,0.3,130/255.0)*6.0;  
+        vec3 shallowColor = vec3(75.0/255.0,0.3,130/255.0)*3.0;  
         vec3 foamColor = vec3(1.15, 1.13, 1.10);    
 
         vec3 wViewDir = normalize(g_CameraPosition - wpos);
@@ -133,7 +133,7 @@ void main() {
             m_ReflViewProj,
             wpos,
             finalNormal,
-               0.0
+               0.01
 
         );
         float reflectionFactor = reflection.a;
@@ -142,7 +142,7 @@ void main() {
 
        
  
-        surface.envLightContribution = mix(surface.envLightContribution, reflection.rgb,  reflectionFactor*0.5);
+        surface.envLightContribution = mix(surface.envLightContribution, reflection.rgb,  reflectionFactor*0.3);
 
         outFragColor.rgb = vec3(0.0);
         outFragColor.rgb += surface.bakedLightContribution;

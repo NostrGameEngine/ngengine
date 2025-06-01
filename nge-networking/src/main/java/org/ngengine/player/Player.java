@@ -284,7 +284,7 @@ public class Player {
             int c = Math.abs(this.pubkey.asBech32().hashCode())%5;
             image = (Texture2D) assetManager.loadTexture("defaultPlayerImages/"+c+".png");
             image.setMagFilter(Texture2D.MagFilter.Bilinear);
-            image.setMinFilter(Texture2D.MinFilter.BilinearNoMipMaps);
+            image.setMinFilter(Texture2D.MinFilter.Trilinear);
             image.setWrap(Texture2D.WrapMode.EdgeClamp);           
         }
         return image;

@@ -374,6 +374,7 @@ public class GameAppState extends NGEAppState implements ConnectionListener, Mes
                 chaseCam.setMinDistance(100f);
                 chaseCam.setMaxDistance(400f);
                 chaseCam.setTrailingEnabled(false);
+                chaseCam.setMinVerticalRotation(0.2f);
 
                 chaseCam.setDragToRotate(false);
 
