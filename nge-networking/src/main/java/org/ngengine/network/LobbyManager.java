@@ -48,6 +48,7 @@ public class LobbyManager implements Closeable {
     private final ArrayList<WeakReference<Lobby>> trackedLobbies = new ArrayList<>();
     private final Runner dispatcher;
     private volatile boolean closed = false;
+    private boolean forceTurn = false;
 
     private transient Boolean isSearchSupported;
 
@@ -91,6 +92,10 @@ public class LobbyManager implements Closeable {
 
         update();
 
+    }
+
+    public void setForceTurn(boolean forceTurn) {
+        this.forceTurn = forceTurn;
     }
 
     protected void update() {
@@ -384,6 +389,7 @@ public class LobbyManager implements Closeable {
 
         P2PChannel conn = new P2PChannel(this.localSigner, this.gameName, this.gameVersion, privKey,
                 turnServer, this.masterServersPool, lobby, dispatcher);
+        conn.setForceTurn(forceTurn);
         conn.start();
         return conn;        
     }

@@ -53,9 +53,9 @@ public class P2PChannel implements Server {
     private final NostrSigner localSigner;
     private final NostrPool masterServersPool;
     private final NostrRTCRoom rtcRoom;
-
     private final Lobby lobby;
 
+    private boolean forceTurn = false; // If true, all connections will use TURN servers
     private Runner dispatcher;
 
     public P2PChannel(
@@ -98,6 +98,9 @@ public class P2PChannel implements Server {
         });
 
         rtcRoom.addConnectionListener((peerKey, socket) -> {
+            if (forceTurn) {
+                socket.useTURN(true);
+            }
             log.fine("New connection from: " + peerKey);
             RemotePeer connection = new RemotePeer(connections.size(), socket, this, protocol);
             connections.put(connection.getId(), connection);
@@ -151,6 +154,10 @@ public class P2PChannel implements Server {
 
     public NostrSigner getLocalSigner() {
         return localSigner;
+    }
+
+    public void setForceTurn(boolean forceTurn) {
+        this.forceTurn = forceTurn;
     }
 
     protected void updatePlayerCount() {     
