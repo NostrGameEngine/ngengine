@@ -1,0 +1,15 @@
+
+
+dependencies {
+    api project(':nge-core')
+    api project(':nge-ui')
+    implementation project(':nge-networking')
+ 
+}
+
+javadoc {
+    // Disable doclint for JDK8+.
+    if (JavaVersion.current().isJava8Compatible()){
+        options.addStringOption('Xdoclint:none', '-quiet')
+    }
+}
