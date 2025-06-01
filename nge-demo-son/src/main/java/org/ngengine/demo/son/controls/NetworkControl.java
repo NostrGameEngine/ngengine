@@ -11,6 +11,7 @@ import java.util.logging.Logger;
 import org.ngengine.demo.son.GameAppState;
 import org.ngengine.demo.son.packets.AnimPacket;
 import org.ngengine.demo.son.packets.TransformPacket;
+import org.ngengine.network.RemotePeer;
 
 import com.jme3.asset.AssetManager;
 import com.jme3.bounding.BoundingBox;
@@ -100,13 +101,24 @@ public class NetworkControl extends AbstractControl {
 
         long now = Instant.now().toEpochMilli();
         
-        double minRate = NETSYNC_MIN_RATE;
-        double maxRate = NETSYNC_MAX_RATE;
+        double baseMinRate = NETSYNC_MIN_RATE;
+        double baseMmaxRate = NETSYNC_MAX_RATE;
         double maxDistance = MAX_D;
  
         
         for (Map.Entry<HostedConnection,Spatial> p : peers) {
             try {
+                double maxRate = baseMmaxRate;
+                double minRate = baseMinRate;
+
+                if (p.getKey() instanceof RemotePeer) {
+                    RemotePeer peer = (RemotePeer) p.getKey();
+                    if (peer.getSocket().isUsingTURN()) {
+                        minRate = 1000.0;
+                        maxRate = 1000.0 / 15.0;
+                    }
+                }
+
                 Vector3f pPos = p.getValue().getWorldTranslation();
                 float dist = pPos.distance(localTransform.getTranslation());
                 double scale = Math.clamp((double)(dist / maxDistance), 0.0, 1.0);
