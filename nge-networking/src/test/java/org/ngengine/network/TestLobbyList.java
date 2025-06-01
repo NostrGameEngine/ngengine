@@ -17,6 +17,8 @@ import org.ngengine.nostr4j.keypair.NostrPublicKey;
 import org.ngengine.nostr4j.rtc.listeners.NostrRTCRoomPeerDiscoveredListener.NostrRTCRoomPeerDiscoveredState;
 import org.ngengine.nostr4j.rtc.signal.NostrRTCAnnounce;
 import org.ngengine.nostr4j.signer.NostrKeyPairSigner;
+import org.ngengine.platform.AsyncTask;
+import org.ngengine.platform.NGEPlatform;
 
 import com.jme3.network.AbstractMessage;
 import com.jme3.network.ConnectionListener;
@@ -37,15 +39,15 @@ public class TestLobbyList {
             List.of("wss://nostr.rblb.it"),
                 "wss://nostr.rblb.it");
 
-        List<Lobby> lobbies = lobbyList.listLobbies("", 100, null).await();
+        List<Lobby> lobbies = listLobbies(lobbyList, "", 100, null).await();
         assertEquals(lobbies.size(), 0);
 
-        Lobby lobby = lobbyList.createLobby("", Map.of("test", "test123"), Duration.ofHours(1)).await();
+        Lobby lobby = createLobby(lobbyList, "", Map.of("test", "test123"), Duration.ofHours(1)).await();
         System.out.println("Lobby created: " + lobby);
 
         assertTrue(lobby.getId().length() > 0);
 
-        lobbies = lobbyList.listLobbies("", 100, null).await();
+        lobbies = listLobbies(lobbyList, "", 100, null).await();
         assertEquals(lobbies.size(), 1);
 
         System.out.println("Found lobby: " + lobbies.get(0));
@@ -56,6 +58,7 @@ public class TestLobbyList {
     }
 
  
+
     @Test 
     public void testDiscover() throws Exception{    
         String gameName = "test-discover"+Math.random();
@@ -78,7 +81,8 @@ public class TestLobbyList {
                     gameName , gameVersion , List.of("wss://nostr.rblb.it"),
                     "wss://nostr.rblb.it");
 
-            LocalLobby lobby = mng.createLobby("abc", Map.of("test", "test123"), Duration.ofHours(1)).await();
+            LocalLobby lobby = (LocalLobby) createLobby(mng, "abc", Map.of("test", "test123"),
+                    Duration.ofHours(1)).await();
             lobby.setData("test2", "test123");
 
             P2PChannel chan = mng.connectToLobby(lobby, "abc");
@@ -124,7 +128,7 @@ public class TestLobbyList {
                     gameName,
                     gameVersion, List.of("wss://nostr.rblb.it"), "wss://nostr.rblb.it");
                 
-            List<Lobby> lobbies = mng.listLobbies("", 100, null).await();
+            List<Lobby> lobbies = listLobbies(mng, "", 100, null).await();
             assertEquals(lobbies.size(), 1);
 
             System.out.println("Found lobby: " + lobbies.get(0));
@@ -198,5 +202,33 @@ public class TestLobbyList {
         }
 
 
+    }
+
+    private AsyncTask<List<Lobby>> listLobbies(LobbyManager mng, String words, int limit,
+            Map<String, String> tags) {
+        NGEPlatform platform = NGEPlatform.get();
+        return platform.wrapPromise((res, rej) -> {
+            mng.listLobbies(words, limit, tags, (lobbies, error) -> {
+                if (error != null) {
+                    rej.accept(error);
+                } else {
+                    res.accept(lobbies);
+                }
+            });
+        });
+    }
+
+    private AsyncTask<Lobby> createLobby(LobbyManager mng, String password, Map<String, String> data,
+            Duration duration) {
+        NGEPlatform platform = NGEPlatform.get();
+        return platform.wrapPromise((res, rej) -> {
+            mng.createLobby(password, data, duration, (lobby, error) -> {
+                if (error != null) {
+                    rej.accept(error);
+                } else {
+                    res.accept(lobby);
+                }
+            });
+        });
     }
 }

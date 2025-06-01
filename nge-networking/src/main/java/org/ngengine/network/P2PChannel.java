@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Logger;
 
+import org.ngengine.network.protocol.DynamicSerializerProtocol;
 import org.ngengine.nostr4j.NostrPool;
 import org.ngengine.nostr4j.keypair.NostrKeyPair;
 import org.ngengine.nostr4j.keypair.NostrPrivateKey;
@@ -19,6 +20,8 @@ import org.ngengine.nostr4j.rtc.signal.NostrRTCLocalPeer;
 import org.ngengine.nostr4j.rtc.turn.NostrTURNSettings;
 import org.ngengine.nostr4j.signer.NostrSigner;
 import org.ngengine.platform.RTCSettings;
+import org.ngengine.runner.PassthroughRunner;
+import org.ngengine.runner.Runner;
 
 import com.jme3.network.ConnectionListener;
 import com.jme3.network.Filter;
@@ -45,7 +48,7 @@ public class P2PChannel implements Server {
     private final MessageListenerRegistry<HostedConnection> messageListeners = new MessageListenerRegistry<>();                        
     private final List<ConnectionListener> connectionListeners = new CopyOnWriteArrayList<>();
     private final List<NostrRTCRoomPeerDiscoveredListener> peerDiscoveredListeners = new CopyOnWriteArrayList<>();
-    private final MessageProtocol protocol = new SerializerMessageProtocol();
+    private final MessageProtocol protocol = new DynamicSerializerProtocol(true);
 
     private final NostrSigner localSigner;
     private final NostrPool masterServersPool;
@@ -53,18 +56,18 @@ public class P2PChannel implements Server {
 
     private final Lobby lobby;
 
- 
+    private Runner dispatcher;
+
     public P2PChannel(
-        NostrSigner localSigner,
-
-        String gameName,
-        int gameVersion,
-
-        NostrPrivateKey roomKey,
+            NostrSigner localSigner,
+                String gameName,
+            int gameVersion,
+                NostrPrivateKey roomKey,
         String turnServer,
         NostrPool masterServer,
-        Lobby lobby
+            Lobby lobby, Runner dispatcher
     ){
+        this.dispatcher = dispatcher;
         this.services = new HostedServiceManager(this);
         addStandardServices();
         this.gameName = gameName;
@@ -87,20 +90,22 @@ public class P2PChannel implements Server {
         );
 
         rtcRoom.addPeerDiscoveryListener((var1, var2, var3) -> {
-            for (NostrRTCRoomPeerDiscoveredListener listener : peerDiscoveredListeners) {
-                listener.onRoomPeerDiscovered(var1, var2, var3);
-            }
+            this.dispatcher.run(() -> {
+                for (NostrRTCRoomPeerDiscoveredListener listener : peerDiscoveredListeners) {
+                    listener.onRoomPeerDiscovered(var1, var2, var3);
+                }
+            });
         });
 
         rtcRoom.addConnectionListener((peerKey, socket) -> {
             log.fine("New connection from: " + peerKey);
             RemotePeer connection = new RemotePeer(connections.size(), socket, this, protocol);
             connections.put(connection.getId(), connection);
-
-            for (ConnectionListener listener : connectionListeners) {
-                listener.connectionAdded(this, connection);
-            }
-
+            this.dispatcher.run(() -> {
+                for (ConnectionListener listener : connectionListeners) {
+                    listener.connectionAdded(this, connection);
+                }
+            });
             updatePlayerCount();
         });
 
@@ -110,14 +115,17 @@ public class P2PChannel implements Server {
                 if (entry.getValue().getSocket() == socket) {
                     RemotePeer connection = entry.getValue();
                     connections.remove(connection.getId());
-                    for (ConnectionListener listener : connectionListeners) {
-                        listener.connectionRemoved(this, connection);
-                    }
+                    this.dispatcher.run(() -> {
+                        for (ConnectionListener listener : connectionListeners) {
+                            listener.connectionRemoved(this, connection);
+                        }
+                    });
                     break;
                 }
             }
-            updatePlayerCount();
-
+            this.dispatcher.run(() -> {
+                updatePlayerCount();
+            });
         });
 
         rtcRoom.addMessageListener((peerKey, socket, bbf, isTurn) -> {
@@ -131,12 +139,18 @@ public class P2PChannel implements Server {
                         return;
                     }
                     message.setReliable(true);
-                    messageListeners.messageReceived(connection, message);
+                    this.dispatcher.run(() -> {
+                        messageListeners.messageReceived(connection, message);
+                    });
                     break;
                 }
             }
 
         });
+    }
+
+    public NostrSigner getLocalSigner() {
+        return localSigner;
     }
 
     protected void updatePlayerCount() {     

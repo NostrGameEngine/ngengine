@@ -1,16 +1,13 @@
-repositories {
-	maven { url 'https://jitpack.io' }
-    
-}
-
+ 
 dependencies {
-    api project(':jme3-core')
+    api 'org.ngengine:nge-platform-jvm:0.0.0-SNAPSHOT'
+     api project(':nge-core')
     api project(':jme3-desktop')
     api project(':jme3-lwjgl3')
     api project(':nge-networking')
     api project(':nge-ui')
-    implementation group: 'com.github.stephengold', name: 'Minie', version: '9.0.1+mt'
-
+    api project(':nge-auth')
+    api project(':jme3-jbullet')
 }
 
 javadoc {

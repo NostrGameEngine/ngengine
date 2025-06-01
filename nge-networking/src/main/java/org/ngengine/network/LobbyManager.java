@@ -15,6 +15,8 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -32,6 +34,8 @@ import org.ngengine.platform.AsyncExecutor;
 import org.ngengine.platform.AsyncTask;
 import org.ngengine.platform.NGEPlatform;
 import org.ngengine.platform.NGEUtils;
+import org.ngengine.runner.PassthroughRunner;
+import org.ngengine.runner.Runner;
 
 public class LobbyManager implements Closeable {
     private final int KIND = 30078;
@@ -40,23 +44,37 @@ public class LobbyManager implements Closeable {
     private final String gameName;
     private final int gameVersion;
     private final String turnServer;
-    private final AsyncExecutor executor;
+    private final AsyncExecutor looper;
     private final ArrayList<WeakReference<Lobby>> trackedLobbies = new ArrayList<>();
+    private final Runner dispatcher;
     private volatile boolean closed = false;
 
     private transient Boolean isSearchSupported;
 
     private static final Logger log = Logger.getLogger(LobbyManager.class.getName());
 
-
-    public LobbyManager( NostrSigner signer,
+    public LobbyManager( 
+        NostrSigner signer,
         String gameName,
         int gameVersion,
         Collection<String> relays,
         String turnServer
-    ){
+     ){
+        this(signer, gameName, gameVersion, relays, turnServer, new PassthroughRunner());
 
-        this.executor = NGEUtils.getPlatform().newAsyncExecutor();
+    }
+
+    public LobbyManager( 
+        NostrSigner signer,
+        String gameName,
+        int gameVersion,
+        Collection<String> relays,
+        String turnServer,
+        Runner dispatcher
+    ){
+        this.dispatcher = dispatcher;
+
+        this.looper = NGEUtils.getPlatform().newAsyncExecutor();
         this.localSigner = signer;
         this.gameName = gameName;
         this.gameVersion = gameVersion;
@@ -76,7 +94,7 @@ public class LobbyManager implements Closeable {
     }
 
     protected void update() {
-        this.executor.runLater(() -> {
+        this.looper.runLater(() -> {
             if (closed) return null;
             try {
                 synchronized (trackedLobbies) {
@@ -110,15 +128,14 @@ public class LobbyManager implements Closeable {
     public void close() {
         closed = true;
         try {
-            executor.close();
+            looper.close();
         } catch (Exception e) {
             log.log(Level.WARNING, "Failed to close executor: " + e.getMessage());
         }
     }
 
-    public AsyncTask<List<Lobby>> listLobbies(NostrFilter filter)
-            throws InterruptedException, ExecutionException {
-        return masterServersPool.fetch(filter, 6000, TimeUnit.MILLISECONDS).then(events -> {
+    public void listLobbies(NostrFilter filter, BiConsumer<List<Lobby>, Throwable> callback) {
+        masterServersPool.fetch(filter, 6000, TimeUnit.MILLISECONDS).then(events -> {
             List<Lobby> lobbies = new ArrayList<>();
             NGEPlatform p = NGEUtils.getPlatform();
             for (SignedNostrEvent event : events) {
@@ -159,26 +176,39 @@ public class LobbyManager implements Closeable {
                     continue;
                 }
             }
+            this.dispatcher.run(()->{
+                callback.accept(lobbies, null);
+            });
             return lobbies;
+        }).catchException(ex -> {
+            log.log(Level.WARNING, "Failed to fetch lobbies: " + ex.getMessage(), ex);
+            this.dispatcher.run(() -> {
+                callback.accept(null, ex);
+            });
         });
     }
 
-    private boolean isSearchSupported() throws IOException{
-        if(isSearchSupported!=null) return isSearchSupported;
-        for(NostrRelay relay : masterServersPool.getRelays()){
-            if(!relay.getInfo().isNipSupported(50)){
-                isSearchSupported = false;
-                return isSearchSupported;
+    private boolean isSearchSupported() {
+        if (isSearchSupported != null) return isSearchSupported;
+        try {
+            for (NostrRelay relay : masterServersPool.getRelays()) {
+                if (!relay.getInfo().isNipSupported(50)) {
+                    isSearchSupported = false;
+                    return isSearchSupported;
+                }
             }
+            return isSearchSupported;
+        } catch (Exception e) {
+            log.warning("Failed to check search support: " + e.getMessage());
+            isSearchSupported = false;
+            return isSearchSupported;
         }
-        return isSearchSupported;
     }
 
-    public AsyncTask<List<Lobby>> listLobbies(
+    public void listLobbies(
         String words,
         int limit,
-        Map<String,String> tagsFilter
-    ) throws InterruptedException, ExecutionException, IOException{
+            Map<String, String> tagsFilter, BiConsumer<List<Lobby>, Throwable> callback) {
         NostrFilter filter = null;
         if(words!=null&&!words.isEmpty()&&isSearchSupported()){
             filter = new NostrSearchFilter();
@@ -197,42 +227,43 @@ public class LobbyManager implements Closeable {
             }
         }
 
-        return listLobbies(filter).then(lobbies -> {
-            // more client side filtering
-        lobbies = lobbies.stream().filter(lobby -> {
-            if(tagsFilter!=null){
-                // client side filter by tags > 1 letter
-                for(Entry<String, String> tagFilter : tagsFilter.entrySet()) {
-                    String key = tagFilter.getKey();
-                    if(key.length()==1)continue; // 1 letter tags are already filtered
-
-                    String value = lobby.getData(key);
-                    if(value==null) return false; // lobby doesn't have this tag -> filter it out
-
-                    // lobby has this tag, but the value is not in the filter -> filter it out
-                    if(!value.equals(tagFilter.getValue()))return false; 
-                }
+        listLobbies(filter, (lobbies, err) -> {
+            if (err != null) {
+                this.dispatcher.run(() -> {
+                    callback.accept(null, err);
+                });
+                 return;
             }
+            List<Lobby> filteredLobbies = lobbies.stream().filter(lobby -> {
+                if (tagsFilter != null) {
+                    // client side filter by tags > 1 letter
+                    for (Entry<String, String> tagFilter : tagsFilter.entrySet()) {
+                        String key = tagFilter.getKey();
+                        if (key.length() == 1) continue; // 1 letter tags are already filtered
 
-            try{
-                if(words!=null&&!words.isEmpty()&&!isSearchSupported()){
+                        String value = lobby.getData(key);
+                        if (value == null) return false; // lobby doesn't have this tag -> filter it out
+
+                        // lobby has this tag, but the value is not in the filter -> filter it out
+                        if (!value.equals(tagFilter.getValue())) return false;
+                    }
+                }
+
+                if (words != null && !words.isEmpty() && !isSearchSupported()) {
                     // client side filter by words
                     return lobby.matches(words.split("[ ,]+"));
                 }
-            }catch(IOException e){
-                log.warning("Failed to check search support: " + e.getMessage());
-            }
 
-            return true;
-        }).toList();
-     
- 
-        return lobbies;
+                return true;
+            }).toList();
+            this.dispatcher.run(() -> {
+                callback.accept(filteredLobbies,null);
+            });
         });
 
     }
 
-    protected AsyncTask<SignedNostrEvent> lobbyToEvent(Lobby lobby) {
+    protected void lobbyToEvent(Lobby lobby, BiConsumer<SignedNostrEvent, Throwable> callback) {
         UnsignedNostrEvent event = new UnsignedNostrEvent().withKind(KIND);
         event.withContent(lobby.getRawData());
         for(Entry<String, String> entry : lobby.getData().entrySet()){
@@ -242,61 +273,103 @@ public class LobbyManager implements Closeable {
         }
         event.withExpiration(lobby.getExpiration());
         log.info("Signing lobby event: " + event);
-        return localSigner.sign(event);
+        localSigner.sign(event).then(signed -> {
+            this.dispatcher.run(() -> {
+                callback.accept(signed, null);
+            });
+             return null;
+        }).catchException(err -> {
+            log.log(Level.WARNING, "Failed to sign lobby event: " + err.getMessage(), err);
+            this.dispatcher.run(() -> {
+                callback.accept(null, err);
+            });
+         });
 
     }
 
-    public AsyncTask<LocalLobby> createLobby(
+    public void createLobby(
         String passphrase,
         Map<String,String> tags,
-        Duration expiration
-    ) throws Exception {
-        NostrPrivateKey newPriv = NostrPrivateKey.generate();
-        String roomKey = passphrase != null && !passphrase.isEmpty() ? Nip49.encryptSync(newPriv, passphrase)
-                                                                     : newPriv.asBech32();
-        String roomId = newPriv.getPublicKey().asBech32();      
+            Duration expiration, BiConsumer<Lobby, Throwable> callback) {
 
-        Map<String,String> data = new HashMap<>();
-        data.put("roomKey", roomKey);
-        data.put("t", gameName + "/" + gameVersion);
-        data.put("d", roomId);
-        for(Entry<String,String> entry : tags.entrySet()){
-            String key = entry.getKey();
-            String value = entry.getValue();
-            data.put(key, value);
-        }
+        BiConsumer<NostrPrivateKey, String> create = (newPriv, roomKey) -> {
 
-        String rawData = NGEUtils.getPlatform().toJSON(data);
+            String roomId = newPriv.getPublicKey().asBech32();
 
-        LocalLobby lobby = new LocalLobby(roomId, roomKey, rawData, Instant.now().plus(expiration));
-        for (Entry<String, String> dataEntry : data.entrySet()) {
-            String key = dataEntry.getKey();
-            String value = dataEntry.getValue();
-            lobby.setDataSilent(key, value);
-        }     
-        synchronized (trackedLobbies) {
-            if (!trackedLobbies.stream().anyMatch(ref -> ref.get() == lobby)) {
-                trackedLobbies.add(new WeakReference<>(lobby));
+            Map<String, String> data = new HashMap<>();
+            data.put("roomKey", roomKey);
+            data.put("t", gameName + "/" + gameVersion);
+            data.put("d", roomId);
+            for (Entry<String, String> entry : tags.entrySet()) {
+                String key = entry.getKey();
+                String value = entry.getValue();
+                data.put(key, value);
             }
+
+            String rawData = NGEUtils.getPlatform().toJSON(data);
+
+            LocalLobby lobby = new LocalLobby(roomId, roomKey, rawData, Instant.now().plus(expiration));
+            for (Entry<String, String> dataEntry : data.entrySet()) {
+                String key = dataEntry.getKey();
+                String value = dataEntry.getValue();
+                lobby.setDataSilent(key, value);
+            }
+            synchronized (trackedLobbies) {
+                if (!trackedLobbies.stream().anyMatch(ref -> ref.get() == lobby)) {
+                    trackedLobbies.add(new WeakReference<>(lobby));
+                }
+            }
+            lobbyToEvent(lobby, (signed, error) -> {
+                if (error != null) {
+                    log.log(Level.WARNING, "Failed to create lobby: " + error.getMessage(), error);
+                     this.dispatcher.run(() -> {
+                        callback.accept(null,error);
+                    });
+                    return;
+                }
+                log.info("Creating lobby with event " + signed.toMap());
+                masterServersPool.send(signed).then((acks) -> {
+                    this.dispatcher.run(() -> {
+                        callback.accept(lobby, null);
+                    });                    
+                    return null;
+                }).catchException(err -> {
+                    this.dispatcher.run(() -> {
+                        callback.accept(null,error);
+                    });
+                 });
+            });
+        };
+
+        NostrPrivateKey newPriv = NostrPrivateKey.generate();
+        if (passphrase != null && !passphrase.isEmpty()) {
+            Nip49.encrypt(newPriv, passphrase).then(roomKey -> {
+                create.accept(newPriv, roomKey);
+                return null;
+            }).catchException(err -> {
+                log.log(Level.WARNING, "Failed to encrypt private key: " + err.getMessage(), err);
+                this.dispatcher.run(() -> {
+                    callback.accept(null, err);
+                });
+            });
+        } else {
+            create.accept(newPriv, newPriv.asBech32());
         }
-        return lobbyToEvent(lobby).compose(signed -> {
-            log.info("Creating lobby with event " + signed.toMap());
-            return masterServersPool.send(signed);
-        }).then(s -> {
-            return lobby;
-        });
 
     }
 
-    AsyncTask<Void> updateLobby(LocalLobby lobby) {
+    void updateLobby(LocalLobby lobby) {
         synchronized (trackedLobbies) {
             if (!trackedLobbies.stream().anyMatch(ref -> ref.get() == lobby)) {
                 trackedLobbies.add(new WeakReference<>(lobby));
             }
         }
-        return lobbyToEvent(lobby).then(signed -> {
+        lobbyToEvent(lobby, (signed, err) -> {
+            if (err != null) {
+                log.log(Level.WARNING, "Failed to update lobby: " + err.getMessage(), err);
+                return;
+            }
             masterServersPool.send(signed);
-            return null;
         });
     }
 
@@ -310,7 +383,7 @@ public class LobbyManager implements Closeable {
         }
 
         P2PChannel conn = new P2PChannel(this.localSigner, this.gameName, this.gameVersion, privKey,
-                turnServer, this.masterServersPool, lobby);
+                turnServer, this.masterServersPool, lobby, dispatcher);
         conn.start();
         return conn;        
     }

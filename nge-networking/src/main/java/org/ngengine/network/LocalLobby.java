@@ -24,7 +24,7 @@ public class LocalLobby  extends Lobby {
         return true;
     }
     
-    public void setData(String key, String value) throws Exception{
+    public void setData(String key, String value) {
         super.setData(key, value);
         NGEPlatform p = NGEUtils.getPlatform();
         String rawData = p.toJSON(this.data);
@@ -33,7 +33,7 @@ public class LocalLobby  extends Lobby {
 
     }
     
-    protected void setDataSilent(String key, String value) throws Exception {
+    protected void setDataSilent(String key, String value) {
         super.setData(key, value);
     }
 

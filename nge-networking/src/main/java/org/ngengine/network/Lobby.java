@@ -70,7 +70,7 @@ public class Lobby implements Cloneable, Serializable{
         }
     }
 
-    protected void setData(String key, String value) throws Exception {
+    protected void setData(String key, String value) {
         if (value == null) {
             data.remove(key);
         } else {

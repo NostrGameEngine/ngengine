@@ -3,19 +3,24 @@ MaterialDef Ocean {
     MaterialParameters {
         Int BoundDrawBuffer
 
-
-        // 
-        TextureArray NormalHeight -LINEAR
-        Vector2 NormalHeightData
-
+        Vector3 BaseScale : 1.0 1.0 1.0
         Vector3 Scale : 1.0 1.0 1.0
-        Vector3 Size : 1.0 1.0 1.0
-               
+        Vector3 Wind : 1.0 0.0 0.0
+        TextureArray OceanMap -LINEAR
+        Vector2 TileSize : 1.0 1.0
+        Vector2Array Offsets
+        Int NumLayers : 1
         Texture2D FoamTexture
-        Texture2D RefMap
+        Texture2D RefMap -LINEAR
+        Matrix4 ReflViewProj
+
+
+
+        Float Time: 0
+               
+        
         Texture2D WaterNoise -LINEAR : WrapRepeat Textures/waterNoise.png
 
-        Boolean RenderBuoyancyMap;
 
 
         //shadows
@@ -84,14 +89,14 @@ MaterialDef Ocean {
         }
 
         Defines {  
-            BOUND_DRAW_BUFFER: BoundDrawBuffer       
-            
+            BOUND_DRAW_BUFFER: BoundDrawBuffer      
             INSTANCING : UseInstancing
+            DEBUG_VALUES_MODE : DebugValuesMode      
+            NUM_LAYERS: NumLayers  
+            REFLECTIONS: RefMap
+            TILE_SIZE: TileSize
 
-            DEBUG_VALUES_MODE : DebugValuesMode        
 
-
-            RENDER_BUOYANCY_MAP : RenderBuoyancyMap
         
         }
     }

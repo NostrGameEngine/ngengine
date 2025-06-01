@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.ngengine.DevMode;
-import org.ngengine.gui.components.SVGIcon;
+import org.ngengine.gui.components.NSVGIcon;
 
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.FastMath;
@@ -248,12 +248,12 @@ public class NGEStyle {
             int squareSize = (int) (vmin(2.8f));
 
             Attributes checkbox = styles.getSelector("checkbox", NAME);
-            IconComponent on = new SVGIcon("icons/outline/square-check.svg", squareSize, squareSize);
+            IconComponent on = new NSVGIcon("icons/outline/square-check.svg", squareSize, squareSize);
             on.setColor(new ColorRGBA(0.5f, 0.9f, 0.9f, 0.9f));
             on.setMargin(5, 0);
             on.setColor(lightPurple);
 
-            IconComponent off = new SVGIcon("icons/outline/square.svg", squareSize, squareSize);
+            IconComponent off = new NSVGIcon("icons/outline/square.svg", squareSize, squareSize);
             off.setColor(new ColorRGBA(0.6f, 0.8f, 0.8f, 0.8f));
             off.setMargin(5, 0);
             off.setColor(lightPurple);

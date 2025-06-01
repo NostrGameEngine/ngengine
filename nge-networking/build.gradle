@@ -1,8 +1,7 @@
  
 dependencies {
-    api project(':jme3-core')
+    api project(':nge-core')
     api project(':jme3-networking')
-    api 'org.ngengine:nostr4j:0.0.0-SNAPSHOT'
     testImplementation 'org.ngengine:nge-platform-jvm:0.0.0-SNAPSHOT'
 
 }
