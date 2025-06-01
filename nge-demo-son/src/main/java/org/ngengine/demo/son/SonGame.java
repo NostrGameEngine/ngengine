@@ -76,10 +76,11 @@ public class SonGame extends SimpleApplication {
     FogFilter fog;
     @Override
     public void simpleInitApp() {
+
         AsyncAssetManager assetManager = AsyncAssetManager.of(this.assetManager, this);
 
         flyCam.setEnabled(false);
-        setLostFocusBehavior(LostFocusBehavior.Disabled);
+        setLostFocusBehavior(LostFocusBehavior.ThrottleOnLostFocus);
 
         assetManager.registerLoader(SVGLoader.class, "svg");
         GuiGlobals.initialize(this);
@@ -94,7 +95,7 @@ public class SonGame extends SimpleApplication {
         int width = guiViewport.getCamera().getWidth();
         int height = guiViewport.getCamera().getHeight();
 
-
+        stateManager.attach(new FocusGuardAppState());
         stateManager.attach(new PlayerManagerAppState());
         stateManager.attach(new NWindowManagerAppState(guiNode, width, height, MainThreadRunner.of(this)));
         stateManager.attach(new LobbyAppState());
@@ -193,8 +194,8 @@ public class SonGame extends SimpleApplication {
         settings.setSamples(4);
         settings.setStencilBits(8);
         settings.setDepthBits(24);
-        settings.setVSync(false);
-        settings.setFrameRate(60);
+        settings.setVSync(true);
+        // settings.setFrameRate(60);
 
         settings.setGraphicsDebug(false);
         settings.setTitle("Nostr Game Engine Demo");
