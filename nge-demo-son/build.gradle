@@ -2,6 +2,8 @@ plugins {
     id 'java'
     id 'application'
     id 'org.graalvm.buildtools.native' version '0.10.6'
+        id 'com.github.johnrengelman.shadow' version '8.1.1'
+
 }
 
 group = 'org.ngengine.demo'       // ← Set this to your actual group ID
@@ -147,13 +149,10 @@ task createPgoProfile(type: JavaExec) {
     }
 }
 
-// -----------------------------------------
-// Task: build “nativeCompile” for this OS
-// -----------------------------------------
 task buildNativeExecutable {
     group = 'graalvm'
     description = 'Build native executable for current platform'
-    dependsOn 'nativeCompile'  // Provided by the GraalVM plugin
+    dependsOn 'nativeCompile' 
 
     doLast {
         def buildDirNative = "${project.buildDir}/native/nativeCompile"
@@ -167,84 +166,14 @@ task buildNativeExecutable {
     }
 }
 
-// … (everything up to and including buildNativeExecutable) …
-
-// --------------------------------------------------------
-// Cross‑compilation: build Windows executable via Docker
-// --------------------------------------------------------
-task buildWindowsExecutable(type: Exec) {
-    group = 'graalvm'
-    description = 'Build Windows executable (requires Docker & GraalVM cross‑compile image)'
-    workingDir = project.projectDir
-
-    // If you are on Linux, configure Docker → GraalVM to cross‑compile for Windows.
-    if (org.gradle.internal.os.OperatingSystem.current().isLinux()) {
-        commandLine(
-            'docker', 'run', '--rm',
-            '-v', "${project.projectDir}:/workspace",
-            '-v', "${gradle.gradleUserHomeDir}:/gradle-cache",
-            'ghcr.io/graalvm/native-image-community:24-ol9',
-            'sh', '-c', """
-                cd /workspace && \
-                ./gradlew nativeCompile -Dgraalvm.target=windows
-            """
-        )
-    } else {
-        // On non‑Linux hosts just emit a warning
-        commandLine 'echo', 'Cross‑compilation to Windows is only supported on Linux hosts in this script.'
+shadowJar {
+    archiveBaseName = "${project.name}"
+    archiveClassifier = 'fat'
+    archiveVersion = "${project.version}"
+    manifest {
+        attributes 'Main-Class': 'org.ngengine.demo.son.SonGame'
     }
-
-    doFirst {
-        if (!org.gradle.internal.os.OperatingSystem.current().isLinux()) {
-            println("WARNING: You are not running Linux. This task will only echo a message rather than actually cross‑compile.")
-        }
-    }
+    mergeServiceFiles()
 }
 
-// --------------------------------------------------------
-// Cross‑compilation: build Linux executable via Docker
-// --------------------------------------------------------
-task buildLinuxExecutable(type: Exec) {
-    group = 'graalvm'
-    description = 'Build Linux executable (requires Docker & GraalVM cross‑compile image)'
-    workingDir = project.projectDir
-
-    // If you are on Windows, configure Docker → GraalVM to cross‑compile for Linux.
-    if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
-        commandLine(
-            'docker', 'run', '--rm',
-            '-v', "${project.projectDir}:/workspace",
-            '-v', "${gradle.gradleUserHomeDir}:/gradle-cache",
-            'ghcr.io/graalvm/native-image-community:24-ol9',
-            'sh', '-c', """
-                cd /workspace && \
-                ./gradlew nativeCompile -Dgraalvm.target=linux
-            """
-        )
-    } else {
-        // On non‑Windows hosts just emit a warning
-        commandLine 'echo', 'Already on Linux (or macOS). Use the buildNativeExecutable task instead.'
-    }
-
-    doFirst {
-        if (!org.gradle.internal.os.OperatingSystem.current().isWindows()) {
-            println("NOTE: You are not on Windows. The Linux executable can already be built with buildNativeExecutable.")
-        }
-    }
-}
-
-// --------------------------------------------------------
-// Convenience task: build for all platforms
-// --------------------------------------------------------
-task buildAllPlatforms {
-    group = 'graalvm'
-    description = 'Build executables for all platforms (host + cross‑compile)'
-
-    if (org.gradle.internal.os.OperatingSystem.current().isLinux()) {
-        dependsOn 'buildNativeExecutable', 'buildWindowsExecutable'
-    } else if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
-        dependsOn 'buildNativeExecutable', 'buildLinuxExecutable'
-    } else {
-        dependsOn 'buildNativeExecutable'
-    }
-}
+build.dependsOn shadowJar
