@@ -53,3 +53,4 @@ javadoc_deploy.pub
 **/bin
 **/build
 hs_err_pid2027231.log
+hs_err_*.log
