@@ -83,9 +83,13 @@ void main() {
 
    
     mat3 tbn = mat3(tan, wTangent.w * cross(normalize(wNormal), tan), normalize(wNormal));
-    vec3 finalNormal=normalHeight.xyz;
+    vec3 finalNormal=normalize(normalHeight.xyz);
         
     PBRSurface surface;
+    surface.directLightContribution = vec3(0.0);
+    surface.bakedLightContribution = vec3(0.0);
+    surface.envLightContribution = vec3(0.0);
+    
     surface.position = wPosition;
     surface.viewDir = wViewDir;
     surface.geometryNormal = normalize(wNormal);
