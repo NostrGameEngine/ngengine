@@ -80,7 +80,7 @@ graalvmNative {
                 '-H:+StaticExecutableWithDynamicLibC', 
                 '--gc=G1',
                 '-march=compatibility',
-                '-Djava.awt.headless=false',
+                '-Djava.awt.headless=true',
                 '-H:IncludeResources=.*',
                 '-H:Name=' + "songame-${org.gradle.internal.os.OperatingSystem.current().getName().toLowerCase()}",
                 "-H:ConfigurationFileDirectories=${project.projectDir}/trace"
@@ -104,7 +104,7 @@ task createPgoProfile(type: JavaExec) {
         '-XX:+EnableJVMCI',
         '-XX:+UseJVMCICompiler',
         '-Dgraal.PGOInstrument=graal.iprof', 
-        '-Djava.awt.headless=false'
+        '-Djava.awt.headless=true'
     ]
     
     doFirst {
@@ -113,7 +113,7 @@ task createPgoProfile(type: JavaExec) {
         println "Profile saved to: graal.iprof"
     }
 }
- task traceReflection(type: JavaExec) {
+ task traceNative(type: JavaExec) {
     group = 'graalvm'
     description = 'Trace reflection and resource usage'
 
@@ -123,7 +123,7 @@ task createPgoProfile(type: JavaExec) {
     // Both output and merge directories - this is key!
     jvmArgs = [
         "-agentlib:native-image-agent=config-merge-dir=${project.projectDir}/trace",
-        '-Djava.awt.headless=false'
+        '-Djava.awt.headless=true'
     ]
 
     systemProperty 'java.awt.headless', 'false'
