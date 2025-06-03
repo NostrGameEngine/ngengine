@@ -2,7 +2,7 @@
 dependencies {
     api project(':nge-core')
     api project(':jme3-networking')
-    testImplementation 'org.ngengine:nge-platform-jvm:0.0.0-SNAPSHOT'
+    testImplementation "org.ngengine:nge-platform-jvm:${ngePlatformVersion}"
 
 }
 

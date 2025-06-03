@@ -21,7 +21,7 @@ application {
 }
 
 dependencies {
-    api 'org.ngengine:nge-platform-jvm:0.0.0-SNAPSHOT'
+    api "org.ngengine:nge-platform-jvm:${ngePlatformVersion}"
     api project(':nge-core')
     api project(':jme3-desktop')
     api project(':jme3-effects')
