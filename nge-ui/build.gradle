@@ -4,9 +4,8 @@ dependencies {
     api project(':nge-lemur')
     api project(':nge-core')
     implementation project(':nge-networking')
-    implementation 'com.formdev:svgSalamander:1.1.4'
     implementation project(':jme3-desktop')
-
+    implementation 'org.apache.xmlgraphics:batik-all:1.19'
 }
 
 javadoc {
