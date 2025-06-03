@@ -22,7 +22,9 @@ import com.jme3.texture.Texture2D;
 
 public class Player {
     private static final Logger logger = Logger.getLogger(Player.class.getName());
-
+    public static final List<String> SUPPORTED_PLAYER_IMAGE_EXTENSIONS = new ArrayList<>(
+            List.of("png", "jpg", "jpeg", "webp"));
+    public static int MAX_PLAYER_IMAGE_SIZE = 1024 * 1024 * 10; // 10MB
     protected PlayerManagerAppState playerManager;
     protected NostrPublicKey pubkey;
     protected List<Supplier<CallbackPolicy>> onUpdateCallbacks = new ArrayList<>();
@@ -89,8 +91,7 @@ public class Player {
             try{
                 logger.fine("Fetching metadata for player: " + pubkey.asBech32());  
                 Nip24.fetch(playerManager.getPool(), pubkey).then((meta) -> {
-                    logger.fine("Fetched metadata for player: " + pubkey.asBech32()+" "+meta);
-                    String imageUrl = meta.getPicture();
+                    logger.fine("Fetched metadata for player: " + pubkey.asBech32() + " " + meta);
 
                     playerManager.enqueueToRenderThread(() -> {
                         res.accept(meta);
@@ -98,13 +99,20 @@ public class Player {
                         resetCached();
                         callOnUpdate();
                     });
+                    String imageUrl = meta.getPicture();
+                    boolean validImage = imageUrl != null && !imageUrl.isEmpty()
+                            && SUPPORTED_PLAYER_IMAGE_EXTENSIONS.stream()
+                                    .anyMatch(ext -> imageUrl.endsWith(ext));
 
-                    if (imageUrl != null && !imageUrl.isEmpty()) {
+                    if (validImage) {
                         logger.fine("Trying to fetch image for player: " + pubkey.asBech32() + " " + imageUrl);
 
                         AsyncTask<byte[]> imageDataTask = platform.httpGetBytes(imageUrl, Duration.ofSeconds(15),null);
                         imageDataTask.then(imgBytes -> {
                             try{
+                                if(imgBytes.length>MAX_PLAYER_IMAGE_SIZE){
+                                    throw new IllegalArgumentException("Image size exceeds maximum allowed size of " + MAX_PLAYER_IMAGE_SIZE + " bytes");
+                                }
                                 logger.fine("Fetched " + imgBytes.length + " bytes for image: " + imageUrl+ " for player: " + pubkey.asBech32());
                                 logger.fine("Attempting to load image for player: " + pubkey.asBech32() + " " + imageUrl);
 
@@ -129,7 +137,7 @@ public class Player {
                     } else {
                         // we don't even need an image, how lucky
                         logger.fine(
-                                "Player " + pubkey.asBech32() + " has no image, using default");
+                                "Player " + pubkey.asBech32() + " has no valid image, using default");
                        
                     }
                     return null;
