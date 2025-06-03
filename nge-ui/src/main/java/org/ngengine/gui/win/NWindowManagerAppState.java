@@ -121,6 +121,7 @@ public class NWindowManagerAppState extends BaseAppState {
                     window.removeFromParent();
                 }
 
+                log.finer("Opening window: " + windowClass.getSimpleName());
 
                 Consumer<NWindow<?>> backAction = null;
 

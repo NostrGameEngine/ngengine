@@ -155,6 +155,7 @@ public class SonGame extends SimpleApplication {
         lightScattering.setLightPosition(getCamera().getLocation().add(dl.getDirection().mult(-1000)));
     }
 
+    // mac needs to start with -XstartOnFirstThread -Djava.awt.headless=true
     public static void main(String[] args) throws InterruptedException {
 
         AppSettings settings = new AppSettings(true);
