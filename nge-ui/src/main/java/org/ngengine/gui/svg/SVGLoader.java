@@ -3,9 +3,14 @@ package org.ngengine.gui.svg;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
+
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.SAXParserFactory;
+import javax.xml.transform.sax.SAXSource;
 
 import com.jme3.asset.AssetInfo;
 import com.jme3.asset.AssetKey;
@@ -18,6 +23,11 @@ import org.apache.batik.transcoder.image.ImageTranscoder;
 import org.apache.batik.anim.dom.SAXSVGDocumentFactory;
 import org.apache.batik.util.XMLResourceDescriptor;
 import org.w3c.dom.Document;
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
+import org.xml.sax.XMLReader;
+import org.xml.sax.helpers.DefaultHandler;
+
 import java.awt.Color;
 import java.awt.image.BufferedImage;
 
@@ -32,7 +42,6 @@ public class SVGLoader implements AssetLoader {
         int height = 256;
         boolean flipY = false;
 
-
         if (key instanceof SVGTextureKey) {
             SVGTextureKey svgKey = (SVGTextureKey) key;
             width = svgKey.getWidth();
@@ -40,36 +49,39 @@ public class SVGLoader implements AssetLoader {
             flipY = svgKey.isFlipY();
         }
 
-
         InputStream in = assetInfo.openStream();
         try {
 
-            // Read the SVG file as a string
             String svg = new String(in.readAllBytes(), StandardCharsets.UTF_8);
-            // Replace currentColor with white
             svg = svg.replace("currentColor", "#ffffff");
 
-            // Parse the SVG
-            String parser = XMLResourceDescriptor.getXMLParserClassName();
-            SAXSVGDocumentFactory factory = new SAXSVGDocumentFactory(parser);
+            SAXParserFactory spf = SAXParserFactory.newInstance();
+            spf.setValidating(false);
+            spf.setFeature("http://xml.org/sax/features/external-general-entities", false);
+            spf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+            spf.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+            spf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            spf.setXIncludeAware(false);
 
-            Document svgDocument = factory.createDocument(null,
-                    new ByteArrayInputStream(svg.getBytes(StandardCharsets.UTF_8)));
+            XMLReader xmlReader = spf.newSAXParser().getXMLReader();
+            xmlReader.setContentHandler(new DefaultHandler());
 
-             // Convert the SVG to a BufferedImage using Batik
-             BufferedImageTranscoder transcoder = new BufferedImageTranscoder();
-             transcoder.addTranscodingHint(ImageTranscoder.KEY_WIDTH, (float) width);
-             transcoder.addTranscodingHint(ImageTranscoder.KEY_HEIGHT, (float) height);
-             transcoder.addTranscodingHint(ImageTranscoder.KEY_BACKGROUND_COLOR, new Color(0, 0, 0, 0));
-             transcoder.addTranscodingHint(ImageTranscoder.KEY_FORCE_TRANSPARENT_WHITE, true);
+            TranscoderInput input = new TranscoderInput(new StringReader(svg));
+            input.setXMLReader(xmlReader);
 
-            TranscoderInput input = new TranscoderInput(svgDocument);
+            BufferedImageTranscoder transcoder = new BufferedImageTranscoder();
+            transcoder.addTranscodingHint(ImageTranscoder.KEY_WIDTH, (float) width);
+            transcoder.addTranscodingHint(ImageTranscoder.KEY_HEIGHT, (float) height);
+            transcoder.addTranscodingHint(ImageTranscoder.KEY_BACKGROUND_COLOR, new Color(0, 0, 0, 0));
+            transcoder.addTranscodingHint(ImageTranscoder.KEY_FORCE_TRANSPARENT_WHITE, Boolean.TRUE);
+            transcoder.addTranscodingHint(ImageTranscoder.KEY_EXECUTE_ONLOAD, Boolean.FALSE);
+            transcoder.addTranscodingHint(ImageTranscoder.KEY_ALLOWED_SCRIPT_TYPES, "");
+
             transcoder.transcode(input, null);
+            BufferedImage bufferedImage = transcoder.getBufferedImage();
 
-            BufferedImage image = transcoder.getBufferedImage();
-            // Convert to jME3 image
             AWTLoader awtLoader = new AWTLoader();
-            Image img = awtLoader.load(image, flipY);
+            Image img = awtLoader.load(bufferedImage, flipY);
             return img;
 
 
