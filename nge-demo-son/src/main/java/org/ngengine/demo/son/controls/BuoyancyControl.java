@@ -63,8 +63,7 @@ public class BuoyancyControl extends AbstractControl implements PhysicsTickListe
         this.appState = appState;
         if (spatial instanceof Node) {
             Node node = (Node) spatial;
-            splash = new AudioNode(appState.getApplication().getAssetManager(), "Sounds/watersplash.ogg", 
-                    DataType.Buffer);
+            splash = new AudioNode(appState.getAssetManager(), "Sounds/watersplash.ogg", DataType.Buffer);
             splash.setPositional(true);
             node.attachChild(splash);
             splash.setPositional(true);
@@ -79,7 +78,7 @@ public class BuoyancyControl extends AbstractControl implements PhysicsTickListe
 
 
             splashParticlesMaterial = new Material(
-                    appState.getApplication().getAssetManager(), "Common/MatDefs/Misc/Particle.j3md");
+                    appState.getAssetManager(), "Common/MatDefs/Misc/Particle.j3md");
             // splashParticlesMaterial.setTexture("Texture", 
             //         appState.getApplication().getAssetManager().loadTexture("Effects/Explosion/flame.png"));
             splashParticles.setMaterial(splashParticlesMaterial);
@@ -120,7 +119,7 @@ public class BuoyancyControl extends AbstractControl implements PhysicsTickListe
 
         // Ensure this control is registered as a physics tick listener
         if (!appendedToPhysicsSpace) {
-            BulletAppState bulletAppState = appState.getStateManager().getState(BulletAppState.class);
+            BulletAppState bulletAppState = appState.getPhysics();
             if (bulletAppState != null) {
                 bulletAppState.getPhysicsSpace().addTickListener(this);
                 appendedToPhysicsSpace = true;
@@ -198,7 +197,7 @@ public class BuoyancyControl extends AbstractControl implements PhysicsTickListe
                 // rp.setHorizontal(true);
 
 
-                splashParticles.emitParticles(22);
+                // splashParticles.emitParticles(22);
             }
         }
         

@@ -25,7 +25,7 @@ public class Player {
     public static final List<String> SUPPORTED_PLAYER_IMAGE_EXTENSIONS = new ArrayList<>(
             List.of("png", "jpg", "jpeg", "webp"));
     public static int MAX_PLAYER_IMAGE_SIZE = 1024 * 1024 * 10; // 10MB
-    protected PlayerManagerAppState playerManager;
+    protected PlayerManagerComponent playerManager;
     protected NostrPublicKey pubkey;
     protected List<Supplier<CallbackPolicy>> onUpdateCallbacks = new ArrayList<>();
 
@@ -34,13 +34,13 @@ public class Player {
     protected AsyncTask<Nip24ExtraMetadata> metadata;
     protected Texture2D image;
 
-    protected Player(PlayerManagerAppState mng, NostrPublicKey pub){
+    protected Player(PlayerManagerComponent mng, NostrPublicKey pub) {
         this.pubkey = pub;
         this.playerManager = mng;
     }
     
 
-    protected PlayerManagerAppState getPlayerManager() {
+    protected PlayerManagerComponent getPlayerManager() {
         return playerManager;
     }
 

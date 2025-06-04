@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
 
-import org.ngengine.demo.son.GameAppState;
+import org.ngengine.demo.son.PlayGameState;
 import org.ngengine.gui.components.NIconButton;
 import org.ngengine.gui.components.NTextInput;
 import org.ngengine.gui.components.NVSpacer;

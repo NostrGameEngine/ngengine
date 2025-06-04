@@ -24,7 +24,7 @@ public class NToast extends Container   {
     protected Label message;
     protected Duration duration;
     protected Instant creationTime;
-    protected NWindowManagerAppState appState;
+    protected NWindowManagerComponent appState;
     protected boolean closeable = false;
     protected NIconButton closeBtn;
 
@@ -80,11 +80,11 @@ public class NToast extends Container   {
         }
     }
 
-    protected void initialize(NWindowManagerAppState appState) { 
+    protected void initialize(NWindowManagerComponent appState) {
         this.appState = appState;
     }
 
-    protected NWindowManagerAppState getManager(){
+    protected NWindowManagerComponent getManager() {
         return appState;
     }
 

@@ -9,7 +9,7 @@ import org.ngengine.nostr4j.nip46.Nip46AppMetadata;
 import org.ngengine.nostr4j.signer.NostrSigner;
 import org.ngengine.platform.NGEPlatform;
 import org.ngengine.platform.VStore;
-import org.ngengine.player.PlayerManagerAppState;
+import org.ngengine.player.PlayerManagerComponent;
 
 import com.jme3.system.AppSettings;
 
@@ -31,7 +31,8 @@ public class Defaults {
         return authStrategy(settings, callback, null);
     }
 
-    public static final AuthStrategy authStrategy(AppSettings settings, Consumer<NostrSigner> callback, PlayerManagerAppState playerManager) {
+    public static final AuthStrategy authStrategy(AppSettings settings, Consumer<NostrSigner> callback,
+            PlayerManagerComponent playerManager) {
         VStore authStore = NGEPlatform.get().getDataStore(settings.getTitle(), "auth");
         return new AuthStrategy(callback)
         .enableStore(authStore)

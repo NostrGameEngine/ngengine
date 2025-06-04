@@ -11,13 +11,19 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.ngengine.DevMode;
+import org.ngengine.components.Component;
+import org.ngengine.components.ComponentManager;
+import org.ngengine.components.fragments.AppFragment;
+import org.ngengine.components.fragments.GuiViewPortFragment;
 import org.ngengine.gui.win.NToast.ToastType;
 import org.ngengine.gui.win.std.NErrorWindow;
 import org.ngengine.runner.Runner;
+import org.ngengine.store.DataStoreProvider;
 
 import com.jme3.app.Application;
 import com.jme3.app.state.BaseAppState;
 import com.jme3.math.Vector3f;
+import com.jme3.renderer.ViewPort;
 import com.jme3.scene.Node;
 import com.simsilica.lemur.Axis;
 import com.simsilica.lemur.Container;
@@ -26,30 +32,27 @@ import com.simsilica.lemur.component.BorderLayout;
 import com.simsilica.lemur.component.DynamicInsetsComponent;
 import com.simsilica.lemur.component.SpringGridLayout;
 
-public class NWindowManagerAppState extends BaseAppState {
-    private static final Logger log = Logger.getLogger(NWindowManagerAppState.class.getName());
-    private final Node guiNode;
-    private final int width;
-    private final int height;
+public class NWindowManagerComponent implements Component<Object>, GuiViewPortFragment {
+    private static final Logger log = Logger.getLogger(NWindowManagerComponent.class.getName());
     private final ArrayList<NWindow<?>> windowsStack = new ArrayList<>();
-
     private final ArrayList<NToast> toastsStack = new ArrayList<>();
-    private Thread renderThread;
-    private Container toastContainer;
-    private final Runner dispatcher;
 
-    public NWindowManagerAppState(Node guiNode, int width, int height, Runner dispatcher) {
-        this.guiNode = guiNode;
-        this.width = width;
-        this.height = height;
-        this.dispatcher = dispatcher;
-        DevMode.registerReloadCallback(this, () -> {
-            setEnabled(false);
-            setEnabled(true);
-            for (NWindow<?> window : windowsStack) {
-                window.invalidate();
-            }
-        });
+    private Node guiNode;
+    private int width;
+    private int height;
+    private Container toastContainer;
+    private Runner dispatcher;
+
+    @Override
+    public void onAttached(ComponentManager mng, Runner runner, DataStoreProvider dataStoreProvider) {
+        this.dispatcher = runner;
+    }
+
+    @Override
+    public void receiveGuiViewPort(ViewPort vp) {
+        this.guiNode = getGuiNode(vp);
+        this.width = vp.getCamera().getWidth();
+        this.height = vp.getCamera().getHeight();
     }
 
     public int getWidth() {
@@ -61,29 +64,6 @@ public class NWindowManagerAppState extends BaseAppState {
     }
 
     public <T> void runInThread(Callable<T> r, BiConsumer<T, Throwable> callback) {
-        // NGEPlatform platform = NGEPlatform.get();
-        // return platform.wrapPromise((Consumer<  T> res, Consumer<Throwable> rej) -> {
-        //     if (getApplication() != null
-        //             && (renderThread == null || Thread.currentThread() != renderThread)) {
-        //         getApplication().enqueue(() -> {
-        //             try {
-        //                 T out = r.call();
-        //                 res.accept(out);
-        //             } catch (Exception e) {
-        //                 log.log(Level.SEVERE, "Failed to run in thread", e);
-        //                 rej.accept(e);
-        //             }
-        //         });
-        //     } else {
-        //         try {
-        //             T out = r.call();
-        //             res.accept(out);
-        //         } catch (Exception e) {
-        //             log.log(Level.SEVERE, "Failed to run in thread", e);
-        //             rej.accept(e);
-        //         }
-        //     }
-        // });
         dispatcher.run(()->{
             try{
                 T out = r.call();
@@ -271,21 +251,13 @@ public class NWindowManagerAppState extends BaseAppState {
         });
     }
 
-    @Override
-    protected void initialize(Application app) {
-        if (renderThread == null) {
-            renderThread = Thread.currentThread();
-        }
-    }
 
-    @Override
-    protected void cleanup(Application app) {
 
-    }
 
 
     @Override
-    protected void onEnable() {
+    public void onEnable(ComponentManager mng, Runner runner, DataStoreProvider dataStoreProvider,
+            boolean firstTime, Object slot) {
         {
             Container toastParent = new Container(new BorderLayout());
             toastParent.setLocalTranslation(0, height, 10);
@@ -299,7 +271,7 @@ public class NWindowManagerAppState extends BaseAppState {
     }
 
     @Override
-    protected void onDisable() {
+    public void onDisable(ComponentManager mng, Runner runner, DataStoreProvider dataStoreProvider) {
         closeAll();
         {
             toastContainer.getParent().removeFromParent();
@@ -309,10 +281,8 @@ public class NWindowManagerAppState extends BaseAppState {
     }
 
     @Override
-    public void update(float tpf) {
-        if(renderThread==null){
-            renderThread = Thread.currentThread();
-        }
+    public void updateGuiViewPort(ViewPort vp, float tpf) {
+
         if (toastsStack.size() > 0) {
             Instant now = Instant.now();
             Iterator<NToast> it = toastsStack.iterator();
@@ -326,5 +296,6 @@ public class NWindowManagerAppState extends BaseAppState {
             }
         }
     }
+
 
 }

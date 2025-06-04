@@ -1,5 +1,6 @@
 package org.ngengine.network;
 
+import java.lang.ref.Cleaner;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
@@ -37,6 +38,7 @@ import com.jme3.network.service.HostedServiceManager;
 import com.jme3.network.service.serializer.ServerSerializerRegistrationsService;
 
 public class P2PChannel implements Server {
+    private static Cleaner cleaner = Cleaner.create();
     private static final Logger log = Logger.getLogger(P2PChannel.class.getName());
     private boolean isStarted = false;    
 
@@ -150,7 +152,10 @@ public class P2PChannel implements Server {
                     break;
                 }
             }
+        });
 
+        cleaner.register(this, () -> {
+            rtcRoom.close();
         });
     }
 
@@ -267,7 +272,11 @@ public class P2PChannel implements Server {
     public void addDiscoveryListener(NostrRTCRoomPeerDiscoveredListener listener) {
         peerDiscoveredListeners.add(listener);
     }
- 
+
+    public void removeDiscoveryListener(NostrRTCRoomPeerDiscoveredListener listener) {
+        peerDiscoveredListeners.remove(listener);
+    }
+
     @Override
     public void addConnectionListener(ConnectionListener listener) {
         connectionListeners.add(listener);

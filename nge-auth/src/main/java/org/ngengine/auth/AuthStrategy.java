@@ -4,7 +4,7 @@ import java.util.function.Consumer;
 
 import org.ngengine.nostr4j.signer.NostrSigner;
 import org.ngengine.platform.VStore;
-import org.ngengine.player.PlayerManagerAppState;
+import org.ngengine.player.PlayerManagerComponent;
 
 public class AuthStrategy {
  
@@ -13,7 +13,7 @@ public class AuthStrategy {
     protected boolean nsec = false;
     protected VStore store;
     protected Consumer<NostrSigner> callback;
-    protected PlayerManagerAppState playerManager;
+    protected PlayerManagerComponent playerManager;
 
  
     public AuthStrategy(Consumer<NostrSigner> callback) {
@@ -39,12 +39,12 @@ public class AuthStrategy {
         return this;
     }
 
-    public AuthStrategy setPlayerManager(PlayerManagerAppState playerManager) {
+    public AuthStrategy setPlayerManager(PlayerManagerComponent playerManager) {
         this.playerManager = playerManager;
         return this;
     }
 
-    public PlayerManagerAppState getPlayerManager() {
+    public PlayerManagerComponent getPlayerManager() {
         return playerManager;
     }
 

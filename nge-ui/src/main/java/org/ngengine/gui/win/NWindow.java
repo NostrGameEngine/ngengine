@@ -33,7 +33,7 @@ public abstract class NWindow<T> extends Container implements GuiUpdateListener,
      private NIconButton backButton;
     private NIconButton placeHolderButton;
     private  Label title ;
-    private  NWindowManagerAppState appState;
+    private NWindowManagerComponent appState;
     private  NPanel windowContent;
 
     private boolean center = true;
@@ -80,7 +80,8 @@ public abstract class NWindow<T> extends Container implements GuiUpdateListener,
     protected NWindow(  ElementId id) {
         super(new BorderLayout(), id);
     }
-    final void initialize(NWindowManagerAppState appState,  Consumer<NWindow<T>> backAction) {
+
+    final void initialize(NWindowManagerComponent appState, Consumer<NWindow<T>> backAction) {
         this.appState = appState;
         titleBar = new Container(new BorderLayout(),
                 new ElementId("window.titleBar"));
@@ -156,7 +157,7 @@ public abstract class NWindow<T> extends Container implements GuiUpdateListener,
 
     }
 
-    protected final  NWindowManagerAppState getManager(){
+    protected final NWindowManagerComponent getManager() {
         return appState;
     }
 

@@ -11,9 +11,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.jme3.app.Application;
+import com.jme3.app.SimpleApplication;
 import com.jme3.app.state.BaseAppState;
 import com.jme3.asset.AssetManager;
 import com.jme3.input.InputManager;
+import com.jme3.input.KeyInput;
 import com.jme3.input.controls.ActionListener;
 import com.jme3.input.controls.KeyTrigger;
 import com.jme3.material.MatParam;
@@ -118,8 +120,14 @@ public class DevMode extends BaseAppState implements ActionListener{
     @Override
     protected void onEnable() {
         InputManager im = getApplication().getInputManager();
-        im.addMapping("DEVMODE_RELOAD", new KeyTrigger(com.jme3.input.KeyInput.KEY_F5));
+        im.addMapping("DEVMODE_RELOAD", new KeyTrigger(KeyInput.KEY_F5));
+        im.addMapping("TOGGLE_MOUSE_CURSOR", new KeyTrigger(KeyInput.KEY_F6));
+        im.addMapping("TOGGLE_FLYCAMERA", new KeyTrigger(KeyInput.KEY_F7));
+
         im.addListener(this, "DEVMODE_RELOAD");     
+        im.addListener(this, "TOGGLE_MOUSE_CURSOR");
+        im.addListener(this, "TOGGLE_FLYCAMERA");
+
         registerReloadCallback(this, ()->{
             getApplication().getAssetManager().clearCache();
         });
@@ -136,6 +144,25 @@ public class DevMode extends BaseAppState implements ActionListener{
     public void onAction(String name, boolean isPressed, float tpf) {
         if(name.equals("DEVMODE_RELOAD") && isPressed){
             reload();
+        }
+        if (name.equals("TOGGLE_MOUSE_CURSOR") && isPressed) {
+            Application app = getApplication();
+            if (app.getInputManager().isCursorVisible()) {
+                app.getInputManager().setCursorVisible(false);
+            } else {
+                app.getInputManager().setCursorVisible(true);
+            }
+        }
+        if (name.equals("TOGGLE_FLYCAMERA") && isPressed) {
+            Application app = getApplication();
+            if (app instanceof SimpleApplication) {
+                SimpleApplication simpleApp = (SimpleApplication) app;
+                if (simpleApp.getFlyByCamera().isEnabled()) {
+                    simpleApp.getFlyByCamera().setEnabled(false);
+                } else {
+                    simpleApp.getFlyByCamera().setEnabled(true);
+                }
+            }
         }
     }
     

@@ -6,6 +6,10 @@ import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.logging.Logger;
 
+import org.ngengine.components.Component;
+import org.ngengine.components.ComponentManager;
+import org.ngengine.components.fragments.AssetLoadingFragment;
+import org.ngengine.components.fragments.AsyncAssetLoadingFragment;
 import org.ngengine.network.P2PChannel;
 import org.ngengine.network.RemotePeer;
 import org.ngengine.nostr4j.NostrPool;
@@ -13,13 +17,13 @@ import org.ngengine.nostr4j.NostrRelay;
 import org.ngengine.nostr4j.keypair.NostrPublicKey;
 import org.ngengine.nostr4j.signer.NostrSigner;
 import org.ngengine.platform.VStore;
+import org.ngengine.runner.Runner;
+import org.ngengine.store.DataStoreProvider;
 
-import com.jme3.app.Application;
-import com.jme3.app.state.BaseAppState;
 import com.jme3.asset.AssetManager;
 import com.jme3.network.HostedConnection;
 
-public class PlayerManagerAppState extends BaseAppState {
+public class PlayerManagerComponent implements Component<Object>, AssetLoadingFragment {
     public static final List<String> DEFAULT_ID_RELAYS = List.of(
         "wss://relay.ngengine.org",
         "wss://relay.snort.social",
@@ -28,32 +32,32 @@ public class PlayerManagerAppState extends BaseAppState {
         "wss://relay.damus.io",
         "wss://relay.primal.net"
     );
-    private static final Logger log = Logger.getLogger(PlayerManagerAppState.class.getName());
+    private static final Logger log = Logger.getLogger(PlayerManagerComponent.class.getName());
     protected Collection<String> connectToRelays;
     protected NostrPool nostrPool;
     protected boolean externalPool = false;
     protected Map<NostrPublicKey, Player> players = new WeakHashMap<>();
     protected Map<NostrPublicKey, LocalPlayer> localPlayers = new WeakHashMap<>();
+    protected Runner runner;
+    protected AssetManager assetManager;
 
-    public PlayerManagerAppState() {
+    public PlayerManagerComponent() {
     }
 
-    public PlayerManagerAppState( Collection<String> idRelays) {
+
+    public PlayerManagerComponent( Collection<String> idRelays) {
         this.connectToRelays = idRelays;       
     }
 
-    public PlayerManagerAppState(VStore dataStore, NostrPool pool){
+    public PlayerManagerComponent(VStore dataStore, NostrPool pool){
         this.nostrPool = pool;
         this.externalPool = true;
         this.connectToRelays = null;
     }
 
-    public AssetManager getAssetManager() {
-        return super.getApplication().getAssetManager();
-    }
 
     public void enqueueToRenderThread(Runnable act) {
-        getApplication().enqueue(act);
+        runner.run(act);
     }
 
     public NostrPool getPool(){ 
@@ -61,18 +65,8 @@ public class PlayerManagerAppState extends BaseAppState {
     }
 
     @Override
-    protected void initialize(Application app) {
-      
-    }
-
-    @Override
-    protected void cleanup(Application app) {
-        
-     
-    }
-
-    @Override
-    protected void onEnable() { 
+    public void onEnable(ComponentManager mng, Runner runner, DataStoreProvider dataStoreProvider,
+            boolean firstTime, Object slot) {
         if (!externalPool) {
             this.nostrPool = new NostrPool();
             if(connectToRelays==null){
@@ -89,7 +83,8 @@ public class PlayerManagerAppState extends BaseAppState {
     }
 
     @Override
-    protected void onDisable() {
+    public void onDisable(ComponentManager mng, Runner runner,
+            DataStoreProvider dataStoreProvider) {
         if (!externalPool) {
             if (nostrPool != null) {
                 // close and disconnect all relays
@@ -98,6 +93,21 @@ public class PlayerManagerAppState extends BaseAppState {
                 });
             }
         }
+    }
+
+    @Override
+    public void loadAssets(AssetManager assetManager) {
+        this.assetManager = assetManager;
+    }
+
+    public AssetManager getAssetManager() {
+        return assetManager;
+    }
+
+    @Override
+    public void onAttached(ComponentManager mng, Runner runner,
+            DataStoreProvider dataStoreProvider) {
+        this.runner = runner;
     }
 
      public Player getPlayer(NostrPublicKey pubkey) {

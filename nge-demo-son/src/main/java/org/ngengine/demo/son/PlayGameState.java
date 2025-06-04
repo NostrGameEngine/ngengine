@@ -3,44 +3,48 @@ package org.ngengine.demo.son;
  
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.ngengine.AsyncAssetManager;
 import org.ngengine.DevMode;
+import org.ngengine.components.Component;
+import org.ngengine.components.ComponentManager;
+import org.ngengine.components.fragments.AppFragment;
+import org.ngengine.components.fragments.AssetLoadingFragment;
+import org.ngengine.components.fragments.InputHandlerFragment;
+import org.ngengine.components.fragments.LogicFragment;
+import org.ngengine.components.fragments.ViewPortFragment;
 import org.ngengine.demo.son.controls.BoatAnimationControl;
 import org.ngengine.demo.son.controls.BoatControl;
 import org.ngengine.demo.son.controls.NetworkControl;
 import org.ngengine.demo.son.ocean.OceanAppState;
-import org.ngengine.demo.son.packets.AnimPacket;
-import org.ngengine.demo.son.packets.TransformPacket;
 import org.ngengine.gui.components.NLabel;
-import org.ngengine.gui.win.NWindowManagerAppState;
+import org.ngengine.gui.win.NWindowManagerComponent;
 import org.ngengine.gui.win.std.NHud;
 import org.ngengine.network.P2PChannel;
-import org.ngengine.network.RemotePeer;
 import org.ngengine.nostr4j.keypair.NostrPublicKey;
 import org.ngengine.nostr4j.rtc.listeners.NostrRTCRoomPeerDiscoveredListener;
 import org.ngengine.nostr4j.rtc.signal.NostrRTCAnnounce;
-import org.ngengine.platform.AsyncTask;
 import org.ngengine.player.Player;
-import org.ngengine.player.PlayerManagerAppState;
+import org.ngengine.player.PlayerManagerComponent;
+import org.ngengine.runner.Runner;
+import org.ngengine.store.DataStoreProvider;
 
 import com.jme3.app.Application;
-import com.jme3.app.state.AppStateManager;
-import com.jme3.app.state.BaseAppState;
 import com.jme3.asset.AssetManager;
-import com.jme3.bullet.BulletAppState;
 import com.jme3.input.ChaseCamera;
 import com.jme3.input.InputManager;
 import com.jme3.input.KeyInput;
 import com.jme3.input.controls.KeyTrigger;
+import com.jme3.input.event.JoyAxisEvent;
+import com.jme3.input.event.JoyButtonEvent;
+import com.jme3.input.event.KeyInputEvent;
+import com.jme3.input.event.MouseButtonEvent;
+import com.jme3.input.event.MouseMotionEvent;
 import com.jme3.material.MatParam;
 import com.jme3.material.Material;
-import com.jme3.math.Quaternion;
-import com.jme3.math.Transform;
 import com.jme3.math.Vector3f;
 import com.jme3.network.ConnectionListener;
 import com.jme3.network.HostedConnection;
@@ -48,6 +52,7 @@ import com.jme3.network.Message;
 import com.jme3.network.MessageListener;
 import com.jme3.network.Server;
 import com.jme3.renderer.Camera;
+import com.jme3.renderer.ViewPort;
 import com.jme3.renderer.queue.RenderQueue.ShadowMode;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
@@ -56,35 +61,57 @@ import com.jme3.texture.Texture2D;
 import com.simsilica.lemur.HAlignment;
 import com.simsilica.lemur.VAlignment;
 
-public class GameAppState extends NGEAppState implements ConnectionListener, MessageListener<HostedConnection>,NostrRTCRoomPeerDiscoveredListener{
-    private static final Logger log = Logger.getLogger(GameAppState.class.getName());
-    private OceanAppState ocean;
-    private BulletAppState physics;
+public class PlayGameState implements Component<P2PChannel>, LogicFragment, ViewPortFragment,
+        InputHandlerFragment, AssetLoadingFragment, ConnectionListener, MessageListener<HostedConnection>,
+        NostrRTCRoomPeerDiscoveredListener {
+    private static final Logger log = Logger.getLogger(PlayGameState.class.getName());
+
     private P2PChannel chan;
     private Map<HostedConnection, Spatial> remoteBoats = new HashMap<>();
     private volatile Spatial localBoat;
     private NHud hud;
+    private ComponentManager componentManager;
 
     private NLabel hudSpeed;
-    public GameAppState(){
-        setUnit("mainState");
-        setEnabled(false);
-        // this.chan = chan;
-        
+    private Runner runner;
+    private AssetManager assetManager;
+    private ViewPort viewPort;
+    private InputManager inputManager;
+
+    @Override
+    public Object getSlot() {
+        return "mainState";
     }
 
-    public void show(P2PChannel chan) {
-        System.out.println("Showing GameAppState with channel: " + chan);
-        this.chan = chan;
-        setEnabled(true);
+    @Override
+    public void loadAssets(AssetManager assetManager) {
+        this.assetManager = assetManager;
+
     }
 
-    
+    @Override
 
-   
+    public void receiveInputManager(InputManager inputManager) {
+        this.inputManager = inputManager;
+
+    }
+
+    @Override
+
+    public void receiveViewPort(ViewPort viewPort) {
+        this.viewPort = viewPort;
+
+    }
+
+    @Override
+    public void onNudge(ComponentManager mng, Runner runner, DataStoreProvider dataStoreProvider,
+            boolean firstTime, P2PChannel chan) {
+        mng.enableComponent(OceanAppState.class, chan);
+        mng.enableComponent(PhysicsManager.class, chan);
+    }
 
     public void reloadHud(){
-        NWindowManagerAppState mng = getStateManager().getState(NWindowManagerAppState.class);
+        NWindowManagerComponent mng = componentManager.getComponentByType(NWindowManagerComponent.class);
 
         if(hud!=null){
             hud.close();
@@ -108,20 +135,18 @@ public class GameAppState extends NGEAppState implements ConnectionListener, Mes
      }
 
     @Override
-    protected void onEnable() {
+    public void onEnable(ComponentManager mng, Runner runner, DataStoreProvider dataStoreProvider,
+            boolean firstTime, P2PChannel chan) {
         try{
+
+            this.runner = runner;
+            this.componentManager = mng;
+            this.chan = chan;
             DevMode.registerReloadCallback(this,()->{
                 reloadHud();
             });
-            ocean = new OceanAppState();
-            getStateManager().attach(ocean);
-            physics = new BulletAppState();
-            getStateManager().attach(physics);
 
-            getStateManager().getState(NWindowManagerAppState.class).closeAll();
-
-            // WindowManagerAppState wms = getState(WindowManagerAppState.class);
-            // wms.showWindow(GameHud.class, null);
+            mng.getComponentByType(NWindowManagerComponent.class).closeAll();
             chan.addConnectionListener(this);
             chan.addMessageListener(this);
             chan.addDiscoveryListener(this);        
@@ -133,17 +158,28 @@ public class GameAppState extends NGEAppState implements ConnectionListener, Mes
 
     int frame = 0;
   
+    @Override
+    public void onDisable(ComponentManager mng, Runner runner, DataStoreProvider dataStoreProvider) {
+        try {
+            if (localBoat != null) {
+                localBoat.removeFromParent();
+            }
+            chan.removeConnectionListener(this);
+            chan.removeMessageListener(this);
+            chan.removeDiscoveryListener(this);
+            remoteBoats.clear();
+            if (hud != null) {
+                hud.close();
+                hud = null;
+            }
+        } catch (Exception e) {
+            log.log(Level.SEVERE, "Error disabling GameAppState", e);
+        }
+    }
 
     @Override
-    public void update(float tpf) {
-        // if(localBoat!=null){
-        //     localBoat.depthFirstTraversal(sx->{
-        //         if (sx instanceof Geometry) {
-        //             Material mat = ((Geometry) sx).getMaterial();
-        //             mat.setVector3("HSVShift", new Vector3f(0.5f, -0.6f, -0.6f));
-        //         }
-        //     });
-        // }
+    public void onLogicUpdate( float tpf) {
+
         try{
             frame++;
             if(frame==2){
@@ -155,52 +191,11 @@ public class GameAppState extends NGEAppState implements ConnectionListener, Mes
                 BoatControl boatControl = localBoat.getControl(BoatControl.class);
                 NetworkControl boatNetControl = localBoat.getControl(NetworkControl.class);
                 if(boatNetControl==null){
-                    boatNetControl = new NetworkControl(getApplication().getAssetManager());
+                    boatNetControl = new NetworkControl(assetManager);
                     localBoat.addControl(boatNetControl);
                 }
                 boatNetControl.sendUpdatePackets(remoteBoats.entrySet());
 
-                // lastTransformUpdate+=tpf;
-                // if(lastTransformUpdate>1f/35f){
-                //     lastTransformUpdate = 0f;
-                //     Transform localBoatTransform = localBoat.getWorldTransform();
-                //     TransformPacket packet = new TransformPacket(localBoatTransform);
-
-                //     for (Map.Entry<HostedConnection,Spatial> b : remoteBoats.entrySet()) {
-                //         try{
-                //             Vector3f p = b.getValue().getWorldTranslation();
-                //             boatNetControl.drawPacketSent(p.add(new Vector3f(0,3,0)));
-                //             b.getKey().send(packet);
-                //          }catch(Exception e){
-                //             log.log(Level.WARNING,"Error sending transform packet to connection " + b.getKey().getId()  ,e);
-                //         }
-                //     }                             
-     
-                // }    
-                
-
-                // lastAnimUpdate+=tpf;
-                // if(lastAnimUpdate>1f/15f){
-                //     lastAnimUpdate=0;
-                //     BoatAnimationControl animControl = localBoat.getControl(BoatAnimationControl.class); 
-                //     if (animControl != null) {
-                //         float flagFactor = animControl.getFlagFactor();
-                //         float sailFactor = animControl.getSailFactor();
-                //         float windFactor = animControl.getWindFactor();
-                //         AnimPacket animPacket = new AnimPacket(flagFactor, sailFactor, windFactor);
-
-                //         for (HostedConnection conn : remoteBoats.keySet()) {
-                //             try {
-                //                 conn.send(animPacket);
-                //             } catch (Exception e) {
-                //                 log.log(Level.WARNING,
-                //                         "Error sending anim packet to connection " + conn.getId(), e);
-                //             }
-                //         }
-                //     }
-
-                   
-                // }
 
                 float speed = boatControl.getLinearVelocity().length();
                 hudSpeed.setText(String.format("Speed: %.2f km/h", speed * 3.6f));
@@ -213,12 +208,7 @@ public class GameAppState extends NGEAppState implements ConnectionListener, Mes
 
     }
 
-    @Override
-    protected void onDisable() {
-        getStateManager().detach(ocean);
-        getStateManager().detach(physics);
-        
-    }
+
 
     @Override
     public void onRoomPeerDiscovered(NostrPublicKey peerKey, NostrRTCAnnounce announce,
@@ -229,13 +219,14 @@ public class GameAppState extends NGEAppState implements ConnectionListener, Mes
 
     @Override
     public void messageReceived(HostedConnection source, Message m) {
-        getApplication().enqueue(()->{;
+        this.runner.run(() -> {
+            ;
             try{
                 Spatial boat = remoteBoats.get(source);
                 if(boat==null)throw new IllegalStateException("Boat not found for source: " + source.getId());
                 NetworkControl boatNetControl = boat.getControl(NetworkControl.class);
                 if (boatNetControl == null) {
-                    boatNetControl = new NetworkControl(getApplication().getAssetManager());
+                    boatNetControl = new NetworkControl(assetManager);
                     boat.addControl(boatNetControl);
                 }
                 boatNetControl.applyPacket(m);                         
@@ -250,30 +241,28 @@ public class GameAppState extends NGEAppState implements ConnectionListener, Mes
     public void connectionAdded(Server server, HostedConnection conn) {
         log.info("New connection: " + conn.getId());
         spawnBoat(conn);
-        // .then(boat -> {
-        //     
-        //     boat.setName("RemoteBoat_" + conn.getAddress());            
-        //     log.info("Spawned remote boat for connection: " + conn.getId());
-        //     return null;
-        // }).catchException(ex -> {
-        //     log.log(Level.SEVERE,"Error spawning remote boat",ex);
-        // });
+
         
     }
 
     @Override
     public void connectionRemoved(Server server, HostedConnection conn) {
         log.info("Connection removed: " + conn.getId());
-        remoteBoats.remove(conn);
+        Spatial boat = remoteBoats.remove(conn);
+        if(boat!=null)boat.removeFromParent();
       
     }
     
     public void spawnBoat(HostedConnection conn) {
-        boolean isRemote = conn != null;
-        AppStateManager stateManager = getStateManager();
-        AsyncAssetManager assetManager = AsyncAssetManager.of(this.getApplication().getAssetManager(), getApplication());
+        PlayerManagerComponent playerManager = componentManager
+                .getComponentByType(PlayerManagerComponent.class);
+        OceanAppState ocean = componentManager.getComponentByType(OceanAppState.class);
+        PhysicsManager physics = componentManager.getComponentByType(PhysicsManager.class);
 
-        Node rootNode = (Node)getApplication().getViewPort().getScenes().get(0);
+        boolean isRemote = conn != null;
+        AsyncAssetManager assetManager = (AsyncAssetManager) this.assetManager;
+
+        Node rootNode = getRootNode(viewPort);
         assetManager.runInLoaderThread(t -> {
             Node playerSpatial = (Node)assetManager.loadModel("Models/boat/boat.gltf");
             playerSpatial.addControl(new BoatAnimationControl());
@@ -297,7 +286,6 @@ public class GameAppState extends NGEAppState implements ConnectionListener, Mes
             Consumer<Spatial> applyPlayerTexture = (flag) -> {
                 if(flag==null)return;
                 log.info("Found flag model in boat: " + flag.getName());
-                PlayerManagerAppState playerManager = stateManager.getState(PlayerManagerAppState.class);
                 Player player = null;
                 if (conn != null) {
                     player = playerManager.getPlayer(conn);
@@ -355,12 +343,11 @@ public class GameAppState extends NGEAppState implements ConnectionListener, Mes
             }
             log.info("Spawned "+(isRemote ? "remote" : "local") + " boat: " + playerSpatial.getName());
 
-            stateManager.getState(BulletAppState.class).getPhysicsSpace().add(playerSpatial);
-            stateManager.getState(OceanAppState.class).add(playerSpatial);
+            physics.getPhysics().getPhysicsSpace().add(playerSpatial);
+            ocean.add(playerSpatial);
             rootNode.attachChild(playerSpatial);
             if (!isRemote) {
-                InputManager inputManager = getApplication().getInputManager();
-                Camera cam = getApplication().getCamera();
+                Camera cam = viewPort.getCamera();
                 inputManager.addMapping("Forward", new KeyTrigger(KeyInput.KEY_W));
                 inputManager.addMapping("Backward", new KeyTrigger(KeyInput.KEY_S));
                 inputManager.addMapping("SteerLeft", new KeyTrigger(KeyInput.KEY_A));
@@ -389,4 +376,31 @@ public class GameAppState extends NGEAppState implements ConnectionListener, Mes
       
       
     }
+
+    public void onJoyAxisEvent(JoyAxisEvent evt) {
+
+    }
+
+    public void onJoyButtonEvent(JoyButtonEvent evt) {
+
+    }
+
+    public void onMouseMotionEvent(MouseMotionEvent evt) {
+
+    }
+
+    public void onMouseButtonEvent(MouseButtonEvent evt) {
+
+    }
+
+    public void onKeyEvent(KeyInputEvent evt) {
+
+    }
+
+    @Override
+    public void updateViewPort(ViewPort viewPort, float tpf) {
+
+    }
+
+  
 }

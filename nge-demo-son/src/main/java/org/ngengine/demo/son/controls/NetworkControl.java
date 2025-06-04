@@ -8,7 +8,7 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.ngengine.demo.son.GameAppState;
+import org.ngengine.demo.son.PlayGameState;
 import org.ngengine.demo.son.packets.AnimPacket;
 import org.ngengine.demo.son.packets.TransformPacket;
 import org.ngengine.network.RemotePeer;
@@ -40,7 +40,7 @@ public class NetworkControl extends AbstractControl {
     private Material dataParticleMaterial;
     private List<Particle> emittedParticle = new ArrayList<>(1);
     private final double NETSYNC_MIN_RATE = 1000.0 / 5.0;
-    private final double NETSYNC_MAX_RATE = 1000.0 / 60.0;    
+    private final double NETSYNC_MAX_RATE = 1000.0 / 25.0;
     private final double MAX_D = 2000.0;
     private Spatial dataStreamSpatial;
     private Instant lastReceivedAnimPacket = Instant.ofEpochMilli(0);
@@ -115,7 +115,7 @@ public class NetworkControl extends AbstractControl {
                     RemotePeer peer = (RemotePeer) p.getKey();
                     if (peer.getSocket().isUsingTURN()) {
                         minRate = 1000.0;
-                        maxRate = 1000.0 / 15.0;
+                        maxRate = 1000.0 / 10.0;
                     }
                 }
 

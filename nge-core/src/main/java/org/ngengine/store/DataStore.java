@@ -28,19 +28,21 @@ public class DataStore {
     }
 
     private final VStore store;
-    private final Application app;
+    // private final Application app;
     private final boolean isCache;
     private final String name;
+    private final AssetManager assetManager;
 
-    public DataStore(Application app, String name, boolean isCache) {
-        this.app = app;
+    public DataStore(String appName, AssetManager assetManager, String name, boolean isCache) {
+        this.assetManager = assetManager;
+
         this.isCache = isCache;
         this.name = name;
         NGEPlatform platform = NGEPlatform.get();
         if(isCache) {
-            store = platform.getCacheStore(app.getContext().getSettings().getTitle(), name);
+            store = platform.getCacheStore(appName, name);
         } else {
-            store = platform.getDataStore(app.getContext().getSettings().getTitle(), name);
+            store = platform.getDataStore(appName, name);
         }     
     }
 
@@ -70,7 +72,7 @@ public class DataStore {
     
     public  <T> T read(String key) throws IOException {
         try{
-            AssetManager assetManager = app.getAssetManager();
+
             String prefix = (isCache ? "cache/" : "data/") + name + "/";
             AssetKey<Object> assetKey = new AssetKey<>(prefix + key + ".j3o");
             AssetInfo assetInfo = assetManager.locateAsset(assetKey);

@@ -5,30 +5,33 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 
-import org.ngengine.DevMode;
-import org.ngengine.demo.son.NGEAppState;
-import org.ngengine.demo.son.controls.BoatControl;
+import org.ngengine.components.Component;
+import org.ngengine.components.ComponentManager;
+import org.ngengine.components.fragments.AssetLoadingFragment;
+import org.ngengine.components.fragments.AsyncAssetLoadingFragment;
+import org.ngengine.components.fragments.RenderFragment;
+import org.ngengine.components.fragments.ViewPortFragment;
+import org.ngengine.demo.son.PhysicsManager;
 import org.ngengine.demo.son.controls.BuoyancyControl;
 import org.ngengine.demo.son.controls.WindControl;
 import org.ngengine.demo.son.utils.GridMesh;
 import org.ngengine.demo.son.utils.ReflectionBaker;
+import org.ngengine.runner.Runner;
 import org.ngengine.store.DataStore;
+import org.ngengine.store.DataStoreProvider;
 
-import com.jme3.app.Application;
-import com.jme3.app.state.BaseAppState;
 import com.jme3.asset.AssetManager;
 import com.jme3.audio.AudioNode;
 import com.jme3.audio.AudioData.DataType;
+import com.jme3.bullet.BulletAppState;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState;
-import com.jme3.material.RenderState.BlendMode;
 import com.jme3.material.RenderState.FaceCullMode;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.FastMath;
 import com.jme3.math.Plane;
 import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
-import com.jme3.math.Vector4f;
 import com.jme3.renderer.Camera;
 import com.jme3.renderer.RenderManager;
 import com.jme3.renderer.ViewPort;
@@ -37,19 +40,16 @@ import com.jme3.renderer.queue.RenderQueue.ShadowMode;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
-import com.jme3.scene.control.Control;
 import com.jme3.texture.FrameBuffer;
 import com.jme3.texture.Image;
 import com.jme3.texture.Image.Format;
 import com.jme3.texture.Texture2D;
 import com.jme3.util.TempVars;
 import com.jme3.util.mikktspace.MikktspaceTangentGenerator;
-import com.jme3.texture.FrameBuffer.FrameBufferBufferTarget;
 import com.jme3.texture.FrameBuffer.FrameBufferTarget;
-import com.jme3.texture.Texture.WrapMode;
-import com.jme3.texture.TextureCubeMap.Face;
 
-public class OceanAppState extends NGEAppState {
+public class OceanAppState
+        implements Component<Object>, ViewPortFragment, RenderFragment, AssetLoadingFragment {
     private static final Logger log = Logger.getLogger(OceanAppState.class.getName());
     private Geometry oceanGeometry;
 
@@ -75,9 +75,15 @@ public class OceanAppState extends NGEAppState {
     private Plane plane;
     private ViewPort reflectionViewPort;
     private AudioNode oceanWavesSound;
+    private IBOcean ibocean;
+    private RenderManager renderManager;
+    private AssetManager assetManager;
+    private ViewPort viewPort;
+    private ComponentManager componentManager;
 
-    public OceanAppState() {
-        setUnit("environment");
+    @Override
+    public Object getSlot() {
+        return "environment";
     }
     
     public OceanAppState(int vertexDensity ) {
@@ -85,16 +91,35 @@ public class OceanAppState extends NGEAppState {
         this.VERTEX_DENSITY = vertexDensity;     
     }
 
- 
+    public OceanAppState() {
+        this(256);
+    }
+
+    public AssetManager getAssetManager() {
+        return assetManager;
+    }
 
     @Override
-    protected void cleanup(Application app) {
-
+    public void receiveRenderManager(RenderManager renderManager) {
+        this.renderManager = renderManager;
     }
- 
+
+    @Override
+    public void loadAssets(AssetManager assetManager) {
+        this.assetManager = assetManager;
+    }
+
+    @Override
+    public void receiveViewPort(ViewPort viewPort) {
+        this.viewPort = viewPort;
+    }
+
+    public BulletAppState getPhysics() {
+        return componentManager.getComponentByType(PhysicsManager.class).getPhysics();
+    }
+
 
     private void initializeReflectionView(ViewPort vp, Node scene) {
-        RenderManager renderManager = getApplication().getRenderManager();
 
         FrameBuffer refbuf = new FrameBuffer(reflectionSize, reflectionSize, 1);
         refbuf.setMultiTarget(true);
@@ -130,14 +155,12 @@ public class OceanAppState extends NGEAppState {
 
     }
 
-    IBOcean ibocean;
 
     @Override
-    protected void onEnable() {
-        AssetManager assetManager = getApplication().getAssetManager();
-        RenderManager rm = getApplication().getRenderManager();
-        ViewPort vp = getApplication().getViewPort();
-        Node rootNode = (Node) vp.getScenes().get(0);
+    public void onEnable(ComponentManager fragmentManager, Runner runner, DataStoreProvider dataStoreProvider,
+            boolean firstTime, Object arg) {
+        this.componentManager = fragmentManager;
+        Node rootNode = getRootNode(viewPort);
 
         oceanWavesSound = new AudioNode(assetManager, "Sounds/Beach_Ocean_Waves_Fienup_001_mono.ogg",
                 DataType.Buffer);
@@ -150,7 +173,7 @@ public class OceanAppState extends NGEAppState {
         rootNode.attachChild(oceanWavesSound);
         WAVE_SCALE.set(1f,10f,1f);
 
-        DataStore oceanData = getDataStore("ocean");
+        DataStore oceanData = dataStoreProvider.getDataStore("ocean");
         try{
             ibocean = oceanData.read("iboceandata");
         } catch (Exception e) {
@@ -183,24 +206,18 @@ public class OceanAppState extends NGEAppState {
         rootNode.attachChild(oceanGeometry);
         MikktspaceTangentGenerator.generate(oceanGeometry);
 
-        initializeReflectionView(vp, rootNode);
-        ibocean.update(Instant.now(), assetManager,reflectionMap, envCam.getViewProjectionMatrix(), WIND);
-
-        DevMode.registerReloadCallback(this, () -> {
-            setEnabled(false);
-            setEnabled(true);
-        });
+        initializeReflectionView(viewPort, rootNode);
+        ibocean.update(Instant.now(), assetManager, reflectionMap, envCam.getViewProjectionMatrix(), WIND);
     }
 
     @Override
-    public void update(float tpf) {
-        super.update(tpf);
+    public void updateViewPort(ViewPort vp, float tpf) {
             
         float windStrength = 60f;
         this.WIND.set(0, 0, windStrength);
 
 
-        Camera cam = getApplication().getCamera();
+        Camera cam = vp.getCamera();
         updateReflectionCam(cam,envCam, plane);       
      
         Vector3f t = oceanGeometry.getLocalTranslation();
@@ -209,20 +226,15 @@ public class OceanAppState extends NGEAppState {
         t.y = 0;
 
         oceanGeometry.setLocalTranslation(t);
-        ibocean.update(Instant.now(), getApplication().getAssetManager(), reflectionMap, envCam.getViewProjectionMatrix(), WIND);
-       
+        ibocean.update(Instant.now(), assetManager, reflectionMap, envCam.getViewProjectionMatrix(), WIND);
 
-    }
-    
-    
-    public float getWaterHeightAt(float x, float z) {
-        return ibocean.getWaterHeight(samplePos.set(x, 0, z));      
     }
 
     @Override
-    protected void onDisable() {
+    public void onDisable(ComponentManager fragmentManager, Runner runner,
+            DataStoreProvider dataStoreProvider) {
         if (oceanGeometry != null) oceanGeometry.removeFromParent();
-        if (reflectionViewPort != null) getApplication().getRenderManager().removePreView(reflectionViewPort);
+        if (reflectionViewPort != null) renderManager.removePreView(reflectionViewPort);
         if (oceanWavesSound != null) {
             oceanWavesSound.stop();
             oceanWavesSound.removeFromParent();
@@ -230,7 +242,9 @@ public class OceanAppState extends NGEAppState {
      
     }
 
- 
+    public float getWaterHeightAt(float x, float z) {
+        return ibocean.getWaterHeight(samplePos.set(x, 0, z));
+    }
 
     public void add(Spatial spat) {
         BuoyancyControl bc = spat.getControl(BuoyancyControl.class);
@@ -368,5 +382,10 @@ public class OceanAppState extends NGEAppState {
         } finally {
             vars.release();
         }
+    }
+
+    @Override
+    public void updateRender(RenderManager renderer) {
+
     }
 }

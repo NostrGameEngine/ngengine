@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.function.BiConsumer;
 
 import org.ngengine.gui.win.NWindow;
-import org.ngengine.gui.win.NWindowManagerAppState;
+import org.ngengine.gui.win.NWindowManagerComponent;
 import org.ngengine.nostr4j.signer.NostrSigner;
 import org.ngengine.platform.AsyncTask;
 import org.ngengine.platform.NGEPlatform;
@@ -21,7 +21,8 @@ public abstract class Auth {
 
     public abstract String getNewIdentityText();
 
-    public void open(NWindowManagerAppState manager, String forPubKey,BiConsumer<NWindow<AuthConfig>,Throwable> callback){
+    public void open(NWindowManagerComponent manager, String forPubKey,
+            BiConsumer<NWindow<AuthConfig>, Throwable> callback) {
         AuthConfig options = this.options.clone();
         if(forPubKey!=null){
             options.setForNpub(forPubKey);
@@ -39,7 +40,7 @@ public abstract class Auth {
         });
     }
     
-    public void open(NWindowManagerAppState manager,BiConsumer< NWindow<AuthConfig>,Throwable> callback ){
+    public void open(NWindowManagerComponent manager, BiConsumer<NWindow<AuthConfig>, Throwable> callback) {
         open(manager, null, callback);
     }
 
@@ -110,7 +111,7 @@ public abstract class Auth {
 
  
     
-    public static void start(NWindowManagerAppState windowManager, AuthStrategy authStrategy){
+    public static void start(NWindowManagerComponent windowManager, AuthStrategy authStrategy) {
         windowManager.showWindow(AuthSelectionWindow.class, authStrategy);
     }
 }

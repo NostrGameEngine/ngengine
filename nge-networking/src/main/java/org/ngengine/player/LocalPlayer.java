@@ -10,7 +10,8 @@ import org.ngengine.nostr4j.signer.NostrSigner;
 public class LocalPlayer extends Player {
     private final NostrSigner signer;
 
-    protected LocalPlayer(PlayerManagerAppState mng, NostrSigner signer) throws InterruptedException, ExecutionException {
+    protected LocalPlayer(PlayerManagerComponent mng, NostrSigner signer)
+            throws InterruptedException, ExecutionException {
         super(mng, signer.getPublicKey().await());
         this.signer = signer;
     }
