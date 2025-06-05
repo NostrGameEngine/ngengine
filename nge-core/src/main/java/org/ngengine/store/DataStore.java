@@ -11,7 +11,6 @@ import java.util.logging.Logger;
 import org.ngengine.platform.NGEPlatform;
 import org.ngengine.platform.VStore;
 
-import com.jme3.app.Application;
 import com.jme3.asset.AssetInfo;
 import com.jme3.asset.AssetKey;
 import com.jme3.asset.AssetManager;
@@ -21,6 +20,16 @@ import com.jme3.export.SavableWrapSerializable;
 import com.jme3.export.binary.BinaryExporter;
 import com.jme3.export.binary.BinaryImporter;
 
+/**
+ * A data store is key-value storage that can be used to store ${@link Savable} and serializable objects and
+ * primitives to a persistent storage.
+ * 
+ * <p>
+ * It uses {@link VStore} internally and differentiates between cache and data stores, however the actual
+ * implementation is platform dependent and will use whatever form of storage is the most appropriate and
+ * efficient for the platform and the intended use case.
+ * 
+ */
 public class DataStore {
     private final Logger log = Logger.getLogger(DataStore.class.getName());
     static class SerializableEntry implements Serializable{
@@ -28,7 +37,6 @@ public class DataStore {
     }
 
     private final VStore store;
-    // private final Application app;
     private final boolean isCache;
     private final String name;
     private final AssetManager assetManager;
@@ -46,6 +54,15 @@ public class DataStore {
         }     
     }
 
+    /**
+     * Fully writes and commits a savable or serializable object or a primitive.
+     * 
+     * @param key
+     *            the key to store the object under
+     * @param value
+     *            the object to store, must be a {@link Savable} or serializable object
+     * @throws IOException
+     */
     public void write(String key, Object value) throws IOException {
         if(!(value instanceof Savable)){
             SerializableEntry entry = new SerializableEntry();
@@ -69,7 +86,16 @@ public class DataStore {
         }
         return (T) out;
     }
-    
+
+    /**
+     * Reads a savable or serializable object or a primitive from the store.
+     * 
+     * @param key
+     *            the key to read the object from
+     * @return the object read from the store, can be a {@link Savable} or a serializable object
+     * @throws IOException
+     *             if reading fails
+     */
     public  <T> T read(String key) throws IOException {
         try{
 
@@ -93,6 +119,13 @@ public class DataStore {
         }
     }
 
+    /**
+     * Checks if a key exists in the store.
+     * 
+     * @param key
+     *            the key to check
+     * @return true if the key exists, false otherwise
+     */
     public boolean exists(String key) {
         try{
             return store.exists(key + ".j3o").await();
@@ -101,6 +134,12 @@ public class DataStore {
         }
     }
 
+    /**
+     * Deletes a key from the store.
+     * 
+     * @param key
+     *            the key to delete
+     */
     public void delete(String key) {
         try {
             store.delete(key + ".j3o").await();
@@ -109,6 +148,9 @@ public class DataStore {
         }
     }
 
+    /**
+     * Clears the store, deleting all keys.
+     */
     public List<String> list() {
         try {
             return store.listAll().await();

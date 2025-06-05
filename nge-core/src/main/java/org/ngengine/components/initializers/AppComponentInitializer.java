@@ -18,16 +18,18 @@ import org.ngengine.components.fragments.RenderFragment;
 import org.ngengine.components.fragments.ViewPortFragment;
 
 import com.jme3.app.Application;
-import com.jme3.scene.Node;
 
-public class AppFragmentInitializer implements ComponentInitializer {
-    private static final Logger log = Logger.getLogger(AppFragmentInitializer.class.getName());
+/**
+ * Initializes components by connecting them to JME3 application resources.
+ */
+public class AppComponentInitializer implements ComponentInitializer {
+    private static final Logger log = Logger.getLogger(AppComponentInitializer.class.getName());
 
     private final Application app;
     private final AsyncAssetManager assetManager;
     private final Map<InputHandlerFragment, InputHandlerFragment.Wrapper> inputHandlerWrappers = new HashMap<>();
 
-    public AppFragmentInitializer(Application app){
+    public AppComponentInitializer(Application app){
         this.app = app;
         this.assetManager = AsyncAssetManager.of(app.getAssetManager(), app);
     }

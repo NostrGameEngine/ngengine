@@ -5,6 +5,11 @@ import java.util.Objects;
 import com.jme3.app.Application;
 import com.jme3.app.state.BaseAppState;
 
+/**
+ * Run in the jme3 main thread. The same as Jme3's {@link com.jme3.app.Application#enqueue(Runnable)} but the
+ * 
+ * @{link #run(Runnable)} method will not enqueue the task if it is already running in the main thread.
+ */
 public class MainThreadRunner extends BaseAppState implements Runner {
     private Thread mainThread;
 
@@ -31,6 +36,11 @@ public class MainThreadRunner extends BaseAppState implements Runner {
         } else {
             getApplication().enqueue(task);
         }
+    }
+
+    @Override
+    public void enqueue(Runnable task) {
+        getApplication().enqueue(task);
     }
 
     @Override

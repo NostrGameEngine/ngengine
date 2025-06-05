@@ -2,6 +2,9 @@ package org.ngengine.store;
 
 import com.jme3.asset.AssetManager;
 
+/**
+ * Provides data stores bound to a specific application name and asset manager.
+ */
 public class DataStoreProvider {
     private final String appName;
     private final AssetManager assetManager;

@@ -15,7 +15,6 @@ import org.ngengine.components.Component;
 import org.ngengine.components.ComponentInitializer;
 import org.ngengine.components.ComponentManager;
 import org.ngengine.components.ComponentUpdater;
-import org.ngengine.components.fragments.RenderFragment;
 import org.ngengine.runner.MainThreadRunner;
 import org.ngengine.store.DataStoreProvider;
 
@@ -23,7 +22,9 @@ import com.jme3.app.Application;
 import com.jme3.app.state.BaseAppState;
 import com.jme3.renderer.RenderManager;
 
-
+/**
+ * A component manager that manages components in a JME3 application.
+ */
 public class ComponentManagerAppState extends BaseAppState implements ComponentManager {
     private static final Logger log = Logger.getLogger(ComponentManagerAppState.class.getName());
 
@@ -405,5 +406,19 @@ public class ComponentManagerAppState extends BaseAppState implements ComponentM
         }
 
         return false;
+    }
+
+    @Override
+    public void updateComponentDependencies(Component fragment, Object... deps) {
+        ComponentMount mount = getMount(fragment);
+        if (mount == null) {
+            throw new IllegalArgumentException("Fragment not found: " + fragment.getId());
+        }
+        boolean hasCycle = hasCircularDependency(fragment, deps, new HashSet<>());
+        if (hasCycle) {
+            throw new IllegalArgumentException(
+                    "Circular dependency detected for fragment: " + fragment.getId());
+        }
+        mount.deps = deps;
     }
 }

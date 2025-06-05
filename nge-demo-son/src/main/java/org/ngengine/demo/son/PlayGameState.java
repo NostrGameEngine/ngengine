@@ -43,6 +43,7 @@ import com.jme3.input.event.JoyButtonEvent;
 import com.jme3.input.event.KeyInputEvent;
 import com.jme3.input.event.MouseButtonEvent;
 import com.jme3.input.event.MouseMotionEvent;
+import com.jme3.input.event.TouchEvent;
 import com.jme3.material.MatParam;
 import com.jme3.material.Material;
 import com.jme3.math.Vector3f;
@@ -178,7 +179,7 @@ public class PlayGameState implements Component<P2PChannel>, LogicFragment, View
     }
 
     @Override
-    public void onLogicUpdate( float tpf) {
+    public void updateAppLogic(float tpf) {
 
         try{
             frame++;
@@ -402,5 +403,8 @@ public class PlayGameState implements Component<P2PChannel>, LogicFragment, View
 
     }
 
+    @Override
+    public void onTouchEvent(TouchEvent evt) {
+    }
   
 }

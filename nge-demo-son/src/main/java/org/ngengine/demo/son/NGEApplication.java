@@ -4,7 +4,7 @@ import java.util.function.Consumer;
 
 import org.ngengine.AsyncAssetManager;
 import org.ngengine.DevMode;
-import org.ngengine.components.initializers.AppFragmentInitializer;
+import org.ngengine.components.initializers.AppComponentInitializer;
 import org.ngengine.components.jme3.ComponentManagerAppState;
 import org.ngengine.components.updaters.AppComponentUpdater;
 import org.ngengine.components.updaters.AppViewPortComponentUpdater;
@@ -41,7 +41,7 @@ public class NGEApplication {
             stateManager.attach(new DevMode());
 
             getStateManager().attach(cmng);
-            cmng.addInitializer(new AppFragmentInitializer(this));
+            cmng.addInitializer(new AppComponentInitializer(this));
             cmng.addUpdater(new AppViewPortComponentUpdater(this));
             cmng.addUpdater(new AppComponentUpdater(this));
 

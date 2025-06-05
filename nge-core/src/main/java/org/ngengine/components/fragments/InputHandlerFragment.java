@@ -12,6 +12,17 @@ import com.jme3.input.event.MouseButtonEvent;
 import com.jme3.input.event.MouseMotionEvent;
 import com.jme3.input.event.TouchEvent;
 
+/**
+ * A fragment that intercept raw input events. It extends {@link RawInputListener} and is automatically
+ * registered with the {@link InputManager} when the component is initialized.
+ * 
+ * If higher-level input handling is needed, the
+ * 
+ * The onXXEvents are called only if the component is enabled.
+ * 
+ * {@link InputHandlerFragment#receiveInputManager(InputManager)} method can be overridden to receive the
+ * {@link InputManager} instance and register additional input listeners.
+ */
 public interface  InputHandlerFragment extends Fragment, RawInputListener {
     public static class Wrapper implements RawInputListener {
         private final InputHandlerFragment fragment;
@@ -90,6 +101,12 @@ public interface  InputHandlerFragment extends Fragment, RawInputListener {
         
     }
 
+    /**
+     * Receives the InputManager instance when the component is initialized. This method can be overridden to
+     * register additional input listeners.
+     * 
+     * The reference to the InputManager can be stored and used later in the component logic.
+     */
     public default void receiveInputManager(InputManager inputManager){
 
     }
@@ -104,9 +121,6 @@ public interface  InputHandlerFragment extends Fragment, RawInputListener {
 
     public void onKeyEvent(KeyInputEvent evt) ;
 
-    @Override
-    public default void onTouchEvent(TouchEvent evt) {
-
-    }
+    public void onTouchEvent(TouchEvent evt);
     
 }

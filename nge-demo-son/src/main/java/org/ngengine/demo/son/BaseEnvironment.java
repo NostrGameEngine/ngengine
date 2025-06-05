@@ -1,5 +1,6 @@
 package org.ngengine.demo.son;
 
+import org.ngengine.AsyncAssetManager;
 import org.ngengine.components.Component;
 import org.ngengine.components.ComponentManager;
 import org.ngengine.components.fragments.AsyncAssetLoadingFragment;
@@ -34,7 +35,7 @@ public class BaseEnvironment implements Component<Object>, AsyncAssetLoadingFrag
     private ViewPort viewPort;
 
     @Override
-    public void loadAssetsAsync(AssetManager assetManager) {
+    public void loadAssetsAsync(AsyncAssetManager assetManager) {
         this.assetManager = assetManager;
 
         TextureKey key = new TextureKey("skies/alienSkyLOWEXP.png", true);

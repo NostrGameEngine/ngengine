@@ -34,6 +34,11 @@ import com.jme3.scene.Spatial;
 import com.jme3.shader.ShaderGenerator;
 import com.jme3.texture.Texture;
 
+/**
+ * An asynchronous wrapper for the JME AssetManager that allows loading assets in a separate thread and
+ * provides callbacks for when the asset is loaded. This is useful to avoid blocking the main thread during
+ * asset loading.
+ */
 public class AsyncAssetManager implements AssetManager,Closeable {
     private static final Map<AssetManager, AsyncAssetManager> asyncManagers = new WeakHashMap<>();
     protected final AssetManager assetManager;

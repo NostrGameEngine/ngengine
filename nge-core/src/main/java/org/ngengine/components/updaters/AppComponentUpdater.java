@@ -7,6 +7,9 @@ import org.ngengine.components.fragments.LogicFragment;
 import org.ngengine.components.fragments.RenderFragment;
 import com.jme3.app.Application;
 
+/**
+ * Updates components using JME3 application resources.
+ */
 public class AppComponentUpdater  implements ComponentUpdater {
     private final Application app;
 
@@ -24,7 +27,7 @@ public class AppComponentUpdater  implements ComponentUpdater {
     public void update(ComponentManager fragmentManager, Component component, float tpf) {
         if(component instanceof LogicFragment) {
             LogicFragment appFragment = (LogicFragment) component;
-            appFragment.onLogicUpdate(tpf);
+            appFragment.updateAppLogic(tpf);
         }  
     } 
 

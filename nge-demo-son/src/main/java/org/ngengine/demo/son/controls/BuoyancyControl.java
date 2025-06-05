@@ -46,11 +46,11 @@ public class BuoyancyControl extends AbstractControl implements PhysicsTickListe
     private float smoothedWaterRoll = 0f;
     private float waterTiltSmoothing = 0.85f; // Higher = smoother (0.0-1.0)
    
-     private SamplingPoint s0 = new SamplingPoint();
-     private SamplingPoint sf = new SamplingPoint();
-     private SamplingPoint sb = new SamplingPoint();
-     private SamplingPoint sl = new SamplingPoint();
-     private SamplingPoint sr = new SamplingPoint();
+    private SamplingPoint s0 = new SamplingPoint();
+    private SamplingPoint sf = new SamplingPoint();
+    private SamplingPoint sb = new SamplingPoint();
+    private SamplingPoint sl = new SamplingPoint();
+    private SamplingPoint sr = new SamplingPoint();
 
     private float objectLength = 0.5f; // Length of the object in meters
     private float objectWidth = 0.5f; // Width of the object in meters

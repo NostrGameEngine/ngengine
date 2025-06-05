@@ -1,21 +1,16 @@
 package org.ngengine.components.updaters;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import org.ngengine.AsyncAssetManager;
 import org.ngengine.components.Component;
 import org.ngengine.components.ComponentManager;
 import org.ngengine.components.ComponentUpdater;
-import org.ngengine.components.fragments.AppFragment;
-import org.ngengine.components.fragments.AsyncAssetLoadingFragment;
 import org.ngengine.components.fragments.GuiViewPortFragment;
-import org.ngengine.components.fragments.InputHandlerFragment;
-import org.ngengine.components.fragments.RenderFragment;
 import org.ngengine.components.fragments.ViewPortFragment;
 
 import com.jme3.app.Application;
 
+/**
+ * Updates viewport components using JME3 application resources.
+ */
 public class AppViewPortComponentUpdater implements ComponentUpdater {
     
     private final Application app;
@@ -43,25 +38,6 @@ public class AppViewPortComponentUpdater implements ComponentUpdater {
         } 
    
 
-        // for (ComponentMount mount : componentMounts) {
-        //     if (!mount.enabled) continue;
-        //     if (mount.component instanceof GuiViewPortFragment) {
-        //         GuiViewPortFragment appFragment = (GuiViewPortFragment) mount.component;
-        //         appFragment.onGuiViewPortUpdate(getApplication().getGuiViewPort(), tpf);
-        //     }
-        //     if (mount.component instanceof ViewPortFragment) {
-        //         ViewPortFragment appFragment = (ViewPortFragment) mount.component;
-        //         appFragment.onViewPortUpdate(getApplication().getViewPort(), tpf);
-        //     }
-        // }
-
-        // for (ComponentMount mount : componentMounts) {
-        //     if (!mount.enabled) continue;
-        //     if (mount.component instanceof AppFragment) {
-        //         AppFragment appFragment = (AppFragment) mount.component;
-        //         appFragment.onApplicationLogicUpdate(getApplication(), tpf);
-        //     }
-        // }
     } 
 
     @Override
