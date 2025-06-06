@@ -1,20 +1,18 @@
-package org.ngengine.demo.son;
+package org.ngengine;
 
 import java.util.function.Consumer;
 
-import org.ngengine.AsyncAssetManager;
-import org.ngengine.DevMode;
-import org.ngengine.components.initializers.AppComponentInitializer;
+import org.ngengine.components.jme3.AppComponentInitializer;
+import org.ngengine.components.jme3.AppComponentLoader;
+import org.ngengine.components.jme3.AppComponentUpdater;
+import org.ngengine.components.jme3.AppViewPortComponentUpdater;
 import org.ngengine.components.jme3.ComponentManagerAppState;
-import org.ngengine.components.updaters.AppComponentUpdater;
-import org.ngengine.components.updaters.AppViewPortComponentUpdater;
 import org.ngengine.gui.NGEStyle;
 import org.ngengine.gui.svg.SVGLoader;
 
 import com.jme3.app.LostFocusBehavior;
 import com.jme3.app.SimpleApplication;
 import com.jme3.system.AppSettings;
-import com.jme3.system.SystemListener;
 import com.simsilica.lemur.GuiGlobals;
 
 public class NGEApplication {
@@ -44,7 +42,7 @@ public class NGEApplication {
             cmng.addInitializer(new AppComponentInitializer(this));
             cmng.addUpdater(new AppViewPortComponentUpdater(this));
             cmng.addUpdater(new AppComponentUpdater(this));
-
+            cmng.addLoader(new AppComponentLoader(this));
 
             DevMode.registerForReload(rootNode);
 

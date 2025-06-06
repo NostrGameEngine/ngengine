@@ -1,5 +1,6 @@
 package org.ngengine.demo.son;
 
+import org.ngengine.NGEApplication;
 import org.ngengine.demo.son.ocean.OceanAppState;
 import org.ngengine.gui.win.NWindowManagerComponent;
 import org.ngengine.player.PlayerManagerComponent;

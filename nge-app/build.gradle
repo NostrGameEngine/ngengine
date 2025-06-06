@@ -1,0 +1,23 @@
+
+
+dependencies {
+    api project(':jme3-core')
+    api "org.ngengine:nostr4j:${nostr4jVersion}"
+    implementation "org.ngengine:nge-platform-common:${ngePlatformVersion}"
+    api "org.ngengine:nge-platform-common:${ngePlatformVersion}"
+    api "org.ngengine:nge-platform-jvm:${ngePlatformVersion}"
+    api project(':nge-core')
+    api project(':nge-networking')
+    api project(':nge-ui')
+    api project(':nge-auth')
+    api project(':jme3-desktop')
+        implementation 'org.sejda.imageio:webp-imageio:0.1.6'
+
+}
+
+javadoc {
+    // Disable doclint for JDK8+.
+    if (JavaVersion.current().isJava8Compatible()){
+        options.addStringOption('Xdoclint:none', '-quiet')
+    }
+}

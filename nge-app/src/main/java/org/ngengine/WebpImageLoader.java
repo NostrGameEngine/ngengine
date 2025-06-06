@@ -1,4 +1,4 @@
-package org.ngengine.demo.son;
+package org.ngengine;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
