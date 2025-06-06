@@ -52,6 +52,7 @@ import com.jme3.network.HostedConnection;
 import com.jme3.network.Message;
 import com.jme3.network.MessageListener;
 import com.jme3.network.Server;
+import com.jme3.post.FilterPostProcessor;
 import com.jme3.renderer.Camera;
 import com.jme3.renderer.ViewPort;
 import com.jme3.renderer.queue.RenderQueue.ShadowMode;
@@ -405,6 +406,11 @@ public class PlayGameState implements Component<P2PChannel>, LogicFragment, View
 
     @Override
     public void onTouchEvent(TouchEvent evt) {
+    }
+
+    @Override
+    public void loadViewPortFilterPostprocessor(AssetManager assetManager, FilterPostProcessor fpp) {
+
     }
   
 }

@@ -32,6 +32,7 @@ import com.jme3.math.FastMath;
 import com.jme3.math.Plane;
 import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
+import com.jme3.post.FilterPostProcessor;
 import com.jme3.renderer.Camera;
 import com.jme3.renderer.RenderManager;
 import com.jme3.renderer.ViewPort;
@@ -386,6 +387,11 @@ public class OceanAppState
 
     @Override
     public void updateRender(RenderManager renderer) {
+
+    }
+
+    @Override
+    public void loadViewPortFilterPostprocessor(AssetManager assetManager, FilterPostProcessor fpp) {
 
     }
 }

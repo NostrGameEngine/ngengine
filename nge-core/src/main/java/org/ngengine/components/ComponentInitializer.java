@@ -17,8 +17,10 @@ public interface ComponentInitializer {
      *            the component to initialize
      * @param markReady
      *            a runnable that should be called when the initialization is complete
+     * @return how many times the markReady callback is expected to be called to mark the complete
+     *         initialization.
      */
-    public void initialize(ComponentManager mng, Component fragment, Runnable markReady);
+    public int initialize(ComponentManager mng, Component fragment, Runnable markReady);
 
     /**
      * Cleanup the component in the given component manager. This method is called when the component is

@@ -18,6 +18,7 @@ import com.jme3.asset.AssetManager;
 import com.jme3.environment.EnvironmentProbeControl;
 import com.jme3.math.FastMath;
 import com.jme3.math.Vector3f;
+import com.jme3.post.FilterPostProcessor;
 import com.jme3.renderer.Camera;
 import com.jme3.renderer.ViewPort;
 import com.jme3.scene.Node;
@@ -85,6 +86,10 @@ public class HelloGameState implements Component<Object>, AppFragment, ViewPortF
     public void onDisable(ComponentManager mng, Runner runner, DataStoreProvider dataStoreProvider) {
     }
 
+    @Override
+    public void loadViewPortFilterPostprocessor(AssetManager assetManager, FilterPostProcessor fpp) {
+
+    }
   
     
     

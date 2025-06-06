@@ -46,7 +46,9 @@ import org.ngengine.store.DataStoreProvider;
  * <li>Implement primary component logic in {@link #onEnable} and fragment update methods</li>
  * <li>Use {@link #onAttached} only for initialization that must happen before enabling</li>
  * <li>The receiveXXX methods from fragments should be used only to store instance fields</li>
- * <li>The loadXXX methods should be used only for resource loading</li>
+ * <li>The loadXXX methods should be used only for resource creation or loading, or to configure what is
+ * directly passed to them. This will avoid concurrency issues, as some of these methods may run on different
+ * threads than the rest of the component.</li>
  * <li>{@link #onDisable} should reset state to allow future re-enabling. ${@link #onDisable} is always called
  * automatically before an enabled component is detached</li>
  * <li>{@link #onDetached} must thoroughly clean up all resources to prevent memory leaks</li>

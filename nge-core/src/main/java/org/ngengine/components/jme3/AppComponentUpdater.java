@@ -1,4 +1,4 @@
-package org.ngengine.components.updaters;
+package org.ngengine.components.jme3;
 
 import org.ngengine.components.Component;
 import org.ngengine.components.ComponentManager;

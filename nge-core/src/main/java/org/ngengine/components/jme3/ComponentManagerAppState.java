@@ -13,6 +13,7 @@ import java.util.logging.Logger;
 
 import org.ngengine.components.Component;
 import org.ngengine.components.ComponentInitializer;
+import org.ngengine.components.ComponentLoader;
 import org.ngengine.components.ComponentManager;
 import org.ngengine.components.ComponentUpdater;
 import org.ngengine.runner.MainThreadRunner;
@@ -41,6 +42,10 @@ public class ComponentManagerAppState extends BaseAppState implements ComponentM
         final AtomicInteger initialized = new AtomicInteger(Integer.MIN_VALUE); // Integer.MIN_VALUE means not
                                                                                 // initialized, 0 means ready,
                                                                                 // >0 means pending
+        final AtomicInteger loaded = new AtomicInteger(Integer.MIN_VALUE); // Integer.MIN_VALUE means not
+        // loaded, 0 means ready,
+        // >0 means pending
+
     }
 
     private static class ComponentSlot {
@@ -53,6 +58,7 @@ public class ComponentManagerAppState extends BaseAppState implements ComponentM
     private final List<Component> components = new CopyOnWriteArrayList<>();
     private final List<Component> componentsRO = Collections.unmodifiableList(components);
     private final List<ComponentInitializer> initializers = new CopyOnWriteArrayList<>();
+    private final List<ComponentLoader> loaders = new CopyOnWriteArrayList<>();
     private final List<ComponentUpdater> updaters = new CopyOnWriteArrayList<>();
 
     private DataStoreProvider dataStoreProvider;
@@ -81,6 +87,20 @@ public class ComponentManagerAppState extends BaseAppState implements ComponentM
             throw new IllegalArgumentException("Updater cannot be null");
         }
         updaters.add(updater);
+    }
+
+    public void addLoader(ComponentLoader loader) {
+        if (loader == null) {
+            throw new IllegalArgumentException("Loader cannot be null");
+        }
+        loaders.add(loader);
+    }
+
+    public void removeLoader(ComponentLoader loader) {
+        if (loader == null) {
+            throw new IllegalArgumentException("Loader cannot be null");
+        }
+        loaders.remove(loader);
     }
 
     public void removeUpdater(ComponentUpdater updater) {
@@ -257,101 +277,139 @@ public class ComponentManagerAppState extends BaseAppState implements ComponentM
     @Override
     public void update(float tpf) {
         super.update(tpf);
+
         for (ComponentMount mount : componentMounts) {
+            if (mount.ready) continue;
             if (mount.initialized.get() == Integer.MIN_VALUE) {
                 mount.initialized.set(0); // if no initializer is registered, we assume it is initialized
                 for (ComponentInitializer initializer : initializers) {
                     if (initializer.canInitialize(this, mount.component)) {
-                        mount.initialized.incrementAndGet();
-                        initializer.initialize(this, mount.component, () -> {
-                            if (mount.initialized.decrementAndGet() == 0) {
-                                mount.ready = true;
-                            }
+                        int n = initializer.initialize(this, mount.component, () -> {
+                            mount.initialized.decrementAndGet();
                         });
+                        mount.initialized.addAndGet(n);
                     }
                 }
             }
-            if (mount.ready) {
-                if (mount.enabled != mount.desiredEnabledState) {
-                    if (mount.desiredEnabledState) {
-                        Object deps[] = mount.deps;
+            if (mount.initialized.get() > 0) {
+                log.fine("Component " + mount.component.getId() + " is not ready it still initializing. "
+                        + mount.initialized.get() + " left");
+            }
+        }
 
-                     
+        for (ComponentMount mount : componentMounts) {
+            if (mount.ready || mount.initialized.get() > 0) continue;
+            if (mount.loaded.get() == Integer.MIN_VALUE) {
+                mount.loaded.set(0); // if no loader is registered, we assume it is loaded
+                for (ComponentLoader loader : loaders) {
+                    if (loader.canLoad(this, mount.component)) {
+                        int n = loader.load(this, mount.component, () -> {
+                            mount.loaded.decrementAndGet();
+                        });
+                        mount.loaded.addAndGet(n);
+                    }
+                }
+            }
+            if (mount.loaded.get() > 0) {
+                log.fine("Component " + mount.component.getId() + " is not ready it still loading. "
+                        + mount.loaded.get() + " left");
+            }
+        }
 
-                        // Check if all dependencies are enabled
-                        if (deps == null || Arrays.stream(deps).allMatch(d -> {
-                            Component depFragment = getFragment(d);
-                            if (depFragment == null) {
-                                return true; // if dependency is not a fragment, we assume it is always
-                                             // enabled
-                            }
-                            boolean ready = isComponentEnabled(depFragment);
-                            if(!ready){
-                                log.fine("Component " + mount.component.getId() + " is not ready because dependency " + depFragment.getId() + " is not ready.");
-                            }
-                            return ready;
-                        })) {
+        for (ComponentMount mount : componentMounts) {
+            if (!mount.ready) {
+                if (mount.initialized.get() == 0 && mount.loaded.get() == 0) {
+                    mount.ready = true;
+                } else {
+                    continue;
+                }
+            }
 
-                            // Disable any other fragment in the same slot
-                            Object slot = mount.component.getSlot();
-                            if (slot != null) {
-                                ComponentSlot slotFragments = this.slotComponent.get(slot);
-                                if (slotFragments != null) {
-                                    for (Component otherFragment : slotFragments.components) {
-                                        if (otherFragment != mount.component) {
-                                            ComponentMount otherMount = getMount(otherFragment);
-                                            if (otherMount.enabled) {
-                                                otherMount.component.onDisable(this, MainThreadRunner.of(this.app),getDataStoreProvider());
-                                                otherMount.enabled = false;
-                                                otherMount.desiredEnabledState = false;
-                                            }
+            if (mount.enabled != mount.desiredEnabledState) {
+                if (mount.desiredEnabledState) {
+                    Object deps[] = mount.deps;
 
+                    // Check if all dependencies are enabled
+                    if (deps == null || Arrays.stream(deps).allMatch(d -> {
+                        Component depFragment = getFragment(d);
+                        if (depFragment == null) {
+                            return true; // if dependency is not a fragment, we assume it is always
+                                         // enabled
+                        }
+                        boolean ready = isComponentEnabled(depFragment);
+                        if (!ready) {
+                            log.fine("Component " + mount.component.getId()
+                                    + " is not ready because dependency " + depFragment.getId()
+                                    + " is not ready.");
+                        }
+                        return ready;
+                    })) {
+
+                        // Disable any other fragment in the same slot
+                        Object slot = mount.component.getSlot();
+                        if (slot != null) {
+                            ComponentSlot slotFragments = this.slotComponent.get(slot);
+                            if (slotFragments != null) {
+                                for (Component otherFragment : slotFragments.components) {
+                                    if (otherFragment != mount.component) {
+                                        ComponentMount otherMount = getMount(otherFragment);
+                                        if (otherMount.enabled) {
+                                            otherMount.component.onDisable(this,
+                                                    MainThreadRunner.of(this.app), getDataStoreProvider());
+                                            otherMount.enabled = false;
+                                            otherMount.desiredEnabledState = false;
                                         }
+
                                     }
                                 }
                             }
-
-                            // Enable the fragment
-                            mount.component.onEnable(this, MainThreadRunner.of(this.app),
-                                    getDataStoreProvider(),mount.isNew, mount.arg);
-                            mount.isNew = false;
-                            mount.enabled = mount.desiredEnabledState;
-                        } else {
-                            mount.component.onNudge(this, MainThreadRunner.of(this.app),
-                                    getDataStoreProvider(), mount.isNew, mount.arg);
                         }
-                    } else {
 
-                        // Disable the fragment
-                        mount.component.onDisable(this, MainThreadRunner.of(this.app),
-                                getDataStoreProvider());
+                        // Enable the fragment
+                        mount.component.onEnable(this, MainThreadRunner.of(this.app), getDataStoreProvider(),
+                                mount.isNew, mount.arg);
+                        mount.isNew = false;
                         mount.enabled = mount.desiredEnabledState;
+                    } else {
+                        mount.component.onNudge(this, MainThreadRunner.of(this.app), getDataStoreProvider(),
+                                mount.isNew, mount.arg);
+                    }
+                } else {
+
+                    // Disable the fragment
+                    mount.component.onDisable(this, MainThreadRunner.of(this.app), getDataStoreProvider());
+                    mount.enabled = mount.desiredEnabledState;
+                }
+            }
+            if (mount.markForRemoval) {
+                mount.component.onDetached(this, MainThreadRunner.of(this.app), getDataStoreProvider());
+                for (ComponentInitializer initializer : initializers) {
+                    if (initializer.canInitialize(this, mount.component)) {
+                        initializer.cleanup(this, mount.component);
                     }
                 }
-                if (mount.markForRemoval) {
-                    mount.component.onDetached(this,MainThreadRunner.of(this.app), getDataStoreProvider());
-                    for (ComponentInitializer initializer : initializers) {
-                        if (initializer.canInitialize(this, mount.component)) {
-                            initializer.cleanup(this, mount.component);
-                        }
+                for (ComponentLoader loader : loaders) {
+                    if (loader.canLoad(this, mount.component)) {
+                        loader.unload(this, mount.component);
                     }
-                    components.remove(mount.component);
-                    componentMounts.remove(mount);
-                    Object slot = mount.component.getSlot();
-                    if (slot != null) {
-                        ComponentSlot slotFragments = this.slotComponent.get(slot);
-                        if (slotFragments != null) {
-                            slotFragments.components.remove(mount.component);
-                            if (slotFragments.components.isEmpty()) {
-                                this.slotComponent.remove(slot);
-                            }
+                }
+                components.remove(mount.component);
+                componentMounts.remove(mount);
+                Object slot = mount.component.getSlot();
+                if (slot != null) {
+                    ComponentSlot slotFragments = this.slotComponent.get(slot);
+                    if (slotFragments != null) {
+                        slotFragments.components.remove(mount.component);
+                        if (slotFragments.components.isEmpty()) {
+                            this.slotComponent.remove(slot);
                         }
                     }
                 }
+            }
 
 
                
-            }
+
         }
 
         for (ComponentUpdater updater: updaters) {

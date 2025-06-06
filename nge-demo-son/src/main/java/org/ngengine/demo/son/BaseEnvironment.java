@@ -110,5 +110,10 @@ public class BaseEnvironment implements Component<Object>, AsyncAssetLoadingFrag
     public void updateViewPort(ViewPort viewPort, float tpf) {
          
     }
-    
+
+    @Override
+    public void loadViewPortFilterPostprocessor(AssetManager assetManager, FilterPostProcessor fpp) {
+
+    }
+
 }
