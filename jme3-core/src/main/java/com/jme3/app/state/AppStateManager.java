@@ -121,7 +121,7 @@ public class AppStateManager {
         }
     }
 
-    public AppState[] getStates() {
+    protected AppState[] getStates() {
         synchronized (states) {
             return states.getArray();
         }

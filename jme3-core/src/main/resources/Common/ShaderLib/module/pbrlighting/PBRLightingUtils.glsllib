@@ -413,7 +413,6 @@
                 #endif               
                 #ifdef AO_MAP
                     ao = lightMapColor.rrr;
-                    surface.hasBasicLightMap = false;
                 #else  
                     surface.lightMapColor = lightMapColor;
                     surface.hasBasicLightMap = true;
