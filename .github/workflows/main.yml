@@ -13,7 +13,7 @@ jobs:
     name: Build natives for android
     runs-on: ubuntu-latest
     container:
-      image: jmonkeyengine/buildenv-jme3:android
+      image: ghcr.io/cirruslabs/android-sdk:35-ndk
 
     steps:
       - name: Clone the repo
@@ -21,13 +21,19 @@ jobs:
         with:
           fetch-depth: 1
 
+
       - name: Validate the Gradle wrapper
         uses: gradle/actions/wrapper-validation@v3
 
       - name: Build
         run: |
+
+          export ANDROID_NDK="$ANDROID_SDK_ROOT/ndk/$ANDROID_NDK_VERSION"
+          ls -la "$ANDROID_SDK_ROOT"
+          ls -la "$ANDROID_NDK"
           ./gradlew -PuseCommitHashAsVersionName=true --no-daemon -PbuildNativeProjects=true \
             :jme3-android-native:assemble
+          find . -type f -print
 
       - name: Upload natives
         uses: actions/upload-artifact@master
