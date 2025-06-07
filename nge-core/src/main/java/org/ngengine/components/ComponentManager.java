@@ -1,7 +1,37 @@
+/**
+ * Copyright (c) 2025, Nostr Game Engine
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
+ * the BSD 3-Clause License. The original jMonkeyEngine license is as follows:
+ */
 package org.ngengine.components;
 
 import java.util.List;
-
 import org.ngengine.components.fragments.Fragment;
 
 /**
@@ -19,10 +49,9 @@ import org.ngengine.components.fragments.Fragment;
  * See the {@link Component} and {@link Fragment} classes for more details on component lifecycle and
  * behavior.
  * </p>
- * 
+ *
  */
 public interface ComponentManager {
-
     /**
      * Retrieves a component by its type.
      *
@@ -32,7 +61,7 @@ public interface ComponentManager {
      *            The class of the component to retrieve
      * @return The component of the specified type, or null if not found
      */
-    public <T extends Component> T getComponent(Class<T> type);
+    <T extends Component> T getComponent(Class<T> type);
 
     /**
      * Retrieves a component by its ID.
@@ -41,7 +70,7 @@ public interface ComponentManager {
      *            The ID of the component to retrieve
      * @return The component with the specified ID, or null if not found
      */
-    public Component getComponentById(String id);
+    Component getComponentById(String id);
 
     /**
      * Retrieves all components assigned to a specific slot.
@@ -50,7 +79,7 @@ public interface ComponentManager {
      *            The slot to get components from
      * @return A list of components in the specified slot
      */
-    public List<Component> getComponentBySlot(Object slot);
+    List<Component> getComponentBySlot(Object slot);
 
     /**
      * Gets the currently enabled component in a slot.
@@ -62,7 +91,7 @@ public interface ComponentManager {
      *            The slot to check
      * @return The currently enabled component in the slot, or null if none is enabled
      */
-    public default Component getCurrentComponentInSlot(Object slot) {
+    default Component getCurrentComponentInSlot(Object slot) {
         List<Component> components = getComponentBySlot(slot);
         for (int i = 0; i < components.size(); i++) {
             Component component = components.get(i);
@@ -78,8 +107,7 @@ public interface ComponentManager {
      *
      * @return A list of all components managed by this ComponentManager
      */
-    public List<Component> getComponent();
-
+    List<Component> getComponent();
 
     /**
      * Adds a component to the manager with optional dependencies.
@@ -92,7 +120,7 @@ public interface ComponentManager {
      * @param deps
      *            Zero or more dependencies for the component
      */
-    public void addComponent(Component component, Object... deps);
+    void addComponent(Component component, Object... deps);
 
     /**
      * Removes a component from the manager.
@@ -102,7 +130,7 @@ public interface ComponentManager {
      * @param component
      *            The component to remove
      */
-    public void removeComponent(Component component);
+    void removeComponent(Component component);
 
     /**
      * Enables a component without any specific arguments.
@@ -112,7 +140,7 @@ public interface ComponentManager {
      * @param component
      *            The component to enable
      */
-    public default void enableComponent(Component component) {
+    default void enableComponent(Component component) {
         enableComponent(component, null);
     }
 
@@ -128,7 +156,7 @@ public interface ComponentManager {
      * @param arg
      *            The argument to pass to the component's onEnable method
      */
-    public <T> void enableComponent(Component component, T arg);
+    <T> void enableComponent(Component component, T arg);
 
     /**
      * Disables a component.
@@ -138,7 +166,7 @@ public interface ComponentManager {
      * @param component
      *            The component to disable
      */
-    public void disableComponent(Component component);
+    void disableComponent(Component component);
 
     /**
      * Updates the dependencies of a component.
@@ -150,7 +178,7 @@ public interface ComponentManager {
      * @param deps
      *            The new dependencies for the component
      */
-    public void updateComponentDependencies(Component component, Object... deps);
+    void updateComponentDependencies(Component component, Object... deps);
 
     /**
      * Checks if a component is currently enabled.
@@ -159,7 +187,7 @@ public interface ComponentManager {
      *            The component to check
      * @return true if the component is enabled, false otherwise
      */
-    public boolean isComponentEnabled(Component component);
+    boolean isComponentEnabled(Component component);
 
     // --------------------------------------------------------------------------
     // Convenience Methods
@@ -173,7 +201,7 @@ public interface ComponentManager {
      * @param arg
      *            The argument to pass to the component's onEnable method
      */
-    public default void enableComponent(String id, Object arg) {
+    default void enableComponent(String id, Object arg) {
         enableComponent(getComponentById(id), arg);
     }
 
@@ -183,7 +211,7 @@ public interface ComponentManager {
      * @param id
      *            The ID of the component to enable
      */
-    public default void enableComponent(String id) {
+    default void enableComponent(String id) {
         enableComponent(id, null);
     }
 
@@ -193,7 +221,7 @@ public interface ComponentManager {
      * @param id
      *            The ID of the component to disable
      */
-    public default void disableComponent(String id) {
+    default void disableComponent(String id) {
         disableComponent(getComponentById(id));
     }
 
@@ -207,7 +235,7 @@ public interface ComponentManager {
      * @param arg
      *            The argument to pass to the component's onEnable method
      */
-    public default void enableComponent(Class<? extends Component> type, Object arg) {
+    default void enableComponent(Class<? extends Component> type, Object arg) {
         enableComponent(getComponent(type), arg);
     }
 
@@ -219,7 +247,7 @@ public interface ComponentManager {
      * @param type
      *            The class of the component to enable
      */
-    public default void enableComponent(Class<? extends Component> type) {
+    default void enableComponent(Class<? extends Component> type) {
         enableComponent(type, null);
     }
 
@@ -231,7 +259,7 @@ public interface ComponentManager {
      * @param type
      *            The class of the component to disable
      */
-    public default void disableComponent(Class<? extends Component> type) {
+    default void disableComponent(Class<? extends Component> type) {
         disableComponent(getComponent(type));
     }
 
@@ -243,7 +271,7 @@ public interface ComponentManager {
      * @param deps
      *            Zero or more dependencies for the component
      */
-    public default void addAndEnableComponent(Component component, Object... deps) {
+    default void addAndEnableComponent(Component component, Object... deps) {
         addComponent(component, deps);
         enableComponent(component);
     }
@@ -258,21 +286,19 @@ public interface ComponentManager {
      * @param deps
      *            Zero or more dependencies for the component
      */
-    public default void addAndEnableComponent(Component component, Object arg, Object... deps) {
+    default void addAndEnableComponent(Component component, Object arg, Object... deps) {
         addComponent(component, deps);
         enableComponent(component, arg);
     }
 
-    public default Component resolveDependency(Object d) {
+    default Component resolveDependency(Object d) {
         if (d instanceof Component) {
             return (Component) d;
         } else if (d instanceof String) {
             return getComponentById((String) d);
         } else if (d instanceof Class<?>) {
             return getComponent((Class<? extends Component>) d);
-
         }
         return null;
     }
-
 }

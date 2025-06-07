@@ -1,5 +1,39 @@
+/**
+ * Copyright (c) 2025, Nostr Game Engine
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
+ * the BSD 3-Clause License. The original jMonkeyEngine license is as follows:
+ */
 package org.ngengine.components.jme3;
 
+import com.jme3.app.Application;
+import com.jme3.app.state.BaseAppState;
+import com.jme3.renderer.RenderManager;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -10,7 +44,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
-
 import org.ngengine.components.Component;
 import org.ngengine.components.ComponentInitializer;
 import org.ngengine.components.ComponentLoader;
@@ -20,18 +53,15 @@ import org.ngengine.components.StallingComponent;
 import org.ngengine.runner.MainThreadRunner;
 import org.ngengine.store.DataStoreProvider;
 
-import com.jme3.app.Application;
-import com.jme3.app.state.BaseAppState;
-import com.jme3.renderer.RenderManager;
-
 /**
  * A component manager that manages components in a JME3 application.
  */
 public class ComponentManagerAppState extends BaseAppState implements ComponentManager {
+
     private static final Logger log = Logger.getLogger(ComponentManagerAppState.class.getName());
 
     private static class ComponentMount {
-        
+
         Component component;
         boolean enabled;
         boolean desiredEnabledState;
@@ -41,8 +71,8 @@ public class ComponentManagerAppState extends BaseAppState implements ComponentM
         Object[] deps;
         Object arg;
         final AtomicInteger initialized = new AtomicInteger(Integer.MIN_VALUE); // Integer.MIN_VALUE means not
-                                                                                // initialized, 0 means ready,
-                                                                                // >0 means pending
+        // initialized, 0 means ready,
+        // >0 means pending
         final AtomicInteger loaded = new AtomicInteger(Integer.MIN_VALUE); // Integer.MIN_VALUE means not
         // loaded, 0 means ready,
         // >0 means pending
@@ -50,6 +80,7 @@ public class ComponentManagerAppState extends BaseAppState implements ComponentM
     }
 
     private static class ComponentSlot {
+
         final List<Component> components = new CopyOnWriteArrayList<>();
         final List<Component> componentsRO = Collections.unmodifiableList(components);
     }
@@ -64,6 +95,7 @@ public class ComponentManagerAppState extends BaseAppState implements ComponentM
 
     private DataStoreProvider dataStoreProvider;
     private Application app;
+
     public ComponentManagerAppState(Application app) {
         super();
         this.app = app;
@@ -113,7 +145,8 @@ public class ComponentManagerAppState extends BaseAppState implements ComponentM
 
     private DataStoreProvider getDataStoreProvider() {
         if (dataStoreProvider == null) {
-            dataStoreProvider = new DataStoreProvider(this.app.getContext().getSettings().getTitle(), this.app.getAssetManager());
+            dataStoreProvider =
+                new DataStoreProvider(this.app.getContext().getSettings().getTitle(), this.app.getAssetManager());
         }
         return dataStoreProvider;
     }
@@ -165,8 +198,7 @@ public class ComponentManagerAppState extends BaseAppState implements ComponentM
     public void addComponent(Component component, Object... deps) {
         boolean hasCycle = hasCircularDependency(component, deps, new HashSet<>());
         if (hasCycle) {
-            throw new IllegalArgumentException(
-                    "Circular dependency detected for fragment: " + component.getId());
+            throw new IllegalArgumentException("Circular dependency detected for fragment: " + component.getId());
         }
         ComponentMount mount = new ComponentMount();
         mount.component = component;
@@ -182,9 +214,7 @@ public class ComponentManagerAppState extends BaseAppState implements ComponentM
             cslot.components.add(component);
         }
         component.onAttached(this, MainThreadRunner.of(this.app), getDataStoreProvider());
-
     }
-    
 
     @Override
     public void removeComponent(Component component) {
@@ -207,7 +237,6 @@ public class ComponentManagerAppState extends BaseAppState implements ComponentM
         mount.arg = arg;
         mount.desiredEnabledState = true;
     }
-
 
     @Override
     public void disableComponent(Component component) {
@@ -246,25 +275,16 @@ public class ComponentManagerAppState extends BaseAppState implements ComponentM
     }
 
     @Override
-    protected void initialize(Application app) {
-
-    }
+    protected void initialize(Application app) {}
 
     @Override
-    protected void cleanup(Application app) {
-
-    }
+    protected void cleanup(Application app) {}
 
     @Override
-    protected void onEnable() {
-
-    }
+    protected void onEnable() {}
 
     @Override
-    protected void onDisable() {
-
-    }
-
+    protected void onDisable() {}
 
     @Override
     public void update(float tpf) {
@@ -276,16 +296,25 @@ public class ComponentManagerAppState extends BaseAppState implements ComponentM
                 mount.initialized.set(0); // if no initializer is registered, we assume it is initialized
                 for (ComponentInitializer initializer : initializers) {
                     if (initializer.canInitialize(this, mount.component)) {
-                        int n = initializer.initialize(this, mount.component, () -> {
-                            mount.initialized.decrementAndGet();
-                        });
+                        int n = initializer.initialize(
+                            this,
+                            mount.component,
+                            () -> {
+                                mount.initialized.decrementAndGet();
+                            }
+                        );
                         mount.initialized.addAndGet(n);
                     }
                 }
             }
             if (mount.initialized.get() > 0) {
-                log.fine("Component " + mount.component.getId() + " is not ready it still initializing. "
-                        + mount.initialized.get() + " left");
+                log.fine(
+                    "Component " +
+                    mount.component.getId() +
+                    " is not ready it still initializing. " +
+                    mount.initialized.get() +
+                    " left"
+                );
             }
         }
 
@@ -295,16 +324,21 @@ public class ComponentManagerAppState extends BaseAppState implements ComponentM
                 mount.loaded.set(0); // if no loader is registered, we assume it is loaded
                 for (ComponentLoader loader : loaders) {
                     if (loader.canLoad(this, mount.component)) {
-                        int n = loader.load(this, mount.component, () -> {
-                            mount.loaded.decrementAndGet();
-                        });
+                        int n = loader.load(
+                            this,
+                            mount.component,
+                            () -> {
+                                mount.loaded.decrementAndGet();
+                            }
+                        );
                         mount.loaded.addAndGet(n);
                     }
                 }
             }
             if (mount.loaded.get() > 0) {
-                log.fine("Component " + mount.component.getId() + " is not ready it still loading. "
-                        + mount.loaded.get() + " left");
+                log.fine(
+                    "Component " + mount.component.getId() + " is not ready it still loading. " + mount.loaded.get() + " left"
+                );
             }
         }
 
@@ -322,24 +356,32 @@ public class ComponentManagerAppState extends BaseAppState implements ComponentM
                     Object deps[] = mount.deps;
 
                     // Check if all dependencies are enabled
-                    if (deps == null || Arrays.stream(deps).allMatch(d -> {
-                        if (d instanceof Class && d == StallingComponent.class) {
-                            return false; // StallingComponent is never enabled
-                        }
-                        Component depFragment = resolveDependency(d);
-                        if (depFragment == null) {
-                            return true; // if dependency is not a fragment, we assume it is always
-                                         // enabled
-                        }
-                        boolean ready = isComponentEnabled(depFragment);
-                        if (!ready) {
-                            log.fine("Component " + mount.component.getId()
-                                    + " is not ready because dependency " + depFragment.getId()
-                                    + " is not ready.");
-                        }
-                        return ready;
-                    })) {
-
+                    if (
+                        deps == null ||
+                        Arrays
+                            .stream(deps)
+                            .allMatch(d -> {
+                                if (d instanceof Class && d == StallingComponent.class) {
+                                    return false; // StallingComponent is never enabled
+                                }
+                                Component depFragment = resolveDependency(d);
+                                if (depFragment == null) {
+                                    return true; // if dependency is not a fragment, we assume it is always
+                                    // enabled
+                                }
+                                boolean ready = isComponentEnabled(depFragment);
+                                if (!ready) {
+                                    log.fine(
+                                        "Component " +
+                                        mount.component.getId() +
+                                        " is not ready because dependency " +
+                                        depFragment.getId() +
+                                        " is not ready."
+                                    );
+                                }
+                                return ready;
+                            })
+                    ) {
                         // Disable any other fragment in the same slot
                         Object slot = mount.component.getSlot();
                         if (slot != null) {
@@ -349,28 +391,39 @@ public class ComponentManagerAppState extends BaseAppState implements ComponentM
                                     if (otherFragment != mount.component) {
                                         ComponentMount otherMount = getMount(otherFragment);
                                         if (otherMount.enabled) {
-                                            otherMount.component.onDisable(this,
-                                                    MainThreadRunner.of(this.app), getDataStoreProvider());
+                                            otherMount.component.onDisable(
+                                                this,
+                                                MainThreadRunner.of(this.app),
+                                                getDataStoreProvider()
+                                            );
                                             otherMount.enabled = false;
                                             otherMount.desiredEnabledState = false;
                                         }
-
                                     }
                                 }
                             }
                         }
 
                         // Enable the fragment
-                        mount.component.onEnable(this, MainThreadRunner.of(this.app), getDataStoreProvider(),
-                                mount.isNew, mount.arg);
+                        mount.component.onEnable(
+                            this,
+                            MainThreadRunner.of(this.app),
+                            getDataStoreProvider(),
+                            mount.isNew,
+                            mount.arg
+                        );
                         mount.isNew = false;
                         mount.enabled = mount.desiredEnabledState;
                     } else {
-                        mount.component.onNudge(this, MainThreadRunner.of(this.app), getDataStoreProvider(),
-                                mount.isNew, mount.arg);
+                        mount.component.onNudge(
+                            this,
+                            MainThreadRunner.of(this.app),
+                            getDataStoreProvider(),
+                            mount.isNew,
+                            mount.arg
+                        );
                     }
                 } else {
-
                     // Disable the fragment
                     mount.component.onDisable(this, MainThreadRunner.of(this.app), getDataStoreProvider());
                     mount.enabled = mount.desiredEnabledState;
@@ -401,13 +454,9 @@ public class ComponentManagerAppState extends BaseAppState implements ComponentM
                     }
                 }
             }
-
-
-               
-
         }
 
-        for (ComponentUpdater updater: updaters) {
+        for (ComponentUpdater updater : updaters) {
             for (ComponentMount mount : componentMounts) {
                 if (!mount.enabled) continue;
                 if (updater.canUpdate(this, mount.component)) {
@@ -417,7 +466,6 @@ public class ComponentManagerAppState extends BaseAppState implements ComponentM
         }
     }
 
-    
     @Override
     public void render(RenderManager rm) {
         for (ComponentUpdater updater : updaters) {
@@ -469,8 +517,7 @@ public class ComponentManagerAppState extends BaseAppState implements ComponentM
         }
         boolean hasCycle = hasCircularDependency(fragment, deps, new HashSet<>());
         if (hasCycle) {
-            throw new IllegalArgumentException(
-                    "Circular dependency detected for fragment: " + fragment.getId());
+            throw new IllegalArgumentException("Circular dependency detected for fragment: " + fragment.getId());
         }
         mount.deps = deps;
     }

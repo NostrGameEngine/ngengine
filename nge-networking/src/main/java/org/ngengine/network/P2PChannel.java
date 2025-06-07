@@ -1,7 +1,47 @@
+/**
+ * Copyright (c) 2025, Nostr Game Engine
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
+ * the BSD 3-Clause License. The original jMonkeyEngine license is as follows:
+ */
 package org.ngengine.network;
 
+import com.jme3.network.ConnectionListener;
+import com.jme3.network.Filter;
+import com.jme3.network.HostedConnection;
+import com.jme3.network.Message;
+import com.jme3.network.MessageListener;
+import com.jme3.network.Server;
+import com.jme3.network.base.MessageListenerRegistry;
+import com.jme3.network.base.MessageProtocol;
+import com.jme3.network.service.HostedServiceManager;
+import com.jme3.network.service.serializer.ServerSerializerRegistrationsService;
 import java.lang.ref.Cleaner;
-import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -11,7 +51,6 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Logger;
-
 import org.ngengine.network.protocol.DynamicSerializerProtocol;
 import org.ngengine.nostr4j.NostrPool;
 import org.ngengine.nostr4j.keypair.NostrKeyPair;
@@ -22,33 +61,19 @@ import org.ngengine.nostr4j.rtc.signal.NostrRTCLocalPeer;
 import org.ngengine.nostr4j.rtc.turn.NostrTURNSettings;
 import org.ngengine.nostr4j.signer.NostrSigner;
 import org.ngengine.platform.RTCSettings;
-import org.ngengine.runner.PassthroughRunner;
 import org.ngengine.runner.Runner;
 
-import com.jme3.network.ConnectionListener;
-import com.jme3.network.Filter;
-import com.jme3.network.HostedConnection;
-import com.jme3.network.Message;
-import com.jme3.network.MessageListener;
-import com.jme3.network.Server;
-import com.jme3.network.base.MessageListenerRegistry;
-import com.jme3.network.base.MessageProtocol;
-import com.jme3.network.base.protocol.SerializerMessageProtocol;
-import com.jme3.network.service.HostedServiceManager;
-import com.jme3.network.service.serializer.ServerSerializerRegistrationsService;
-
 public class P2PChannel implements Server {
+
     private static Cleaner cleaner = Cleaner.create();
     private static final Logger log = Logger.getLogger(P2PChannel.class.getName());
-    private boolean isStarted = false;    
-
-    
+    private boolean isStarted = false;
 
     private final String gameName;
     private final int version;
     private final HostedServiceManager services;
     private final Map<Integer, RemotePeer> connections = new ConcurrentHashMap<>();
-    private final MessageListenerRegistry<HostedConnection> messageListeners = new MessageListenerRegistry<>();                        
+    private final MessageListenerRegistry<HostedConnection> messageListeners = new MessageListenerRegistry<>();
     private final List<ConnectionListener> connectionListeners = new CopyOnWriteArrayList<>();
     private final List<NostrRTCRoomPeerDiscoveredListener> peerDiscoveredListeners = new CopyOnWriteArrayList<>();
     private final MessageProtocol protocol = new DynamicSerializerProtocol(true);
@@ -61,42 +86,39 @@ public class P2PChannel implements Server {
     private Runner dispatcher;
 
     public P2PChannel(
-            NostrSigner localSigner,
-                String gameName,
-            int gameVersion,
-                NostrPrivateKey roomKey,
+        NostrSigner localSigner,
+        String gameName,
+        int gameVersion,
+        NostrPrivateKey roomKey,
         String turnServer,
         NostrPool masterServer,
-            Runner dispatcher
-    ){
+        Runner dispatcher
+    ) {
         this.dispatcher = dispatcher;
         this.services = new HostedServiceManager(this);
         addStandardServices();
         this.gameName = gameName;
         this.version = gameVersion;
-        this.localSigner=localSigner;
+        this.localSigner = localSigner;
         this.masterServersPool = masterServer;
 
-        this.rtcRoom = new NostrRTCRoom(
+        this.rtcRoom =
+            new NostrRTCRoom(
                 RTCSettings.DEFAULT,
                 // new NostrTURNSettings(NostrTURNSettings.CHUNK_LENGTH, NostrTURNSettings.PACKET_TIMEOUT,
-                        // NostrTURNSettings.MAX_LATENCY, Duration.ofMillis(10), NostrTURNSettings.TURN_KIND),
-                NostrTURNSettings.DEFAULT, new NostrRTCLocalPeer(
-                localSigner, 
-                        RTCSettings.PUBLIC_STUN_SERVERS,
-                        turnServer, 
-                new HashMap<String, Object>()
-            ),
-            new NostrKeyPair(roomKey),
-            masterServersPool
-        );
+                // NostrTURNSettings.MAX_LATENCY, Duration.ofMillis(10), NostrTURNSettings.TURN_KIND),
+                NostrTURNSettings.DEFAULT,
+                new NostrRTCLocalPeer(localSigner, RTCSettings.PUBLIC_STUN_SERVERS, turnServer, new HashMap<String, Object>()),
+                new NostrKeyPair(roomKey),
+                masterServersPool
+            );
 
         rtcRoom.addPeerDiscoveryListener((var1, var2, var3) -> {
             this.dispatcher.run(() -> {
-                for (NostrRTCRoomPeerDiscoveredListener listener : peerDiscoveredListeners) {
-                    listener.onRoomPeerDiscovered(var1, var2, var3);
-                }
-            });
+                    for (NostrRTCRoomPeerDiscoveredListener listener : peerDiscoveredListeners) {
+                        listener.onRoomPeerDiscovered(var1, var2, var3);
+                    }
+                });
         });
 
         rtcRoom.addConnectionListener((peerKey, socket) -> {
@@ -107,10 +129,10 @@ public class P2PChannel implements Server {
             RemotePeer connection = new RemotePeer(connections.size(), socket, this, protocol);
             connections.put(connection.getId(), connection);
             this.dispatcher.run(() -> {
-                for (ConnectionListener listener : connectionListeners) {
-                    listener.connectionAdded(this, connection);
-                }
-            });
+                    for (ConnectionListener listener : connectionListeners) {
+                        listener.connectionAdded(this, connection);
+                    }
+                });
         });
 
         rtcRoom.addDisconnectionListener((peerKey, socket) -> {
@@ -120,14 +142,13 @@ public class P2PChannel implements Server {
                     RemotePeer connection = entry.getValue();
                     connections.remove(connection.getId());
                     this.dispatcher.run(() -> {
-                        for (ConnectionListener listener : connectionListeners) {
-                            listener.connectionRemoved(this, connection);
-                        }
-                    });
+                            for (ConnectionListener listener : connectionListeners) {
+                                listener.connectionRemoved(this, connection);
+                            }
+                        });
                     break;
                 }
             }
-
         });
 
         rtcRoom.addMessageListener((peerKey, socket, bbf, isTurn) -> {
@@ -142,16 +163,19 @@ public class P2PChannel implements Server {
                     }
                     message.setReliable(true);
                     this.dispatcher.run(() -> {
-                        messageListeners.messageReceived(connection, message);
-                    });
+                            messageListeners.messageReceived(connection, message);
+                        });
                     break;
                 }
             }
         });
 
-        cleaner.register(this, () -> {
-            rtcRoom.close();
-        });
+        cleaner.register(
+            this,
+            () -> {
+                rtcRoom.close();
+            }
+        );
     }
 
     public NostrSigner getLocalSigner() {
@@ -162,14 +186,11 @@ public class P2PChannel implements Server {
         this.forceTurn = forceTurn;
     }
 
-
-
     protected void addStandardServices() {
         log.fine("Adding standard services...");
         services.addService(new ServerSerializerRegistrationsService());
     }
-    
-    
+
     @Override
     public String getGameName() {
         return gameName;
@@ -183,7 +204,6 @@ public class P2PChannel implements Server {
     @Override
     public HostedServiceManager getServices() {
         return services;
-
     }
 
     @Override
@@ -196,7 +216,7 @@ public class P2PChannel implements Server {
     @Override
     public void broadcast(Filter<? super HostedConnection> filter, Message message) {
         for (HostedConnection connection : connections.values()) {
-            if(filter.apply(connection)) {
+            if (filter.apply(connection)) {
                 connection.send(message);
             }
         }
@@ -213,13 +233,13 @@ public class P2PChannel implements Server {
         isStarted = true;
     }
 
-    public void discover(){
+    public void discover() {
         rtcRoom.discover();
     }
 
     @Override
     public int addChannel(int port) {
-        // nop 
+        // nop
         return 0;
     }
 
@@ -235,23 +255,19 @@ public class P2PChannel implements Server {
     }
 
     @Override
-    public HostedConnection getConnection( int id )
-    {
+    public HostedConnection getConnection(int id) {
         return connections.get(id);
-    }     
- 
+    }
+
     @Override
-    public boolean hasConnections()
-    {
+    public boolean hasConnections() {
         return !connections.isEmpty();
     }
- 
-    @Override
-    public Collection<HostedConnection> getConnections()
-    {
-        return Collections.unmodifiableCollection(connections.values());
-    } 
 
+    @Override
+    public Collection<HostedConnection> getConnections() {
+        return Collections.unmodifiableCollection(connections.values());
+    }
 
     public void addDiscoveryListener(NostrRTCRoomPeerDiscoveredListener listener) {
         peerDiscoveredListeners.add(listener);
@@ -290,7 +306,4 @@ public class P2PChannel implements Server {
     public void removeMessageListener(MessageListener<? super HostedConnection> listener, Class... classes) {
         messageListeners.removeMessageListener(listener, classes);
     }
- 
-
- 
 }

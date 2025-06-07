@@ -1,10 +1,39 @@
+/**
+ * Copyright (c) 2025, Nostr Game Engine
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
+ * the BSD 3-Clause License. The original jMonkeyEngine license is as follows:
+ */
 package org.ngengine.demo.son.controls;
 
-import org.ngengine.demo.son.ocean.OceanAppState;
-
+import com.jme3.audio.AudioData.DataType;
 import com.jme3.audio.AudioNode;
 import com.jme3.audio.AudioSource;
-import com.jme3.audio.AudioData.DataType;
 import com.jme3.bounding.BoundingBox;
 import com.jme3.bullet.BulletAppState;
 import com.jme3.bullet.PhysicsSpace;
@@ -13,8 +42,6 @@ import com.jme3.bullet.control.RigidBodyControl;
 import com.jme3.effect.ParticleEmitter;
 import com.jme3.effect.ParticleMesh.Type;
 import com.jme3.effect.influencers.NewtonianParticleInfluencer;
-import com.jme3.effect.influencers.RadialParticleInfluencer;
-import com.jme3.effect.shapes.EmitterShape;
 import com.jme3.effect.shapes.EmitterSphereShape;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
@@ -25,17 +52,19 @@ import com.jme3.renderer.RenderManager;
 import com.jme3.renderer.ViewPort;
 import com.jme3.scene.Node;
 import com.jme3.scene.control.AbstractControl;
+import org.ngengine.demo.son.ocean.OceanAppState;
 
 public class BuoyancyControl extends AbstractControl implements PhysicsTickListener {
+
     public static class SamplingPoint {
-        
+
         volatile float x, y, z;
         volatile float waterHeight;
     }
 
     private transient OceanAppState appState;
     private boolean appendedToPhysicsSpace = false;
-    private float waterDensity = 1000f; 
+    private float waterDensity = 1000f;
 
     private Vector3f prevVelocity = new Vector3f();
     private long lastPhysicsTickTime = 0;
@@ -45,7 +74,7 @@ public class BuoyancyControl extends AbstractControl implements PhysicsTickListe
     private float smoothedWaterPitch = 0f;
     private float smoothedWaterRoll = 0f;
     private float waterTiltSmoothing = 0.85f; // Higher = smoother (0.0-1.0)
-   
+
     private SamplingPoint s0 = new SamplingPoint();
     private SamplingPoint sf = new SamplingPoint();
     private SamplingPoint sb = new SamplingPoint();
@@ -76,19 +105,14 @@ public class BuoyancyControl extends AbstractControl implements PhysicsTickListe
 
             node.attachChild(splashParticles);
 
-
-            splashParticlesMaterial = new Material(
-                    appState.getAssetManager(), "Common/MatDefs/Misc/Particle.j3md");
-            // splashParticlesMaterial.setTexture("Texture", 
+            splashParticlesMaterial = new Material(appState.getAssetManager(), "Common/MatDefs/Misc/Particle.j3md");
+            // splashParticlesMaterial.setTexture("Texture",
             //         appState.getApplication().getAssetManager().loadTexture("Effects/Explosion/flame.png"));
             splashParticles.setMaterial(splashParticlesMaterial);
-
-            
-            
         }
     }
 
-    public float getWaterHeight(){
+    public float getWaterHeight() {
         if (appState == null) {
             return 0;
         }
@@ -99,16 +123,14 @@ public class BuoyancyControl extends AbstractControl implements PhysicsTickListe
     @Override
     public void setSpatial(com.jme3.scene.Spatial spatial) {
         super.setSpatial(spatial);
-        BoundingBox bbox = (BoundingBox)spatial.getWorldBound();
+        BoundingBox bbox = (BoundingBox) spatial.getWorldBound();
         if (bbox != null) {
-             float xExtent = bbox.getXExtent();
-             float zExtent = bbox.getZExtent();
+            float xExtent = bbox.getXExtent();
+            float zExtent = bbox.getZExtent();
 
-             objectLength = xExtent;
+            objectLength = xExtent;
             objectWidth = zExtent;
         }
-      
-
     }
 
     Vector3f samplingPos = new Vector3f();
@@ -136,8 +158,7 @@ public class BuoyancyControl extends AbstractControl implements PhysicsTickListe
         s0.waterHeight = appState.getWaterHeightAt(s0.x, s0.z);
 
         // sample in front of wpos
-        
-        
+
         float zEX = objectLength / 2f;
         float xEX = objectWidth / 2f;
         Vector3f at = wpos.add(wrot.mult(new Vector3f(0, 0, zEX)));
@@ -169,21 +190,20 @@ public class BuoyancyControl extends AbstractControl implements PhysicsTickListe
 
         // System.out.println("s0: " + s0.waterHeight + " sf: " + sf.waterHeight + " sb: " + sb.waterHeight + " sl: " + sl.waterHeight + " sr: " + sr.waterHeight);
 
-        float d = Math.abs(s0.waterHeight-s0.y);
-        if(d>1.4f) {
-            if (splash != null && splash.getStatus()!= AudioSource.Status.Playing) {
+        float d = Math.abs(s0.waterHeight - s0.y);
+        if (d > 1.4f) {
+            if (splash != null && splash.getStatus() != AudioSource.Status.Playing) {
                 splash.setPitch(0.9f);
-                splash.setVolume(2f);//Math.clamp(d-0.4f, 0.4f, 1f ));
+                splash.setVolume(2f); //Math.clamp(d-0.4f, 0.4f, 1f ));
                 splash.play();
                 splashParticles.setLowLife(1.9f);
                 splashParticles.setHighLife(1.9f);
                 splashParticles.setEndSize(1.8f);
                 splashParticles.setStartSize(.3f);
                 splashParticles.setStartColor(new ColorRGBA(35.0f / 255.0f, 0.0f, 110f / 255.0f, 1f).setAlpha(0.8f));
-                splashParticles.setEndColor(
-                        new ColorRGBA(35.0f / 255.0f, 0.0f, 110f / 255.0f, 1f).setAlpha(0.0f));
+                splashParticles.setEndColor(new ColorRGBA(35.0f / 255.0f, 0.0f, 110f / 255.0f, 1f).setAlpha(0.0f));
 
-                EmitterSphereShape shape = (EmitterSphereShape)splashParticles.getShape();
+                EmitterSphereShape shape = (EmitterSphereShape) splashParticles.getShape();
                 shape.setRadius(8f);
                 NewtonianParticleInfluencer rp = (NewtonianParticleInfluencer) splashParticles.getParticleInfluencer();
                 // rp.setRadialVelocity(20f);
@@ -192,23 +212,17 @@ public class BuoyancyControl extends AbstractControl implements PhysicsTickListe
                 rp.setVelocityVariation(0.2f);
                 rp.setNormalVelocity(1f);
                 // rp.setRadialVelocity(100f);
-                rp.setInitialVelocity(new Vector3f(0,0.6f,0));
-                splashParticles.setGravity(0,12.81f,0);
+                rp.setInitialVelocity(new Vector3f(0, 0.6f, 0));
+                splashParticles.setGravity(0, 12.81f, 0);
                 // rp.setHorizontal(true);
-
 
                 // splashParticles.emitParticles(22);
             }
         }
-        
-
     }
 
     @Override
-    protected void controlRender(RenderManager rm, ViewPort vp) {
-    }
-
- 
+    protected void controlRender(RenderManager rm, ViewPort vp) {}
 
     @Override
     public void prePhysicsTick(PhysicsSpace space, float tpf) {
@@ -227,16 +241,15 @@ public class BuoyancyControl extends AbstractControl implements PhysicsTickListe
             float buoyancyForce = heightDiff * waterDensity * 0.81f;
             if (buoyancyForce > 0) {
                 rb.applyCentralForce(new Vector3f(0, buoyancyForce, 0));
-            } else{
+            } else {
                 rb.applyCentralForce(new Vector3f(0, buoyancyForce, 0));
-
             }
         }
 
         // 1. Improved water-based tilt calculations with smooth proportional response
         float tiltSpeed = 0.2f;
         float maxWaterTilt = 0.6f;
-        waterTiltSmoothing=1f;
+        waterTiltSmoothing = 1f;
 
         // Smoother pitch calculation based on actual height differences
         float frontBackDiff = (sf.waterHeight - sb.waterHeight);
@@ -249,10 +262,8 @@ public class BuoyancyControl extends AbstractControl implements PhysicsTickListe
         float targetWaterRoll = -normalizedRollDiff * maxWaterTilt;
 
         // Apply exponential smoothing for more natural-looking motion
-        smoothedWaterPitch = smoothedWaterPitch * waterTiltSmoothing
-                + targetWaterPitch * (1f - waterTiltSmoothing);
-        smoothedWaterRoll = smoothedWaterRoll * waterTiltSmoothing
-                + targetWaterRoll * (1f - waterTiltSmoothing);
+        smoothedWaterPitch = smoothedWaterPitch * waterTiltSmoothing + targetWaterPitch * (1f - waterTiltSmoothing);
+        smoothedWaterRoll = smoothedWaterRoll * waterTiltSmoothing + targetWaterRoll * (1f - waterTiltSmoothing);
 
         // Use the smoothed values
         targetWaterPitch = smoothedWaterPitch;
@@ -318,7 +329,5 @@ public class BuoyancyControl extends AbstractControl implements PhysicsTickListe
     }
 
     @Override
-    public void physicsTick(PhysicsSpace space, float tpf) {
-    }
-
+    public void physicsTick(PhysicsSpace space, float tpf) {}
 }

@@ -1,12 +1,35 @@
+/**
+ * Copyright (c) 2025, Nostr Game Engine
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
+ * the BSD 3-Clause License. The original jMonkeyEngine license is as follows:
+ */
 package org.ngengine.demo.son;
-
-import org.ngengine.AsyncAssetManager;
-import org.ngengine.components.Component;
-import org.ngengine.components.ComponentManager;
-import org.ngengine.components.fragments.AsyncAssetLoadingFragment;
-import org.ngengine.components.fragments.ViewPortFragment;
-import org.ngengine.runner.Runner;
-import org.ngengine.store.DataStoreProvider;
 
 import com.jme3.asset.AssetManager;
 import com.jme3.asset.TextureKey;
@@ -27,9 +50,17 @@ import com.jme3.scene.Spatial;
 import com.jme3.texture.Image.Format;
 import com.jme3.texture.Texture;
 import com.jme3.util.SkyFactory;
+import org.ngengine.AsyncAssetManager;
+import org.ngengine.components.Component;
+import org.ngengine.components.ComponentManager;
+import org.ngengine.components.fragments.AsyncAssetLoadingFragment;
+import org.ngengine.components.fragments.ViewPortFragment;
+import org.ngengine.runner.Runner;
+import org.ngengine.store.DataStoreProvider;
 
 public class BaseEnvironment implements Component<Object>, AsyncAssetLoadingFragment, ViewPortFragment {
-    private Spatial sky ;
+
+    private Spatial sky;
     private AudioNode backgroundMusic;
     private AssetManager assetManager;
     private ViewPort viewPort;
@@ -42,7 +73,6 @@ public class BaseEnvironment implements Component<Object>, AsyncAssetLoadingFrag
         key.setGenerateMips(false);
         Texture skyTextyre = assetManager.loadTexture(key);
         sky = SkyFactory.createSky(assetManager, skyTextyre, SkyFactory.EnvMapType.EquirectMap);
-        
 
         AudioKey audioKey = new AudioKey("Sounds/fato_shadow_-_lunar_strings.ogg", false, false);
         AudioData audioData = assetManager.loadAudio(audioKey);
@@ -50,13 +80,10 @@ public class BaseEnvironment implements Component<Object>, AsyncAssetLoadingFrag
         backgroundMusic.setLooping(true);
         backgroundMusic.setPositional(false);
         backgroundMusic.setVolume(0.4f);
-          
     }
 
     @Override
-    public void onEnable(ComponentManager mng, Runner runner, DataStoreProvider dataStore, boolean firstTime,
-            Object arg) {
-        
+    public void onEnable(ComponentManager mng, Runner runner, DataStoreProvider dataStore, boolean firstTime, Object arg) {
         // music
         backgroundMusic.play();
 
@@ -83,8 +110,7 @@ public class BaseEnvironment implements Component<Object>, AsyncAssetLoadingFrag
         fpp.addFilter(tonemap);
 
         LightScatteringFilter lightScattering = new LightScatteringFilter(dl.getDirection().mult(-300));
-        lightScattering
-                .setLightPosition(viewPort.getCamera().getLocation().add(dl.getDirection().mult(-1000)));
+        lightScattering.setLightPosition(viewPort.getCamera().getLocation().add(dl.getDirection().mult(-1000)));
         fpp.addFilter(lightScattering);
 
         FogFilter fog = new FogFilter();
@@ -93,27 +119,19 @@ public class BaseEnvironment implements Component<Object>, AsyncAssetLoadingFrag
         fog.setFogColor(new ColorRGBA(35.0f / 255.0f, 0.0f, 110f / 255.0f, 1f));
         lightScattering.setLightDensity(4.5f);
         fpp.addFilter(fog);
-   
     }
 
     @Override
-    public void onDisable(ComponentManager mng, Runner runner, DataStoreProvider dataStore) {
-        
-    }
+    public void onDisable(ComponentManager mng, Runner runner, DataStoreProvider dataStore) {}
 
     @Override
     public void receiveViewPort(ViewPort viewPort) {
-        this.viewPort = viewPort;        
+        this.viewPort = viewPort;
     }
 
     @Override
-    public void updateViewPort(ViewPort viewPort, float tpf) {
-         
-    }
+    public void updateViewPort(ViewPort viewPort, float tpf) {}
 
     @Override
-    public void loadViewPortFilterPostprocessor(AssetManager assetManager, FilterPostProcessor fpp) {
-
-    }
-
+    public void loadViewPortFilterPostprocessor(AssetManager assetManager, FilterPostProcessor fpp) {}
 }

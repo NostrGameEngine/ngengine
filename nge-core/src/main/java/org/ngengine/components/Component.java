@@ -1,3 +1,34 @@
+/**
+ * Copyright (c) 2025, Nostr Game Engine
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
+ * the BSD 3-Clause License. The original jMonkeyEngine license is as follows:
+ */
 package org.ngengine.components;
 
 import org.ngengine.components.fragments.Fragment;
@@ -10,7 +41,7 @@ import org.ngengine.store.DataStoreProvider;
  * <p>
  * Components can be attached and detached from a {@link ComponentManager} and can be enabled or disabled with
  * specific arguments. They can also define a slot for mutually exclusive components.
- * 
+ *
  * <h3>Component Lifecycle</h3>
  * <ol>
  * <li><strong>Attached:</strong> {@link #onAttached(ComponentManager, Runner, DataStoreProvider)} is called
@@ -25,13 +56,13 @@ import org.ngengine.store.DataStoreProvider;
  * <li><strong>Detached:</strong> {@link #onDetached(ComponentManager, Runner, DataStoreProvider)} is called
  * when the component is removed from the manager</li>
  * </ol>
- * 
+ *
  * <h3>Dependency System</h3>
  * <p>
  * Components can depend on other components and will only be enabled when all their dependencies are enabled.
  * Dependencies are specified when adding a component to the manager:
  * </p>
- * 
+ *
  * <pre>
  * manager.addComponent(myComponent, dependency1, dependency2, ...);
  * </pre>
@@ -40,7 +71,7 @@ import org.ngengine.store.DataStoreProvider;
  * dependencies become available again, dependent components will not automatically re-enable; they must be
  * explicitly enabled again.
  * </p>
- * 
+ *
  * <h3>Best Practices</h3>
  * <ul>
  * <li>Implement primary component logic in {@link #onEnable} and fragment update methods</li>
@@ -53,25 +84,24 @@ import org.ngengine.store.DataStoreProvider;
  * automatically before an enabled component is detached</li>
  * <li>{@link #onDetached} must thoroughly clean up all resources to prevent memory leaks</li>
  * </ul>
- * 
+ *
  * <p>
  * For a detailed explaination of the component lifecycle and methods execution order, see the
  * {@link Fragment} class.
  * </p>
- * 
+ *
  * <p>
  * It is usually a good approach to ignore the {@link #onAttached} and {@link #onDetached} methods and
  * implement all the logic in {@link #onEnable} and {@link #onDisable}, so that when the component is
  * disabled, everything that was set up in {@link #onEnable} is cleaned up in {@link #onDisable}. Unless you
  * are dealing with heavy initialization logic, this will help keeping the code clean and concise.
  * </p>
- * 
- * 
+ *
+ *
  * @param <T>
  *            The type of argument that can be passed when enabling this component
  */
 public interface Component<T> {
-
     /**
      * Called immediately when the component is attached to a {@link ComponentManager} and a {@link Runner}.
      * <p>
@@ -86,23 +116,20 @@ public interface Component<T> {
      *            the DataStoreProvider for accessing shared data
      */
 
-    public default void onAttached(ComponentManager mng, Runner runner, DataStoreProvider dataStore) {}
+    default void onAttached(ComponentManager mng, Runner runner, DataStoreProvider dataStore) {}
 
     /**
      * Called when the component is detached from the {@link ComponentManager}.
      * <p>
      * This method can be overridden to perform cleanup tasks when the component is detached.
      * </p>
-     * 
+     *
      * @param mng
      * @param runner
      * @param dataStore
      */
-    public default void onDetached(ComponentManager mng, Runner runner,
-            DataStoreProvider dataStore) {
+    default void onDetached(ComponentManager mng, Runner runner, DataStoreProvider dataStore) {}
 
-    }
-    
     /**
      * Returns an identifier for this component, multiple component can have the same identifier.
      * <p>
@@ -112,7 +139,7 @@ public interface Component<T> {
      *
      * @return an identifier for this component, default is the simple class name
      */
-    public default String getId() {
+    default String getId() {
         return getClass().getSimpleName();
     }
 
@@ -128,7 +155,7 @@ public interface Component<T> {
      *
      * @return the name of the slot this component belongs to, or {@code null} if it does not use a slot
      */
-    public default Object getSlot() {
+    default Object getSlot() {
         return null;
     }
 
@@ -139,7 +166,7 @@ public interface Component<T> {
      * This method is called when the component is enabled, all its dependencies are satisfied, the fragments
      * are initialized, and the resources are loaded.
      * </p>
-     * 
+     *
      * @param mng
      *            - the ComponentManager to which this component is attached
      * @param runner
@@ -151,7 +178,7 @@ public interface Component<T> {
      * @param arg
      *            - an argument that can be passed when enabling this component, can be null
      */
-    public void onEnable(ComponentManager mng, Runner runner, DataStoreProvider dataStore, boolean firstTime, T arg);
+    void onEnable(ComponentManager mng, Runner runner, DataStoreProvider dataStore, boolean firstTime, T arg);
 
     /**
      * Called when the component is disabled.
@@ -167,16 +194,16 @@ public interface Component<T> {
      * If ${@link #onDetach} is not implemented, this method should take care of cleaning up all resources to
      * prevent leaks.
      * </p>
-     * 
+     *
      * <p>
      * It is always called before an enabled component is detached from the {@link ComponentManager}.
      * </p>
-     * 
+     *
      * @param mng
      * @param runner
      * @param dataStore
      */
-    public void onDisable(ComponentManager mng, Runner runner, DataStoreProvider dataStore);
+    void onDisable(ComponentManager mng, Runner runner, DataStoreProvider dataStore);
 
     /**
      * Called when the component is scheduled to be enabled but cannot be due to unsatisfied dependencies.
@@ -208,6 +235,5 @@ public interface Component<T> {
      * @param arg
      *            an optional argument passed when enabling this component
      */
-    public default void onNudge(ComponentManager mng, Runner runner, DataStoreProvider dataStore, boolean firstTime, T arg) {
-    }
+    default void onNudge(ComponentManager mng, Runner runner, DataStoreProvider dataStore, boolean firstTime, T arg) {}
 }

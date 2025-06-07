@@ -1,10 +1,35 @@
+/**
+ * Copyright (c) 2025, Nostr Game Engine
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
+ * the BSD 3-Clause License. The original jMonkeyEngine license is as follows:
+ */
 package org.ngengine.gui.components;
-
- 
-import java.util.function.Consumer;
-
-import org.ngengine.gui.qr.QrCode;
-import org.ngengine.platform.NGEPlatform;
 
 import com.jme3.input.event.MouseButtonEvent;
 import com.jme3.input.event.MouseMotionEvent;
@@ -12,9 +37,9 @@ import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 import com.jme3.scene.Spatial;
 import com.jme3.texture.Image;
-import com.jme3.texture.Texture2D;
 import com.jme3.texture.Image.Format;
 import com.jme3.texture.Texture;
+import com.jme3.texture.Texture2D;
 import com.jme3.texture.image.ColorSpace;
 import com.jme3.texture.image.ImageRaster;
 import com.jme3.util.BufferUtils;
@@ -36,23 +61,30 @@ import com.simsilica.lemur.core.GuiUpdateListener;
 import com.simsilica.lemur.event.MouseListener;
 import com.simsilica.lemur.style.ElementId;
 import com.simsilica.lemur.style.StyleAttribute;
-public class NQrViewer extends Container implements GuiControlListener, GuiUpdateListener, MouseListener{
-    public static final String ELEMENT_ID =  "qr";
+import java.util.function.Consumer;
+import org.ngengine.gui.qr.QrCode;
+import org.ngengine.platform.NGEPlatform;
+
+public class NQrViewer extends Container implements GuiControlListener, GuiUpdateListener, MouseListener {
+
+    public static final String ELEMENT_ID = "qr";
+
     public enum ErrorCorrectionLevel {
         LOW,
         MEDIUM,
         QUARTILE,
-        HIGH;
+        HIGH,
     }
+
     protected String value;
     protected boolean secret = true;
     protected boolean show = false;
     protected ErrorCorrectionLevel errorCorrectionLevel = ErrorCorrectionLevel.MEDIUM;
     protected final QuadBackgroundComponent background = new NAspectPreservingQuadBackground();
     protected ColorRGBA lightColor;
-    protected ColorRGBA darkPixelsColor ;
+    protected ColorRGBA darkPixelsColor;
 
-    protected Label label = new Label("",new ElementId(ELEMENT_ID).child("label"));
+    protected Label label = new Label("", new ElementId(ELEMENT_ID).child("label"));
     protected boolean invalidated = false;
 
     protected Container iconBar;
@@ -61,8 +93,8 @@ public class NQrViewer extends Container implements GuiControlListener, GuiUpdat
     protected int qrPreferredSize = 100;
 
     protected Consumer<String> copyAction;
-    protected Consumer<String> clickAction = (src)->{
-        if(copyAction != null){
+    protected Consumer<String> clickAction = src -> {
+        if (copyAction != null) {
             copyAction.accept(value);
         }
     };
@@ -72,11 +104,13 @@ public class NQrViewer extends Container implements GuiControlListener, GuiUpdat
     }
 
     public NQrViewer(String text) {
-        super(new SpringGridLayout(Axis.Y,Axis.X,FillMode.None,FillMode.None),new ElementId( ELEMENT_ID));
+        super(new SpringGridLayout(Axis.Y, Axis.X, FillMode.None, FillMode.None), new ElementId(ELEMENT_ID));
         this.value = text;
 
-
-        Container qrContainer  = new Container(new SpringGridLayout(Axis.Y,Axis.X,FillMode.None,FillMode.None), new ElementId(ELEMENT_ID).child("qrContainer"));
+        Container qrContainer = new Container(
+            new SpringGridLayout(Axis.Y, Axis.X, FillMode.None, FillMode.None),
+            new ElementId(ELEMENT_ID).child("qrContainer")
+        );
         setInsetsComponent(new DynamicInsetsComponent(0.5f, 0.5f, 0.5f, 0.5f));
 
         this.iconBar = new Container(new BoxLayout(Axis.X, FillMode.None), new ElementId("qr").child("iconContainer"));
@@ -84,23 +118,23 @@ public class NQrViewer extends Container implements GuiControlListener, GuiUpdat
 
         this.qrCode = new Container(new BorderLayout(), new ElementId("qr").child("qrCode"));
         this.qrCode.setBackground(background);
-        
+
         qrContainer.addChild(qrCode);
         qrContainer.addChild(iconBar);
         qrContainer.setInsetsComponent(new DynamicInsetsComponent(0.5f, 0.5f, 0.5f, 0.5f));
 
         addChild(label);
-        addChild(qrContainer );
+        addChild(qrContainer);
 
         qrCode.addMouseListener(this);
         label.setTextHAlignment(HAlignment.Center);
         label.setTextVAlignment(VAlignment.Center);
 
-        setCopyAction(src->{
+        setCopyAction(src -> {
             NGEPlatform platform = NGEPlatform.get();
             platform.setClipboardContent(src);
         });
-        
+
         getControl(GuiControl.class).addListener(this);
         getControl(GuiControl.class).addUpdateListener(this);
         invalidate();
@@ -108,7 +142,7 @@ public class NQrViewer extends Container implements GuiControlListener, GuiUpdat
 
     public void setQrSize(int qrSize) {
         this.qrSize = qrSize;
-        if(qrSize>qrPreferredSize){
+        if (qrSize > qrPreferredSize) {
             qrPreferredSize = qrSize;
         }
         invalidate();
@@ -145,39 +179,36 @@ public class NQrViewer extends Container implements GuiControlListener, GuiUpdat
 
     public void setClickAction(Consumer<String> action) {
         this.clickAction = action;
-    }   
+    }
 
-    @StyleAttribute(value="lightPixelsColor", lookupDefault=false)
+    @StyleAttribute(value = "lightPixelsColor", lookupDefault = false)
     public void setLightPixelsColor(ColorRGBA color) {
-        this.lightColor=color.clone();
+        this.lightColor = color.clone();
         invalidate();
     }
 
-    @StyleAttribute(value="darkPixelsColor", lookupDefault=false)
+    @StyleAttribute(value = "darkPixelsColor", lookupDefault = false)
     public void setDarkPixelsColor(ColorRGBA color) {
-        this.darkPixelsColor=color;
+        this.darkPixelsColor = color;
         invalidate();
     }
-
-
-
 
     public void setErrorCorrectionLevel(ErrorCorrectionLevel errorCorrectionLevel) {
         this.errorCorrectionLevel = errorCorrectionLevel;
         invalidate();
-    }   
+    }
 
-    public boolean isSecret(){
+    public boolean isSecret() {
         return secret;
     }
 
     public void setIsSecret(boolean secret) {
         this.secret = secret;
-        invalidate();        
+        invalidate();
     }
 
     public void setValue(String value) {
-        this.value=value;
+        this.value = value;
         invalidate();
     }
 
@@ -189,29 +220,22 @@ public class NQrViewer extends Container implements GuiControlListener, GuiUpdat
         invalidated = true;
     }
 
-    protected void repaint(){
-   
-    
- 
-        if(qrPreferredSize<=0){
+    protected void repaint() {
+        if (qrPreferredSize <= 0) {
             qrCode.setPreferredSize(null);
-        }else{
+        } else {
             qrCode.setPreferredSize(new Vector3f(qrPreferredSize, qrPreferredSize, 0));
         }
 
-        if(qrSize>0){
+        if (qrSize > 0) {
             qrCode.setSize(new Vector3f(qrSize, qrSize, 0));
         }
-    
-     
-        if(!isShown()){
+
+        if (!isShown()) {
             Texture texture = GuiGlobals.getInstance().loadTexture("ui/blurred-qr.png", false, false);
             background.setTexture(texture);
             background.setColor(lightColor);
-          
-
-        }else{
-
+        } else {
             QrCode.Ecc ecc = QrCode.Ecc.MEDIUM;
             switch (errorCorrectionLevel) {
                 case LOW:
@@ -228,92 +252,84 @@ public class NQrViewer extends Container implements GuiControlListener, GuiUpdat
                     break;
             }
             QrCode qr = QrCode.encodeText(value, ecc);
-          
 
-            
-            int margin = (int)(qrSize*0.07f);
-            Image img = toImage(qr, qrSize-margin, margin);
+            int margin = (int) (qrSize * 0.07f);
+            Image img = toImage(qr, qrSize - margin, margin);
             Texture2D texture = new Texture2D(img);
-            background.setTexture(texture);   
-           
+            background.setTexture(texture);
         }
-        
-        
+
         this.qrCode.clearChildren();
         this.iconBar.clearChildren();
-        
-        if(isSecret()){
-             
-            NIconButton showBtn = new NIconButton( "icons/outline/eye.svg" );
+
+        if (isSecret()) {
+            NIconButton showBtn = new NIconButton("icons/outline/eye.svg");
             NIconButton hideBtn = new NIconButton("icons/outline/eye-off.svg");
 
-            showBtn.addClickCommands((src) -> {
-                if(!show){
-                    show=true;
+            showBtn.addClickCommands(src -> {
+                if (!show) {
+                    show = true;
                     invalidate();
                 }
             });
 
-            hideBtn.addClickCommands((src) -> {
-                if(show){
-                    show=false;
+            hideBtn.addClickCommands(src -> {
+                if (show) {
+                    show = false;
                     invalidate();
                 }
             });
-            
 
-                
             showBtn.setInsetsComponent(new DynamicInsetsComponent(0.5f, 0.5f, 0.5f, 0.5f));
             this.iconBar.addChild(hideBtn);
 
-            if(!isShown()){
+            if (!isShown()) {
                 hideBtn.setAlpha(0);
                 showBtn.setAlpha(1);
                 this.qrCode.addChild(showBtn, BorderLayout.Position.Center, BorderLayout.Position.Center);
-            } else{
+            } else {
                 showBtn.setAlpha(0);
                 hideBtn.setAlpha(1);
                 showBtn.removeFromParent();
             }
-
         }
 
-        if(copyAction!=null){
-            NIconButton copyBtn = new NIconButton( "icons/outline/copy.svg" );
+        if (copyAction != null) {
+            NIconButton copyBtn = new NIconButton("icons/outline/copy.svg");
             copyBtn.setInsetsComponent(new DynamicInsetsComponent(0.5f, 0.5f, 0.5f, 0.5f));
-            copyBtn.addClickCommands((src) -> {
+            copyBtn.addClickCommands(src -> {
                 clickAction.accept(value);
             });
             this.iconBar.addChild(copyBtn);
         }
-        
-
-
     }
 
-
-    public boolean isShown(){
+    public boolean isShown() {
         return !secret || show;
     }
 
-    protected Image toImage(QrCode qr, int qrSize, int margin ) {
-        int size =  qrSize + margin * 2;
-        Image img = new Image(Format.RGBA8,size, 
-                size, BufferUtils.createByteBuffer(
-                        size* size*Format.RGBA8.getBitsPerPixel()/8),null,ColorSpace.Linear);
+    protected Image toImage(QrCode qr, int qrSize, int margin) {
+        int size = qrSize + margin * 2;
+        Image img = new Image(
+            Format.RGBA8,
+            size,
+            size,
+            BufferUtils.createByteBuffer(size * size * Format.RGBA8.getBitsPerPixel() / 8),
+            null,
+            ColorSpace.Linear
+        );
         ImageRaster imgr = ImageRaster.create(img);
-        
-        
+
         for (int y = 0; y < size; y++) {
             for (int x = 0; x < size; x++) {
-                if(x < margin || y < margin || x >= size - margin || y >= size - margin) {
+                if (x < margin || y < margin || x >= size - margin || y >= size - margin) {
                     imgr.setPixel(x, y, darkPixelsColor);
                     continue;
                 }
 
-                int xQr = (int) ((float)(x - margin) / (float)qrSize * qr.size);
-                int yQr = (int) ((float)(y - margin) / (float)qrSize * qr.size);
-                boolean color = qr.getModule(xQr, yQr );
+                int xQr = (int) ((float) (x - margin) / (float) qrSize * qr.size);
+                int yQr = (int) ((float) (y - margin) / (float) qrSize * qr.size);
+                boolean color = qr.getModule(xQr, yQr);
                 imgr.setPixel(x, y, color ? lightColor : darkPixelsColor);
             }
         }
@@ -326,18 +342,14 @@ public class NQrViewer extends Container implements GuiControlListener, GuiUpdat
     }
 
     @Override
-    public void focusGained(GuiControl source) {
-      
-    }
+    public void focusGained(GuiControl source) {}
 
     @Override
-    public void focusLost(GuiControl source) {
-       
-    }
+    public void focusLost(GuiControl source) {}
 
     @Override
     public void guiUpdate(GuiControl source, float tpf) {
-        if(invalidated){
+        if (invalidated) {
             repaint();
             invalidated = false;
         }
@@ -345,26 +357,19 @@ public class NQrViewer extends Container implements GuiControlListener, GuiUpdat
 
     @Override
     public void mouseButtonEvent(MouseButtonEvent event, Spatial target, Spatial capture) {
-        if(event.isPressed()&&event.getButtonIndex() == 0) {
-            if(this.isShown()){
+        if (event.isPressed() && event.getButtonIndex() == 0) {
+            if (this.isShown()) {
                 clickAction.accept(value);
             }
         }
     }
 
     @Override
-    public void mouseEntered(MouseMotionEvent event, Spatial target, Spatial capture) {
-        
-    }
+    public void mouseEntered(MouseMotionEvent event, Spatial target, Spatial capture) {}
 
     @Override
-    public void mouseExited(MouseMotionEvent event, Spatial target, Spatial capture) {
-       
-    }
+    public void mouseExited(MouseMotionEvent event, Spatial target, Spatial capture) {}
 
     @Override
-    public void mouseMoved(MouseMotionEvent event, Spatial target, Spatial capture) {
-      
-    }
-    
+    public void mouseMoved(MouseMotionEvent event, Spatial target, Spatial capture) {}
 }

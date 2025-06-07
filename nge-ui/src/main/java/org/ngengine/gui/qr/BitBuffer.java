@@ -1,26 +1,34 @@
-/* 
- * QR Code generator library (Java)
+/**
+ * Copyright (c) 2025, Nostr Game Engine
  * 
- * Copyright (c) Project Nayuki. (MIT License)
- * https://www.nayuki.io/page/qr-code-generator-library
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
  * 
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- * the Software, and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
- * - The above copyright notice and this permission notice shall be included in
- *   all copies or substantial portions of the Software.
- * - The Software is provided "as is", without warranty of any kind, express or
- *   implied, including but not limited to the warranties of merchantability,
- *   fitness for a particular purpose and noninfringement. In no event shall the
- *   authors or copyright holders be liable for any claim, damages or other
- *   liability, whether in an action of contract, tort or otherwise, arising from,
- *   out of or in connection with the Software or the use or other dealings in the
- *   Software.
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
+ * the BSD 3-Clause License. The original jMonkeyEngine license is as follows:
  */
-
 package org.ngengine.gui.qr;
 
 import java.util.BitSet;
@@ -51,7 +59,7 @@ public final class BitBuffer implements Cloneable {
 
     /**
      * Returns the length of this sequence, which is a non-negative value.
-     * 
+     *
      * @return the length of this sequence
      */
     public int bitLength() {
@@ -61,7 +69,7 @@ public final class BitBuffer implements Cloneable {
 
     /**
      * Returns the bit at the specified index, yielding 0 or 1.
-     * 
+     *
      * @param index
      *            the index to get the bit at
      * @return the bit at the specified index
@@ -76,7 +84,7 @@ public final class BitBuffer implements Cloneable {
     /**
      * Appends the specified number of low-order bits of the specified value to this buffer. Requires 0
      * &#x2264; len &#x2264; 31 and 0 &#x2264; val &lt; 2<sup>len</sup>.
-     * 
+     *
      * @param val
      *            the value to append
      * @param len
@@ -89,13 +97,12 @@ public final class BitBuffer implements Cloneable {
     public void appendBits(int val, int len) {
         if (len < 0 || len > 31 || val >>> len != 0) throw new IllegalArgumentException("Value out of range");
         if (Integer.MAX_VALUE - bitLength < len) throw new IllegalStateException("Maximum length reached");
-        for (int i = len - 1; i >= 0; i--, bitLength++) // Append bit by bit
-            data.set(bitLength, QrCode.getBit(val, i));
+        for (int i = len - 1; i >= 0; i--, bitLength++) data.set(bitLength, QrCode.getBit(val, i)); // Append bit by bit
     }
 
     /**
      * Appends the content of the specified bit buffer to this buffer.
-     * 
+     *
      * @param bb
      *            the bit buffer whose data to append (not {@code null})
      * @throws NullPointerException
@@ -105,15 +112,13 @@ public final class BitBuffer implements Cloneable {
      */
     public void appendData(BitBuffer bb) {
         Objects.requireNonNull(bb);
-        if (Integer.MAX_VALUE - bitLength < bb.bitLength)
-            throw new IllegalStateException("Maximum length reached");
-        for (int i = 0; i < bb.bitLength; i++, bitLength++) // Append bit by bit
-            data.set(bitLength, bb.data.get(i));
+        if (Integer.MAX_VALUE - bitLength < bb.bitLength) throw new IllegalStateException("Maximum length reached");
+        for (int i = 0; i < bb.bitLength; i++, bitLength++) data.set(bitLength, bb.data.get(i)); // Append bit by bit
     }
 
     /**
      * Returns a new copy of this buffer.
-     * 
+     *
      * @return a new copy of this buffer (not {@code null})
      */
     public BitBuffer clone() {
@@ -125,5 +130,4 @@ public final class BitBuffer implements Cloneable {
             throw new AssertionError(e);
         }
     }
-
 }

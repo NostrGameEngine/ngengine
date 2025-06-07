@@ -1,5 +1,50 @@
+/**
+ * Copyright (c) 2025, Nostr Game Engine
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
+ * the BSD 3-Clause License. The original jMonkeyEngine license is as follows:
+ */
 package org.ngengine.network.protocol;
 
+import com.jme3.math.ColorRGBA;
+import com.jme3.math.Matrix3f;
+import com.jme3.math.Matrix4f;
+import com.jme3.math.Quaternion;
+import com.jme3.math.Transform;
+import com.jme3.math.Vector2f;
+import com.jme3.math.Vector3f;
+import com.jme3.math.Vector4f;
+import com.jme3.network.Message;
+import com.jme3.network.base.MessageBuffer;
+import com.jme3.network.base.MessageProtocol;
+import com.jme3.network.base.protocol.LazyMessageBuffer;
+import com.jme3.network.serializing.Serializable;
+import com.jme3.network.serializing.Serializer;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Array;
@@ -26,7 +71,6 @@ import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiFunction;
 import java.util.jar.Attributes;
-
 import org.ngengine.network.protocol.messages.ByteDataMessage;
 import org.ngengine.network.protocol.messages.CompressedMessage;
 import org.ngengine.network.protocol.messages.TextDataMessage;
@@ -63,22 +107,6 @@ import org.ngengine.nostr4j.keypair.NostrKeyPair;
 import org.ngengine.nostr4j.keypair.NostrPrivateKey;
 import org.ngengine.nostr4j.keypair.NostrPublicKey;
 
-import com.jme3.math.ColorRGBA;
-import com.jme3.math.Matrix3f;
-import com.jme3.math.Matrix4f;
-import com.jme3.math.Quaternion;
-import com.jme3.math.Transform;
-import com.jme3.math.Vector2f;
-import com.jme3.math.Vector3f;
-import com.jme3.math.Vector4f;
-import com.jme3.network.Message;
-import com.jme3.network.base.MessageBuffer;
-import com.jme3.network.base.MessageProtocol;
-import com.jme3.network.base.protocol.LazyMessageBuffer;
-import com.jme3.network.serializing.Serializable;
-import com.jme3.network.serializing.Serializer;
-
-
 /**
  *
  * @author Riccardo Balbo
@@ -86,6 +114,7 @@ import com.jme3.network.serializing.Serializer;
 public class DynamicSerializerProtocol implements MessageProtocol {
 
     protected static class RegisteredSerializer {
+
         private final Class<?> cls;
         private final Serializer serializer;
 
@@ -110,9 +139,7 @@ public class DynamicSerializerProtocol implements MessageProtocol {
     private final Map<Class<?>, Long> classXid = new HashMap<>();
     private final Map<Long, Class<?>> idXClass = new HashMap<>();
     private final AtomicLong lastId = new AtomicLong(0);
-    private final ThreadLocal<ByteBuffer> tmpBuffer = ThreadLocal
-            .withInitial(() -> ByteBuffer.allocate(32767));
-
+    private final ThreadLocal<ByteBuffer> tmpBuffer = ThreadLocal.withInitial(() -> ByteBuffer.allocate(32767));
 
     private final BiFunction<Object, GrowableByteBuffer, Void> serializeFun = (obj, bbf) -> {
         try {
@@ -122,7 +149,7 @@ public class DynamicSerializerProtocol implements MessageProtocol {
         }
         return null;
     };
-    private final BiFunction<ByteBuffer,Class<?> , Object> deserializeFun = (bbf,cls) -> {
+    private final BiFunction<ByteBuffer, Class<?>, Object> deserializeFun = (bbf, cls) -> {
         try {
             return this.deserialize(bbf, cls, false);
         } catch (IOException e) {
@@ -139,13 +166,13 @@ public class DynamicSerializerProtocol implements MessageProtocol {
     /**
      * Creates a new DynamicSerializerProtocol that automatically handles class registration and
      * serialization.
-     * 
-     * 
+     *
+     *
      * @param strict
      *            set if the serializer should be strict (safer) or unstrict (FAFO)
      */
     public DynamicSerializerProtocol(boolean spidermonkeyCompatible) {
-        this.spidermonkeyCompatible=spidermonkeyCompatible;
+        this.spidermonkeyCompatible = spidermonkeyCompatible;
         registerDefaultSerializers();
         registerDefaultSerializables(spidermonkeyCompatible);
     }
@@ -155,7 +182,7 @@ public class DynamicSerializerProtocol implements MessageProtocol {
             Vector.class,
             Vector2f.class,
             Vector3f.class,
-            Vector4f.class, 
+            Vector4f.class,
             Transform.class,
             ColorRGBA.class,
             Matrix3f.class,
@@ -196,21 +223,20 @@ public class DynamicSerializerProtocol implements MessageProtocol {
             byte.class,
             char.class,
             short.class
-        );  
+        );
         registerSerializableAnnotation(NetworkSafe.class);
-        
-        if(spidermonkeyCompatible) registerSerializableAnnotation(Serializable.class);
+
+        if (spidermonkeyCompatible) registerSerializableAnnotation(Serializable.class);
     }
 
     protected void registerDefaultSerializers() {
-        // bottom => highest priority 
+        // bottom => highest priority
 
         // lists
         registerSerializer(Collection.class, new CollectionSerializer(serializeFun, deserializeFun));
 
         // maps
         registerSerializer(Map.class, new MapSerializer(serializeFun, deserializeFun));
-
 
         // primitive wrappers
         registerSerializer(Boolean.class, new BooleanSerializer());
@@ -222,7 +248,7 @@ public class DynamicSerializerProtocol implements MessageProtocol {
         registerSerializer(Float.class, new NumberSerializer());
         registerSerializer(Double.class, new NumberSerializer());
         registerSerializer(String.class, new StringSerializer());
-        
+
         // primitives
         registerSerializer(boolean.class, new BooleanSerializer());
         registerSerializer(byte.class, new NumberSerializer());
@@ -245,7 +271,6 @@ public class DynamicSerializerProtocol implements MessageProtocol {
         registerSerializer(NostrPrivateKey.class, new NostrPrivateKeySerializer());
         registerSerializer(NostrKeyPair.class, new NostrKeyPairSerializer());
 
-
         // jme3 stuff
         registerSerializer(Vector4f.class, new Vector4fSerializer());
         registerSerializer(Vector3f.class, new Vector3fSerializer());
@@ -256,24 +281,21 @@ public class DynamicSerializerProtocol implements MessageProtocol {
         registerSerializer(Quaternion.class, new QuaternionSerializer());
         registerSerializer(Transform.class, new TransformSerializer());
 
-        // messages               
+        // messages
         registerSerializer(Message.class, new GenericMessageSerializer(serializeFun, deserializeFun));
         registerSerializer(TextDataMessage.class, new TextMessageSerializer());
         registerSerializer(ByteDataMessage.class, new ByteMessageSerializer());
-        registerSerializer(CompressedMessage.class,
-                new CompressedMessageSerializer(serializeFun, deserializeFun));
-
+        registerSerializer(CompressedMessage.class, new CompressedMessageSerializer(serializeFun, deserializeFun));
     }
 
     /**
      * Force use of static buffer (old behavior) even if the serialize supports dynamic buffers. Used mostly
      * for debugging.
-     * 
+     *
      * @param forceStatic
      */
     public void setForceStaticBuffer(boolean forceStatic) {
         this.forceSpidermonkeyStaticBuffer = forceStatic;
-
     }
 
     public void registerSerializer(Class<?> cls, Serializer serializer) {
@@ -282,13 +304,11 @@ public class DynamicSerializerProtocol implements MessageProtocol {
         serializers.add(new RegisteredSerializer(cls, serializer));
     }
 
-    public void registerSerializable(Class<?> ...clss) {
-        for(Class<?> cls: clss){
-
+    public void registerSerializable(Class<?>... clss) {
+        for (Class<?> cls : clss) {
             Objects.requireNonNull(cls, "Class cannot be null");
             serializables.add(cls);
         }
-
     }
 
     public void registerSerializableAnnotation(Class<?> cls) {
@@ -299,35 +319,36 @@ public class DynamicSerializerProtocol implements MessageProtocol {
         serializablesAnnotation.add(cls);
     }
 
-
-
     protected void checkIsSerializable(Class<?> messageClass, boolean messageOnly) {
-        for(Class<? extends Annotation> serializableAnnotation: this.serializablesAnnotation){
+        for (Class<? extends Annotation> serializableAnnotation : this.serializablesAnnotation) {
             if (messageClass.isAnnotationPresent(serializableAnnotation)) {
                 return;
             }
         }
 
         if (!messageOnly) {
-            for(Class<?> cls: this.serializables){
+            for (Class<?> cls : this.serializables) {
                 if (cls == messageClass) {
                     return;
                 }
             }
         }
 
-        if(Message.class.isAssignableFrom(messageClass)){
-            throw new RuntimeException("Message " + messageClass.getName()
-                    + " is not whitelisted. Please mark it with the  org.ngengine.network.protocol.NetworkSafe annotation.");
+        if (Message.class.isAssignableFrom(messageClass)) {
+            throw new RuntimeException(
+                "Message " +
+                messageClass.getName() +
+                " is not whitelisted. Please mark it with the  org.ngengine.network.protocol.NetworkSafe annotation."
+            );
         } else {
-            throw new RuntimeException("Class " + messageClass.getName()
-                + " is not serializable. Please register a serializer for this class.");
+            throw new RuntimeException(
+                "Class " + messageClass.getName() + " is not serializable. Please register a serializer for this class."
+            );
         }
-
     }
 
     protected Serializer getBestSerializerFor(Class<?> cls) {
-        for(int i = serializers.size()-1; i>=0; i--){
+        for (int i = serializers.size() - 1; i >= 0; i--) {
             RegisteredSerializer reg = (RegisteredSerializer) serializers.toArray()[i];
             if (reg.isSerializerFor(cls)) {
                 return reg.get();
@@ -344,7 +365,7 @@ public class DynamicSerializerProtocol implements MessageProtocol {
         if (obj == Collections.EMPTY_LIST) {
             obj = new ArrayList<>();
         }
-        
+
         if (obj == Collections.EMPTY_MAP) {
             obj = new HashMap<>();
         }
@@ -362,20 +383,17 @@ public class DynamicSerializerProtocol implements MessageProtocol {
             return;
         }
 
-        if(obj.getClass().isArray()){
+        if (obj.getClass().isArray()) {
             ArrayList<Object> list = new ArrayList<>();
-            for(int i=0; i<Array.getLength(obj); i++){
+            for (int i = 0; i < Array.getLength(obj); i++) {
                 list.add(Array.get(obj, i));
             }
-            obj= list;
+            obj = list;
         }
 
-
         obj = swapInternals(obj);
-        
-        Class<?> messageClass = obj.getClass();
 
-        
+        Class<?> messageClass = obj.getClass();
 
         // check if message is sendable to the network
         checkIsSerializable(messageClass, messageOnly);
@@ -398,7 +416,7 @@ public class DynamicSerializerProtocol implements MessageProtocol {
             buffer.putShort((short) classPath.length);
             buffer.put(classPath);
         } else {
-            buffer.putShort((short) 0);            
+            buffer.putShort((short) 0);
         }
 
         buffer.putLong(id);
@@ -413,11 +431,11 @@ public class DynamicSerializerProtocol implements MessageProtocol {
         Serializer serializer = getBestSerializerFor(obj.getClass());
         if (serializer instanceof DynamicSerializer && !this.forceSpidermonkeyStaticBuffer) {
             ((DynamicSerializer) serializer).writeObject(buffer, obj);
-        } else  if(spidermonkeyCompatible){
+        } else if (spidermonkeyCompatible) {
             ByteBuffer bbf = tmpBuffer.get();
             synchronized (bbf) {
                 // bbf.clear();
-                if(bbf!=buffer.getBuffer()){
+                if (bbf != buffer.getBuffer()) {
                     bbf.clear();
                     serializer.writeObject(bbf, obj);
                     bbf.flip();
@@ -425,11 +443,13 @@ public class DynamicSerializerProtocol implements MessageProtocol {
                 } else {
                     serializer.writeObject(bbf, obj);
                 }
-                
             }
-        } else{
-            throw new IOException("Serializer " + serializer.getClass().getName()
-                    + " does not support dynamic buffers. Please register a serializer for this class.");
+        } else {
+            throw new IOException(
+                "Serializer " +
+                serializer.getClass().getName() +
+                " does not support dynamic buffers. Please register a serializer for this class."
+            );
         }
         int lastPos = buffer.position();
 
@@ -440,14 +460,9 @@ public class DynamicSerializerProtocol implements MessageProtocol {
 
         // return to the end of the body
         buffer.position(lastPos);
-
-        
-
     }
 
-    protected <T> T deserialize(ByteBuffer bytes, Class<?> expectedClass,  boolean messageOnly) throws IOException {
-        
-   
+    protected <T> T deserialize(ByteBuffer bytes, Class<?> expectedClass, boolean messageOnly) throws IOException {
         long id = -1;
         try {
             short classPathLength = bytes.getShort();
@@ -462,10 +477,9 @@ public class DynamicSerializerProtocol implements MessageProtocol {
                 classPath = new byte[classPathLength];
                 bytes.get(classPath);
             }
- 
+
             // read class id
             id = bytes.getLong();
-
 
             // register if registration data was submitted
             if (classPath != null) {
@@ -475,14 +489,14 @@ public class DynamicSerializerProtocol implements MessageProtocol {
 
                 if (messageClass != null && !messageClass.getName().equals(className)) {
                     // already used by another class
-                    throw new RuntimeException("Class ID collision: " + id + " for class: " + className
-                            + " and " + messageClass.getName());
+                    throw new RuntimeException(
+                        "Class ID collision: " + id + " for class: " + className + " and " + messageClass.getName()
+                    );
                 }
 
                 if (messageClass == null) {
                     if (!className.endsWith("Message")) {
-                        throw new RuntimeException(
-                                "Message class name must end with 'Message': " + className);
+                        throw new RuntimeException("Message class name must end with 'Message': " + className);
                     }
 
                     // load the class
@@ -494,8 +508,9 @@ public class DynamicSerializerProtocol implements MessageProtocol {
                     // check class is registered with another id
                     Long currentId = classXid.get(messageClass);
                     if (currentId != null) {
-                        throw new RuntimeException("Class " + messageClass.getName()
-                                + " is already registered with id: " + currentId);
+                        throw new RuntimeException(
+                            "Class " + messageClass.getName() + " is already registered with id: " + currentId
+                        );
                     }
 
                     // register
@@ -513,19 +528,17 @@ public class DynamicSerializerProtocol implements MessageProtocol {
             // paranoia check
             checkIsSerializable(messageClass, messageOnly);
 
-
             // read body length
             short dataLength = bytes.getShort();
 
             if (dataLength > bytes.remaining()) {
-                throw new RuntimeException(
-                        "Data length mismatch: " + dataLength + " != " + bytes.remaining());
+                throw new RuntimeException("Data length mismatch: " + dataLength + " != " + bytes.remaining());
             }
 
             // read body
             Serializer serializer = getBestSerializerFor(messageClass);
             Object obj = serializer.readObject(bytes, messageClass);
-            if(obj instanceof Collection && expectedClass.isArray()){
+            if (obj instanceof Collection && expectedClass.isArray()) {
                 Collection<?> collection = (Collection<?>) obj;
                 T array = (T) Array.newInstance(expectedClass.getComponentType(), collection.size());
                 int i = 0;
@@ -539,7 +552,6 @@ public class DynamicSerializerProtocol implements MessageProtocol {
         } catch (Exception e) {
             throw new IOException("Error deserializing object, class ID:" + id, e);
         }
-
     }
 
     /**
@@ -548,12 +560,12 @@ public class DynamicSerializerProtocol implements MessageProtocol {
      */
     @Override
     public ByteBuffer toByteBuffer(Message message, ByteBuffer target) {
-
         // Could let the caller pass their own in
         // ByteBuffer buffer = target == null ? ByteBuffer.allocate(32767 + 2 + 8 + 2) : target;
 
-        GrowableByteBuffer buffer = (target == null) ? new GrowableByteBuffer(ByteBuffer.allocate(1024), 1024)
-                                                     : new GrowableByteBuffer(target, 0);
+        GrowableByteBuffer buffer = (target == null)
+            ? new GrowableByteBuffer(ByteBuffer.allocate(1024), 1024)
+            : new GrowableByteBuffer(target, 0);
         try {
             // start from the beginning of the buffer
             buffer.position(0);
@@ -573,7 +585,7 @@ public class DynamicSerializerProtocol implements MessageProtocol {
             // buffer.putShort(dataLength);
 
             serialize(message, buffer, true);
-            ByteBuffer out  = buffer.getBuffer();
+            ByteBuffer out = buffer.getBuffer();
             out.flip();
 
             return out;
@@ -593,7 +605,6 @@ public class DynamicSerializerProtocol implements MessageProtocol {
             bytes.position(0);
 
             return deserialize(bytes, Message.class, true);
-
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -604,5 +615,4 @@ public class DynamicSerializerProtocol implements MessageProtocol {
         // Defaulting to LazyMessageBuffer
         return new LazyMessageBuffer(this);
     }
-
 }

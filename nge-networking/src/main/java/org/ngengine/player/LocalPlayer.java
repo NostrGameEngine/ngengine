@@ -1,22 +1,52 @@
+/**
+ * Copyright (c) 2025, Nostr Game Engine
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
+ * the BSD 3-Clause License. The original jMonkeyEngine license is as follows:
+ */
 package org.ngengine.player;
 
 import java.util.concurrent.ExecutionException;
-
 import org.ngengine.nostr4j.event.UnsignedNostrEvent;
 import org.ngengine.nostr4j.nip24.Nip24ExtraMetadata;
 import org.ngengine.nostr4j.nip39.Nip39ExternalIdentities;
 import org.ngengine.nostr4j.signer.NostrSigner;
 
 public class LocalPlayer extends Player {
+
     private final NostrSigner signer;
 
-    protected LocalPlayer(PlayerManagerComponent mng, NostrSigner signer)
-            throws InterruptedException, ExecutionException {
+    protected LocalPlayer(PlayerManagerComponent mng, NostrSigner signer) throws InterruptedException, ExecutionException {
         super(mng, signer.getPublicKey().await());
         this.signer = signer;
     }
 
-   protected LocalPlayer(Player player,  NostrSigner signer) throws InterruptedException, ExecutionException{
+    protected LocalPlayer(Player player, NostrSigner signer) throws InterruptedException, ExecutionException {
         this(player.playerManager, signer);
         this.pubkey = player.pubkey;
         this.gamerTag = player.gamerTag;
@@ -24,29 +54,30 @@ public class LocalPlayer extends Player {
         this.metadata = player.metadata;
         this.image = player.image;
     }
-  
+
     public void setGamerTag(String name) {
-                ensureReady();        
+        ensureReady();
         Nip24ExtraMetadata meta = getMetatada();
         Nip39ExternalIdentities ids = new Nip39ExternalIdentities(meta);
-        if(name==null){
+        if (name == null) {
             ids.removeExternalIdentity("gamertag");
-        }else{
+        } else {
             GamerTag newTag = GamerTag.generate(getUID(), name);
             ids.setExternalIdentity("gamertag", newTag.toString(), null);
         }
         UnsignedNostrEvent uevent = ids.toUpdateEvent();
-        signer.sign(uevent).then((signerEvent)->{
-            getPlayerManager().getPool().send(signerEvent);
-            return null;
-        });
-        
+        signer
+            .sign(uevent)
+            .then(signerEvent -> {
+                getPlayerManager().getPool().send(signerEvent);
+                return null;
+            });
+
         resetCached();
     }
-
     // TODO add upload service
     // public void setImage(Texture2D image)  {
-    //     ensureReady();        
+    //     ensureReady();
     //     Nip24ExtraMetadata meta = getMetatada();
     //     meta.setPicture(url);
     //     UnsignedNostrEvent uevent = meta.toUpdateEvent();

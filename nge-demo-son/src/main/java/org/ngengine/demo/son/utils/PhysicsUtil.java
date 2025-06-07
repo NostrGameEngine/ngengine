@@ -1,14 +1,44 @@
+/**
+ * Copyright (c) 2025, Nostr Game Engine
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
+ * the BSD 3-Clause License. The original jMonkeyEngine license is as follows:
+ */
 package org.ngengine.demo.son.utils;
 
-import java.util.logging.Logger;
-
-import com.jme3.bullet.control.RigidBodyControl;
 import com.jme3.bullet.objects.PhysicsRigidBody;
 import com.jme3.math.Quaternion;
 import com.jme3.math.Vector3f;
 import com.jme3.util.TempVars;
+import java.util.logging.Logger;
 
 public class PhysicsUtil {
+
     private static Logger log = Logger.getLogger(PhysicsUtil.class.getName());
 
     public static void accelerateToKmh(float kmh, PhysicsRigidBody body, float timeToReachSec) {
@@ -41,21 +71,19 @@ public class PhysicsUtil {
             dir.set(dir.x, 0f, dir.z).normalizeLocal();
 
             // 5) Compute required accel: Δv / time
-            float accel = targetSpeedMps;// - currSpeed;
+            float accel = targetSpeedMps; // - currSpeed;
 
             // 6) Force = m * a along the forward dir
             force.set(dir).multLocal(accel * body.getMass());
 
             // 7) Apply it each tick; Bullet integrates over dt internally
             body.applyCentralForce(force); // :contentReference[oaicite:2]{index=2}
-
         } finally {
             vars.release();
         }
     }
 
-    public static void accelerateToAngularSpeed(float degPerSec, PhysicsRigidBody body,
-            float timeToReachSec) {
+    public static void accelerateToAngularSpeed(float degPerSec, PhysicsRigidBody body, float timeToReachSec) {
         TempVars vars = TempVars.get();
         try {
             Vector3f angVel = vars.vect1;
@@ -85,15 +113,12 @@ public class PhysicsUtil {
 
             torque.set(worldUp).multLocal(torqueAmount);
             body.applyTorque(torque);
-
         } finally {
             vars.release();
         }
     }
 
-    public static void accelerateToAngularSpeed(float degPerSec, PhysicsRigidBody body, float timeToReachSec,
-            float dt) {
-
+    public static void accelerateToAngularSpeed(float degPerSec, PhysicsRigidBody body, float timeToReachSec, float dt) {
         TempVars vars = TempVars.get();
         try {
             // Convert degrees/sec → radians/sec
@@ -121,10 +146,8 @@ public class PhysicsUtil {
             // Apply torque in spin axis direction
             Vector3f torque = spinAxis.mult(torqueAmount, vars.vect3);
             body.applyTorque(torque);
-
         } finally {
             vars.release();
         }
     }
-
 }

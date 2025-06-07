@@ -1,3 +1,34 @@
+/**
+ * Copyright (c) 2025, Nostr Game Engine
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
+ * the BSD 3-Clause License. The original jMonkeyEngine license is as follows:
+ */
 package org.ngengine.demo.son.ocean;
 
 import com.jme3.math.FastMath;
@@ -10,13 +41,14 @@ import com.jme3.math.Vector4f;
  * and normals with multi-sampling approach to prevent tiling artifacts at domain boundaries.
  */
 public class OceanWaveSim {
+
     private static final float DRAG_MULT = 0.38f;
     private static final int WAVE_ITERATIONS = 12;
     private static final int NORMAL_ITERATIONS = 24;
 
     /**
      * Enhanced wave function for sharper peaks.
-     * 
+     *
      * @param position
      *            Position in wave space
      * @param direction
@@ -29,8 +61,7 @@ public class OceanWaveSim {
      *            Controls peak sharpness
      * @return Vector2f with (wave height, wave derivative)
      */
-    private static Vector2f wavedx(Vector2f position, Vector2f direction, float frequency, float timeshift,
-            float sharpness) {
+    private static Vector2f wavedx(Vector2f position, Vector2f direction, float frequency, float timeshift, float sharpness) {
         float x = direction.dot(position) * frequency + timeshift;
         // Add asymmetry to create sharper peaks but smoother troughs
         float wave = (float) Math.exp(FastMath.sin(x) - 1.0f);
@@ -42,7 +73,7 @@ public class OceanWaveSim {
 
     /**
      * Generate waves using octave-based summation with position warping.
-     * 
+     *
      * @param position
      *            Position in wave space
      * @param iterations
@@ -75,8 +106,7 @@ public class OceanWaveSim {
 
             // Calculate wave height and derivative - higher peakiness for first octaves
             float octaveSharpness = peakiness * Math.max(0.0f, 1.0f - (float) i / 4.0f);
-            Vector2f res = wavedx(pos, direction, frequency, time * timeMultiplier + wavePhaseShift,
-                    octaveSharpness);
+            Vector2f res = wavedx(pos, direction, frequency, time * timeMultiplier + wavePhaseShift, octaveSharpness);
 
             // Critical: Shift position based on wave's derivative (creates fluid interaction)
             pos.addLocal(direction.mult(res.y * weight * DRAG_MULT));
@@ -99,8 +129,8 @@ public class OceanWaveSim {
     }
 
     /**
-     * Calculate normal 
-     * 
+     * Calculate normal
+     *
      * @param pos
      *            Position in wave space
      * @param epsilon
@@ -113,8 +143,14 @@ public class OceanWaveSim {
      *            Controls the sharpness of wave peaks
      * @return Normal vector at the given position
      */
-    private static Vector3f calculateNormal(Vector2f pos, float epsilon, float time, Vector2f wind,
-            float peakiness, Vector3f scale) {
+    private static Vector3f calculateNormal(
+        Vector2f pos,
+        float epsilon,
+        float time,
+        Vector2f wind,
+        float peakiness,
+        Vector3f scale
+    ) {
         float normalStrength = FastMath.interpolateLinear(peakiness, 0.3f, 0.7f);
 
         // Calculate world-space epsilon based on actual world scale
@@ -145,7 +181,7 @@ public class OceanWaveSim {
 
     /**
      * Helper function to get basic ocean sample without boundary handling.
-     * 
+     *
      * @param wpos
      *            World position to sample
      * @param inWind
@@ -171,10 +207,13 @@ public class OceanWaveSim {
 
         // Apply spatial variation
         float spatialVar = FastMath.sin(stablePos.x * 0.004f + stablePos.y * 0.005f) * 0.1f + 0.9f;
-        float scaleVariation = 1.0f
-                + FastMath.sin(stablePos.x * 0.016f + stablePos.y * 0.02f)
-                        * FastMath.sin(stablePos.y * 0.018f) * 0.05f
-                + FastMath.sin(stablePos.x * 0.04f + stablePos.y * 0.03f) * 0.02f;
+        float scaleVariation =
+            1.0f +
+            FastMath.sin(stablePos.x * 0.016f + stablePos.y * 0.02f) *
+            FastMath.sin(stablePos.y * 0.018f) *
+            0.05f +
+            FastMath.sin(stablePos.x * 0.04f + stablePos.y * 0.03f) *
+            0.02f;
 
         // Create position sets for different wave scales
         Vector2f largeWavePos = new Vector2f(wavePos).multLocal(0.3f * spatialVar);
@@ -189,8 +228,7 @@ public class OceanWaveSim {
         // Generate waves
         float largeWaves = getWaves(largeWavePos, WAVE_ITERATIONS, time * timeScale * 0.3f, peakiness);
         float medWaves = getWaves(mediumWavePos, WAVE_ITERATIONS, time * timeScale * 0.7f, peakiness * 0.7f);
-        float smallWaves = getWaves(smallWavePos, Math.min(WAVE_ITERATIONS, 5), time * timeScale * 1.2f,
-                peakiness * 0.4f);
+        float smallWaves = getWaves(smallWavePos, Math.min(WAVE_ITERATIONS, 5), time * timeScale * 1.2f, peakiness * 0.4f);
 
         // Calculate weights
         float largeWeight = 0.6f + windFactor * 0.2f;
@@ -214,13 +252,13 @@ public class OceanWaveSim {
         Vector3f normal = calculateNormal(wavePos, 0.2f, time * timeScale, wind, peakiness, scale);
 
         // Return height and normal
-        return new Vector4f(normal.x, normal.y, normal.z, finalHeight );
+        return new Vector4f(normal.x, normal.y, normal.z, finalHeight);
     }
 
     /**
      * Sample ocean height and normal at a given world position using multi-sampling approach at domain
      * boundaries.
-     * 
+     *
      * @param wpos
      *            World position to sample
      * @param inWind
@@ -238,8 +276,10 @@ public class OceanWaveSim {
         if (normalizedPos.y < 0) normalizedPos.y += DOMAIN_SIZE;
         normalizedPos.divideLocal(DOMAIN_SIZE);
 
-        Vector2f distToBoundary = new Vector2f(Math.min(normalizedPos.x, 1.0f - normalizedPos.x),
-                Math.min(normalizedPos.y, 1.0f - normalizedPos.y));
+        Vector2f distToBoundary = new Vector2f(
+            Math.min(normalizedPos.x, 1.0f - normalizedPos.x),
+            Math.min(normalizedPos.y, 1.0f - normalizedPos.y)
+        );
         float boundaryDist = Math.min(distToBoundary.x, distToBoundary.y);
 
         // Multi-sampling parameters (more samples near boundaries)

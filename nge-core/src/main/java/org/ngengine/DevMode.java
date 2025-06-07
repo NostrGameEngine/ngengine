@@ -1,14 +1,35 @@
+/**
+ * Copyright (c) 2025, Nostr Game Engine
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
+ * the BSD 3-Clause License. The original jMonkeyEngine license is as follows:
+ */
 package org.ngengine;
-
-import java.lang.ref.WeakReference;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.WeakHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import com.jme3.app.Application;
 import com.jme3.app.SimpleApplication;
@@ -26,18 +47,25 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.shape.Box;
 import com.jme3.util.MaterialDebugAppState;
+import java.lang.ref.WeakReference;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.WeakHashMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-public class DevMode extends BaseAppState implements ActionListener{
+public class DevMode extends BaseAppState implements ActionListener {
+
     private static Map<Object, Runnable> onReloadMap = new WeakHashMap<>();
     private static ArrayList<WeakReference<Spatial>> reloadableSpatials = new ArrayList<>();
     private static ArrayList<WeakReference<Material>> reloadableMaterials = new ArrayList<>();
     private static volatile boolean needsReload = false;
 
-
     public static void registerReloadCallback(Object ref, Runnable callback) {
         onReloadMap.put(ref, callback);
     }
-    
+
     public static void registerForReload(Spatial spatial) {
         reloadableSpatials.add(new WeakReference<>(spatial));
     }
@@ -46,25 +74,21 @@ public class DevMode extends BaseAppState implements ActionListener{
         reloadableMaterials.add(new WeakReference<>(material));
     }
 
-    public static void reload(){
+    public static void reload() {
         needsReload = true;
     }
 
     @Override
-    protected void initialize(Application app) {
-        
-    }
+    protected void initialize(Application app) {}
 
     @Override
-    protected void cleanup(Application app) {
-         
-    }
+    protected void cleanup(Application app) {}
 
     @Override
     public void update(float tpf) {
         super.update(tpf);
-        if(needsReload){
-            needsReload=false;
+        if (needsReload) {
+            needsReload = false;
             AssetManager assetManager = getApplication().getAssetManager();
             RenderManager renderManager = getApplication().getRenderManager();
             for (Runnable callback : onReloadMap.values()) {
@@ -93,7 +117,6 @@ public class DevMode extends BaseAppState implements ActionListener{
                             }
                         }
                     });
-
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -124,25 +147,28 @@ public class DevMode extends BaseAppState implements ActionListener{
         im.addMapping("TOGGLE_MOUSE_CURSOR", new KeyTrigger(KeyInput.KEY_F6));
         im.addMapping("TOGGLE_FLYCAMERA", new KeyTrigger(KeyInput.KEY_F7));
 
-        im.addListener(this, "DEVMODE_RELOAD");     
+        im.addListener(this, "DEVMODE_RELOAD");
         im.addListener(this, "TOGGLE_MOUSE_CURSOR");
         im.addListener(this, "TOGGLE_FLYCAMERA");
 
-        registerReloadCallback(this, ()->{
-            getApplication().getAssetManager().clearCache();
-        });
+        registerReloadCallback(
+            this,
+            () -> {
+                getApplication().getAssetManager().clearCache();
+            }
+        );
     }
 
     @Override
     protected void onDisable() {
         InputManager im = getApplication().getInputManager();
         im.removeListener(this);
-        im.deleteMapping("DEVMODE_RELOAD");        
+        im.deleteMapping("DEVMODE_RELOAD");
     }
 
     @Override
     public void onAction(String name, boolean isPressed, float tpf) {
-        if(name.equals("DEVMODE_RELOAD") && isPressed){
+        if (name.equals("DEVMODE_RELOAD") && isPressed) {
             reload();
         }
         if (name.equals("TOGGLE_MOUSE_CURSOR") && isPressed) {
@@ -165,9 +191,8 @@ public class DevMode extends BaseAppState implements ActionListener{
             }
         }
     }
-    
+
     public static Material reloadMaterial(AssetManager assetManager, RenderManager renderManager, Material mat) {
-        
         // clear the entire cache, there might be more clever things to do, like
         // clearing only the matdef, and the associated shaders.
         assetManager.clearCache();
@@ -199,6 +224,4 @@ public class DevMode extends BaseAppState implements ActionListener{
         Logger.getLogger(MaterialDebugAppState.class.getName()).log(Level.INFO, "Material successfully reloaded");
         return dummy;
     }
-   
-    
 }

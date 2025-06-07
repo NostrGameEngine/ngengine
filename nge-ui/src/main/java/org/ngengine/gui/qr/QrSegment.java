@@ -1,10 +1,42 @@
-package org.ngengine.gui.qr;
-/* 
- * QR Code generator library (Java)
+/**
+ * Copyright (c) 2025, Nostr Game Engine
  * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
+ * the BSD 3-Clause License. The original jMonkeyEngine license is as follows:
+ */
+package org.ngengine.gui.qr;
+
+/*
+ * QR Code generator library (Java)
+ *
  * Copyright (c) Project Nayuki. (MIT License)
  * https://www.nayuki.io/page/qr-code-generator-library
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
  * the Software without restriction, including without limitation the rights to
@@ -21,7 +53,6 @@ package org.ngengine.gui.qr;
  *   out of or in connection with the Software or the use or other dealings in the
  *   Software.
  */
-
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -55,7 +86,7 @@ public final class QrSegment {
      * Any text string can be converted to UTF-8 bytes ({@code
      * s.getBytes(StandardCharsets.UTF_8)}) and encoded as a byte mode segment.
      * </p>
-     * 
+     *
      * @param data
      *            the binary data (not {@code null})
      * @return a segment (not {@code null}) containing the data
@@ -71,7 +102,7 @@ public final class QrSegment {
 
     /**
      * Returns a segment representing the specified string of decimal digits encoded in numeric mode.
-     * 
+     *
      * @param digits
      *            the text (not {@code null}), with only digits from 0 to 9 allowed
      * @return a segment (not {@code null}) containing the text
@@ -97,7 +128,7 @@ public final class QrSegment {
      * Returns a segment representing the specified text string encoded in alphanumeric mode. The characters
      * allowed are: 0 to 9, A to Z (uppercase only), space, dollar, percent, asterisk, plus, hyphen, period,
      * slash, colon.
-     * 
+     *
      * @param value
      *            the text (not {@code null}), with only certain characters allowed
      * @return a segment (not {@code null}) containing the text
@@ -108,8 +139,9 @@ public final class QrSegment {
      */
     public static QrSegment makeAlphanumeric(CharSequence text) {
         Objects.requireNonNull(text);
-        if (!isAlphanumeric(text))
-            throw new IllegalArgumentException("String contains unencodable characters in alphanumeric mode");
+        if (!isAlphanumeric(text)) throw new IllegalArgumentException(
+            "String contains unencodable characters in alphanumeric mode"
+        );
 
         BitBuffer bb = new BitBuffer();
         int i;
@@ -118,15 +150,14 @@ public final class QrSegment {
             temp += ALPHANUMERIC_CHARSET.indexOf(text.charAt(i + 1));
             bb.appendBits(temp, 11);
         }
-        if (i < text.length()) // 1 character remaining
-            bb.appendBits(ALPHANUMERIC_CHARSET.indexOf(text.charAt(i)), 6);
+        if (i < text.length()) bb.appendBits(ALPHANUMERIC_CHARSET.indexOf(text.charAt(i)), 6); // 1 character remaining
         return new QrSegment(Mode.ALPHANUMERIC, text.length(), bb);
     }
 
     /**
      * Returns a list of zero or more segments to represent the specified Unicode text string. The result may
      * use various segment modes and switch modes to optimize the length of the bit stream.
-     * 
+     *
      * @param value
      *            the text to be encoded, which can be any Unicode string
      * @return a new mutable list (not {@code null}) of segments (not {@code null}) containing the text
@@ -139,16 +170,16 @@ public final class QrSegment {
         // Select the most efficient segment encoding automatically
         List<QrSegment> result = new ArrayList<>();
         if (text.equals("")); // Leave result empty
-        else if (isNumeric(text)) result.add(makeNumeric(text));
-        else if (isAlphanumeric(text)) result.add(makeAlphanumeric(text));
-        else result.add(makeBytes(text.toString().getBytes(StandardCharsets.UTF_8)));
+        else if (isNumeric(text)) result.add(makeNumeric(text)); else if (isAlphanumeric(text)) result.add(
+            makeAlphanumeric(text)
+        ); else result.add(makeBytes(text.toString().getBytes(StandardCharsets.UTF_8)));
         return result;
     }
 
     /**
      * Returns a segment representing an Extended Channel Interpretation (ECI) designator with the specified
      * assignment value.
-     * 
+     *
      * @param assignVal
      *            the ECI assignment number (see the AIM ECI specification)
      * @return a segment (not {@code null}) containing the data
@@ -157,9 +188,9 @@ public final class QrSegment {
      */
     public static QrSegment makeEci(int assignVal) {
         BitBuffer bb = new BitBuffer();
-        if (assignVal < 0) throw new IllegalArgumentException("ECI assignment value out of range");
-        else if (assignVal < (1 << 7)) bb.appendBits(assignVal, 8);
-        else if (assignVal < (1 << 14)) {
+        if (assignVal < 0) throw new IllegalArgumentException("ECI assignment value out of range"); else if (
+            assignVal < (1 << 7)
+        ) bb.appendBits(assignVal, 8); else if (assignVal < (1 << 14)) {
             bb.appendBits(0b10, 2);
             bb.appendBits(assignVal, 14);
         } else if (assignVal < 1_000_000) {
@@ -172,7 +203,7 @@ public final class QrSegment {
     /**
      * Tests whether the specified string can be encoded as a segment in numeric mode. A string is encodable
      * iff each character is in the range 0 to 9.
-     * 
+     *
      * @param value
      *            the string to test for encodability (not {@code null})
      * @return {@code true} iff each character is in the range 0 to 9.
@@ -188,7 +219,7 @@ public final class QrSegment {
      * Tests whether the specified string can be encoded as a segment in alphanumeric mode. A string is
      * encodable iff each character is in the following set: 0 to 9, A to Z (uppercase only), space, dollar,
      * percent, asterisk, plus, hyphen, period, slash, colon.
-     * 
+     *
      * @param value
      *            the string to test for encodability (not {@code null})
      * @return {@code true} iff each character is in the alphanumeric mode character set
@@ -221,7 +252,7 @@ public final class QrSegment {
      * Constructs a QR Code segment with the specified attributes and data. The character count (numCh) must
      * agree with the mode and the bit buffer length, but the constraint isn't checked. The specified bit
      * buffer is cloned and stored.
-     * 
+     *
      * @param md
      *            the mode (not {@code null})
      * @param numCh
@@ -245,7 +276,7 @@ public final class QrSegment {
 
     /**
      * Returns the data bits of this segment.
-     * 
+     *
      * @return a new copy of the data bits (not {@code null})
      */
     public BitBuffer getData() {
@@ -262,7 +293,7 @@ public final class QrSegment {
             Objects.requireNonNull(seg);
             int ccbits = seg.mode.numCharCountBits(version);
             if (seg.numChars >= (1 << ccbits)) return -1; // The segment's length doesn't fit the field's bit
-                                                          // width
+            // width
             result += 4L + ccbits + seg.data.bitLength();
             if (result > Integer.MAX_VALUE) return -1; // The sum will overflow an int type
         }
@@ -287,11 +318,13 @@ public final class QrSegment {
      * Describes how a segment's data bits are interpreted.
      */
     public enum Mode {
-
         /*-- Constants --*/
 
-        NUMERIC(0x1, 10, 12, 14), ALPHANUMERIC(0x2, 9, 11, 13), BYTE(0x4, 8, 16, 16), KANJI(0x8, 8, 10,
-                12), ECI(0x7, 0, 0, 0);
+        NUMERIC(0x1, 10, 12, 14),
+        ALPHANUMERIC(0x2, 9, 11, 13),
+        BYTE(0x4, 8, 16, 16),
+        KANJI(0x8, 8, 10, 12),
+        ECI(0x7, 0, 0, 0);
 
         /*-- Fields --*/
 
@@ -316,7 +349,5 @@ public final class QrSegment {
             assert QrCode.MIN_VERSION <= ver && ver <= QrCode.MAX_VERSION;
             return numBitsCharCount[(ver + 7) / 17];
         }
-
     }
-
 }

@@ -1,8 +1,35 @@
+/**
+ * Copyright (c) 2025, Nostr Game Engine
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
+ * the BSD 3-Clause License. The original jMonkeyEngine license is as follows:
+ */
 package org.ngengine.gui;
-
-import java.util.List;
-import org.ngengine.DevMode;
-import org.ngengine.gui.components.NSVGIcon;
 
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector2f;
@@ -15,16 +42,22 @@ import com.simsilica.lemur.component.QuadBackgroundComponent;
 import com.simsilica.lemur.component.TbtQuadBackgroundComponent;
 import com.simsilica.lemur.style.Attributes;
 import com.simsilica.lemur.style.Styles;
+import java.util.List;
+import org.ngengine.DevMode;
+import org.ngengine.gui.components.NSVGIcon;
 
 public class NGEStyle {
+
     private static final String NAME = "nge";
 
     public static ColorRGBA fromHex(String hex) {
         ColorRGBA linear = new ColorRGBA();
-        linear.setAsSrgb(Integer.valueOf(hex.substring(1, 3), 16) / 255f,
-                Integer.valueOf(hex.substring(3, 5), 16) / 255f,
-                Integer.valueOf(hex.substring(5, 7), 16) / 255f,
-                hex.length() > 7 ? Integer.valueOf(hex.substring(7, 9), 16) / 255f : 1f);
+        linear.setAsSrgb(
+            Integer.valueOf(hex.substring(1, 3), 16) / 255f,
+            Integer.valueOf(hex.substring(3, 5), 16) / 255f,
+            Integer.valueOf(hex.substring(5, 7), 16) / 255f,
+            hex.length() > 7 ? Integer.valueOf(hex.substring(7, 9), 16) / 255f : 1f
+        );
 
         return linear;
     }
@@ -106,9 +139,7 @@ public class NGEStyle {
 
         Attributes glob = styles.getSelector(NAME);
         glob.set("fontSize", vmin(2.1f));
-        {
-
-        }
+        {}
 
         {
             Attributes container = styles.getSelector("container", NAME);
@@ -125,15 +156,20 @@ public class NGEStyle {
             int y2 = 100;
             float scale = 0.24f;
 
-            TbtQuadBackgroundComponent background = TbtQuadBackgroundComponent.create("ui/frame.png", scale,
-                    x1, y1, x2, y2
-
-                    , 1f, false);
+            TbtQuadBackgroundComponent background = TbtQuadBackgroundComponent.create(
+                "ui/frame.png",
+                scale,
+                x1,
+                y1,
+                x2,
+                y2,
+                1f,
+                false
+            );
             background.setMargin(new Vector2f(10, 10));
             background.setColor(darkPurple);
             container.set("background", background);
             container.set("selectionBackground", new QuadBackgroundComponent(mediumPurple));
-
         }
 
         {
@@ -141,7 +177,6 @@ public class NGEStyle {
             title.set("fontSize", vmin(4));
             title.set("background", new QuadBackgroundComponent(transparent));
             title.set("color", lightPurple);
-
         }
 
         {
@@ -154,7 +189,6 @@ public class NGEStyle {
             Attributes label = styles.getSelector("label", NAME);
             label.set("color", lightPurple);
             label.set("insets", new Insets3f(vmin(1), vmin(1), vmin(1), vmin(1)));
-
         }
 
         {
@@ -162,12 +196,19 @@ public class NGEStyle {
             warnLabel.set("color", neontoshi);
             warnLabel.set("fontSize", vmin(1.9f));
             warnLabel.set("insets", new Insets3f(vmin(2), vmin(2), vmin(2), vmin(2)));
-            TbtQuadBackgroundComponent border = TbtQuadBackgroundComponent
-                    .create("/com/simsilica/lemur/icons/border.png", 1, 6, 6, 6, 6, 1f, false);
+            TbtQuadBackgroundComponent border = TbtQuadBackgroundComponent.create(
+                "/com/simsilica/lemur/icons/border.png",
+                1,
+                6,
+                6,
+                6,
+                6,
+                1f,
+                false
+            );
             border.setColor(neontoshi);
             border.setMargin(vh(2), vh(2));
             warnLabel.set("background", border);
-
         }
         {
             Attributes highlightedLabel = styles.getSelector("label.highlighted", NAME);
@@ -205,7 +246,6 @@ public class NGEStyle {
             button.set("highlightColor", glowPurple);
             button.set("highlightShadowColor", transparent);
             button.set("insets", new Insets3f(vmin(0.4f), vmin(0.4f), vmin(0.4f), vmin(0.4f)));
-
             // button.set("insets", new Insets3f(vmin(1), vmin(1), vmin(2), vmin(2)));
             // TbtQuadBackgroundComponent background = TbtQuadBackgroundComponent.create("ui/button.png",
             // 0.1f,
@@ -221,8 +261,7 @@ public class NGEStyle {
             Attributes iconButton = styles.getSelector("iconButton", NAME);
             iconButton.set("insets", new Insets3f(vmin(1), vmin(1), vmin(1), vmin(1)));
             iconButton.set("color", lightPurple);
-            QuadBackgroundComponent buttonBg = new QuadBackgroundComponent(
-                    new ColorRGBA(0, 0.75f, 0.75f, 0f));
+            QuadBackgroundComponent buttonBg = new QuadBackgroundComponent(new ColorRGBA(0, 0.75f, 0.75f, 0f));
             iconButton.set("background", buttonBg);
         }
 
@@ -285,7 +324,6 @@ public class NGEStyle {
                 sliderButtonAttr.set("insets", new Insets3f(0, 0, 0, 0));
                 sliderButtonAttr.set("text", "");
                 sliderButtonAttr.set("background", bg2);
-
             }
 
             Attributes sliderThumb = styles.getSelector("slider.thumb.button", NAME);
@@ -295,14 +333,12 @@ public class NGEStyle {
             Attributes sliderButton = styles.getSelector("sliderButton", NAME);
             sliderButton.set("background", bg2);
             sliderButton.set("insets", new Insets3f(0, 0, 0, 0));
-
         }
 
         {
             Attributes listItems = styles.getSelector("list.items", NAME);
 
             listItems.set("insets", new Insets3f(0, 0, 0, 0));
-
         }
 
         {
@@ -346,7 +382,6 @@ public class NGEStyle {
                 closeBtn.set("fontSize", vmin(2.1f));
                 closeBtn.set("color", lightPurple);
                 closeBtn.set("svgIcon", "icons/outline/x.svg");
-
             }
 
             {
@@ -370,9 +405,7 @@ public class NGEStyle {
                 toastLabel.set("textHAlignment", HAlignment.Left);
                 toastLabel.set("textVAlignment", VAlignment.Center);
             }
-
         }
-
     }
 
     public static QuadBackgroundComponent solidBackground(ColorRGBA color) {

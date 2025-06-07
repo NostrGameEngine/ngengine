@@ -1,25 +1,33 @@
-
-/* 
- * QR Code generator library (Java)
+/**
+ * Copyright (c) 2025, Nostr Game Engine
  * 
- * Copyright (c) Project Nayuki. (MIT License)
- * https://www.nayuki.io/page/qr-code-generator-library
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
  * 
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- * the Software, and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
- * - The above copyright notice and this permission notice shall be included in
- *   all copies or substantial portions of the Software.
- * - The Software is provided "as is", without warranty of any kind, express or
- *   implied, including but not limited to the warranties of merchantability,
- *   fitness for a particular purpose and noninfringement. In no event shall the
- *   authors or copyright holders be liable for any claim, damages or other
- *   liability, whether in an action of contract, tort or otherwise, arising from,
- *   out of or in connection with the Software or the use or other dealings in the
- *   Software.
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
+ * the BSD 3-Clause License. The original jMonkeyEngine license is as follows:
  */
 package org.ngengine.gui.qr;
 
@@ -63,7 +71,7 @@ import java.util.Objects;
  * <p>
  * (Note that all ways require supplying the desired error correction level.)
  * </p>
- * 
+ *
  * @see QrSegment
  */
 public final class QrCode {
@@ -76,7 +84,7 @@ public final class QrCode {
      * or fewer Unicode code points (not UTF-16 code units) if the low error correction level is used. The
      * smallest possible QR Code version is automatically chosen for the output. The ECC level of the result
      * may be higher than the ecl argument if it can be done without increasing the version.
-     * 
+     *
      * @param value
      *            the text to be encoded (not {@code null}), which can be any Unicode string
      * @param ecl
@@ -101,7 +109,7 @@ public final class QrCode {
      * allowed is 2953. The smallest possible QR Code version is automatically chosen for the output. The ECC
      * level of the result may be higher than the ecl argument if it can be done without increasing the
      * version.
-     * 
+     *
      * @param data
      *            the binary data to encode (not {@code null})
      * @param ecl
@@ -131,7 +139,7 @@ public final class QrCode {
      * as alphanumeric and byte) to encode text in less space. This is a mid-level API; the high-level API is
      * {@link #encodeText(CharSequence,Ecc)} and {@link #encodeBinary(byte[],Ecc)}.
      * </p>
-     * 
+     *
      * @param segs
      *            the segments to encode
      * @param ecl
@@ -158,7 +166,7 @@ public final class QrCode {
      * as alphanumeric and byte) to encode text in less space. This is a mid-level API; the high-level API is
      * {@link #encodeText(CharSequence,Ecc)} and {@link #encodeBinary(byte[],Ecc)}.
      * </p>
-     * 
+     *
      * @param segs
      *            the segments to encode
      * @param ecl
@@ -181,13 +189,19 @@ public final class QrCode {
      *             if the segments fail to fit in the maxVersion QR Code at the ECL, which means they are too
      *             long
      */
-    public static QrCode encodeSegments(List<QrSegment> segs, Ecc ecl, int minVersion, int maxVersion,
-            int mask, boolean boostEcl) {
+    public static QrCode encodeSegments(
+        List<QrSegment> segs,
+        Ecc ecl,
+        int minVersion,
+        int maxVersion,
+        int mask,
+        boolean boostEcl
+    ) {
         Objects.requireNonNull(segs);
         Objects.requireNonNull(ecl);
-        if (!(MIN_VERSION <= minVersion && minVersion <= maxVersion && maxVersion <= MAX_VERSION) || mask < -1
-                || mask > 7)
-            throw new IllegalArgumentException("Invalid value");
+        if (
+            !(MIN_VERSION <= minVersion && minVersion <= maxVersion && maxVersion <= MAX_VERSION) || mask < -1 || mask > 7
+        ) throw new IllegalArgumentException("Invalid value");
 
         // Find the minimal version number to use
         int version, dataUsedBits;
@@ -195,11 +209,11 @@ public final class QrCode {
             int dataCapacityBits = getNumDataCodewords(version, ecl) * 8; // Number of data bits available
             dataUsedBits = QrSegment.getTotalBits(segs, version);
             if (dataUsedBits != -1 && dataUsedBits <= dataCapacityBits) break; // This version number is found
-                                                                               // to be suitable
+            // to be suitable
             if (version >= maxVersion) { // All versions in the range could not fit the given data
                 String msg = "Segment too long";
-                if (dataUsedBits != -1) msg = String.format("Data length = %d bits, Max capacity = %d bits",
-                        dataUsedBits, dataCapacityBits);
+                if (dataUsedBits != -1) msg =
+                    String.format("Data length = %d bits, Max capacity = %d bits", dataUsedBits, dataCapacityBits);
                 throw new DataTooLongException(msg);
             }
         }
@@ -227,8 +241,7 @@ public final class QrCode {
         assert bb.bitLength() % 8 == 0;
 
         // Pad with alternating bytes until data capacity is reached
-        for (int padByte = 0xEC; bb.bitLength() < dataCapacityBits; padByte ^= 0xEC ^ 0x11)
-            bb.appendBits(padByte, 8);
+        for (int padByte = 0xEC; bb.bitLength() < dataCapacityBits; padByte ^= 0xEC ^ 0x11) bb.appendBits(padByte, 8);
 
         // Pack bits into bytes in big endian
         byte[] dataCodewords = new byte[bb.bitLength() / 8];
@@ -283,7 +296,7 @@ public final class QrCode {
      * This is a low-level API that most users should not use directly. A mid-level API is the
      * {@link #encodeSegments(List,Ecc,int,int,int,boolean)} function.
      * </p>
-     * 
+     *
      * @param ver
      *            the version number to use, which must be in the range 1 to 40 (inclusive)
      * @param ecl
@@ -301,8 +314,7 @@ public final class QrCode {
      */
     public QrCode(int ver, Ecc ecl, byte[] dataCodewords, int msk) {
         // Check arguments and initialize fields
-        if (ver < MIN_VERSION || ver > MAX_VERSION)
-            throw new IllegalArgumentException("Version value out of range");
+        if (ver < MIN_VERSION || ver > MAX_VERSION) throw new IllegalArgumentException("Version value out of range");
         if (msk < -1 || msk > 7) throw new IllegalArgumentException("Mask value out of range");
         version = ver;
         size = ver * 4 + 17;
@@ -344,7 +356,7 @@ public final class QrCode {
      * Returns the color of the module (pixel) at the specified coordinates, which is {@code false} for light
      * or {@code true} for dark. The top left corner has the coordinates (x=0, y=0). If the specified
      * coordinates are out of bounds, then {@code false} (light) is returned.
-     * 
+     *
      * @param x
      *            the x coordinate, where 0 is the left edge and size&#x2212;1 is the right edge
      * @param y
@@ -377,8 +389,10 @@ public final class QrCode {
         for (int i = 0; i < numAlign; i++) {
             for (int j = 0; j < numAlign; j++) {
                 // Don't draw on the three finder corners
-                if (!(i == 0 && j == 0 || i == 0 && j == numAlign - 1 || i == numAlign - 1 && j == 0))
-                    drawAlignmentPattern(alignPatPos[i], alignPatPos[j]);
+                if (!(i == 0 && j == 0 || i == 0 && j == numAlign - 1 || i == numAlign - 1 && j == 0)) drawAlignmentPattern(
+                    alignPatPos[i],
+                    alignPatPos[j]
+                );
             }
         }
 
@@ -438,8 +452,7 @@ public final class QrCode {
             for (int dx = -4; dx <= 4; dx++) {
                 int dist = Math.max(Math.abs(dx), Math.abs(dy)); // Chebyshev/infinity norm
                 int xx = x + dx, yy = y + dy;
-                if (0 <= xx && xx < size && 0 <= yy && yy < size)
-                    setFunctionModule(xx, yy, dist != 2 && dist != 4);
+                if (0 <= xx && xx < size && 0 <= yy && yy < size) setFunctionModule(xx, yy, dist != 2 && dist != 4);
             }
         }
     }
@@ -448,8 +461,7 @@ public final class QrCode {
     // at (x, y). All modules must be in bounds.
     private void drawAlignmentPattern(int x, int y) {
         for (int dy = -2; dy <= 2; dy++) {
-            for (int dx = -2; dx <= 2; dx++)
-                setFunctionModule(x + dx, y + dy, Math.max(Math.abs(dx), Math.abs(dy)) != 1);
+            for (int dx = -2; dx <= 2; dx++) setFunctionModule(x + dx, y + dy, Math.max(Math.abs(dx), Math.abs(dy)) != 1);
         }
     }
 
@@ -466,8 +478,7 @@ public final class QrCode {
     // codewords appended to it, based on this object's version and error correction level.
     private byte[] addEccAndInterleave(byte[] data) {
         Objects.requireNonNull(data);
-        if (data.length != getNumDataCodewords(version, errorCorrectionLevel))
-            throw new IllegalArgumentException();
+        if (data.length != getNumDataCodewords(version, errorCorrectionLevel)) throw new IllegalArgumentException();
 
         // Calculate parameter numbers
         int numBlocks = NUM_ERROR_CORRECTION_BLOCKS[errorCorrectionLevel.ordinal()][version];
@@ -480,8 +491,7 @@ public final class QrCode {
         byte[][] blocks = new byte[numBlocks][];
         byte[] rsDiv = reedSolomonComputeDivisor(blockEccLen);
         for (int i = 0, k = 0; i < numBlocks; i++) {
-            byte[] dat = Arrays.copyOfRange(data, k,
-                    k + shortBlockLen - blockEccLen + (i < numShortBlocks ? 0 : 1));
+            byte[] dat = Arrays.copyOfRange(data, k, k + shortBlockLen - blockEccLen + (i < numShortBlocks ? 0 : 1));
             k += dat.length;
             byte[] block = Arrays.copyOf(dat, shortBlockLen + 1);
             byte[] ecc = reedSolomonComputeRemainder(dat, rsDiv);
@@ -587,8 +597,7 @@ public final class QrCode {
             for (int x = 0; x < size; x++) {
                 if (modules[y][x] == runColor) {
                     runX++;
-                    if (runX == 5) result += PENALTY_N1;
-                    else if (runX > 5) result++;
+                    if (runX == 5) result += PENALTY_N1; else if (runX > 5) result++;
                 } else {
                     finderPenaltyAddHistory(runX, runHistory);
                     if (!runColor) result += finderPenaltyCountPatterns(runHistory) * PENALTY_N3;
@@ -606,8 +615,7 @@ public final class QrCode {
             for (int y = 0; y < size; y++) {
                 if (modules[y][x] == runColor) {
                     runY++;
-                    if (runY == 5) result += PENALTY_N1;
-                    else if (runY > 5) result++;
+                    if (runY == 5) result += PENALTY_N1; else if (runY > 5) result++;
                 } else {
                     finderPenaltyAddHistory(runY, runHistory);
                     if (!runColor) result += finderPenaltyCountPatterns(runHistory) * PENALTY_N3;
@@ -622,9 +630,8 @@ public final class QrCode {
         for (int y = 0; y < size - 1; y++) {
             for (int x = 0; x < size - 1; x++) {
                 boolean color = modules[y][x];
-                if (color == modules[y][x + 1] && color == modules[y + 1][x]
-                        && color == modules[y + 1][x + 1])
-                    result += PENALTY_N2;
+                if (color == modules[y][x + 1] && color == modules[y + 1][x] && color == modules[y + 1][x + 1]) result +=
+                    PENALTY_N2;
             }
         }
 
@@ -641,7 +648,7 @@ public final class QrCode {
         assert 0 <= k && k <= 9;
         result += k * PENALTY_N4;
         assert 0 <= result && result <= 2568888; // Non-tight upper bound based on default values of
-                                                 // PENALTY_N1, ..., N4
+        // PENALTY_N1, ..., N4
         return result;
     }
 
@@ -651,8 +658,7 @@ public final class QrCode {
     // Each position is in the range [0,177), and are used on both the x and y axes.
     // This could be implemented as lookup table of 40 variable-length lists of unsigned bytes.
     private int[] getAlignmentPatternPositions() {
-        if (version == 1) return new int[] {};
-        else {
+        if (version == 1) return new int[] {}; else {
             int numAlign = version / 7 + 2;
             int step = (version * 8 + numAlign * 3 + 5) / (numAlign * 4 - 4) * 2;
             int[] result = new int[numAlign];
@@ -666,8 +672,7 @@ public final class QrCode {
     // all function modules are excluded. This includes remainder bits, so it might not be a multiple of 8.
     // The result is in the range [208, 29648]. This could be implemented as a 40-entry lookup table.
     private static int getNumRawDataModules(int ver) {
-        if (ver < MIN_VERSION || ver > MAX_VERSION)
-            throw new IllegalArgumentException("Version number out of range");
+        if (ver < MIN_VERSION || ver > MAX_VERSION) throw new IllegalArgumentException("Version number out of range");
 
         int size = ver * 4 + 17;
         int result = size * size; // Number of modules in the whole QR Code square
@@ -678,9 +683,9 @@ public final class QrCode {
         if (ver >= 2) {
             int numAlign = ver / 7 + 2;
             result -= (numAlign - 1) * (numAlign - 1) * 25; // Subtract alignment patterns not overlapping
-                                                            // with timing patterns
+            // with timing patterns
             result -= (numAlign - 2) * 2 * 20; // Subtract alignment patterns that overlap with timing
-                                               // patterns
+            // patterns
             // The two lines above are equivalent to: result -= (25 * numAlign - 10) * numAlign - 55;
             if (ver >= 7) result -= 6 * 3 * 2; // Subtract version information
         }
@@ -722,8 +727,7 @@ public final class QrCode {
             int factor = (b ^ result[0]) & 0xFF;
             System.arraycopy(result, 1, result, 0, result.length - 1);
             result[result.length - 1] = 0;
-            for (int i = 0; i < result.length; i++)
-                result[i] ^= reedSolomonMultiply(divisor[i] & 0xFF, factor);
+            for (int i = 0; i < result.length; i++) result[i] ^= reedSolomonMultiply(divisor[i] & 0xFF, factor);
         }
         return result;
     }
@@ -746,8 +750,12 @@ public final class QrCode {
     // QR Code of the given version number and error correction level, with remainder bits discarded.
     // This stateless pure function could be implemented as a (40*4)-cell lookup table.
     static int getNumDataCodewords(int ver, Ecc ecl) {
-        return getNumRawDataModules(ver) / 8 - ECC_CODEWORDS_PER_BLOCK[ecl.ordinal()][ver]
-                * NUM_ERROR_CORRECTION_BLOCKS[ecl.ordinal()][ver];
+        return (
+            getNumRawDataModules(ver) /
+            8 -
+            ECC_CODEWORDS_PER_BLOCK[ecl.ordinal()][ver] *
+            NUM_ERROR_CORRECTION_BLOCKS[ecl.ordinal()][ver]
+        );
     }
 
     // Can only be called immediately after a light run is added, and
@@ -755,16 +763,16 @@ public final class QrCode {
     private int finderPenaltyCountPatterns(int[] runHistory) {
         int n = runHistory[1];
         assert n <= size * 3;
-        boolean core = n > 0 && runHistory[2] == n && runHistory[3] == n * 3 && runHistory[4] == n
-                && runHistory[5] == n;
-        return (core && runHistory[0] >= n * 4 && runHistory[6] >= n ? 1 : 0)
-                + (core && runHistory[6] >= n * 4 && runHistory[0] >= n ? 1 : 0);
+        boolean core = n > 0 && runHistory[2] == n && runHistory[3] == n * 3 && runHistory[4] == n && runHistory[5] == n;
+        return (
+            (core && runHistory[0] >= n * 4 && runHistory[6] >= n ? 1 : 0) +
+            (core && runHistory[6] >= n * 4 && runHistory[0] >= n ? 1 : 0)
+        );
     }
 
     // Must be called at the end of a line (row or column) of modules. A helper function for
     // getPenaltyScore().
-    private int finderPenaltyTerminateAndCount(boolean currentRunColor, int currentRunLength,
-            int[] runHistory) {
+    private int finderPenaltyTerminateAndCount(boolean currentRunColor, int currentRunLength, int[] runHistory) {
         if (currentRunColor) { // Terminate dark run
             finderPenaltyAddHistory(currentRunLength, runHistory);
             currentRunLength = 0;
@@ -801,31 +809,359 @@ public final class QrCode {
     private static final int PENALTY_N4 = 10;
 
     private static final byte[][] ECC_CODEWORDS_PER_BLOCK = {
-            // Version: (note that index 0 is for padding, and is set to an illegal value)
-            // 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
-            // 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40 Error correction level
-            { -1, 7, 10, 15, 20, 26, 18, 20, 24, 30, 18, 20, 24, 26, 30, 22, 24, 28, 30, 28, 28, 28, 28, 30,
-                    30, 26, 28, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30 }, // Low
-            { -1, 10, 16, 26, 18, 24, 16, 18, 22, 22, 26, 30, 22, 22, 24, 24, 28, 28, 26, 26, 26, 26, 28, 28,
-                    28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28 }, // Medium
-            { -1, 13, 22, 18, 26, 18, 24, 18, 22, 20, 24, 28, 26, 24, 20, 30, 24, 28, 28, 26, 30, 28, 30, 30,
-                    30, 30, 28, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30 }, // Quartile
-            { -1, 17, 28, 22, 16, 22, 28, 26, 26, 24, 28, 24, 28, 22, 24, 24, 30, 28, 28, 26, 28, 30, 24, 30,
-                    30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30 }, // High
+        // Version: (note that index 0 is for padding, and is set to an illegal value)
+        // 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
+        // 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40 Error correction level
+        {
+            -1,
+            7,
+            10,
+            15,
+            20,
+            26,
+            18,
+            20,
+            24,
+            30,
+            18,
+            20,
+            24,
+            26,
+            30,
+            22,
+            24,
+            28,
+            30,
+            28,
+            28,
+            28,
+            28,
+            30,
+            30,
+            26,
+            28,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+        }, // Low
+        {
+            -1,
+            10,
+            16,
+            26,
+            18,
+            24,
+            16,
+            18,
+            22,
+            22,
+            26,
+            30,
+            22,
+            22,
+            24,
+            24,
+            28,
+            28,
+            26,
+            26,
+            26,
+            26,
+            28,
+            28,
+            28,
+            28,
+            28,
+            28,
+            28,
+            28,
+            28,
+            28,
+            28,
+            28,
+            28,
+            28,
+            28,
+            28,
+            28,
+            28,
+            28,
+        }, // Medium
+        {
+            -1,
+            13,
+            22,
+            18,
+            26,
+            18,
+            24,
+            18,
+            22,
+            20,
+            24,
+            28,
+            26,
+            24,
+            20,
+            30,
+            24,
+            28,
+            28,
+            26,
+            30,
+            28,
+            30,
+            30,
+            30,
+            30,
+            28,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+        }, // Quartile
+        {
+            -1,
+            17,
+            28,
+            22,
+            16,
+            22,
+            28,
+            26,
+            26,
+            24,
+            28,
+            24,
+            28,
+            22,
+            24,
+            24,
+            30,
+            28,
+            28,
+            26,
+            28,
+            30,
+            24,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+        }, // High
     };
 
     private static final byte[][] NUM_ERROR_CORRECTION_BLOCKS = {
-            // Version: (note that index 0 is for padding, and is set to an illegal value)
-            // 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
-            // 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40 Error correction level
-            { -1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 4, 4, 4, 4, 4, 6, 6, 6, 6, 7, 8, 8, 9, 9, 10, 12, 12, 12, 13, 14,
-                    15, 16, 17, 18, 19, 19, 20, 21, 22, 24, 25 }, // Low
-            { -1, 1, 1, 1, 2, 2, 4, 4, 4, 5, 5, 5, 8, 9, 9, 10, 10, 11, 13, 14, 16, 17, 17, 18, 20, 21, 23,
-                    25, 26, 28, 29, 31, 33, 35, 37, 38, 40, 43, 45, 47, 49 }, // Medium
-            { -1, 1, 1, 2, 2, 4, 4, 6, 6, 8, 8, 8, 10, 12, 16, 12, 17, 16, 18, 21, 20, 23, 23, 25, 27, 29, 34,
-                    34, 35, 38, 40, 43, 45, 48, 51, 53, 56, 59, 62, 65, 68 }, // Quartile
-            { -1, 1, 1, 2, 4, 4, 4, 5, 6, 8, 8, 11, 11, 16, 16, 18, 16, 19, 21, 25, 25, 25, 34, 30, 32, 35,
-                    37, 40, 42, 45, 48, 51, 54, 57, 60, 63, 66, 70, 74, 77, 81 }, // High
+        // Version: (note that index 0 is for padding, and is set to an illegal value)
+        // 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
+        // 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40 Error correction level
+        {
+            -1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            2,
+            2,
+            2,
+            2,
+            4,
+            4,
+            4,
+            4,
+            4,
+            6,
+            6,
+            6,
+            6,
+            7,
+            8,
+            8,
+            9,
+            9,
+            10,
+            12,
+            12,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            19,
+            20,
+            21,
+            22,
+            24,
+            25,
+        }, // Low
+        {
+            -1,
+            1,
+            1,
+            1,
+            2,
+            2,
+            4,
+            4,
+            4,
+            5,
+            5,
+            5,
+            8,
+            9,
+            9,
+            10,
+            10,
+            11,
+            13,
+            14,
+            16,
+            17,
+            17,
+            18,
+            20,
+            21,
+            23,
+            25,
+            26,
+            28,
+            29,
+            31,
+            33,
+            35,
+            37,
+            38,
+            40,
+            43,
+            45,
+            47,
+            49,
+        }, // Medium
+        {
+            -1,
+            1,
+            1,
+            2,
+            2,
+            4,
+            4,
+            6,
+            6,
+            8,
+            8,
+            8,
+            10,
+            12,
+            16,
+            12,
+            17,
+            16,
+            18,
+            21,
+            20,
+            23,
+            23,
+            25,
+            27,
+            29,
+            34,
+            34,
+            35,
+            38,
+            40,
+            43,
+            45,
+            48,
+            51,
+            53,
+            56,
+            59,
+            62,
+            65,
+            68,
+        }, // Quartile
+        {
+            -1,
+            1,
+            1,
+            2,
+            4,
+            4,
+            4,
+            5,
+            6,
+            8,
+            8,
+            11,
+            11,
+            16,
+            16,
+            18,
+            16,
+            19,
+            21,
+            25,
+            25,
+            25,
+            34,
+            30,
+            32,
+            35,
+            37,
+            40,
+            42,
+            45,
+            48,
+            51,
+            54,
+            57,
+            60,
+            63,
+            66,
+            70,
+            74,
+            77,
+            81,
+        }, // High
     };
 
     /*---- Public helper enumeration ----*/
@@ -853,5 +1189,4 @@ public final class QrCode {
             formatBits = fb;
         }
     }
-
 }

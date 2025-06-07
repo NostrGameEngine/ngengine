@@ -1,31 +1,59 @@
+/**
+ * Copyright (c) 2025, Nostr Game Engine
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
+ * the BSD 3-Clause License. The original jMonkeyEngine license is as follows:
+ */
 package org.ngengine.network.protocol;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-import java.nio.ReadOnlyBufferException;
-
-
 import java.nio.ByteBuffer;
-
+import java.nio.ReadOnlyBufferException;
 import org.junit.Test;
 
 public class TestGrowableByteBuffer {
-    
+
     @Test(expected = RuntimeException.class)
     public void testNonGrowableBuffer() {
         // Test with non-growable buffer (chunkSize <= 0)
         GrowableByteBuffer buffer = new GrowableByteBuffer(ByteBuffer.allocate(10), 0);
         buffer.put(new byte[11]); // Should throw RuntimeException
     }
-    
+
     @Test(expected = NullPointerException.class)
     public void testNullInitialBuffer() {
         // Test with null initial buffer
         GrowableByteBuffer buffer = new GrowableByteBuffer(null, 10);
-        buffer.put((byte)1); // Should throw NullPointerException
+        buffer.put((byte) 1); // Should throw NullPointerException
     }
-    
+
     @Test
     public void testVeryLargeDataExceedingChunkSize() {
         // Test putting data much larger than chunk size
@@ -34,7 +62,7 @@ public class TestGrowableByteBuffer {
         buffer.put(largeArray); // Should resize multiple times
         assertEquals(buffer.position(), 100);
     }
-    
+
     @Test
     public void testPositionAfterMultipleGrowth() {
         // Test if position is maintained correctly after multiple growths
@@ -44,7 +72,7 @@ public class TestGrowableByteBuffer {
         buffer.put(new byte[3]); // Should resize and position at 7
         assertEquals(7, buffer.position());
     }
-    
+
     @Test
     public void testBufferLimitAfterGrowth() {
         // Test if limit is maintained correctly after growth
@@ -68,13 +96,12 @@ public class TestGrowableByteBuffer {
         ByteBuffer readOnly = ByteBuffer.allocate(10).asReadOnlyBuffer();
         GrowableByteBuffer buffer = new GrowableByteBuffer(readOnly, 5);
         try {
-            buffer.put((byte)1); // Should throw ReadOnlyBufferException
+            buffer.put((byte) 1); // Should throw ReadOnlyBufferException
             fail("Expected ReadOnlyBufferException");
         } catch (ReadOnlyBufferException e) {
             // Expected
         }
     }
-
 
     @Test
     public void testPutByteBufferCornerCase() {
@@ -85,17 +112,17 @@ public class TestGrowableByteBuffer {
         buffer.put(source); // Should grow and copy all 10 bytes
         assertEquals(10, buffer.position());
     }
-    
+
     @Test
     public void testSequentialResizing() {
         // Test many sequential small puts that cause multiple resizes
         GrowableByteBuffer buffer = new GrowableByteBuffer(ByteBuffer.allocate(2), 2);
         for (int i = 0; i < 100; i++) {
-            buffer.put((byte)i);
+            buffer.put((byte) i);
         }
         assertEquals(100, buffer.position());
-        for(int i = 0; i < 100; i++) {
-            assertEquals((byte)i, buffer.get(i));
+        for (int i = 0; i < 100; i++) {
+            assertEquals((byte) i, buffer.get(i));
         }
     }
 

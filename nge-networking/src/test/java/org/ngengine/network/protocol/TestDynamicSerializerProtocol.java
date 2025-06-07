@@ -1,20 +1,37 @@
+/**
+ * Copyright (c) 2025, Nostr Game Engine
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
+ * the BSD 3-Clause License. The original jMonkeyEngine license is as follows:
+ */
 package org.ngengine.network.protocol;
 
 import static org.junit.Assert.*;
-
-import java.nio.ByteBuffer;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.*;
-
-import org.junit.Before;
-import org.junit.Test;
-import org.ngengine.network.protocol.messages.BinaryMessage;
-import org.ngengine.network.protocol.messages.ByteDataMessage;
-import org.ngengine.network.protocol.messages.TextMessage;
-import org.ngengine.network.protocol.messages.CompressedMessage;
-import org.ngengine.network.protocol.messages.TextDataMessage;
-
 
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Matrix3f;
@@ -25,6 +42,17 @@ import com.jme3.math.Vector4f;
 import com.jme3.network.AbstractMessage;
 import com.jme3.network.Message;
 import com.jme3.network.serializing.Serializable;
+import java.nio.ByteBuffer;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.*;
+import org.junit.Before;
+import org.junit.Test;
+import org.ngengine.network.protocol.messages.BinaryMessage;
+import org.ngengine.network.protocol.messages.ByteDataMessage;
+import org.ngengine.network.protocol.messages.CompressedMessage;
+import org.ngengine.network.protocol.messages.TextDataMessage;
+import org.ngengine.network.protocol.messages.TextMessage;
 
 public class TestDynamicSerializerProtocol {
 
@@ -33,6 +61,7 @@ public class TestDynamicSerializerProtocol {
     // Custom serializable test message for SpiderMonkey compatibility
     @Serializable
     public static class TestMessage extends AbstractMessage {
+
         private int intValue;
         private String stringValue;
         private boolean boolValue;
@@ -40,8 +69,7 @@ public class TestDynamicSerializerProtocol {
         private List<String> listValue;
         private Map<String, Integer> mapValue;
 
-        public TestMessage() {
-        }
+        public TestMessage() {}
 
         public TestMessage(int intValue, String stringValue, boolean boolValue, float floatValue) {
             this.intValue = intValue;
@@ -106,16 +134,35 @@ public class TestDynamicSerializerProtocol {
             if (this == obj) return true;
             if (obj == null || getClass() != obj.getClass()) return false;
             TestMessage that = (TestMessage) obj;
-            return intValue == that.intValue && Float.compare(that.floatValue, floatValue) == 0
-                    && boolValue == that.boolValue && Objects.equals(stringValue, that.stringValue)
-                    && Objects.equals(listValue, that.listValue) && Objects.equals(mapValue, that.mapValue);
+            return (
+                intValue == that.intValue &&
+                Float.compare(that.floatValue, floatValue) == 0 &&
+                boolValue == that.boolValue &&
+                Objects.equals(stringValue, that.stringValue) &&
+                Objects.equals(listValue, that.listValue) &&
+                Objects.equals(mapValue, that.mapValue)
+            );
         }
 
         @Override
         public String toString() {
-            return "TestMessage{" + "intValue=" + intValue + ", stringValue='" + stringValue + '\''
-                    + ", boolValue=" + boolValue + ", floatValue=" + floatValue + ", listValue=" + listValue
-                    + ", mapValue=" + mapValue + '}';
+            return (
+                "TestMessage{" +
+                "intValue=" +
+                intValue +
+                ", stringValue='" +
+                stringValue +
+                '\'' +
+                ", boolValue=" +
+                boolValue +
+                ", floatValue=" +
+                floatValue +
+                ", listValue=" +
+                listValue +
+                ", mapValue=" +
+                mapValue +
+                '}'
+            );
         }
     }
 
@@ -237,7 +284,6 @@ public class TestDynamicSerializerProtocol {
     @Test
     public void testJME3MathTypes() {
         // Create a custom message to hold JME3 math types
-       
 
         Vector2f vec2 = new Vector2f(1, 2);
         Vector3f vec3 = new Vector3f(1, 2, 3);
@@ -261,6 +307,7 @@ public class TestDynamicSerializerProtocol {
 
     @Serializable
     public static class MathMessage extends AbstractMessage {
+
         private Vector2f vec2;
         private Vector3f vec3;
         private Vector4f vec4;
@@ -268,11 +315,9 @@ public class TestDynamicSerializerProtocol {
         private Matrix3f mat3;
         private Matrix4f mat4;
 
-        public MathMessage() {
-        }
+        public MathMessage() {}
 
-        public MathMessage(Vector2f vec2, Vector3f vec3, Vector4f vec4, ColorRGBA color, Matrix3f mat3,
-                Matrix4f mat4) {
+        public MathMessage(Vector2f vec2, Vector3f vec3, Vector4f vec4, ColorRGBA color, Matrix3f mat3, Matrix4f mat4) {
             this.vec2 = vec2;
             this.vec3 = vec3;
             this.vec4 = vec4;
@@ -309,12 +354,12 @@ public class TestDynamicSerializerProtocol {
 
     @Serializable
     public static class DateTimeMessage extends AbstractMessage {
+
         private Date date;
         private Instant instant;
         private Duration duration;
 
-        public DateTimeMessage() {
-        }
+        public DateTimeMessage() {}
 
         public DateTimeMessage(Date date, Instant instant, Duration duration) {
             this.date = date;
@@ -334,10 +379,9 @@ public class TestDynamicSerializerProtocol {
             return duration;
         }
     }
+
     @Test
     public void testDateTimeTypes() {
-       
-
         Date date = new Date();
         Instant instant = Instant.now();
         Duration duration = Duration.ofSeconds(3600);
@@ -353,13 +397,13 @@ public class TestDynamicSerializerProtocol {
     }
 
     @Serializable
-   public static class ArrayMessage extends AbstractMessage {
+    public static class ArrayMessage extends AbstractMessage {
+
         private int[] intArray;
         private String[] stringArray;
         private boolean[] boolArray;
 
-        public ArrayMessage() {
-        }
+        public ArrayMessage() {}
 
         public ArrayMessage(int[] intArray, String[] stringArray, boolean[] boolArray) {
             this.intArray = intArray;
@@ -379,10 +423,9 @@ public class TestDynamicSerializerProtocol {
             return boolArray;
         }
     }
+
     @Test
     public void testArrays() {
-       
-
         int[] intArray = { 1, 2, 3, 4, 5 };
         String[] stringArray = { "one", "two", "three" };
         boolean[] boolArray = { true, false, true };
@@ -399,11 +442,11 @@ public class TestDynamicSerializerProtocol {
 
     @Serializable
     public static class ChildObject extends AbstractMessage {
+
         private String name;
         private int age;
 
-        public ChildObject() {
-        }
+        public ChildObject() {}
 
         public ChildObject(String name, int age) {
             this.name = name;
@@ -429,15 +472,14 @@ public class TestDynamicSerializerProtocol {
 
     @Serializable
     public static class NestedMessage extends AbstractMessage {
+
         private ChildObject child;
         private List<ChildObject> children;
         private Map<String, ChildObject> childMap;
 
-        public NestedMessage() {
-        }
+        public NestedMessage() {}
 
-        public NestedMessage(ChildObject child, List<ChildObject> children,
-                Map<String, ChildObject> childMap) {
+        public NestedMessage(ChildObject child, List<ChildObject> children, Map<String, ChildObject> childMap) {
             this.child = child;
             this.children = children;
             this.childMap = childMap;
@@ -458,9 +500,6 @@ public class TestDynamicSerializerProtocol {
 
     @Test
     public void testNestedObjects() {
-      
-      
-
         // Create test objects
         ChildObject child = new ChildObject("Test Child", 10);
 
@@ -479,20 +518,19 @@ public class TestDynamicSerializerProtocol {
 
         assertEquals("Child object should match", original.getChild(), result.getChild());
 
-        assertEquals("Children list size should match", original.getChildren().size(),
-                result.getChildren().size());
+        assertEquals("Children list size should match", original.getChildren().size(), result.getChildren().size());
         for (int i = 0; i < original.getChildren().size(); i++) {
-            assertEquals("Child at index " + i + " should match", original.getChildren().get(i),
-                    result.getChildren().get(i));
+            assertEquals("Child at index " + i + " should match", original.getChildren().get(i), result.getChildren().get(i));
         }
 
-        assertEquals("ChildMap size should match", original.getChildMap().size(),
-                result.getChildMap().size());
+        assertEquals("ChildMap size should match", original.getChildMap().size(), result.getChildMap().size());
         for (Map.Entry<String, ChildObject> entry : original.getChildMap().entrySet()) {
-            assertTrue("Map should contain key: " + entry.getKey(),
-                    result.getChildMap().containsKey(entry.getKey()));
-            assertEquals("Child for key " + entry.getKey() + " should match", entry.getValue(),
-                    result.getChildMap().get(entry.getKey()));
+            assertTrue("Map should contain key: " + entry.getKey(), result.getChildMap().containsKey(entry.getKey()));
+            assertEquals(
+                "Child for key " + entry.getKey() + " should match",
+                entry.getValue(),
+                result.getChildMap().get(entry.getKey())
+            );
         }
     }
 
@@ -520,13 +558,13 @@ public class TestDynamicSerializerProtocol {
 
     @NetworkSafe
     public static class ComboMessage extends AbstractMessage {
+
         public boolean b;
         public int i;
         public String s;
         public float f;
 
-        public ComboMessage() {
-        }
+        public ComboMessage() {}
 
         public ComboMessage(boolean b, int i, String s, float f) {
             this.b = b;
@@ -542,13 +580,16 @@ public class TestDynamicSerializerProtocol {
             return b == other.b && i == other.i && Objects.equals(s, other.s) && f == other.f;
         }
     }
+
     @Test
     public void testPrimitiveOrderCombinations() {
         // Test all permutations of primitive fields
-   
-        List<ComboMessage> combos = Arrays.asList(new ComboMessage(true, 123, "abc", 1.23f),
-                new ComboMessage(false, -1, "", -0.0f),
-                new ComboMessage(true, Integer.MAX_VALUE, "xyz", Float.MAX_VALUE));
+
+        List<ComboMessage> combos = Arrays.asList(
+            new ComboMessage(true, 123, "abc", 1.23f),
+            new ComboMessage(false, -1, "", -0.0f),
+            new ComboMessage(true, Integer.MAX_VALUE, "xyz", Float.MAX_VALUE)
+        );
         for (ComboMessage original : combos) {
             ByteBuffer buffer = protocol.toByteBuffer(original, null);
             ComboMessage result = (ComboMessage) protocol.toMessage(buffer);
@@ -562,8 +603,7 @@ public class TestDynamicSerializerProtocol {
         List<Message> messages = new ArrayList<>();
         messages.add(new TestMessage(1, "one", true, 1.1f));
         messages.add(new TestMessage(2, "two", false, 2.2f));
-        messages.add(new ArrayMessage(new int[] { 1, 2 }, new String[] { "a", "b" },
-                new boolean[] { true, false }));
+        messages.add(new ArrayMessage(new int[] { 1, 2 }, new String[] { "a", "b" }, new boolean[] { true, false }));
         messages.add(new TestMessage(3, null, true, 3.3f));
         messages.add(new ArrayMessage(new int[] {}, new String[] {}, new boolean[] {}));
 
@@ -614,8 +654,6 @@ public class TestDynamicSerializerProtocol {
         assertEquals(maxMax, roundTripSerialize(maxMax));
     }
 
-    
-
     @Test
     public void testNestedEmptyCollections() {
         TestMessage msg = new TestMessage(0, "nested", false, 0f);
@@ -631,10 +669,8 @@ public class TestDynamicSerializerProtocol {
     @Test
     public void testPrimitiveArrayEdgeCases() {
         ArrayMessage empty = new ArrayMessage(new int[0], new String[0], new boolean[0]);
-        ArrayMessage single = new ArrayMessage(new int[] { 42 }, new String[] { "x" },
-                new boolean[] { true });
-        ArrayMessage mixed = new ArrayMessage(new int[] { -1, 0, 1 }, new String[] { "a", "b" },
-                new boolean[] { false, true });
+        ArrayMessage single = new ArrayMessage(new int[] { 42 }, new String[] { "x" }, new boolean[] { true });
+        ArrayMessage mixed = new ArrayMessage(new int[] { -1, 0, 1 }, new String[] { "a", "b" }, new boolean[] { false, true });
         assertArrayEquals(empty.getIntArray(), roundTripSerialize(empty).getIntArray());
         assertArrayEquals(single.getIntArray(), roundTripSerialize(single).getIntArray());
         assertArrayEquals(mixed.getIntArray(), roundTripSerialize(mixed).getIntArray());
@@ -693,10 +729,10 @@ public class TestDynamicSerializerProtocol {
 
     @NetworkSafe
     public static class DeepMessage extends AbstractMessage {
+
         public Map<String, List<List<String>>> map;
 
-        public DeepMessage() {
-        }
+        public DeepMessage() {}
 
         public DeepMessage(Map<String, List<List<String>>> map) {
             this.map = map;
@@ -708,6 +744,7 @@ public class TestDynamicSerializerProtocol {
             return Objects.equals(map, ((DeepMessage) o).map);
         }
     }
+
     @Test
     public void testDeeplyNestedCollections() {
         // Map<String, List<List<String>>>
@@ -715,7 +752,7 @@ public class TestDynamicSerializerProtocol {
         deepMap.put("a", Arrays.asList(Arrays.asList("x", "y"), Arrays.asList("z")));
         deepMap.put("b", Arrays.asList(Arrays.asList("1", "2")));
         // Wrap in a message
-     
+
         DeepMessage original = new DeepMessage(deepMap);
         DeepMessage result = roundTripSerialize(original);
         assertEquals(original, result);
