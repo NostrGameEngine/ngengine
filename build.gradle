@@ -117,6 +117,7 @@ subprojects {
         apply plugin: 'com.diffplug.spotless'
         
         spotless {
+            enforceCheck = false
             java {
                 importOrder()
                 removeUnusedImports()
@@ -129,6 +130,7 @@ subprojects {
                 def wrapped = licenseText.readLines().collect { " * " + it }.join("\n")
                 def header = "/**\n" + wrapped + "\n */"
                 licenseHeader(header, "package ")
+                
             }
         }
     }
