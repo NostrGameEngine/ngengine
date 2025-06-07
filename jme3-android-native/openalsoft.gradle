@@ -85,9 +85,7 @@ task copyJmeOpenALSoft(type: Copy, dependsOn: [copyOpenALSoft, copyJmeHeadersOpe
 def ndkPath = new File(rootProject.ndkCommandPath).getParent()
 def cmakeToolchain = "${ndkPath}/build/cmake/android.toolchain.cmake"
 
-if (!file(cmakeToolchain).exists()) {
-    throw new GradleException("Cannot find Android CMake toolchain at $cmakeToolchain")
-}
+
 
 // 1) list your ABIs here
 def openalAbis = [
