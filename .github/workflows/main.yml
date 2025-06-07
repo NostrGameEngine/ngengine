@@ -1,0 +1,155 @@
+name: Build NGE
+
+on:
+  push:
+  pull_request:
+  release:
+    types: [published]
+
+jobs:
+
+  # Build natives on android
+  BuildAndroidNatives:
+    name: Build natives for android
+    runs-on: ubuntu-latest
+    container:
+      image: jmonkeyengine/buildenv-jme3:android
+
+    steps:
+      - name: Clone the repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Validate the Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v3
+
+      - name: Build
+        run: |
+          ./gradlew -PuseCommitHashAsVersionName=true --no-daemon -PbuildNativeProjects=true \
+            :jme3-android-native:assemble
+
+      - name: Upload natives
+        uses: actions/upload-artifact@master
+        with:
+          name: android-natives
+          path: build/native
+
+  # Build the engine, only deploy from ubuntu-latest jdk21
+  BuildEngine:
+    needs: [BuildAndroidNatives]
+    name: Build on ${{ matrix.osName }} jdk${{ matrix.jdk }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macOS-latest]
+        jdk: [21]
+        include:
+          - os: ubuntu-latest
+            osName: linux
+            deploy: true
+          - os: windows-latest
+            osName: windows
+            deploy: false
+          - os: macOS-latest
+            osName: mac
+            deploy: false
+          - jdk: 21
+            deploy: false
+          - jdk: 21
+            deploy: false
+
+    steps:
+      - name: Clone the repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup the java environment
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ matrix.jdk }}
+
+      - name: Download natives for android
+        uses: actions/download-artifact@master
+        with:
+          name: android-natives
+          path: build/native
+
+      - name: Validate the Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v3
+
+      - name: Build Engine
+        shell: bash
+        run: |
+            ./gradlew -PuseCommitHashAsVersionName=true -PskipPrebuildLibraries=true \
+                build createZipDistribution mergedJavadoc publishAllPublicationsToDistFolderRepository
+
+      - name: "Create merged native zip"
+        if: matrix.deploy == true
+        shell: bash
+        run: |
+          cdir="$PWD"
+          cd "build/native"
+          zip -r "$cdir/dist/merged-natives.zip" *
+          cd "$cdir"
+          echo "Done"
+
+      - name: Upload merged natives
+        if: matrix.deploy==true
+        uses: actions/upload-artifact@master
+        with:
+          name: merged-natives
+          path: dist/merged-natives.zip
+
+      # TODO: Deploy merged natives to natives snapshot repository
+
+      - name: Upload maven artifacts
+        if: matrix.deploy==true
+        uses: actions/upload-artifact@master
+        with:
+          name: maven-artifacts
+          path: dist/maven
+
+      - name: Upload javadoc
+        if: matrix.deploy==true
+        uses: actions/upload-artifact@master
+        with:
+          name: javadoc
+          path: dist/javadoc
+
+
+      # - name: Delete all snapshots
+      #   if: github.event_name != 'pull_request' && github.event_name != 'release'
+      #   uses: actions/delete-package-versions@v5
+      #   with:
+      #     owner: ${{ github.repository_owner }}
+      #     package-name: org.ngengine
+      #     package-type: maven
+      #     min-versions-to-keep: 0
+      #     ignore-versions: '^(?!.*-SNAPSHOT$).*'
+      #     token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Deploy Artifacts
+        if: matrix.deploy == true && github.event_name == 'push'
+        run: |
+            export GITHUB_REGISTRY=${{ github.repository }}
+            export GITHUB_USERNAME=${{ github.actor }}
+            export GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
+            ./gradlew --no-daemon -PuseCommitHashAsVersionName=true -PskipPrebuildLibraries=true \
+              publishAllPublicationsToGitHubPackagesRepository
+                
+      - name: Upload pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'dist/javadoc'
+
+      - name: Deploy to GitHub Pages
+        if: github.event_name == 'release'  
+        id: deployment
+        uses: actions/deploy-pages@v4
+      
+
+    

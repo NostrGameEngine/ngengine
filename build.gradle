@@ -18,6 +18,7 @@ buildscript {
 
 plugins {
     id 'org.jetbrains.dokka' version '2.0.0'
+    id 'com.diffplug.spotless' version '7.0.2' apply false
 }
 
 allprojects {
@@ -113,6 +114,26 @@ subprojects {
             moduleVersion.set(project.version.toString())      
         }
     }
+
+     if (name.startsWith("nge-")&&!name.endsWith("-lemur")) {
+        apply plugin: 'com.diffplug.spotless'
+        
+        spotless {
+            java {
+                importOrder()
+                removeUnusedImports()
+                cleanthat()
+                prettier(['prettier': '2.8.8', 'prettier-plugin-java': '2.2.0'])
+                    .config(['parser': 'java', 'tabWidth': 4, 'printWidth': 128])
+                formatAnnotations()
+
+                def licenseText = new File(rootProject.rootDir, "nge.LICENSE").text
+                def wrapped = licenseText.readLines().collect { " * " + it }.join("\n")
+                def header = "/**\n" + wrapped + "\n */"
+                licenseHeader(header, "package ")
+            }
+        }
+    }
 }
 
 task run(dependsOn: ':jme3-examples:run') {
@@ -121,61 +142,6 @@ task run(dependsOn: ':jme3-examples:run') {
 
 defaultTasks 'run'
 
-task libDist(dependsOn: subprojects.build, description: 'Builds and copies the engine binaries, sources and javadoc to build/libDist') {
-    doLast {
-        File libFolder = mkdir("$buildDir/libDist/lib")
-        File sourceFolder = mkdir("$buildDir/libDist/sources")
-        File javadocFolder = mkdir("$buildDir/libDist/javadoc")
-        subprojects.each {project ->
-            if(!project.hasProperty('mainClassName')){
-                project.tasks.withType(Jar).each {archiveTask ->
-                    String classifier = archiveTask.archiveClassifier.get()
-                    String ext = archiveTask.archiveExtension.get()
-                    if (classifier == "sources") {
-                        copy {
-                            from archiveTask.archivePath
-                                into sourceFolder
-                                rename {project.name + '-' + classifier + '.' + ext}
-                        }
-                    } else if (classifier == "javadoc") {
-                        copy {
-                            from archiveTask.archivePath
-                                into javadocFolder
-                                rename {project.name + '-' + classifier + '.' + ext}
-                        }
-                    } else{
-                        copy {
-                            from archiveTask.archivePath
-                                into libFolder
-                                rename {project.name + '.' + ext}
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-task createZipDistribution(type:Zip,dependsOn:["dist","libDist"], description:"Package the nightly zip distribution"){
-    archiveFileName = provider {
-        "NGE" + jmeFullVersion + ".zip"
-    }
-    into("/") {
-         from {"./dist"}
-    }
-    into("/sources") {
-        from {"$buildDir/libDist/sources"}
-    }
-}
-
-task copyLibs(type: Copy){
-//    description 'Copies the engine dependencies to build/libDist'
-    from {
-        subprojects*.configurations*.implementation*.copyRecursive({ !(it instanceof ProjectDependency); })*.resolve()
-    }
-
-    into "$buildDir/libDist/lib-ext" //buildDir.path + '/' + libsDirName + '/lib'
-}
 
 task dist(dependsOn: [':jme3-examples:dist', 'mergedJavadoc']){
     description 'Creates a jME3 examples distribution with all jme3 binaries, sources, javadoc and external libraries under ./dist'
@@ -194,7 +160,9 @@ task mergedJavadoc(type: Javadoc, description: 'Creates Javadoc from all the pro
         options.addStringOption('Xdoclint:none', '-quiet')
     }
 
-    options.overview = file("javadoc-overview.html")
+    options.overview = file("javadocfiles/javadoc-overview.html")
+    options.stylesheetFile = file("javadocfiles/javadoc-style.css")
+
     source = mergedJavadocSubprojects.collect { project(it).sourceSets.main.allJava }
     classpath = files(mergedJavadocSubprojects.collect { project(it).sourceSets.main.compileClasspath })
 }

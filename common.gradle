@@ -166,26 +166,23 @@ publishing {
         }
     }
     repositories {
+        mavenLocal()
         maven {
-            name = 'Dist'
-            url = gradle.rootProject.projectDir.absolutePath + '/dist/maven'
+            name = "distFolder"
+            url  = uri("file://${gradle.rootProject.projectDir.absolutePath}/dist/maven")
         }
-        // maven {
-        //     credentials {
-        //         username = gradle.rootProject.hasProperty('ossrhUsername') ? ossrhUsername : 'Unknown user'
-        //         password = gradle.rootProject.hasProperty('ossrhPassword') ? ossrhPassword : 'Unknown password'
-        //     }
-        //     name = 'OSSRH'
-        //     url = 'https://s01.oss.sonatype.org/service/local/staging/deploy/maven2'
-        // }
-        // maven {
-        //     credentials {
-        //             username = gradle.rootProject.hasProperty('ossrhUsername') ? ossrhUsername : 'Unknown user'
-        //             password = gradle.rootProject.hasProperty('ossrhPassword') ? ossrhPassword : 'Unknown password'
-        //     }
-        //     name = 'SNAPSHOT'
-        //     url = 'https://s01.oss.sonatype.org/content/repositories/snapshots/'
-        // }
+        if (System.getenv("GITHUB_REGISTRY") != null) {
+                maven {
+                    name = "GitHubPackages"
+                    url  = uri(
+                        "https://maven.pkg.github.com/" + System.getenv("GITHUB_REGISTRY")
+                    )
+                    credentials {
+                        username = System.getenv("GITHUB_USERNAME") ?: ""
+                        password = System.getenv("GITHUB_TOKEN")   ?: ""
+                    }
+                }
+        }
     }
 }
 
