@@ -153,12 +153,13 @@ jobs:
               publishAllPublicationsToGitHubPackagesRepository
                 
       - name: Upload pages artifact
+        if: matrix.deploy==true
         uses: actions/upload-pages-artifact@v3
         with:
           path: 'dist/javadoc'
 
       - name: Deploy to GitHub Pages
-        if: github.event_name == 'release'  
+        if: matrix.deploy==true
         id: deployment
         uses: actions/deploy-pages@v4
       
