@@ -49,6 +49,7 @@ jobs:
   CleanSnapshots:
     name: Clean up old snapshots
     runs-on: ubuntu-latest
+    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
@@ -188,13 +189,13 @@ jobs:
               publishAllPublicationsToGitHubPackagesRepository
                 
       - name: Upload pages artifact
-        if: matrix.deploy==true
+        if: matrix.deploy==true 
         uses: actions/upload-pages-artifact@v3
         with:
           path: 'dist/javadoc'
 
       - name: Deploy to GitHub Pages
-        if: matrix.deploy==true
+        if: matrix.deploy==true && github.event_name == 'release'
         id: deployment
         uses: actions/deploy-pages@v4
       
