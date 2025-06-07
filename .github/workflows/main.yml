@@ -51,6 +51,11 @@ jobs:
     needs: [BuildAndroidNatives]
     name: Build on ${{ matrix.osName }} jdk${{ matrix.jdk }}
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      packages: write 
+      id-token: write
+      pages: write
     strategy:
       fail-fast: false
       matrix:
