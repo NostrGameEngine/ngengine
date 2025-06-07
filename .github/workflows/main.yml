@@ -32,7 +32,7 @@ jobs:
           ls -la "$ANDROID_SDK_ROOT"
           ls -la "$ANDROID_NDK"
           ./gradlew -PuseCommitHashAsVersionName=true --no-daemon -PbuildNativeProjects=true \
-            :jme3-android-native:assemble
+            build :jme3-android-native:assemble
           find . -type f -print
 
       - name: Upload natives
