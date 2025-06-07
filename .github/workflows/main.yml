@@ -96,7 +96,7 @@ jobs:
         shell: bash
         run: |
             ./gradlew -PuseCommitHashAsVersionName=true -PskipPrebuildLibraries=true \
-                build createZipDistribution mergedJavadoc publishAllPublicationsToDistFolderRepository
+                build mergedJavadoc publishAllPublicationsToDistFolderRepository
 
       - name: "Create merged native zip"
         if: matrix.deploy == true
