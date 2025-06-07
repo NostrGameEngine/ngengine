@@ -46,9 +46,53 @@ jobs:
           name: android-natives
           path: build/native
 
+  CleanSnapshots:
+    name: Clean up old snapshots
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        artifact: [
+          nge-ui, 
+          jme3-awt-dialogs, 
+          jme3-core, 
+          jme3-desktop, 
+          jme3-examples, 
+          jme3-jbullet, 
+          jme3-android, 
+          jme3-android-native, 
+          jme3-effects, 
+          jme3-ios, 
+          jme3-jogg, 
+          jme3-plugins-json-gson, 
+          jme3-screenshot-tests, 
+          jme3-plugin, 
+          jme3-plugins-json, 
+          jme3-testdata, 
+          jme3-lwjgl3, 
+          jme3-networking, 
+          jme3-terrain, 
+          nge-app, 
+          nge-auth, 
+          nge-core,
+          nge-lemur, 
+          nge-networking
+        ]
+    steps:      
+      - name: Delete all snapshots
+        if: github.event_name != 'pull_request' && github.event_name != 'release'
+        uses: actions/delete-package-versions@v5
+        with:
+          owner: ${{ github.repository_owner }}
+          package-name: org.ngengine.${{ matrix.artifact }}
+          package-type: maven
+          min-versions-to-keep: 0
+          ignore-versions: '^(?!.*-SNAPSHOT$).*'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
   # Build the engine, only deploy from ubuntu-latest jdk21
   BuildEngine:
-    needs: [BuildAndroidNatives]
+    needs: [BuildAndroidNatives, CleanSnapshots]
     name: Build on ${{ matrix.osName }} jdk${{ matrix.jdk }}
     runs-on: ${{ matrix.os }}
     permissions:
@@ -133,18 +177,6 @@ jobs:
         with:
           name: javadoc
           path: dist/javadoc
-
-
-      # - name: Delete all snapshots
-      #   if: github.event_name != 'pull_request' && github.event_name != 'release'
-      #   uses: actions/delete-package-versions@v5
-      #   with:
-      #     owner: ${{ github.repository_owner }}
-      #     package-name: org.ngengine
-      #     package-type: maven
-      #     min-versions-to-keep: 0
-      #     ignore-versions: '^(?!.*-SNAPSHOT$).*'
-      #     token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Deploy Artifacts
         if: matrix.deploy == true && github.event_name == 'push'
