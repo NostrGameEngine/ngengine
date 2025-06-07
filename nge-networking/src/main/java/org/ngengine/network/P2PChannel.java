@@ -56,7 +56,6 @@ public class P2PChannel implements Server {
     private final NostrSigner localSigner;
     private final NostrPool masterServersPool;
     private final NostrRTCRoom rtcRoom;
-    private final Lobby lobby;
 
     private boolean forceTurn = false; // If true, all connections will use TURN servers
     private Runner dispatcher;
@@ -68,7 +67,7 @@ public class P2PChannel implements Server {
                 NostrPrivateKey roomKey,
         String turnServer,
         NostrPool masterServer,
-            Lobby lobby, Runner dispatcher
+            Runner dispatcher
     ){
         this.dispatcher = dispatcher;
         this.services = new HostedServiceManager(this);
@@ -77,7 +76,6 @@ public class P2PChannel implements Server {
         this.version = gameVersion;
         this.localSigner=localSigner;
         this.masterServersPool = masterServer;
-        this.lobby=lobby;
 
         this.rtcRoom = new NostrRTCRoom(
                 RTCSettings.DEFAULT,
@@ -113,7 +111,6 @@ public class P2PChannel implements Server {
                     listener.connectionAdded(this, connection);
                 }
             });
-            updatePlayerCount();
         });
 
         rtcRoom.addDisconnectionListener((peerKey, socket) -> {
@@ -130,9 +127,7 @@ public class P2PChannel implements Server {
                     break;
                 }
             }
-            this.dispatcher.run(() -> {
-                updatePlayerCount();
-            });
+
         });
 
         rtcRoom.addMessageListener((peerKey, socket, bbf, isTurn) -> {
@@ -167,18 +162,7 @@ public class P2PChannel implements Server {
         this.forceTurn = forceTurn;
     }
 
-    protected void updatePlayerCount() {     
-        if (lobby instanceof LocalLobby) {
-            int playerCount = connections.size();
-            LocalLobby localLobby = (LocalLobby) lobby;
-            try{
-                localLobby.setData("numPeers", String.valueOf(playerCount));
-            } catch (Exception e) {
-                log.warning("Failed to update player count: " + e.getMessage());
-            }
-        }
-    }
- 
+
 
     protected void addStandardServices() {
         log.fine("Adding standard services...");

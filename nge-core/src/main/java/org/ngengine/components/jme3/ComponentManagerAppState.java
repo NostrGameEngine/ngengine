@@ -16,6 +16,7 @@ import org.ngengine.components.ComponentInitializer;
 import org.ngengine.components.ComponentLoader;
 import org.ngengine.components.ComponentManager;
 import org.ngengine.components.ComponentUpdater;
+import org.ngengine.components.StallingComponent;
 import org.ngengine.runner.MainThreadRunner;
 import org.ngengine.store.DataStoreProvider;
 
@@ -118,7 +119,7 @@ public class ComponentManagerAppState extends BaseAppState implements ComponentM
     }
 
     @Override
-    public <T extends Component> T getComponentByType(Class<T> type) {
+    public <T extends Component> T getComponent(Class<T> type) {
         for (ComponentMount mount : componentMounts) {
             if (mount.component.getClass().equals(type)) {
                 return type.cast(mount.component);
@@ -219,7 +220,7 @@ public class ComponentManagerAppState extends BaseAppState implements ComponentM
             Object deps[] = m.deps;
             if (deps != null) {
                 for (Object d : deps) {
-                    Component depFragment = getFragment(d);
+                    Component depFragment = resolveDependency(d);
                     if (depFragment != null && depFragment == mount.component) {
                         m.desiredEnabledState = false;
                     }
@@ -233,6 +234,9 @@ public class ComponentManagerAppState extends BaseAppState implements ComponentM
 
     @Override
     public boolean isComponentEnabled(Component fragment) {
+        if (fragment instanceof StallingComponent) {
+            return false; // StallingComponent is never enabled
+        }
         for (ComponentMount mount : componentMounts) {
             if (mount.component == fragment) {
                 return mount.enabled;
@@ -261,18 +265,6 @@ public class ComponentManagerAppState extends BaseAppState implements ComponentM
 
     }
 
-    @SuppressWarnings("unchecked")
-    private Component getFragment(Object d) {
-        if (d instanceof Component) {
-            return (Component) d;
-        } else if (d instanceof String) {
-            return getComponentById((String) d);
-        } else if (d instanceof Class<?>) {
-            return getComponentByType((Class<? extends Component>) d);
-
-        }
-        return null;
-    }
 
     @Override
     public void update(float tpf) {
@@ -331,7 +323,10 @@ public class ComponentManagerAppState extends BaseAppState implements ComponentM
 
                     // Check if all dependencies are enabled
                     if (deps == null || Arrays.stream(deps).allMatch(d -> {
-                        Component depFragment = getFragment(d);
+                        if (d instanceof Class && d == StallingComponent.class) {
+                            return false; // StallingComponent is never enabled
+                        }
+                        Component depFragment = resolveDependency(d);
                         if (depFragment == null) {
                             return true; // if dependency is not a fragment, we assume it is always
                                          // enabled
@@ -449,7 +444,7 @@ public class ComponentManagerAppState extends BaseAppState implements ComponentM
         visited.add(fragment);
 
         for (Object dep : deps) {
-            Component depFragment = getFragment(dep);
+            Component depFragment = resolveDependency(dep);
             if (depFragment == null) {
                 continue; // Skip non-fragment dependencies
             }

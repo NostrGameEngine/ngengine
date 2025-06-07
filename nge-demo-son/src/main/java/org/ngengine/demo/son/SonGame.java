@@ -1,6 +1,7 @@
 package org.ngengine.demo.son;
 
 import org.ngengine.NGEApplication;
+import org.ngengine.components.ComponentManager;
 import org.ngengine.demo.son.ocean.OceanAppState;
 import org.ngengine.gui.win.NWindowManagerComponent;
 import org.ngengine.player.PlayerManagerComponent;
@@ -23,8 +24,8 @@ public class SonGame {
         settings.setGraphicsDebug(false);
         settings.setTitle("Nostr Game Engine Demo");
 
-        NGEApplication app = new NGEApplication(settings, mng -> {
-
+        Runnable appBuilder = NGEApplication.createApp(settings, app -> {
+            ComponentManager mng = app.getComponentManager();
             mng.addAndEnableComponent(new BaseEnvironment());
             mng.addAndEnableComponent(new NWindowManagerComponent());
             mng.addAndEnableComponent(new PlayerManagerComponent());
@@ -39,9 +40,10 @@ public class SonGame {
                     PlayerManagerComponent.class);
 
             mng.enableComponent(HelloGameState.class);
-        });
 
-        app.start();
+        });
+        appBuilder.run();
+
     }
 
 }

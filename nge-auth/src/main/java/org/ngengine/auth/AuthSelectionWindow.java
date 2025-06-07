@@ -16,6 +16,7 @@ import org.ngengine.gui.components.NIconButton;
 import org.ngengine.gui.win.NWindow;
 import org.ngengine.nostr4j.keypair.NostrPublicKey;
 import org.ngengine.player.Player;
+import org.ngengine.player.PlayerManagerComponent;
 
 import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
@@ -48,20 +49,24 @@ public class AuthSelectionWindow extends NWindow<AuthStrategy> {
     private Button playerButton(String npub, Auth auth
 
     ) {
-        Player player = auth.getOptions().getStrategy().getPlayerManager()
-                .getPlayer(NostrPublicKey.fromBech32(npub));
+        PlayerManagerComponent playerManager = auth.getOptions().getStrategy().getPlayerManager();
+        Player player = playerManager != null ? playerManager.getPlayer(NostrPublicKey.fromBech32(npub))
+                                              : null;
 
-        Button storedIdentityButton = new Button("  " + player.getName());
+        Button storedIdentityButton = new Button("  " + (player != null ? player.getName() : npub));
 
-        player.addUpdateListener(() -> {
-            storedIdentityButton.setText("  " + player.getName());
-            return CallbackPolicy.REMOVE_AFTER_CALL;
-        });
-        IconComponent icon = new IconComponent(player.getImage(), new Vector2f(1, 1), 0, 0, 0, false);
-        float iconSize = storedIdentityButton.getFontSize() * 3;
-        icon.setIconSize(new Vector2f(iconSize, iconSize));
-        icon.setMargin(0, 0);
-        storedIdentityButton.setIcon(icon);
+        if (player != null) {
+            player.addUpdateListener(() -> {
+                storedIdentityButton.setText("  " + player.getName());
+                return CallbackPolicy.REMOVE_AFTER_CALL;
+            });
+
+            IconComponent icon = new IconComponent(player.getImage(), new Vector2f(1, 1), 0, 0, 0, false);
+            float iconSize = storedIdentityButton.getFontSize() * 3;
+            icon.setIconSize(new Vector2f(iconSize, iconSize));
+            icon.setMargin(0, 0);
+            storedIdentityButton.setIcon(icon);
+        }
         storedIdentityButton.setTextVAlignment(VAlignment.Center);
 
         NIconButton deleteBtn = new NIconButton("icons/outline/activity.svg");
@@ -70,7 +75,8 @@ public class AuthSelectionWindow extends NWindow<AuthStrategy> {
 
         storedIdentityButton.addClickCommands(src -> {
             getManager().showWindow(StoredAuthSelectionWindow.class,
-                    new StoredAuthSelectionOptions(player.getName(), player.getImage())
+                    new StoredAuthSelectionOptions(player != null ? player.getName() : npub,
+                            player != null ? player.getImage() : null)
                             .setConfirmAction(win -> {
                                 auth.open(getManager(), npub, null);
 
@@ -86,6 +92,10 @@ public class AuthSelectionWindow extends NWindow<AuthStrategy> {
     protected void compose(Vector3f size, AuthStrategy strategy) throws Exception {
         setTitle("Authentication");
         setFitContent(true);
+
+        if (strategy.isAutoStore()) {
+            strategy.store = this.getManager().getDataStoreProvider().getDataStore("auth").getVStore();
+        }
 
         Container content = getContent().addCol();
         Container stored = new Container(new SpringGridLayout(Axis.Y, Axis.X, FillMode.None, FillMode.None));

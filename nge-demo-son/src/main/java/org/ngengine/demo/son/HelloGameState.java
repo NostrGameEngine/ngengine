@@ -49,7 +49,7 @@ public class HelloGameState implements Component<Object>, AppFragment, ViewPortF
             boolean firstTime, Object slot) {
 
         PlayerManagerComponent playerManager = fragmentManager
-                .getComponentByType(PlayerManagerComponent.class);
+                .getComponent(PlayerManagerComponent.class);
 
         // create an authentication strategy that toggles the lobby app state when a signer is available
         AuthStrategy authStrategy = Defaults.authStrategy(settings, (signer) -> {
@@ -59,7 +59,7 @@ public class HelloGameState implements Component<Object>, AppFragment, ViewPortF
 
         // open auth window
         NWindowManagerComponent windowManager = fragmentManager
-                .getComponentByType(NWindowManagerComponent.class);
+                .getComponent(NWindowManagerComponent.class);
         windowManager.showWindow(AuthSelectionWindow.class, authStrategy);
 
     }

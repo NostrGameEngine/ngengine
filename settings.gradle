@@ -1,7 +1,7 @@
 /**
  * This is the global settings file used by all subprojects.
  **/
-rootProject.name = 'jmonkeyengine'
+rootProject.name = 'NostrGameEngine'
 
 // Core classes, should work on all java platforms
 include 'jme3-core'

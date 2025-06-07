@@ -11,7 +11,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.ngengine.network.protocol.messages.BinaryMessage;
 import org.ngengine.network.protocol.messages.ByteDataMessage;
-import org.ngengine.network.protocol.messages.ChatMessage;
+import org.ngengine.network.protocol.messages.TextMessage;
 import org.ngengine.network.protocol.messages.CompressedMessage;
 import org.ngengine.network.protocol.messages.TextDataMessage;
 
@@ -205,7 +205,7 @@ public class TestDynamicSerializerProtocol {
 
     @Test
     public void testTextMessage() {
-        TextDataMessage original = new ChatMessage("This is a text message");
+        TextDataMessage original = new TextMessage("This is a text message");
 
         ByteBuffer buffer = protocol.toByteBuffer(original, null);
         TextDataMessage result = (TextDataMessage) protocol.toMessage(buffer);

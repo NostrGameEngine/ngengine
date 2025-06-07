@@ -156,8 +156,8 @@ public class DynamicSerializerProtocol implements MessageProtocol {
             Vector2f.class,
             Vector3f.class,
             Vector4f.class, 
-                Transform.class,
-                    ColorRGBA.class,
+            Transform.class,
+            ColorRGBA.class,
             Matrix3f.class,
             Matrix4f.class,
             Date.class,
@@ -480,6 +480,11 @@ public class DynamicSerializerProtocol implements MessageProtocol {
                 }
 
                 if (messageClass == null) {
+                    if (!className.endsWith("Message")) {
+                        throw new RuntimeException(
+                                "Message class name must end with 'Message': " + className);
+                    }
+
                     // load the class
                     messageClass = (Class<?>) Class.forName(className);
 

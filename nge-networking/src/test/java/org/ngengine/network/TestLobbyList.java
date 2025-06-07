@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.Test;
-import org.ngengine.network.protocol.messages.ChatMessage;
+import org.ngengine.network.protocol.messages.TextMessage;
 import org.ngengine.nostr4j.keypair.NostrKeyPair;
 import org.ngengine.nostr4j.keypair.NostrPrivateKey;
 import org.ngengine.nostr4j.keypair.NostrPublicKey;
@@ -88,9 +88,9 @@ public class TestLobbyList {
             P2PChannel chan = mng.connectToLobby(lobby, "abc");
             chan.addMessageListener((c, m) -> {
                 System.out.println("(1)Received message: " + m);
-                if (m instanceof ChatMessage) {
-                    System.out.println("Received message: " + ((ChatMessage) m).getData());
-                    if (((ChatMessage) m).getData().equals("Hello from peer2")) {
+                if (m instanceof TextMessage) {
+                    System.out.println("Received message: " + ((TextMessage) m).getData());
+                    if (((TextMessage) m).getData().equals("Hello from peer2")) {
                         messageReceived.set(true);
 
                     }
@@ -115,7 +115,7 @@ public class TestLobbyList {
                 
             });
             
-            Serializer.registerClass(ChatMessage.class);
+            Serializer.registerClass(TextMessage.class);
 
             chan.start();
         }
@@ -165,7 +165,7 @@ public class TestLobbyList {
             });
 
             System.out.println("Starting peer2");
-            Serializer.registerClass(ChatMessage.class);
+            Serializer.registerClass(TextMessage.class);
 
             chan.discover();
 
@@ -184,7 +184,7 @@ public class TestLobbyList {
 
             chan.start();
             System.out.println("Peer2 started");
-            chan.broadcast(new ChatMessage("Hello from peer2"));
+            chan.broadcast(new TextMessage("Hello from peer2"));
 
             t=0;
             while(true){

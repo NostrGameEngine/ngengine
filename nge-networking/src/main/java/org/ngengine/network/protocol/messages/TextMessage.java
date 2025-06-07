@@ -7,14 +7,14 @@ import com.jme3.network.serializing.Serializable;
 
 @NetworkSafe
 @Serializable
-public class ChatMessage extends AbstractMessage implements TextDataMessage {
+public class TextMessage extends AbstractMessage implements TextDataMessage {
     private String text;
 
-    public ChatMessage() {
+    public TextMessage() {
         super();
     }
 
-    public ChatMessage(String text) {
+    public TextMessage(String text) {
         super();
         this.text = text;
     }

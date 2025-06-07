@@ -54,6 +54,10 @@ public class DataStore {
         }     
     }
 
+    public VStore getVStore() {
+        return store;
+    }
+
     /**
      * Fully writes and commits a savable or serializable object or a primitive.
      * 

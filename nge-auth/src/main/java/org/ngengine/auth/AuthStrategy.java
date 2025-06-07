@@ -7,11 +7,12 @@ import org.ngengine.platform.VStore;
 import org.ngengine.player.PlayerManagerComponent;
 
 public class AuthStrategy {
- 
+
 
     protected Nip46AuthStrategy nip46;
     protected boolean nsec = false;
     protected VStore store;
+    protected boolean isStoreSet = false;
     protected Consumer<NostrSigner> callback;
     protected PlayerManagerComponent playerManager;
 
@@ -30,12 +31,24 @@ public class AuthStrategy {
     }
 
     public AuthStrategy enableStore(VStore store) {
+        this.isStoreSet = true;
         this.store = store;
         return this;
     }
 
+    public boolean isAutoStore() {
+        return !isStoreSet;
+    }
+
     public AuthStrategy disableStore() {
+        this.isStoreSet = true;
         this.store = null;
+        return this;
+    }
+
+    public AuthStrategy autoStore() {
+        this.store = null;
+        this.isStoreSet = false;
         return this;
     }
 

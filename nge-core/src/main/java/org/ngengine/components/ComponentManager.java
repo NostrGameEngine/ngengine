@@ -2,6 +2,8 @@ package org.ngengine.components;
 
 import java.util.List;
 
+import org.ngengine.components.fragments.Fragment;
+
 /**
  * The ComponentManager is responsible for managing the lifecycle of components within the application.
  * <p>
@@ -30,7 +32,7 @@ public interface ComponentManager {
      *            The class of the component to retrieve
      * @return The component of the specified type, or null if not found
      */
-    public <T extends Component> T getComponentByType(Class<T> type);
+    public <T extends Component> T getComponent(Class<T> type);
 
     /**
      * Retrieves a component by its ID.
@@ -181,7 +183,7 @@ public interface ComponentManager {
      * @param id
      *            The ID of the component to enable
      */
-    public default void enableFragment(String id) {
+    public default void enableComponent(String id) {
         enableComponent(id, null);
     }
 
@@ -206,7 +208,7 @@ public interface ComponentManager {
      *            The argument to pass to the component's onEnable method
      */
     public default void enableComponent(Class<? extends Component> type, Object arg) {
-        enableComponent(getComponentByType(type), arg);
+        enableComponent(getComponent(type), arg);
     }
 
     /**
@@ -230,7 +232,7 @@ public interface ComponentManager {
      *            The class of the component to disable
      */
     public default void disableComponent(Class<? extends Component> type) {
-        disableComponent(getComponentByType(type));
+        disableComponent(getComponent(type));
     }
 
     /**
@@ -260,4 +262,17 @@ public interface ComponentManager {
         addComponent(component, deps);
         enableComponent(component, arg);
     }
+
+    public default Component resolveDependency(Object d) {
+        if (d instanceof Component) {
+            return (Component) d;
+        } else if (d instanceof String) {
+            return getComponentById((String) d);
+        } else if (d instanceof Class<?>) {
+            return getComponent((Class<? extends Component>) d);
+
+        }
+        return null;
+    }
+
 }

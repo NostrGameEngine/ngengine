@@ -10,6 +10,8 @@ import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.xml.crypto.Data;
+
 import org.ngengine.DevMode;
 import org.ngengine.components.Component;
 import org.ngengine.components.ComponentManager;
@@ -42,10 +44,16 @@ public class NWindowManagerComponent implements Component<Object>, GuiViewPortFr
     private int height;
     private Container toastContainer;
     private Runner dispatcher;
+    private DataStoreProvider dataStoreProvider;
 
     @Override
     public void onAttached(ComponentManager mng, Runner runner, DataStoreProvider dataStoreProvider) {
         this.dispatcher = runner;
+        this.dataStoreProvider = dataStoreProvider;
+    }
+
+    public DataStoreProvider getDataStoreProvider() {
+        return dataStoreProvider;
     }
 
     @Override

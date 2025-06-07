@@ -113,7 +113,7 @@ public class PlayGameState implements Component<P2PChannel>, LogicFragment, View
     }
 
     public void reloadHud(){
-        NWindowManagerComponent mng = componentManager.getComponentByType(NWindowManagerComponent.class);
+        NWindowManagerComponent mng = componentManager.getComponent(NWindowManagerComponent.class);
 
         if(hud!=null){
             hud.close();
@@ -148,10 +148,11 @@ public class PlayGameState implements Component<P2PChannel>, LogicFragment, View
                 reloadHud();
             });
 
-            mng.getComponentByType(NWindowManagerComponent.class).closeAll();
+            mng.getComponent(NWindowManagerComponent.class).closeAll();
             chan.addConnectionListener(this);
             chan.addMessageListener(this);
-            chan.addDiscoveryListener(this);        
+            chan.addDiscoveryListener(this);
+
         } catch (Exception e) {
             log.severe("Error initializing GameAppState: " + e.getMessage());
             e.printStackTrace();
@@ -257,9 +258,9 @@ public class PlayGameState implements Component<P2PChannel>, LogicFragment, View
     
     public void spawnBoat(HostedConnection conn) {
         PlayerManagerComponent playerManager = componentManager
-                .getComponentByType(PlayerManagerComponent.class);
-        OceanAppState ocean = componentManager.getComponentByType(OceanAppState.class);
-        PhysicsManager physics = componentManager.getComponentByType(PhysicsManager.class);
+                .getComponent(PlayerManagerComponent.class);
+        OceanAppState ocean = componentManager.getComponent(OceanAppState.class);
+        PhysicsManager physics = componentManager.getComponent(PhysicsManager.class);
 
         boolean isRemote = conn != null;
         AsyncAssetManager assetManager = (AsyncAssetManager) this.assetManager;

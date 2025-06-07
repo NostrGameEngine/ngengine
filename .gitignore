@@ -54,3 +54,6 @@ javadoc_deploy.pub
 **/build
 hs_err_pid2027231.log
 hs_err_*.log
+node_modules
+package.json
+package-lock.json

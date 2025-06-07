@@ -11,9 +11,13 @@ buildscript {
     }
     dependencies {
         classpath libs.android.build.gradle
-        classpath libs.gradle.retrolambda
         classpath libs.spotbugs.gradle.plugin
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.20"
     }
+}
+
+plugins {
+    id 'org.jetbrains.dokka' version '2.0.0'
 }
 
 allprojects {
@@ -27,7 +31,44 @@ allprojects {
     tasks.withType(Jar) {
         duplicatesStrategy = 'include'
     }
+
+
 }
+
+def mergedJavadocSubprojects = [
+        ":jme3-android",
+        ":jme3-core",
+        ":jme3-desktop",
+        ":jme3-effects",
+        ":jme3-ios",
+        ":jme3-jbullet",
+        ":jme3-jogg",
+        ":jme3-lwjgl",
+        ":jme3-lwjgl3",
+        ":jme3-networking",
+        ":jme3-niftygui",
+        ":jme3-plugins",
+        ":jme3-terrain",
+        ":jme3-vr",
+        ":nge-core",
+        ":nge-app",
+        ":nge-auth",
+        ":nge-lemur",
+        ":nge-networking",
+        ":nge-ui",        
+]
+
+def ragDocProjects = [
+        ":jme3-core",
+        ":jme3-effects",
+        ":jme3-networking",
+        ":jme3-plugins",
+        ":nge-core",
+        ":nge-app",
+        ":nge-auth",
+        ":nge-networking",
+        ":nge-ui"   
+]
 
 // Set the license for IDEs that understand this
 ext.license = file("$rootDir/source-file-header-template.txt")
@@ -35,11 +76,12 @@ ext.license = file("$rootDir/source-file-header-template.txt")
 apply plugin: 'base'
 apply plugin: 'com.github.spotbugs'
 apply from: file('version.gradle')
-
-apply plugin: 'me.tatarka.retrolambda'
+apply plugin: 'org.jetbrains.dokka'
+apply plugin: 'org.jetbrains.kotlin.jvm'
 
 // This is applied to all sub projects
 subprojects {
+
     if(!project.name.equals('jme3-android-examples')) {
         apply from: rootProject.file('common.gradle')
     } else {
@@ -60,6 +102,15 @@ subprojects {
                 html.enabled = !project.hasProperty("xml-reports")
                 xml.enabled = project.hasProperty("xml-reports")
             }
+        }
+    }
+    if (ragDocProjects.contains(path)) {
+        apply plugin: 'org.jetbrains.dokka'
+        apply plugin: 'org.jetbrains.kotlin.jvm'
+
+        dokkaGfm {
+            moduleName.set(project.name)
+            moduleVersion.set(project.version.toString())      
         }
     }
 }
@@ -107,7 +158,7 @@ task libDist(dependsOn: subprojects.build, description: 'Builds and copies the e
 
 task createZipDistribution(type:Zip,dependsOn:["dist","libDist"], description:"Package the nightly zip distribution"){
     archiveFileName = provider {
-        "jME" + jmeFullVersion + ".zip"
+        "NGE" + jmeFullVersion + ".zip"
     }
     into("/") {
          from {"./dist"}
@@ -130,36 +181,13 @@ task dist(dependsOn: [':jme3-examples:dist', 'mergedJavadoc']){
     description 'Creates a jME3 examples distribution with all jme3 binaries, sources, javadoc and external libraries under ./dist'
 }
 
-def mergedJavadocSubprojects = [
-        ":jme3-android",
-        ":jme3-core",
-        ":jme3-desktop",
-        ":jme3-effects",
-        ":jme3-ios",
-        ":jme3-jbullet",
-        ":jme3-jogg",
-        ":jme3-lwjgl",
-        ":jme3-lwjgl3",
-        ":jme3-networking",
-        ":jme3-niftygui",
-        ":jme3-plugins",
-        ":jme3-terrain",
-        ":jme3-vr",
-        ":nge-core",
-        ":nge-app",
-        ":nge-auth",
-        ":nge-lemur",
-        ":nge-networking",
-        ":nge-ui",
 
-
-        
-]
 task mergedJavadoc(type: Javadoc, description: 'Creates Javadoc from all the projects.') {
-    title = 'jMonkeyEngine3'
+    title = 'Nostr Game Engine'
     destinationDir = mkdir("dist/javadoc")
 
     options.encoding = 'UTF-8'
+    
 
     // Allows Javadoc to be generated on Java 8 despite doclint errors.
     if (JavaVersion.current().isJava8Compatible()) {
@@ -260,8 +288,10 @@ if (skipPrebuildLibraries != "true" && buildNativeProjects != "true") {
     }
 }
 
-retrolambda {
-  javaVersion JavaVersion.VERSION_1_7
-  incremental true
-    jvmArgs '-noverify'
+
+
+dokkaGfmMultiModule {
+    outputDirectory.set(file("build/dokka"))
+
+ 
 }

@@ -213,7 +213,7 @@ public class LobbyManager implements Closeable {
     public void listLobbies(
         String words,
         int limit,
-            Map<String, String> tagsFilter, BiConsumer<List<Lobby>, Throwable> callback) {
+            Map<String, String> dataFilter, BiConsumer<List<Lobby>, Throwable> callback) {
         NostrFilter filter = null;
         if(words!=null&&!words.isEmpty()&&isSearchSupported()){
             filter = new NostrSearchFilter();
@@ -224,9 +224,9 @@ public class LobbyManager implements Closeable {
         filter.withKind(KIND);        
         filter.withTag("t", gameName + "/" + gameVersion);
 
-        if(tagsFilter!=null){
+        if (dataFilter != null) {
             // relay side filter for 1 letter tags
-            for(Map.Entry<String,String> entry : tagsFilter.entrySet()){
+            for (Map.Entry<String, String> entry : dataFilter.entrySet()) {
                 if(entry.getKey().length()>1) continue;
                 filter.withTag(entry.getKey(), entry.getValue());
             }
@@ -240,9 +240,9 @@ public class LobbyManager implements Closeable {
                  return;
             }
             List<Lobby> filteredLobbies = lobbies.stream().filter(lobby -> {
-                if (tagsFilter != null) {
+                if (dataFilter != null) {
                     // client side filter by tags > 1 letter
-                    for (Entry<String, String> tagFilter : tagsFilter.entrySet()) {
+                    for (Entry<String, String> tagFilter : dataFilter.entrySet()) {
                         String key = tagFilter.getKey();
                         if (key.length() == 1) continue; // 1 letter tags are already filtered
 
@@ -294,27 +294,26 @@ public class LobbyManager implements Closeable {
 
     public void createLobby(
         String passphrase,
-        Map<String,String> tags,
-            Duration expiration, BiConsumer<Lobby, Throwable> callback) {
+            Map<String, String> data, Duration expiration, BiConsumer<Lobby, Throwable> callback) {
 
         BiConsumer<NostrPrivateKey, String> create = (newPriv, roomKey) -> {
 
             String roomId = newPriv.getPublicKey().asBech32();
 
-            Map<String, String> data = new HashMap<>();
-            data.put("roomKey", roomKey);
-            data.put("t", gameName + "/" + gameVersion);
-            data.put("d", roomId);
-            for (Entry<String, String> entry : tags.entrySet()) {
+            Map<String, String> fullData = new HashMap<>();
+            fullData.put("roomKey", roomKey);
+            fullData.put("t", gameName + "/" + gameVersion);
+            fullData.put("d", roomId);
+            for (Entry<String, String> entry : data.entrySet()) {
                 String key = entry.getKey();
                 String value = entry.getValue();
-                data.put(key, value);
+                fullData.put(key, value);
             }
 
-            String rawData = NGEUtils.getPlatform().toJSON(data);
+            String rawData = NGEUtils.getPlatform().toJSON(fullData);
 
             LocalLobby lobby = new LocalLobby(roomId, roomKey, rawData, Instant.now().plus(expiration));
-            for (Entry<String, String> dataEntry : data.entrySet()) {
+            for (Entry<String, String> dataEntry : fullData.entrySet()) {
                 String key = dataEntry.getKey();
                 String value = dataEntry.getValue();
                 lobby.setDataSilent(key, value);
@@ -388,7 +387,7 @@ public class LobbyManager implements Closeable {
         }
 
         P2PChannel conn = new P2PChannel(this.localSigner, this.gameName, this.gameVersion, privKey,
-                turnServer, this.masterServersPool, lobby, dispatcher);
+                turnServer, this.masterServersPool, dispatcher);
         conn.setForceTurn(forceTurn);
         conn.start();
         return conn;        

@@ -116,7 +116,7 @@ public class OceanAppState
     }
 
     public BulletAppState getPhysics() {
-        return componentManager.getComponentByType(PhysicsManager.class).getPhysics();
+        return componentManager.getComponent(PhysicsManager.class).getPhysics();
     }
 
 

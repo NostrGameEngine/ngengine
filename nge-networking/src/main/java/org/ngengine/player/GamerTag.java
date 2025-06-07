@@ -40,6 +40,12 @@ public class GamerTag {
         if (!gamerTagParts[1].equals(expectedGamerCode)) {
             throw new IllegalArgumentException("GamerTag code does not match the UID");
         }
+        if (gamerTagParts[0].length() < 3) {
+            throw new IllegalArgumentException("GamerTag is too short. Minimum length is 3 characters");
+        }
+        if (gamerTagParts[0].length() > 21) {
+            throw new IllegalArgumentException("GamerTag is too long. Maximum length is 21 characters");
+        }
         if (!GAMERTAG_PATTERN.matcher(gamerTagParts[0]).matches()) {
             throw new IllegalArgumentException(
                     "GamerTag contains invalid characters. Only alphanumeric and underscore are allowed");

@@ -12,7 +12,7 @@ apply plugin: 'checkstyle'
 eclipse.jdt.file.withProperties { props ->
     props.setProperty "org.eclipse.jdt.core.circularClasspath", "warning"
 }
-group = 'org.jmonkeyengine'
+group = 'org.ngengine'
 version = jmeFullVersion
 
 java {
@@ -55,7 +55,7 @@ test {
 
 jar {
     manifest {
-        attributes 'Implementation-Title': 'jMonkeyEngine',
+        attributes 'Implementation-Title': 'NostrGameEngine',
                    'Implementation-Version': jmeFullVersion,
                    'Automatic-Module-Name': "${project.name.replace("-", ".")}",
                    'Created-By': "${JavaVersion.current()} (${System.getProperty("java.vendor")})"
@@ -65,9 +65,9 @@ jar {
 javadoc {
     failOnError = false
     options.memberLevel = org.gradle.external.javadoc.JavadocMemberLevel.PROTECTED
-    options.docTitle = "jMonkeyEngine ${jmeFullVersion} ${project.name} Javadoc"
-    options.windowTitle = "jMonkeyEngine ${jmeFullVersion} ${project.name} Javadoc"
-    options.header = "<b>jMonkeyEngine ${jmeFullVersion} ${project.name}</b>"
+    options.docTitle = "NostrGameEngine ${jmeFullVersion} ${project.name} Javadoc"
+    options.windowTitle = "NostrGameEngine ${jmeFullVersion} ${project.name} Javadoc"
+    options.header = "<b>NostrGameEngine ${jmeFullVersion} ${project.name}</b>"
     options.author = "true"
     options.use = "true"
     options.charSet = "UTF-8"
@@ -110,6 +110,10 @@ ext.pomConfig = {
     }
     developers {
         developer {
+            name 'NostrGameEngine Team'
+            id 'NostrGameEngine'
+        }
+        developer {
             name 'jMonkeyEngine Team'
             id 'jMonkeyEngine'
         }
@@ -133,6 +137,10 @@ publishing {
             pom {
                 description = POM_DESCRIPTION
                 developers {
+                    developer {
+                        name = 'NostrGameEngine Team'
+                        id = 'NostrGameEngine'
+                    }
                     developer {
                         id = 'jMonkeyEngine'
                         name = 'jMonkeyEngine Team'
@@ -162,22 +170,22 @@ publishing {
             name = 'Dist'
             url = gradle.rootProject.projectDir.absolutePath + '/dist/maven'
         }
-        maven {
-            credentials {
-                username = gradle.rootProject.hasProperty('ossrhUsername') ? ossrhUsername : 'Unknown user'
-                password = gradle.rootProject.hasProperty('ossrhPassword') ? ossrhPassword : 'Unknown password'
-            }
-            name = 'OSSRH'
-            url = 'https://s01.oss.sonatype.org/service/local/staging/deploy/maven2'
-        }
-	maven {
-	    credentials {
-                username = gradle.rootProject.hasProperty('ossrhUsername') ? ossrhUsername : 'Unknown user'
-                password = gradle.rootProject.hasProperty('ossrhPassword') ? ossrhPassword : 'Unknown password'
-	    }
-	    name = 'SNAPSHOT'
-	    url = 'https://s01.oss.sonatype.org/content/repositories/snapshots/'
-	}
+        // maven {
+        //     credentials {
+        //         username = gradle.rootProject.hasProperty('ossrhUsername') ? ossrhUsername : 'Unknown user'
+        //         password = gradle.rootProject.hasProperty('ossrhPassword') ? ossrhPassword : 'Unknown password'
+        //     }
+        //     name = 'OSSRH'
+        //     url = 'https://s01.oss.sonatype.org/service/local/staging/deploy/maven2'
+        // }
+        // maven {
+        //     credentials {
+        //             username = gradle.rootProject.hasProperty('ossrhUsername') ? ossrhUsername : 'Unknown user'
+        //             password = gradle.rootProject.hasProperty('ossrhPassword') ? ossrhPassword : 'Unknown password'
+        //     }
+        //     name = 'SNAPSHOT'
+        //     url = 'https://s01.oss.sonatype.org/content/repositories/snapshots/'
+        // }
     }
 }
 

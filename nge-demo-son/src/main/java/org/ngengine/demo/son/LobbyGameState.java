@@ -39,7 +39,7 @@ public class LobbyGameState implements Component<NostrSigner>, ViewPortFragment 
                 Settings.TURN_SERVER, runner);
 
         NWindowManagerComponent windowManager = componentMng
-                .getComponentByType(NWindowManagerComponent.class);
+                .getComponent(NWindowManagerComponent.class);
         windowManager.showWindow(LobbyManagerWindow.class, new LobbyManagerWindowArg(mng, (chan) -> {
 
             componentMng.enableComponent(PlayGameState.class, chan);

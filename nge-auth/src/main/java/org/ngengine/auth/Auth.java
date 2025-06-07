@@ -111,7 +111,5 @@ public abstract class Auth {
 
  
     
-    public static void start(NWindowManagerComponent windowManager, AuthStrategy authStrategy) {
-        windowManager.showWindow(AuthSelectionWindow.class, authStrategy);
-    }
+
 }
