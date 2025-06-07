@@ -21,8 +21,13 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Install CMake
+        run: |
+          apt-get update
+          apt-get install -y cmake
+          cmake --version
 
-      - name: Validate the Gradle wrapper
+      - name: Validate the Gradle wrap-per
         uses: gradle/actions/wrapper-validation@v3
 
       - name: Build
