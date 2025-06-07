@@ -1,6 +1,0 @@
-dependencies {
-    api project(':jme3-core')
-    api libs.nifty
-    api libs.nifty.default.controls
-    runtimeOnly libs.nifty.style.black
-}

@@ -46,7 +46,6 @@ def mergedJavadocSubprojects = [
         ":jme3-jogg",
         ":jme3-lwjgl3",
         ":jme3-networking",
-        ":jme3-niftygui",
         ":jme3-plugins",
         ":jme3-terrain",
         ":nge-core",
