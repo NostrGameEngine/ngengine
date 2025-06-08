@@ -33,9 +33,13 @@ package org.ngengine;
 
 import com.jme3.app.LostFocusBehavior;
 import com.jme3.app.SimpleApplication;
+import com.jme3.asset.AssetConfig;
 import com.jme3.system.AppSettings;
+import com.jme3.util.res.Resources;
 import com.simsilica.lemur.GuiGlobals;
 import java.util.function.Consumer;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.ngengine.auth.AuthSelectionWindow;
 import org.ngengine.auth.AuthStrategy;
 import org.ngengine.components.ComponentManager;
@@ -45,10 +49,11 @@ import org.ngengine.components.jme3.AppComponentUpdater;
 import org.ngengine.components.jme3.AppViewPortComponentUpdater;
 import org.ngengine.components.jme3.ComponentManagerAppState;
 import org.ngengine.gui.NGEStyle;
-import org.ngengine.gui.svg.SVGLoader;
 import org.ngengine.gui.win.NWindowManagerComponent;
 
 public class NGEApplication {
+
+    private static final Logger logger = Logger.getLogger(NGEApplication.class.getName());
 
     private final Jme3Application app;
 
@@ -68,8 +73,12 @@ public class NGEApplication {
             ComponentManagerAppState cmng = new ComponentManagerAppState(this);
 
             AsyncAssetManager assetManager = AsyncAssetManager.of(this.assetManager, this);
-            assetManager.registerLoader(WebpImageLoader.class, "webp");
-            assetManager.registerLoader(SVGLoader.class, "svg");
+
+            try {
+                AssetConfig.loadText(assetManager, Resources.getResource("org/ngengine/NGE.cfg"));
+            } catch (Exception e) {
+                logger.log(Level.WARNING, "Failed to load NGE configuration file", e);
+            }
 
             GuiGlobals.initialize(this);
             NGEStyle.installAndUse();

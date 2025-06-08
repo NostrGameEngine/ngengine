@@ -44,8 +44,8 @@ import org.ngengine.components.fragments.AppFragment;
 import org.ngengine.components.fragments.AssetLoadingFragment;
 import org.ngengine.components.fragments.GuiViewPortFragment;
 import org.ngengine.components.fragments.InputHandlerFragment;
+import org.ngengine.components.fragments.MainViewPortFragment;
 import org.ngengine.components.fragments.RenderFragment;
-import org.ngengine.components.fragments.ViewPortFragment;
 
 /**
  * Initializes components by connecting them to JME3 application resources.
@@ -73,16 +73,16 @@ public class AppComponentInitializer implements ComponentInitializer {
             markReady.run();
         }
 
-        if (fragment instanceof ViewPortFragment) {
+        if (fragment instanceof MainViewPortFragment) {
             i++;
-            ViewPortFragment f = (ViewPortFragment) fragment;
-            f.receiveViewPort(app.getViewPort());
+            MainViewPortFragment f = (MainViewPortFragment) fragment;
+            f.receiveMainViewPort(app.getViewPort());
             FilterPostProcessor fpp = Utils.getFilterPostProcessor(
                 app.getContext().getSettings(),
                 assetManager,
                 app.getViewPort()
             );
-            f.receiveViewPortFilterPostProcessor(fpp);
+            f.receiveMainViewPortFilterPostProcessor(fpp);
             markReady.run();
         }
 
@@ -128,7 +128,7 @@ public class AppComponentInitializer implements ComponentInitializer {
     public boolean canInitialize(ComponentManager mng, Component fragment) {
         return (
             fragment instanceof AppFragment ||
-            fragment instanceof ViewPortFragment ||
+            fragment instanceof MainViewPortFragment ||
             fragment instanceof GuiViewPortFragment ||
             fragment instanceof InputHandlerFragment ||
             fragment instanceof RenderFragment ||

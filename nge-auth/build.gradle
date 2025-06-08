@@ -2,7 +2,7 @@
 
 dependencies {
     api project(':nge-core')
-    api project(':nge-ui')
+    api project(':nge-gui')
     implementation project(':nge-networking')
  
 }

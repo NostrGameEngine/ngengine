@@ -49,5 +49,5 @@ public interface AppFragment extends Fragment {
      * @param app
      *            the Application instance
      */
-    void receiveApplication(Application app);
+    default void receiveApplication(Application app) {}
 }

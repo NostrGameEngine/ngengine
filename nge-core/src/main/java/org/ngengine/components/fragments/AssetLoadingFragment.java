@@ -49,5 +49,5 @@ public interface AssetLoadingFragment extends Fragment {
      * @param assetManager
      *            the AssetManager instance
      */
-    void loadAssets(AssetManager assetManager);
+    default void loadAssets(AssetManager assetManager) {}
 }

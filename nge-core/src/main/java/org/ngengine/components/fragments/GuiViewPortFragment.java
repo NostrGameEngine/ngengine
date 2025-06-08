@@ -59,5 +59,5 @@ public interface GuiViewPortFragment extends Fragment {
      */
     default void receiveGuiViewPort(ViewPort vp) {}
 
-    void updateGuiViewPort(ViewPort vp, float tpf);
+    default void updateGuiViewPort(ViewPort vp, float tpf) {}
 }

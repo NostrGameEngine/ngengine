@@ -65,8 +65,8 @@ public class Defaults {
         VStore authStore = NGEPlatform.get().getDataStore(settings.getTitle(), "auth");
         return new AuthStrategy(callback)
             .enableStore(authStore)
-            .enableNip46(new Nip46AuthStrategy().setMetadata(NIP46_METADATA))
-            .enableNsec()
+            .enableNip46RemoteIdentity(new Nip46AuthStrategy().setMetadata(NIP46_METADATA))
+            .enableLocalIdentity()
             .setPlayerManager(playerManager);
     }
 }

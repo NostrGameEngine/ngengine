@@ -40,7 +40,7 @@ import com.jme3.scene.Node;
  * A fragment that provides access to a ViewPort. A ViewPort is an object that contains the camera and scene
  * to be rendered.
  */
-public interface ViewPortFragment extends Fragment {
+public interface MainViewPortFragment extends Fragment {
     /**
      * Get the first scene node of the ViewPort. This is usually the root node of the scene graph.
      *
@@ -60,7 +60,7 @@ public interface ViewPortFragment extends Fragment {
      * @param viewPort
      *            the ViewPort instance
      */
-    default void receiveViewPort(ViewPort viewPort) {}
+    default void receiveMainViewPort(ViewPort viewPort) {}
 
     /**
      * Receive a FilterPostProcessor instance as soon as it is available. The reference to the
@@ -69,7 +69,7 @@ public interface ViewPortFragment extends Fragment {
      * @param fpp
      *            the FilterPostProcessor instance
      */
-    default void receiveViewPortFilterPostProcessor(FilterPostProcessor fpp) {}
+    default void receiveMainViewPortFilterPostProcessor(FilterPostProcessor fpp) {}
 
     /**
      * Configure the filter post processor for the passed viewport. This can be used to dynamically attach or
@@ -80,7 +80,7 @@ public interface ViewPortFragment extends Fragment {
      * @param fpp
      *            the FilterPostProcessor instance to configure
      */
-    void loadViewPortFilterPostprocessor(AssetManager assetManager, FilterPostProcessor fpp);
+    default void loadMainViewPortFilterPostprocessor(AssetManager assetManager, FilterPostProcessor fpp) {}
 
     /**
      * Update the ViewPort with the given time per frame (tpf). This method is called every frame and can be
@@ -93,5 +93,5 @@ public interface ViewPortFragment extends Fragment {
      * @param tpf
      *            time per frame
      */
-    void updateViewPort(ViewPort viewPort, float tpf);
+    default void updateMainViewPort(ViewPort viewPort, float tpf) {}
 }

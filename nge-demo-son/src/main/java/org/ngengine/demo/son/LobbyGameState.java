@@ -40,7 +40,7 @@ import com.jme3.util.TempVars;
 import java.util.logging.Logger;
 import org.ngengine.components.Component;
 import org.ngengine.components.ComponentManager;
-import org.ngengine.components.fragments.ViewPortFragment;
+import org.ngengine.components.fragments.MainViewPortFragment;
 import org.ngengine.demo.son.gui.LobbyManagerWindow;
 import org.ngengine.demo.son.gui.LobbyManagerWindowArg;
 import org.ngengine.gui.win.NWindowManagerComponent;
@@ -49,7 +49,7 @@ import org.ngengine.nostr4j.signer.NostrSigner;
 import org.ngengine.runner.Runner;
 import org.ngengine.store.DataStoreProvider;
 
-public class LobbyGameState implements Component<NostrSigner>, ViewPortFragment {
+public class LobbyGameState implements Component<NostrSigner>, MainViewPortFragment {
 
     private static final Logger log = Logger.getLogger(LobbyGameState.class.getName());
     private LobbyManager mng;
@@ -85,7 +85,7 @@ public class LobbyGameState implements Component<NostrSigner>, ViewPortFragment 
     }
 
     @Override
-    public void updateViewPort(ViewPort vp, float tpf) {
+    public void updateMainViewPort(ViewPort vp, float tpf) {
         TempVars vars = TempVars.get();
         try {
             float angles[] = vars.fADdU;
@@ -103,5 +103,11 @@ public class LobbyGameState implements Component<NostrSigner>, ViewPortFragment 
     public void onDisable(ComponentManager mng, Runner runner, DataStoreProvider dataStore) {}
 
     @Override
-    public void loadViewPortFilterPostprocessor(AssetManager assetManager, FilterPostProcessor fpp) {}
+    public void loadMainViewPortFilterPostprocessor(AssetManager assetManager, FilterPostProcessor fpp) {}
+
+    @Override
+    public void receiveMainViewPort(ViewPort viewPort) {}
+
+    @Override
+    public void receiveMainViewPortFilterPostProcessor(FilterPostProcessor fpp) {}
 }

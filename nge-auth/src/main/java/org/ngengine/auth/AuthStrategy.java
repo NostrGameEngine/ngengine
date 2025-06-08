@@ -39,7 +39,7 @@ import org.ngengine.player.PlayerManagerComponent;
 public class AuthStrategy {
 
     protected Nip46AuthStrategy nip46;
-    protected boolean nsec = false;
+    protected boolean localIdentity = true;
     protected VStore store;
     protected boolean isStoreSet = false;
     protected Consumer<NostrSigner> callback;
@@ -53,7 +53,7 @@ public class AuthStrategy {
         return callback;
     }
 
-    public AuthStrategy enableNip46(Nip46AuthStrategy nip46) {
+    public AuthStrategy enableNip46RemoteIdentity(Nip46AuthStrategy nip46) {
         this.nip46 = nip46;
         return this;
     }
@@ -97,42 +97,42 @@ public class AuthStrategy {
         return store;
     }
 
-    public AuthStrategy enableNsec() {
-        this.nsec = true;
+    public AuthStrategy enableLocalIdentity() {
+        this.localIdentity = true;
         return this;
     }
 
-    public AuthStrategy disableNip46() {
+    public AuthStrategy disableNip46RemoteIdentity() {
         nip46 = null;
         return this;
     }
 
-    public AuthStrategy disableNsec() {
-        nsec = false;
+    public AuthStrategy disableLocalIdentity() {
+        localIdentity = false;
         return this;
     }
 
-    public AuthStrategy enableNip07(Object nip07adapter) {
+    public AuthStrategy enableNip07Identity(Object nip07adapter) {
         return this;
     }
 
-    public AuthStrategy disableNip07() {
+    public AuthStrategy disableNip07Identity() {
         return this;
     }
 
-    public boolean isNip46Enabled() {
+    public boolean isNip46RemoteIdentityEnabled() {
         return nip46 != null;
     }
 
-    public boolean isNsecEnabled() {
-        return nsec;
+    public boolean isLocalIdentityEnabled() {
+        return localIdentity;
     }
 
-    public boolean isNip07Enabled() {
+    public boolean isNip07IdentityEnabled() {
         return false;
     }
 
-    public Nip46AuthStrategy getNip46Strategy() {
+    public Nip46AuthStrategy getNip46RemoteIdentityStrategy() {
         return nip46;
     }
 }

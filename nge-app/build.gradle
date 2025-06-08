@@ -8,7 +8,7 @@ dependencies {
     api "org.ngengine:nge-platform-jvm:${ngePlatformVersion}"
     api project(':nge-core')
     api project(':nge-networking')
-    api project(':nge-ui')
+    api project(':nge-gui')
     api project(':nge-auth')
     api project(':jme3-desktop')
         implementation 'org.sejda.imageio:webp-imageio:0.1.6'

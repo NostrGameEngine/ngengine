@@ -72,7 +72,7 @@ import org.ngengine.components.ComponentManager;
 import org.ngengine.components.fragments.AssetLoadingFragment;
 import org.ngengine.components.fragments.InputHandlerFragment;
 import org.ngengine.components.fragments.LogicFragment;
-import org.ngengine.components.fragments.ViewPortFragment;
+import org.ngengine.components.fragments.MainViewPortFragment;
 import org.ngengine.demo.son.controls.BoatAnimationControl;
 import org.ngengine.demo.son.controls.BoatControl;
 import org.ngengine.demo.son.controls.NetworkControl;
@@ -93,7 +93,7 @@ public class PlayGameState
     implements
         Component<P2PChannel>,
         LogicFragment,
-        ViewPortFragment,
+        MainViewPortFragment,
         InputHandlerFragment,
         AssetLoadingFragment,
         ConnectionListener,
@@ -130,7 +130,7 @@ public class PlayGameState
     }
 
     @Override
-    public void receiveViewPort(ViewPort viewPort) {
+    public void receiveMainViewPort(ViewPort viewPort) {
         this.viewPort = viewPort;
     }
 
@@ -412,11 +412,14 @@ public class PlayGameState
     public void onKeyEvent(KeyInputEvent evt) {}
 
     @Override
-    public void updateViewPort(ViewPort viewPort, float tpf) {}
+    public void updateMainViewPort(ViewPort viewPort, float tpf) {}
 
     @Override
     public void onTouchEvent(TouchEvent evt) {}
 
     @Override
-    public void loadViewPortFilterPostprocessor(AssetManager assetManager, FilterPostProcessor fpp) {}
+    public void loadMainViewPortFilterPostprocessor(AssetManager assetManager, FilterPostProcessor fpp) {}
+
+    @Override
+    public void receiveMainViewPortFilterPostProcessor(FilterPostProcessor fpp) {}
 }

@@ -54,11 +54,11 @@ import org.ngengine.AsyncAssetManager;
 import org.ngengine.components.Component;
 import org.ngengine.components.ComponentManager;
 import org.ngengine.components.fragments.AsyncAssetLoadingFragment;
-import org.ngengine.components.fragments.ViewPortFragment;
+import org.ngengine.components.fragments.MainViewPortFragment;
 import org.ngengine.runner.Runner;
 import org.ngengine.store.DataStoreProvider;
 
-public class BaseEnvironment implements Component<Object>, AsyncAssetLoadingFragment, ViewPortFragment {
+public class BaseEnvironment implements Component<Object>, AsyncAssetLoadingFragment, MainViewPortFragment {
 
     private Spatial sky;
     private AudioNode backgroundMusic;
@@ -125,13 +125,16 @@ public class BaseEnvironment implements Component<Object>, AsyncAssetLoadingFrag
     public void onDisable(ComponentManager mng, Runner runner, DataStoreProvider dataStore) {}
 
     @Override
-    public void receiveViewPort(ViewPort viewPort) {
+    public void receiveMainViewPort(ViewPort viewPort) {
         this.viewPort = viewPort;
     }
 
     @Override
-    public void updateViewPort(ViewPort viewPort, float tpf) {}
+    public void updateMainViewPort(ViewPort viewPort, float tpf) {}
 
     @Override
-    public void loadViewPortFilterPostprocessor(AssetManager assetManager, FilterPostProcessor fpp) {}
+    public void loadMainViewPortFilterPostprocessor(AssetManager assetManager, FilterPostProcessor fpp) {}
+
+    @Override
+    public void receiveMainViewPortFilterPostProcessor(FilterPostProcessor fpp) {}
 }

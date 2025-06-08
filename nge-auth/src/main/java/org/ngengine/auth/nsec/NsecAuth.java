@@ -172,6 +172,6 @@ public class NsecAuth extends Auth {
 
     @Override
     public boolean isEnabled() {
-        return getOptions().getStrategy().isNsecEnabled();
+        return getOptions().getStrategy().isLocalIdentityEnabled();
     }
 }

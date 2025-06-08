@@ -16,4 +16,4 @@ Based on [jMonkeyEngine](https://jmonkeyengine.org/) under BSD 3-Clause License
 
 
 - [x] [nge-networking](https://github.com/NostrGameEngine/ngengine/tree/master/nge-networking)
-- [x] [nge-ui](https://github.com/NostrGameEngine/ngengine/tree/master/nge-ui) aka [lemur](https://github.com/jMonkeyEngine-Contributions/Lemur)
+- [x] [nge-gui](https://github.com/NostrGameEngine/ngengine/tree/master/nge-gui) aka [lemur](https://github.com/jMonkeyEngine-Contributions/Lemur)

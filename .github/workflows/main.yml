@@ -54,7 +54,7 @@ jobs:
       fail-fast: false
       matrix:
         artifact: [
-          nge-ui, 
+          nge-gui, 
           jme3-awt-dialogs, 
           jme3-core, 
           jme3-desktop, 

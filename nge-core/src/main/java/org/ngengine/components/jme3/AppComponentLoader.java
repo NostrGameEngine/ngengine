@@ -41,7 +41,7 @@ import org.ngengine.components.ComponentLoader;
 import org.ngengine.components.ComponentManager;
 import org.ngengine.components.fragments.AssetLoadingFragment;
 import org.ngengine.components.fragments.AsyncAssetLoadingFragment;
-import org.ngengine.components.fragments.ViewPortFragment;
+import org.ngengine.components.fragments.MainViewPortFragment;
 
 /**
  * load components by connecting them to JME3 application resources.
@@ -89,15 +89,15 @@ public class AppComponentLoader implements ComponentLoader {
             );
         }
 
-        if (fragment instanceof ViewPortFragment) {
+        if (fragment instanceof MainViewPortFragment) {
             i++;
-            ViewPortFragment f = (ViewPortFragment) fragment;
+            MainViewPortFragment f = (MainViewPortFragment) fragment;
             FilterPostProcessor fpp = Utils.getFilterPostProcessor(
                 app.getContext().getSettings(),
                 assetManager,
                 app.getViewPort()
             );
-            f.loadViewPortFilterPostprocessor(assetManager, fpp);
+            f.loadMainViewPortFilterPostprocessor(assetManager, fpp);
             markReady.run();
         }
 
@@ -109,7 +109,7 @@ public class AppComponentLoader implements ComponentLoader {
         return (
             fragment instanceof AsyncAssetLoadingFragment ||
             fragment instanceof AssetLoadingFragment ||
-            fragment instanceof ViewPortFragment
+            fragment instanceof MainViewPortFragment
         );
     }
 

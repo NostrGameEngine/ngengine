@@ -36,7 +36,7 @@ import org.ngengine.components.Component;
 import org.ngengine.components.ComponentManager;
 import org.ngengine.components.ComponentUpdater;
 import org.ngengine.components.fragments.GuiViewPortFragment;
-import org.ngengine.components.fragments.ViewPortFragment;
+import org.ngengine.components.fragments.MainViewPortFragment;
 
 /**
  * Updates viewport components using JME3 application resources.
@@ -51,7 +51,7 @@ public class AppViewPortComponentUpdater implements ComponentUpdater {
 
     @Override
     public boolean canUpdate(ComponentManager fragmentManager, Component component) {
-        return component instanceof GuiViewPortFragment || component instanceof ViewPortFragment;
+        return component instanceof GuiViewPortFragment || component instanceof MainViewPortFragment;
     }
 
     @Override
@@ -60,9 +60,9 @@ public class AppViewPortComponentUpdater implements ComponentUpdater {
             GuiViewPortFragment guiFragment = (GuiViewPortFragment) component;
             guiFragment.updateGuiViewPort(app.getGuiViewPort(), tpf);
         }
-        if (component instanceof ViewPortFragment) {
-            ViewPortFragment viewFragment = (ViewPortFragment) component;
-            viewFragment.updateViewPort(app.getViewPort(), tpf);
+        if (component instanceof MainViewPortFragment) {
+            MainViewPortFragment viewFragment = (MainViewPortFragment) component;
+            viewFragment.updateMainViewPort(app.getViewPort(), tpf);
         }
     }
 

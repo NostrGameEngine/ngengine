@@ -1,0 +1,17 @@
+
+
+dependencies {
+    implementation "org.ngengine:nge-platform-jvm:${ngePlatformVersion}"
+    implementation project(':nge-gui')
+    implementation project(':nge-app')
+    implementation project(':nge-core')
+    implementation 'com.formdev:svgSalamander:1.1.4'
+
+}
+
+javadoc {
+    // Disable doclint for JDK8+.
+    if (JavaVersion.current().isJava8Compatible()){
+        options.addStringOption('Xdoclint:none', '-quiet')
+    }
+}

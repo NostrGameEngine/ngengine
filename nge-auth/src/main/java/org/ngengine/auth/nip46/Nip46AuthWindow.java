@@ -126,7 +126,7 @@ public class Nip46AuthWindow extends NWindow<AuthConfig> {
                                             return null;
                                         }
                                     },
-                                    strategy.getNip46Strategy().getChallengeTimeout()
+                                    strategy.getNip46RemoteIdentityStrategy().getChallengeTimeout()
                                 );
                             // this.signer.getPublicKey()
                             // .catchException(ex->{
@@ -157,8 +157,8 @@ public class Nip46AuthWindow extends NWindow<AuthConfig> {
                 // });
 
             } else {
-                NostrKeyPair appKeyPair = strategy.getNip46Strategy().getAppKeyPair();
-                Nip46AppMetadata appMetadata = strategy.getNip46Strategy().getMetadata();
+                NostrKeyPair appKeyPair = strategy.getNip46RemoteIdentityStrategy().getAppKeyPair();
+                Nip46AppMetadata appMetadata = strategy.getNip46RemoteIdentityStrategy().getMetadata();
                 this.signer = new NostrNIP46Signer(appMetadata, appKeyPair);
                 this.signer.setChallengeHandler(
                         (v1, v2) -> {
@@ -169,11 +169,11 @@ public class Nip46AuthWindow extends NWindow<AuthConfig> {
                                 return null;
                             }
                         },
-                        strategy.getNip46Strategy().getChallengeTimeout()
+                        strategy.getNip46RemoteIdentityStrategy().getChallengeTimeout()
                     );
-                if (strategy.getNip46Strategy().isAllowNostrConnect()) {
+                if (strategy.getNip46RemoteIdentityStrategy().isAllowNostrConnect()) {
                     this.signer.listen(
-                            strategy.getNip46Strategy().getRelays(),
+                            strategy.getNip46RemoteIdentityStrategy().getRelays(),
                             src -> {
                                 getManager()
                                     .runInThread(() -> {
@@ -181,7 +181,7 @@ public class Nip46AuthWindow extends NWindow<AuthConfig> {
                                         invalidate();
                                     });
                             },
-                            strategy.getNip46Strategy().getTimeout()
+                            strategy.getNip46RemoteIdentityStrategy().getTimeout()
                         )
                         .then(signer -> {
                             getManager()
@@ -244,7 +244,7 @@ public class Nip46AuthWindow extends NWindow<AuthConfig> {
             spinner.setPreferredSize(new Vector3f(dim, dim, 0));
             content.addChild(spinner);
         }
-        if (strategy.getNip46Strategy().isAllowBunker()) { // bunker:// - nip05 flow
+        if (strategy.getNip46RemoteIdentityStrategy().isAllowBunker()) { // bunker:// - nip05 flow
             Label bunkerFlowLabel = new Label("Or use the bunker:// token or nip-05 address");
             bunkerFlowLabel.setTextHAlignment(HAlignment.Center);
             Container bunkerFlow = new Container(new SpringGridLayout(Axis.Y, Axis.X, FillMode.None, FillMode.Even));

@@ -153,6 +153,6 @@ public class Nip46Auth extends Auth {
 
     @Override
     public boolean isEnabled() {
-        return getOptions().getStrategy().isNip46Enabled();
+        return getOptions().getStrategy().isNip46RemoteIdentityEnabled();
     }
 }

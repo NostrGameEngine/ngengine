@@ -40,7 +40,7 @@ package org.ngengine.components.fragments;
  * <p>
  * Common fragment types include:
  * <ul>
- * <li>{@link ViewPortFragment} - For scene rendering and camera manipulation</li>
+ * <li>{@link MainViewPortFragment} - For scene rendering and camera manipulation</li>
  * <li>{@link LogicFragment} - For game logic</li>
  * <li>{@link InputHandlerFragment} - For receiving and processing input events</li>
  * <li>{@link AsyncAssetLoadingFragment} - For loading assets in background threads</li>

@@ -135,15 +135,15 @@ public interface InputHandlerFragment extends Fragment, RawInputListener {
      */
     default void receiveInputManager(InputManager inputManager) {}
 
-    void onJoyAxisEvent(JoyAxisEvent evt);
+    default void onJoyAxisEvent(JoyAxisEvent evt) {}
 
-    void onJoyButtonEvent(JoyButtonEvent evt);
+    default void onJoyButtonEvent(JoyButtonEvent evt) {}
 
-    void onMouseMotionEvent(MouseMotionEvent evt);
+    default void onMouseMotionEvent(MouseMotionEvent evt) {}
 
-    void onMouseButtonEvent(MouseButtonEvent evt);
+    default void onMouseButtonEvent(MouseButtonEvent evt) {}
 
-    void onKeyEvent(KeyInputEvent evt);
+    default void onKeyEvent(KeyInputEvent evt) {}
 
-    void onTouchEvent(TouchEvent evt);
+    default void onTouchEvent(TouchEvent evt) {}
 }

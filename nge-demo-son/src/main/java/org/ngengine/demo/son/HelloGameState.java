@@ -44,13 +44,13 @@ import org.ngengine.auth.AuthStrategy;
 import org.ngengine.components.Component;
 import org.ngengine.components.ComponentManager;
 import org.ngengine.components.fragments.AppFragment;
-import org.ngengine.components.fragments.ViewPortFragment;
+import org.ngengine.components.fragments.MainViewPortFragment;
 import org.ngengine.gui.win.NWindowManagerComponent;
 import org.ngengine.player.PlayerManagerComponent;
 import org.ngengine.runner.Runner;
 import org.ngengine.store.DataStoreProvider;
 
-public class HelloGameState implements Component<Object>, AppFragment, ViewPortFragment {
+public class HelloGameState implements Component<Object>, AppFragment, MainViewPortFragment {
 
     private AppSettings settings;
 
@@ -91,7 +91,7 @@ public class HelloGameState implements Component<Object>, AppFragment, ViewPortF
     }
 
     @Override
-    public void updateViewPort(ViewPort viewPort, float tpf) {
+    public void updateMainViewPort(ViewPort viewPort, float tpf) {
         TempVars vars = TempVars.get();
         try {
             float angles[] = vars.fADdU;
@@ -110,5 +110,11 @@ public class HelloGameState implements Component<Object>, AppFragment, ViewPortF
     public void onDisable(ComponentManager mng, Runner runner, DataStoreProvider dataStoreProvider) {}
 
     @Override
-    public void loadViewPortFilterPostprocessor(AssetManager assetManager, FilterPostProcessor fpp) {}
+    public void loadMainViewPortFilterPostprocessor(AssetManager assetManager, FilterPostProcessor fpp) {}
+
+    @Override
+    public void receiveMainViewPort(ViewPort viewPort) {}
+
+    @Override
+    public void receiveMainViewPortFilterPostProcessor(FilterPostProcessor fpp) {}
 }

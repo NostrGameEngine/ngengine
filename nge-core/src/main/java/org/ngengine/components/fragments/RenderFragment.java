@@ -36,7 +36,7 @@ import com.jme3.renderer.RenderManager;
 /**
  * A fragment that can receive a RenderManager instance and is called every frame during the render phase. It
  * is used to perform low-level rendering logic, not to update the scene graph, for that use
- * {@link LogicFragment} or {@link ViewPortFragment}.
+ * {@link LogicFragment} or {@link MainViewPortFragment}.
  */
 public interface RenderFragment extends Fragment {
     /**
@@ -53,5 +53,5 @@ public interface RenderFragment extends Fragment {
      * @param renderer the RenderManager instance
      * @param tpf time per frame
      */
-    void updateRender(RenderManager renderer);
+    default void updateRender(RenderManager renderer) {}
 }

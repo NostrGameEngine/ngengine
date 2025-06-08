@@ -66,8 +66,8 @@ import java.util.logging.Logger;
 import org.ngengine.components.Component;
 import org.ngengine.components.ComponentManager;
 import org.ngengine.components.fragments.AssetLoadingFragment;
+import org.ngengine.components.fragments.MainViewPortFragment;
 import org.ngengine.components.fragments.RenderFragment;
-import org.ngengine.components.fragments.ViewPortFragment;
 import org.ngengine.demo.son.PhysicsManager;
 import org.ngengine.demo.son.controls.BuoyancyControl;
 import org.ngengine.demo.son.controls.WindControl;
@@ -77,7 +77,7 @@ import org.ngengine.runner.Runner;
 import org.ngengine.store.DataStore;
 import org.ngengine.store.DataStoreProvider;
 
-public class OceanAppState implements Component<Object>, ViewPortFragment, RenderFragment, AssetLoadingFragment {
+public class OceanAppState implements Component<Object>, MainViewPortFragment, RenderFragment, AssetLoadingFragment {
 
     private static final Logger log = Logger.getLogger(OceanAppState.class.getName());
     private Geometry oceanGeometry;
@@ -138,7 +138,7 @@ public class OceanAppState implements Component<Object>, ViewPortFragment, Rende
     }
 
     @Override
-    public void receiveViewPort(ViewPort viewPort) {
+    public void receiveMainViewPort(ViewPort viewPort) {
         this.viewPort = viewPort;
     }
 
@@ -233,7 +233,7 @@ public class OceanAppState implements Component<Object>, ViewPortFragment, Rende
     }
 
     @Override
-    public void updateViewPort(ViewPort vp, float tpf) {
+    public void updateMainViewPort(ViewPort vp, float tpf) {
         float windStrength = 60f;
         this.WIND.set(0, 0, windStrength);
 
@@ -405,5 +405,8 @@ public class OceanAppState implements Component<Object>, ViewPortFragment, Rende
     public void updateRender(RenderManager renderer) {}
 
     @Override
-    public void loadViewPortFilterPostprocessor(AssetManager assetManager, FilterPostProcessor fpp) {}
+    public void loadMainViewPortFilterPostprocessor(AssetManager assetManager, FilterPostProcessor fpp) {}
+
+    @Override
+    public void receiveMainViewPortFilterPostProcessor(FilterPostProcessor fpp) {}
 }
