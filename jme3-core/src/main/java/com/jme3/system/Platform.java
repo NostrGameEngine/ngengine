@@ -207,4 +207,33 @@ public enum Platform {
     private Platform(Os os) {
         this(os, false);
     }
+
+    public boolean isGraalVM() {
+        // Check for GraalVM-specific system properties
+        if (System.getProperty("org.graalvm.nativeimage.imagecode") != null) {
+            return true;
+        }
+        
+        // Check VM name
+        String vmName = System.getProperty("java.vm.name", "").toLowerCase();
+        if (vmName.contains("graalvm")) {
+            return true;
+        }
+        
+        // Check vendor
+        String vendor = System.getProperty("java.vendor", "").toLowerCase();
+        if (vendor.contains("graalvm")) {
+            return true;
+        }
+        
+        // Check for GraalVM-specific classes
+        try {
+            Class.forName("org.graalvm.polyglot.Context");
+            return true;
+        } catch (ClassNotFoundException e) {
+            // Not found - continue checking
+        }
+        
+        return false;
+    }
 }
