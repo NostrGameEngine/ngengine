@@ -40,6 +40,7 @@ import com.jme3.scene.shape.Quad;
 import com.jme3.texture.Texture;
 import com.jme3.texture.Texture.MagFilter;
 import com.jme3.texture.Texture.MinFilter;
+import com.jme3.texture.plugins.SVGTextureKey;
 import com.simsilica.lemur.GuiGlobals;
 import com.simsilica.lemur.Panel;
 import com.simsilica.lemur.core.GuiControl;
@@ -50,7 +51,6 @@ import com.simsilica.lemur.style.Attributes;
 import com.simsilica.lemur.style.ElementId;
 import com.simsilica.lemur.style.StyleAttribute;
 import com.simsilica.lemur.style.StyleDefaults;
-import org.ngengine.gui.svg.SVGTextureKey;
 
 public class NLoadingSpinner extends Panel implements GuiUpdateListener, GuiControlListener {
 
@@ -96,6 +96,9 @@ public class NLoadingSpinner extends Panel implements GuiUpdateListener, GuiCont
     }
 
     protected void loadImage(float w, float h) {
+        float min = Math.min(w, h);
+        w = min;
+        h = min;
         Texture tx = GuiGlobals.getInstance().loadTexture(new SVGTextureKey(spinnerPath, (int) w, (int) h), false);
         tx.setMinFilter(MinFilter.BilinearNoMipMaps);
         tx.setMagFilter(MagFilter.Bilinear);

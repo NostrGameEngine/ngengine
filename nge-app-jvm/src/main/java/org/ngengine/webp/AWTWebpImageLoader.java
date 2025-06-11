@@ -41,7 +41,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import javax.imageio.ImageIO;
 
-public class WebpImageLoader implements AssetLoader {
+public class AWTWebpImageLoader implements AssetLoader {
 
     private AWTLoader loader = new AWTLoader();
 

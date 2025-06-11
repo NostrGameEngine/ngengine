@@ -19,6 +19,7 @@ dependencies {
     testRuntimeOnly project(':jme3-testdata')
     testImplementation project(':jme3-desktop')
     testRuntimeOnly project(':jme3-plugins')
+    testRuntimeOnly project(':jme3-lwjgl3')
 }
 
 task updateVersionPropertiesFile {

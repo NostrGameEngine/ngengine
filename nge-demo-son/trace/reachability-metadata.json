@@ -426,7 +426,7 @@
       ]
     },
     {
-      "type": "com.jme3.texture.plugins.AWTLoader",
+      "type": "com.jme3.texture.plugins.StbImageLoader",
       "methods": [
         {
           "name": "<init>",
@@ -2441,7 +2441,7 @@
       "type": "org.ngengine.gui.components.containers.NRow"
     },
     {
-      "type": "org.ngengine.gui.svg.SVGLoader",
+      "type": "com.jme3.texture.plugins.SVGLoader",
       "methods": [
         {
           "name": "<init>",

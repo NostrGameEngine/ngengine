@@ -133,7 +133,7 @@
   "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
-  "name":"com.jme3.texture.plugins.AWTLoader",
+  "name":"com.jme3.texture.plugins.StbImageLoader",
   "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {

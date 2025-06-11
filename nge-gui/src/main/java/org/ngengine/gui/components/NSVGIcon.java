@@ -32,9 +32,9 @@
 package org.ngengine.gui.components;
 
 import com.jme3.math.Vector2f;
+import com.jme3.texture.plugins.SVGTextureKey;
 import com.simsilica.lemur.GuiGlobals;
 import com.simsilica.lemur.component.IconComponent;
-import org.ngengine.gui.svg.SVGTextureKey;
 
 public class NSVGIcon extends IconComponent {
 

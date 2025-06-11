@@ -15,4 +15,6 @@ dependencies {
     implementation project(':jme3-plugins-json')
     implementation project(':jme3-plugins-json-gson')
     testRuntimeOnly project(':jme3-desktop')
+    testRuntimeOnly project(':jme3-lwjgl3')
+
 }

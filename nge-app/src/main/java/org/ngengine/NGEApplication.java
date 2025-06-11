@@ -35,6 +35,8 @@ import com.jme3.app.LostFocusBehavior;
 import com.jme3.app.SimpleApplication;
 import com.jme3.asset.AssetConfig;
 import com.jme3.system.AppSettings;
+import com.jme3.system.JmeSystem;
+import com.jme3.system.Platform;
 import com.jme3.util.res.Resources;
 import com.simsilica.lemur.GuiGlobals;
 import java.util.function.Consumer;
@@ -75,7 +77,13 @@ public class NGEApplication {
             AsyncAssetManager assetManager = AsyncAssetManager.of(this.assetManager, this);
 
             try {
-                AssetConfig.loadText(assetManager, Resources.getResource("org/ngengine/NGE.cfg"));
+                String resPath = "org/ngengine/NGE.cfg";
+                if (JmeSystem.getPlatform().getOs() == Platform.Os.MacOS && JmeSystem.getPlatform().isGraalVM()) {
+                    // macos dislikes AWT, expecially on GraalVM
+                    logger.log(Level.WARNING, "Running on MacOS with GraalVM, using no-awt configuration");
+                    resPath = "org/ngengine/NGE-noawt.cfg";
+                }
+                AssetConfig.loadText(assetManager, Resources.getResource(resPath));
             } catch (Exception e) {
                 logger.log(Level.WARNING, "Failed to load NGE configuration file", e);
             }
