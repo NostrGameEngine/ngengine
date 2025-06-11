@@ -3,6 +3,8 @@ name: Build NGE
 on:
   push:
   pull_request:
+  release:
+    types: [published]
 
 jobs:
 
@@ -157,6 +159,7 @@ jobs:
               echo "Publishing release $VERSION"
           fi
           ./gradlew --no-daemon --no-parallel   \
+          -PuseCommitHashAsVersionName=true \
           -PskipPrebuildLibraries=true \
           publishToSonatype closeAndReleaseSonatypeStagingRepository publishAllPublicationsToDistFolderRepository --info
 
