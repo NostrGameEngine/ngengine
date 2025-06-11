@@ -110,8 +110,9 @@ ext.pomConfig = {
     }
     developers {
         developer {
-            name 'NostrGameEngine Team'
-            id 'NostrGameEngine'
+            name 'Riccardo Balbo'
+            id 'rblb'
+            email 'os@rblb.it'
         }
         developer {
             name 'jMonkeyEngine Team'
@@ -127,19 +128,27 @@ artifacts {
         archives javadocJar
     }
 }
-
+ 
 publishing {
     publications {
-        maven(MavenPublication) {
+        mavenJava(MavenPublication) {
             artifact javadocJar
             artifact sourcesJar
             from components.java
+
+
+            groupId    = project.group.toString()
+            artifactId = project.name
+            version    = project.version.toString()
+
+
             pom {
                 description = POM_DESCRIPTION
                 developers {
                     developer {
-                        name = 'NostrGameEngine Team'
-                        id = 'NostrGameEngine'
+                        name = 'Riccardo Balbo'
+                        id = 'rblb'
+                        email = 'os@rblb.it'
                     }
                     developer {
                         id = 'jMonkeyEngine'
@@ -162,7 +171,6 @@ publishing {
                 }
                 url = POM_URL
             }
-            version project.version
         }
     }
     repositories {
@@ -184,6 +192,9 @@ publishing {
                 }
         }
     }
+
+  
+    
 }
 
 publishToMavenLocal.doLast {
@@ -194,15 +205,18 @@ task('install') {
 }
 
 signing {
-    def signingKey = gradle.rootProject.findProperty('signingKey')
-    def signingPassword = gradle.rootProject.findProperty('signingPassword')
-    useInMemoryPgpKeys(signingKey, signingPassword)
+    def signingKey = System.getenv("GPG_PRIVATE_KEY") ?: gradle.rootProject.findProperty('signingKey')
+    def signingPassword =  System.getenv("GPG_PASSPHRASE") ?: gradle.rootProject.findProperty('signingPassword')
 
+    useInMemoryPgpKeys(signingKey, signingPassword)
     sign configurations.archives
-    sign publishing.publications.maven
+
+    sign publishing.publications.mavenJava
 }
 tasks.withType(Sign) {
-    onlyIf { gradle.rootProject.hasProperty('signingKey') }
+    onlyIf { 
+        System.getenv("GPG_PRIVATE_KEY") || gradle.rootProject.findProperty('signingKey')
+    }
 }
 
 checkstyle {

@@ -19,21 +19,43 @@ buildscript {
 plugins {
     id 'org.jetbrains.dokka' version '2.0.0'
     id 'com.diffplug.spotless' version '7.0.2' apply false
+    id "io.github.gradle-nexus.publish-plugin"          version "2.0.0" 
+}
+apply from: file('version.gradle')
+
+if(System.getenv("SONATYPE_USERNAME") || project.findProperty("sonatypeUsername")){
+    nexusPublishing {
+        repositories {
+            sonatype {
+                nexusUrl.set(uri("https://ossrh-staging-api.central.sonatype.com/service/local/"))
+                snapshotRepositoryUrl.set(uri("https://central.sonatype.com/repository/maven-snapshots/"))
+
+                username = System.getenv("SONATYPE_USERNAME") ?: project.findProperty("sonatypeUsername") ?: ""
+                password = System.getenv("SONATYPE_PASSWORD") ?: project.findProperty("sonatypePassword") ?: ""
+                packageGroup = "org.ngengine" 
+            }
+        }
+    }
 }
 
 allprojects {
+    group = 'org.ngengine'
+    version = jmeFullVersion
+
     repositories {
         mavenLocal()
-        maven { url 'https://maven.rblb.it/NostrGameEngine/nge-platforms' }
-        maven { url 'https://maven.rblb.it/NostrGameEngine/nostr4j' }
         mavenCentral()
+        maven { 
+           url = uri("https://central.sonatype.com/repository/maven-snapshots")
+        }
+        maven {
+            url = "https://maven.rblb.it/NostrGameEngine/libdatachannel-java"
+        }
         google()
     }
     tasks.withType(Jar) {
         duplicatesStrategy = 'include'
     }
-
-
 }
 
 def mergedJavadocSubprojects = [
@@ -73,7 +95,6 @@ ext.license = file("$rootDir/source-file-header-template.txt")
 
 apply plugin: 'base'
 apply plugin: 'com.github.spotbugs'
-apply from: file('version.gradle')
 apply plugin: 'org.jetbrains.dokka'
 apply plugin: 'org.jetbrains.kotlin.jvm'
 
@@ -140,11 +161,6 @@ task run(dependsOn: ':jme3-examples:run') {
 }
 
 defaultTasks 'run'
-
-
-task dist(dependsOn: [':jme3-examples:dist', 'mergedJavadoc']){
-    description 'Creates a jME3 examples distribution with all jme3 binaries, sources, javadoc and external libraries under ./dist'
-}
 
 
 task mergedJavadoc(type: Javadoc, description: 'Creates Javadoc from all the projects.') {
@@ -259,6 +275,5 @@ if (skipPrebuildLibraries != "true" && buildNativeProjects != "true") {
 
 dokkaGfmMultiModule {
     outputDirectory.set(file("build/dokka"))
-
- 
 }
+

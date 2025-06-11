@@ -118,6 +118,11 @@ task configureVersionInfo {
                 } else {
                     jmeFullVersion = baseVersion + "-" + jmeVersionTag;
                 }
+
+                if( includeTimestampInVersion == "true" ) {
+                    // Add the build date to the version
+                    jmeFullVersion += "-" + jmeBuildDate.replaceAll("-", "")
+                }
             }
         } else {
             // Just use defaults

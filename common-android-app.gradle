@@ -1,6 +1,6 @@
 apply plugin: 'com.android.application'
 
-group   = 'org.jmonkeyengine'
+group   = 'org.ngengine'
 version = jmeFullVersion
 
 sourceCompatibility = '1.6'

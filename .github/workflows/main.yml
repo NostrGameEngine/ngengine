@@ -3,8 +3,6 @@ name: Build NGE
 on:
   push:
   pull_request:
-  release:
-    types: [published]
 
 jobs:
 
@@ -28,7 +26,7 @@ jobs:
           cmake --version
 
       - name: Validate the Gradle wrap-per
-        uses: gradle/actions/wrapper-validation@v3
+        uses: gradle/actions/wrapper-validation@v4
 
       - name: Build
         run: |
@@ -36,7 +34,7 @@ jobs:
           export ANDROID_NDK="$ANDROID_SDK_ROOT/ndk/$ANDROID_NDK_VERSION"
           ls -la "$ANDROID_SDK_ROOT"
           ls -la "$ANDROID_NDK"
-          ./gradlew -PuseCommitHashAsVersionName=true --no-daemon -PbuildNativeProjects=true \
+          ./gradlew  --no-daemon -PbuildNativeProjects=true \
             build :jme3-android-native:assemble
           find . -type f -print
 
@@ -46,54 +44,11 @@ jobs:
           name: android-natives
           path: build/native
 
-  CleanSnapshots:
-    name: Clean up old snapshots
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    strategy:
-      fail-fast: false
-      matrix:
-        artifact: [
-          nge-gui, 
-          jme3-awt-dialogs, 
-          jme3-core, 
-          jme3-desktop, 
-          jme3-examples, 
-          jme3-jbullet, 
-          jme3-android, 
-          jme3-android-native, 
-          jme3-effects, 
-          jme3-ios, 
-          jme3-jogg, 
-          jme3-plugins-json-gson, 
-          jme3-screenshot-tests, 
-          jme3-plugin, 
-          jme3-plugins-json, 
-          jme3-testdata, 
-          jme3-lwjgl3, 
-          jme3-networking, 
-          jme3-terrain, 
-          nge-app, 
-          nge-auth, 
-          nge-core,
-          nge-lemur, 
-          nge-networking
-        ]
-    steps:      
-      - name: Delete all snapshots
-        if: github.event_name != 'pull_request' && github.event_name != 'release'
-        uses: actions/delete-package-versions@v5
-        with:
-          owner: ${{ github.repository_owner }}
-          package-name: org.ngengine.${{ matrix.artifact }}
-          package-type: maven
-          min-versions-to-keep: 0
-          ignore-versions: '^(?!.*-SNAPSHOT$).*'
-          token: ${{ secrets.GITHUB_TOKEN }}
+  
 
   # Build the engine, only deploy from ubuntu-latest jdk21
   BuildEngine:
-    needs: [BuildAndroidNatives, CleanSnapshots]
+    needs: [BuildAndroidNatives]
     name: Build on ${{ matrix.osName }} jdk${{ matrix.jdk }}
     runs-on: ${{ matrix.os }}
     permissions:
@@ -122,8 +77,7 @@ jobs:
     steps:
       - name: Clone the repo
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+
 
       - name: Setup the java environment
         uses: actions/setup-java@v4
@@ -138,13 +92,19 @@ jobs:
           path: build/native
 
       - name: Validate the Gradle wrapper
-        uses: gradle/actions/wrapper-validation@v3
+        uses: gradle/actions/wrapper-validation@v4
 
       - name: Build Engine
         shell: bash
         run: |
-            ./gradlew -PuseCommitHashAsVersionName=true -PskipPrebuildLibraries=true \
-                build mergedJavadoc publishAllPublicationsToDistFolderRepository
+            export VERSION=""
+            if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+                export VERSION=${GITHUB_REF#refs/tags/}
+                echo "Publishing release $VERSION"
+            fi
+            ./gradlew --no-daemon \
+              -PskipPrebuildLibraries=true \
+              build mergedJavadoc
 
       - name: "Create merged native zip"
         if: matrix.deploy == true
@@ -165,6 +125,41 @@ jobs:
 
       # TODO: Deploy merged natives to natives snapshot repository
 
+
+      - name: Publish Snapshot
+        if: matrix.deploy==true && github.event_name != 'pull_request' && github.event_name != 'release'
+        env:
+          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |       
+          export VERSION=""
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+              export VERSION=${GITHUB_REF#refs/tags/}
+              echo "Publishing release $VERSION"
+          fi
+          ./gradlew --no-daemon --no-parallel  \
+          -PskipPrebuildLibraries=true \
+           publishToSonatype publishAllPublicationsToDistFolderRepository --info
+
+      - name: Publish Release
+        if: matrix.deploy==true && github.event_name != 'pull_request' && github.event_name == 'release'
+        env:
+          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          export VERSION=""
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+              export VERSION=${GITHUB_REF#refs/tags/}
+              echo "Publishing release $VERSION"
+          fi
+          ./gradlew --no-daemon --no-parallel   \
+          -PskipPrebuildLibraries=true \
+          publishToSonatype closeAndReleaseSonatypeStagingRepository publishAllPublicationsToDistFolderRepository --info
+
       - name: Upload maven artifacts
         if: matrix.deploy==true
         uses: actions/upload-artifact@master
@@ -172,22 +167,8 @@ jobs:
           name: maven-artifacts
           path: dist/maven
 
-      - name: Upload javadoc
-        if: matrix.deploy==true
-        uses: actions/upload-artifact@master
-        with:
-          name: javadoc
-          path: dist/javadoc
-      
-      - name: Deploy Artifacts
-        if: matrix.deploy == true && github.event_name == 'push'
-        run: |
-            export GITHUB_REGISTRY=${{ github.repository }}
-            export GITHUB_USERNAME=${{ github.actor }}
-            export GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
-            ./gradlew --no-daemon -PuseCommitHashAsVersionName=true -PskipPrebuildLibraries=true \
-              publishAllPublicationsToGitHubPackagesRepository
-                
+
+          
       - name: Upload pages artifact
         if: matrix.deploy==true 
         uses: actions/upload-pages-artifact@v3
