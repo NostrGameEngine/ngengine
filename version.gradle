@@ -39,6 +39,8 @@ task configureVersionInfo {
         // Set to true if a non-master branch name should be included in the automatically
         // generated version.
 
+    
+
         def grgit = Grgit.open(project.file('.'))
         def head = grgit.head()
         jmeRevision = grgit.log(includes: [head]).size()
@@ -128,7 +130,7 @@ task configureVersionInfo {
             // Just use defaults
             println "Using user-defined version"
             jmeFullVersion=jmeVersionName
-            jmeVersionTag = "SNAPSHOT"
+            jmeVersionTag = ""
         }
 
         println("Revision: ${jmeRevision}")
