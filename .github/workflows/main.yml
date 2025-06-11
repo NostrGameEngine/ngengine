@@ -32,11 +32,16 @@ jobs:
 
       - name: Build
         run: |
-
+          export VERSION=""
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+              export VERSION=${GITHUB_REF#refs/tags/}
+              echo "Publishing release $VERSION"
+          fi
           export ANDROID_NDK="$ANDROID_SDK_ROOT/ndk/$ANDROID_NDK_VERSION"
           ls -la "$ANDROID_SDK_ROOT"
           ls -la "$ANDROID_NDK"
           ./gradlew  --no-daemon -PbuildNativeProjects=true \
+            -PjmeVersionName="$VERSION" \
             build :jme3-android-native:assemble
           find . -type f -print
 
@@ -104,7 +109,8 @@ jobs:
                 export VERSION=${GITHUB_REF#refs/tags/}
                 echo "Publishing release $VERSION"
             fi
-            ./gradlew --no-daemon \
+            ./gradlew --no-daemon configureVersionInfo \
+              -PjmeVersionName="$VERSION" \
               -PskipPrebuildLibraries=true \
               build mergedJavadoc
 
@@ -141,7 +147,8 @@ jobs:
               export VERSION=${GITHUB_REF#refs/tags/}
               echo "Publishing release $VERSION"
           fi
-          ./gradlew --no-daemon --no-parallel  \
+          ./gradlew --no-daemon --no-parallel configureVersionInfo \
+          -PjmeVersionName="$VERSION" \
           -PskipPrebuildLibraries=true \
            publishToSonatype publishAllPublicationsToDistFolderRepository --info
 
@@ -158,8 +165,8 @@ jobs:
               export VERSION=${GITHUB_REF#refs/tags/}
               echo "Publishing release $VERSION"
           fi
-          ./gradlew --no-daemon --no-parallel   \
-          -PuseCommitHashAsVersionName=true \
+          ./gradlew --no-daemon --no-parallel  configureVersionInfo \
+          -PjmeVersionName="$VERSION" \
           -PskipPrebuildLibraries=true \
           publishToSonatype closeAndReleaseSonatypeStagingRepository publishAllPublicationsToDistFolderRepository --info
 
