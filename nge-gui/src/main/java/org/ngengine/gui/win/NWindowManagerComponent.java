@@ -45,6 +45,8 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.logging.Level;
@@ -111,20 +113,52 @@ public class NWindowManagerComponent implements Component<Object>, GuiViewPortFr
         dispatcher.run(r);
     }
 
-    public <T extends NWindow<?>> void showWindow(Class<T> windowClass) {
-        showWindow(windowClass, null, null);
+    /**
+     * Shows a window of the specified class with no arguments and no callback and returns a closer function.
+     * @param <T> the class of the window
+     * @param windowClass the class of the window to show
+     * @return a Runnable that can be used to close the window
+     */
+    public <T extends NWindow<?>> Runnable showWindow(Class<T> windowClass) {
+        return showWindow(windowClass, null, null);
     }
 
-    public <T extends NWindow<?>> void showWindow(Class<T> windowClass, BiConsumer<T, Throwable> callback) {
-        showWindow(windowClass, null, callback);
+    /**
+     * Shows a window of the specified class with the given arguments and a callback and returns a closer function.
+     * @param <T> the class of the window
+     * @param windowClass the class of the window to show
+     * @param callback a callback to be called when the window is shown or if an error occurs, can be null
+     * @return a Runnable that can be used to close the window
+     */
+    public <T extends NWindow<?>> Runnable showWindow(Class<T> windowClass, BiConsumer<T, Throwable> callback) {
+        return showWindow(windowClass, null, callback);
     }
 
-    public <T extends NWindow<?>> void showWindow(Class<T> windowClass, Object args) {
-        showWindow(windowClass, args, null);
+    /**
+     * Shows a window of the specified class with the given arguments and returns a closer function.
+     * @param <T> the class of the window
+     * @param windowClass  the class of the window to show
+     * @param args the arguments to pass to the window, can be null
+     * @return a Runnable that can be used to close the window
+     */
+    public <T extends NWindow<?>> Runnable showWindow(Class<T> windowClass, Object args) {
+        return showWindow(windowClass, args, null);
     }
 
-    @SuppressWarnings("unchecked")
-    public <T extends NWindow> void showWindow(Class<T> windowClass, Object args, BiConsumer<T, Throwable> callback) {
+    /**
+     * Shows a window of the specified class with the given arguments and a callback and returns a closer function.
+     * @param <T> the class of the window
+     * @param windowClass  the class of the window to show
+     * @param args the arguments to pass to the window, can be null
+     * @param callback a callback to be called when the window is shown or if an error occurs, can be null
+     * @return a Runnable that can be used to close the window
+     */
+    public <T extends NWindow> Runnable showWindow(Class<T> windowClass, Object args, BiConsumer<T, Throwable> callback) {
+        AtomicBoolean closed = new AtomicBoolean(false);
+        AtomicReference<Runnable> closer = new AtomicReference<>(() -> {
+            closed.set(true);
+        });
+
         try {
             runInThread(
                 () -> {
@@ -144,6 +178,22 @@ public class NWindowManagerComponent implements Component<Object>, GuiViewPortFr
                     }
 
                     T window = windowClass.getDeclaredConstructor().newInstance();
+                    window.addWindowListener(
+                        new NWindowListener() {
+                            @Override
+                            public void onShow(NWindow<?> window) {
+                                closer.set(() -> {
+                                    window.close();
+                                });
+                                if (closed.get()) {
+                                    window.close();
+                                }
+                            }
+
+                            @Override
+                            public void onHide(NWindow<?> window) {}
+                        }
+                    );
                     window.initialize(this, backAction);
                     if (args != null) window.setArgs(args);
 
@@ -157,6 +207,9 @@ public class NWindowManagerComponent implements Component<Object>, GuiViewPortFr
             log.log(Level.SEVERE, "Failed to open window: " + windowClass.getSimpleName(), e);
             throw new RuntimeException("Failed to create window", e);
         }
+        return () -> {
+            closer.get().run();
+        };
     }
 
     public void showFatalError(Throwable exc) {
