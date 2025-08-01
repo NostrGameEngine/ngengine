@@ -145,8 +145,12 @@ public class ComponentManagerAppState extends BaseAppState implements ComponentM
 
     private DataStoreProvider getDataStoreProvider() {
         if (dataStoreProvider == null) {
+            String id = this.app.getContext().getSettings().getString("appId");
+            if(id == null || id.isEmpty()) {
+                id = this.app.getContext().getSettings().getTitle();
+            }
             dataStoreProvider =
-                new DataStoreProvider(this.app.getContext().getSettings().getTitle(), this.app.getAssetManager());
+                new DataStoreProvider(id, this.app.getAssetManager());
         }
         return dataStoreProvider;
     }
@@ -181,7 +185,7 @@ public class ComponentManagerAppState extends BaseAppState implements ComponentM
     }
 
     @Override
-    public List<Component> getComponent() {
+    public List<Component> getComponents() {
         return componentsRO;
     }
 

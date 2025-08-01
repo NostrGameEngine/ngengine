@@ -107,7 +107,7 @@ public interface ComponentManager {
      *
      * @return A list of all components managed by this ComponentManager
      */
-    List<Component> getComponent();
+    List<Component> getComponents();
 
     /**
      * Adds a component to the manager with optional dependencies.
