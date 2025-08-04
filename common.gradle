@@ -173,6 +173,7 @@ publishing {
             }
         }
     }
+
     repositories {
         mavenLocal()
         maven {
