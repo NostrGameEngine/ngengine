@@ -299,6 +299,9 @@ public abstract class Spatial implements Savable, Cloneable, Collidable,
         // to update lights.
         Spatial p = parent;
         boolean hasGlobalLights = hasGlobalLights();
+        if (hasGlobalLights){
+            refreshFlags |= RF_GLOBAL_LIGHTS;
+        }
         while (p != null) {
             if ((p.refreshFlags & RF_CHILD_LIGHTLIST) != 0) {
                 // The parent already has this flag,
@@ -967,6 +970,9 @@ public abstract class Spatial implements Savable, Cloneable, Collidable,
         if ((refreshFlags & RF_MATPARAM_OVERRIDE) != 0) {
             updateMatParamOverrides();
         }
+        if ((refreshFlags & RF_GLOBAL_LIGHTS) != 0) {
+            refreshFlags &= ~RF_GLOBAL_LIGHTS;
+        }
         assert refreshFlags == 0 : "Illegal refresh flags state: " + refreshFlags + " for spatial " + getName();
     }
 
@@ -1215,8 +1221,8 @@ public abstract class Spatial implements Savable, Cloneable, Collidable,
      * @see Spatial#addLight(com.jme3.light.Light)
      */
     public void removeLight(Light light) {
-        localLights.remove(light);
         setLightListRefresh();
+        localLights.remove(light);
     }
 
     /**
