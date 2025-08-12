@@ -20,8 +20,11 @@ import org.ngengine.runner.Runner;
 import com.jme3.asset.AssetManager;
 import com.jme3.asset.TextureKey;
 import com.jme3.bounding.BoundingVolume;
+import com.jme3.renderer.RenderManager;
+import com.jme3.renderer.TextureUnitException;
 import com.jme3.texture.Image;
 import com.jme3.texture.Texture;
+import com.jme3.util.MipMapGenerator;
 
 public class ImmersiveAdSpace  {
     protected final List<AdMimeType> supportedMimeTypes = new ArrayList<>();
@@ -32,16 +35,16 @@ public class ImmersiveAdSpace  {
 
     protected final Supplier<BoundingVolume> boundSupplier;
     protected final Function<String,String> getProperty;
-    protected final Texture texture;
+    protected final  Consumer<Texture> applyTexture;
 
     protected volatile boolean needUpdate = true;
     protected volatile String offerId = null;
     protected volatile Consumer<Boolean> offerCallback = null;
-    
+    protected volatile AdBidEvent currentBid = null;
 
-    public ImmersiveAdSpace(Supplier<BoundingVolume> boundSupplier, Texture texture, Function<String,String> getProperty) {
+    public ImmersiveAdSpace(Supplier<BoundingVolume> boundSupplier, Consumer<Texture> applyTexture, Function<String,String> getProperty) {
         this.boundSupplier = boundSupplier;
-        this.texture = texture;
+        this.applyTexture = applyTexture;
         this.getProperty = getProperty;
     }
 
@@ -49,9 +52,8 @@ public class ImmersiveAdSpace  {
         return boundSupplier.get();
     }
 
-    public Texture getTexture() {
-        return texture;
-    }
+   
+ 
 
     public AdSize getSize() {
         return AdSize.fromString(getProperty.apply(ImmersiveAdProperties.adspace));
@@ -134,25 +136,41 @@ public class ImmersiveAdSpace  {
         needUpdate = false;
     }
 
+    public AdBidEvent get() {
+        return currentBid;
+    }
 
-     public void set(AssetManager am, AdBidEvent bid, Runner runner){
+    public void set(RenderManager rm, AssetManager am, AdBidEvent bid, Runner runner){
         AdMimeType mimeType = bid.getMIMEType();
         if(!getSupportedMimeTypes().contains(mimeType)){
             throw new IllegalArgumentException("Unsupported MIME type: " + mimeType);
         }
 
+        currentBid = bid;
         switch(mimeType){
             case IMAGE_JPEG:
             case IMAGE_PNG: {
                 String url = bid.getPayload();
+                System.out.println("Loading ad texture from URL: " + url);
                 NGEPlatform.get().httpRequest("GET", url, null, null, null).then(res->{
                     byte[] data = res.body();
                     try(ByteArrayInputStream bais = new ByteArrayInputStream(data)) {
-                        TextureKey k = new TextureKey(url);
+                        TextureKey k = new TextureKey(url,false);
                         Texture tx = am.loadAssetFromStream(k, bais);
-                        Image img = tx.getImage();
-                        runner.run(()->{
-                            getTexture().setImage(img);
+                        tx.getImage().setAsync(true);
+                        MipMapGenerator.generateMipMaps(tx.getImage());
+                        
+                        runner.enqueue(()->{
+                            try {
+                                rm.preload(tx);
+                            } catch (TextureUnitException e) {
+                                e.printStackTrace();
+                            }
+                            System.out.println("Set texture for ad space: " +tx);
+                            runner.enqueue(()->{
+                                applyTexture.accept(tx);
+                            });
+
                         });                                     
                     } catch (Exception e) {
                         e.printStackTrace();

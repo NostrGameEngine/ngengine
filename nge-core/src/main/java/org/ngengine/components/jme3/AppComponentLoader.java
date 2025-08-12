@@ -32,7 +32,15 @@
 package org.ngengine.components.jme3;
 
 import com.jme3.app.Application;
+import com.jme3.material.Material;
 import com.jme3.post.FilterPostProcessor;
+import com.jme3.renderer.RenderManager;
+import com.jme3.renderer.TextureUnitException;
+import com.jme3.scene.Spatial;
+import com.jme3.texture.Texture;
+
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.ngengine.AsyncAssetManager;
@@ -42,6 +50,10 @@ import org.ngengine.components.ComponentManager;
 import org.ngengine.components.fragments.AssetLoadingFragment;
 import org.ngengine.components.fragments.AsyncAssetLoadingFragment;
 import org.ngengine.components.fragments.MainViewPortFragment;
+import org.ngengine.runner.MainThreadRunner;
+import org.ngengine.runner.Runner;
+import org.ngengine.store.DataStore;
+import org.ngengine.store.DataStoreProvider;
 
 /**
  * load components by connecting them to JME3 application resources.
@@ -52,28 +64,59 @@ public class AppComponentLoader implements ComponentLoader {
 
     private final Application app;
     private final AsyncAssetManager assetManager;
+    private final Runner mainRunner;
 
-    public AppComponentLoader(Application app) {
+    public AppComponentLoader( Application app) {
         this.app = app;
+        this.mainRunner =  MainThreadRunner.of(app);
         this.assetManager = AsyncAssetManager.of(app.getAssetManager(), app);
+    }
+
+    protected void preload(Object obj){
+        try {
+            RenderManager rm = app.getRenderManager();
+            if(obj instanceof Texture){
+                rm.preload((Texture) obj);                                
+            } else if (obj instanceof Material){
+                rm.preload((Material)obj);
+            } else if (obj instanceof Spatial){
+                rm.preload((Spatial)obj);
+            }
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Failed to preload asset: " + obj, e);
+        }    
     }
 
     @Override
     public int load(ComponentManager mng, Component fragment, Runnable markReady) {
-        int i = 0;
+        AtomicInteger i = new AtomicInteger(0);
+
+        DataStoreProvider dsp = mng.getDataStoreProvider();
+        DataStore assetCache = dsp.getCacheStore("assetCache");
+
+
+        Consumer<Object> preload = obj -> {
+            // i.incrementAndGet();
+            this.mainRunner.run(()->{
+                if (obj != null) {
+                    preload(obj);
+                }
+                // markReady.run();
+            });
+        };
 
         if (fragment instanceof AssetLoadingFragment) {
-            i++;
+            i.incrementAndGet();
             AssetLoadingFragment f = (AssetLoadingFragment) fragment;
-            f.loadAssets(assetManager);
+            f.loadAssets(assetManager, assetCache, preload);
             markReady.run();
         }
         if ((fragment instanceof AsyncAssetLoadingFragment)) {
-            i++;
+            i.incrementAndGet();
             AsyncAssetLoadingFragment f = (AsyncAssetLoadingFragment) fragment;
             assetManager.runInLoaderThread(
-                am -> {
-                    f.loadAssetsAsync(assetManager);
+                am -> {                    
+                    f.loadAssetsAsync(assetManager, assetCache, preload);
                     return null;
                 },
                 (d, err) -> {
@@ -90,7 +133,7 @@ public class AppComponentLoader implements ComponentLoader {
         }
 
         if (fragment instanceof MainViewPortFragment) {
-            i++;
+            i.incrementAndGet();
             MainViewPortFragment f = (MainViewPortFragment) fragment;
             FilterPostProcessor fpp = Utils.getFilterPostProcessor(
                 app.getContext().getSettings(),
@@ -101,7 +144,7 @@ public class AppComponentLoader implements ComponentLoader {
             markReady.run();
         }
 
-        return i;
+        return i.get();
     }
 
     @Override

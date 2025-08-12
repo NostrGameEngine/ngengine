@@ -31,6 +31,10 @@
  */
 package org.ngengine.components.fragments;
 
+import java.util.function.Consumer;
+
+import org.ngengine.store.DataStore;
+
 import com.jme3.asset.AssetManager;
 
 /**
@@ -48,6 +52,11 @@ public interface AssetLoadingFragment extends Fragment {
      *
      * @param assetManager
      *            the AssetManager instance
+     * @param assetCache
+     *            the DataStore to use for caching assets
+     * @param preload
+     *            a consumer that can be called for each assets to preload. It will start uploading the asset to the gpu
+     *            as soon as possible.
      */
-    default void loadAssets(AssetManager assetManager) {}
+    void loadAssets(AssetManager assetManager, DataStore assetCache, Consumer<Object> preload);
 }

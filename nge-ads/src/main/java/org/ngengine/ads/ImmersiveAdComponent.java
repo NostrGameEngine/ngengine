@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 import java.util.logging.Logger;
 
 import org.ngengine.components.Component;
@@ -14,6 +15,9 @@ import org.ngengine.components.ComponentManager;
 import org.ngengine.components.fragments.AssetLoadingFragment;
 import org.ngengine.components.fragments.LogicFragment;
 import org.ngengine.components.fragments.MainViewPortFragment;
+import org.ngengine.components.fragments.RenderFragment;
+import org.ngengine.nostr4j.NostrPool;
+import org.ngengine.nostr4j.NostrRelay;
 import org.ngengine.nostr4j.keypair.NostrKeyPair;
 import org.ngengine.nostr4j.keypair.NostrPrivateKey;
 import org.ngengine.nostr4j.keypair.NostrPublicKey;
@@ -22,6 +26,7 @@ import org.ngengine.nostrads.client.negotiation.NegotiationHandler;
 import org.ngengine.nostrads.client.services.PenaltyStorage;
 import org.ngengine.nostrads.client.services.display.AdsDisplayClient;
 import org.ngengine.nostrads.client.services.display.Adspace;
+import org.ngengine.nostrads.protocol.AdBidEvent;
 import org.ngengine.nostrads.protocol.negotiation.AdOfferEvent;
 import org.ngengine.nostrads.protocol.types.AdPriceSlot;
 import org.ngengine.nostrads.protocol.types.AdSize;
@@ -37,10 +42,10 @@ import com.jme3.renderer.ViewPort;
 
 import jakarta.annotation.Nullable;
 
-import com.jme3.renderer.Camera.FrustumIntersect;
+import com.jme3.renderer.RenderManager;
 
 
-public class ImmersiveAdComponent implements Component<Object>, LogicFragment, AssetLoadingFragment, MainViewPortFragment{
+public class ImmersiveAdComponent implements Component<Object>, LogicFragment, AssetLoadingFragment, MainViewPortFragment , RenderFragment{
     private static final Logger logger = Logger.getLogger(ImmersiveAdComponent.class.getName());
     private AdsDisplayClient displayClient;
     private AdTaxonomy taxonomy;
@@ -58,16 +63,32 @@ public class ImmersiveAdComponent implements Component<Object>, LogicFragment, A
     private List<NostrPublicKey> advertisersList;
     private boolean isAdvertiserListBlack = false;
     private AdPriceSlot defaultPriceSlot = AdPriceSlot.BTC1_000;
-    private  List<AdTaxonomy.Term> defaultCategories;
-    private  List<String> defaultLanguages;
+    private List<AdTaxonomy.Term> defaultCategories;
+    private List<String> defaultLanguages;
+    private final NostrPool pool;
+    private ImmersiveAdViewer viewer;
+    private RenderManager renderManager;
 
     public ImmersiveAdComponent(
+        List<String> relays,
         NostrPublicKey appKey,
         @Nullable NostrPrivateKey userAdKey 
     ){
         this.appKey = appKey;
         this.userAdKey = userAdKey;
+        this.pool = new NostrPool();
+        for(String relay : relays) {
+            pool.connectRelay(new NostrRelay(relay));
+        }
 
+    }
+
+    public void receiveRenderManager(RenderManager renderer) {
+        this.renderManager = renderer;
+      
+    }
+    public void setViewer(ImmersiveAdViewer viewer) {
+        this.viewer = viewer;
     }
 
     public void addListener(ImmersiveAdListener listener) {
@@ -154,17 +175,21 @@ public class ImmersiveAdComponent implements Component<Object>, LogicFragment, A
         groups.removeIf(ref -> ref.get() == null || ref.get() == group);
     }
  
-    public void loadAssets(AssetManager assetManager) {
+    @Override
+    public void loadAssets(AssetManager assetManager, DataStore assetCache, Consumer<Object> preload) {
         this.assetManager = assetManager;
     }
 
+    @Override
     public void receiveMainViewPort(ViewPort viewPort) {
         mainCamera = viewPort.getCamera();
-
+       
+        
     }
  
     @Override
     public void updateAppLogic(float tpf) {
+        viewer.beginUpdate();
         Iterator<WeakReference<ImmersiveAdGroup>> it = groups.iterator();
         while (it.hasNext()) {
             WeakReference<ImmersiveAdGroup> ref = it.next();
@@ -173,32 +198,50 @@ public class ImmersiveAdComponent implements Component<Object>, LogicFragment, A
                 it.remove();
                 continue;
             }
+
             Iterator<ImmersiveAdSpace> spaceIt = group.getSpaces().iterator();
             while (spaceIt.hasNext()) {
 
                 ImmersiveAdSpace space = spaceIt.next();
-                if(!space.isUpdateNeeded())continue;
-
-                FrustumIntersect frustumState = mainCamera.contains(space.getBounds());
-                if(frustumState==FrustumIntersect.Outside)continue;
+                if(!viewer.isVisible(space)) {
+                    continue; // Skip if not visible
+                }
                 
+                AdBidEvent currentBid = space.get();
+                if(currentBid!=null){
+                    viewer.showInfo(
+                        space,
+                        currentBid.getDescription(),
+                        currentBid.getCallToAction(),
+                        currentBid.getLink()
+                    );
+                }
+
+                
+                if(!space.isUpdateNeeded())continue;
+                space.clearUpdateNeeded();
+                System.out.println("Updating ad space: " + space);
+
                 Adspace aspace = getAdSpace(space);
-              
+                this.displayClient.registerAdspace(aspace);
+                
                 this.displayClient.loadNextAd(
                     aspace, 
                     space.getSize().getWidth(), 
                     space.getSize().getHeight(), 
                 (bid)->{
                     NostrPublicKey bidAuthor = bid.getPubkey();
-                    if(isAdvertiserListBlack&&advertisersList!=null&&advertisersList.contains(bidAuthor)){
-                        return NGEPlatform.get().wrapPromise((res,rej)->{
-                            res.accept(false);
-                        });
-                    } 
+                    // TODO
+                    // if(isAdvertiserListBlack&&advertisersList!=null&&advertisersList.contains(bidAuthor)){
+                    //     return NGEPlatform.get().wrapPromise((res,rej)->{
+                    //         res.accept(false);
+                    //     });
+                    // } 
                     return NGEPlatform.get().wrapPromise((res,rej)->{
                         res.accept(true);
                     });
-                }, ( bidEvent,  offer)->{                 
+                }, ( bidEvent,  offer)->{         
+                    System.out.println("Ad loaded: " + bidEvent.getId() );        
                     return NGEPlatform.get().wrapPromise((res, rej)->{
                         mainRunner.run(() -> {
                             for(ImmersiveAdListener listener : listeners) {
@@ -209,12 +252,13 @@ public class ImmersiveAdComponent implements Component<Object>, LogicFragment, A
                                 }
                             }
                             space.setCurrentOffer(offer.getId(),s->res.accept(s));
-                            space.set(assetManager, bidEvent, mainRunner);
-                            space.clearUpdateNeeded();
+                
+                            space.set(renderManager, assetManager, bidEvent, mainRunner);
                         });                        
                     });
                 }, ( neg,  offer,  success,  message)->{
 
+                    System.out.println("Completed "+success+" "+message);
                 }).catchException((err)->{
                     logger.warning("Error loading ad: " + err.getMessage());
                     space.setUpdateNeeded();
@@ -223,7 +267,7 @@ public class ImmersiveAdComponent implements Component<Object>, LogicFragment, A
             }
             
         }
-        
+        viewer.endUpdate();
     }
 
     @Override
@@ -231,7 +275,9 @@ public class ImmersiveAdComponent implements Component<Object>, LogicFragment, A
         this.mainRunner = runner;
         DataStore store = dataStore.getDataStore("nostrads");
 
-      
+       if(viewer == null){
+            viewer = new ImmersiveAdCameraView(mng, mainCamera);
+        }
 
         AdTaxonomy taxonomy = new AdTaxonomy();
 
@@ -256,7 +302,7 @@ public class ImmersiveAdComponent implements Component<Object>, LogicFragment, A
 
         NostrKeyPairSigner signer = new NostrKeyPairSigner(new NostrKeyPair(userAdKey));
         PenaltyStorage penaltyStorage = new PenaltyStorage(store.getVStore());
-        displayClient = new AdsDisplayClient(null, signer, taxonomy, penaltyStorage, (neg, offer, reason) -> {
+        displayClient = new AdsDisplayClient(pool, signer, taxonomy, penaltyStorage, (neg, offer, reason) -> {
             onAdRefresh(neg, offer, reason);
         });
         

@@ -9,6 +9,8 @@ import java.util.logging.Logger;
 
 import org.ngengine.nostrads.protocol.types.AdSize;
 import org.ngengine.nostrads.protocol.types.AdTaxonomy;
+
+import com.jme3.asset.AssetManager;
 import com.jme3.export.InputCapsule;
 import com.jme3.export.JmeExporter;
 import com.jme3.export.JmeImporter;
@@ -26,6 +28,7 @@ import com.jme3.texture.Texture;
 import com.jme3.texture.Texture2D;
 import com.jme3.texture.Image.Format;
 
+import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
 public class ImmersiveAdControl extends AbstractControl implements ImmersiveAdGroup {
@@ -43,10 +46,14 @@ public class ImmersiveAdControl extends AbstractControl implements ImmersiveAdGr
     private String languages = null;
     private String context = null;
     private String priceSlot = null;
+    private Material materialReplacement;
+    private boolean replaceMaterial = true;
+    private AssetManager assetManager;
 
     private transient List<ImmersiveAdSpace> adSpaces = new ArrayList<>();
 
     public ImmersiveAdControl(
+        @Nonnull AssetManager assetManager,
         @Nullable List<AdTaxonomy.Term> categoryIds,
         @Nullable List<String> languages,
         @Nullable String priceSlot,
@@ -56,19 +63,39 @@ public class ImmersiveAdControl extends AbstractControl implements ImmersiveAdGr
         if(categoryIds!=null) this.categoryIds = String.join(",", categoryIds.stream().map(t -> t.id()).toList());
         this.priceSlot = priceSlot;
         this.context = context;
+        
     }
 
-    public ImmersiveAdControl(){}
+    public ImmersiveAdControl(@Nonnull AssetManager assetManager){
+        this.assetManager = assetManager;
+ 
+    }
+
+    protected ImmersiveAdControl(){}
+
+    public void setMaterialReplacement(Material material) {
+        this.materialReplacement = material;
+        this.replaceMaterial = material != null;
+    }
+
+    protected Material getMaterialReplacement() {
+        if(!replaceMaterial) return null;
+        if(materialReplacement==null&&replaceMaterial){
+            materialReplacement = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+            
+        }
+        return materialReplacement != null ? materialReplacement.clone() : null;
+    }
 
     protected String getSpatialProperty(Spatial sp, String key){
         String value = null;
         if(sp!=null){
             value = ImmersiveAdProperties.getProperty(sp, key);
         }
-        if(value==null){
+        if(value==null||value.isEmpty()){
             value = ImmersiveAdProperties.getProperty(spatial, key);
         }
-        if(value==null){
+        if(value==null||value.isEmpty()){
             switch(key){
                 case ImmersiveAdProperties.categories: {
                     value = categoryIds;
@@ -89,6 +116,9 @@ public class ImmersiveAdControl extends AbstractControl implements ImmersiveAdGr
 
             }
         }
+        if(value!=null&&value.isEmpty()){
+            value = null;
+        }
         return value;
     }
 
@@ -97,6 +127,7 @@ public class ImmersiveAdControl extends AbstractControl implements ImmersiveAdGr
     }
 
     public void setSpatial(Spatial spatial) {
+        super.setSpatial(spatial);
         needUpdate = true;
     }
 
@@ -115,6 +146,7 @@ public class ImmersiveAdControl extends AbstractControl implements ImmersiveAdGr
     @Override
     public void read(JmeImporter im) throws IOException {
         InputCapsule ic = im.getCapsule(this);
+        assetManager = im.getAssetManager();
         textureKeys = ic.readStringArray("textureKeys", DEFAULT_TEXTURE_KEYS);
         categoryIds =  ic.readString("categoryIds", null);
         languages = ic.readString("languages", null);
@@ -129,17 +161,25 @@ public class ImmersiveAdControl extends AbstractControl implements ImmersiveAdGr
             if(!(sx instanceof Geometry))return;
             Geometry geo = (Geometry)sx;
             Material mat = geo.getMaterial();
-              for(MatParam param : mat.getParams()){
+
+            Material matReplacement = getMaterialReplacement();
+            if(matReplacement!=null){
+                geo.setMaterial(matReplacement);
+                mat = matReplacement;
+            }
+
+            for(MatParam param : mat.getMaterialDef().getMaterialParams()) {
                 if(param.getVarType()!=VarType.Texture2D)continue;
                 String name = param.getName();
                 if(!Arrays.asList(textureKeys).contains(name))continue;         
-                Texture oldTexture = (Texture) param.getValue();
-                if(oldTexture!=null&&oldTexture!=tx){
-                    adSpaces.removeIf(ref -> {
-                        return  ref.getTexture() == oldTexture;
-                    });
-                }
-                param.setValue(tx);
+                System.out.println("Applying texture to material param: " + name + " with texture: " + tx);
+                // Texture oldTexture = (Texture) param.getValue();
+                // if(oldTexture!=null&&oldTexture!=tx){
+                //     adSpaces.removeIf(ref -> {
+                //         return  ref.getTexture() == oldTexture;
+                //     });
+                // }
+                mat.setTexture(name, tx);
                 break;                
             }            
         });
@@ -151,14 +191,16 @@ public class ImmersiveAdControl extends AbstractControl implements ImmersiveAdGr
             AdSize size = AdSize.fromString(adspaceV);
             if (size != null) {
                 try{
-                    Texture tx = new Texture2D(size.getWidth(), size.getHeight(), Format.RGB8);
-                    tx.setMinFilter(Texture.MinFilter.Trilinear);
-                    tx.setMagFilter(Texture.MagFilter.Bilinear);
-                    tx.setWrap(Texture.WrapMode.EdgeClamp);
-                    tx.setAnisotropicFilter(4);
-                    tx.setName("AdTexture_" + sp.getName() + "_" + size.toString());
-                    applyTexture(sp, tx);
-                    ImmersiveAdSpace adSpace = new ImmersiveAdSpace(()->sp.getWorldBound(), tx, key->getSpatialProperty(sp, key));
+                 System.out.println("Creating ad space for " + sp.getName() + " with size " + size);
+                    ImmersiveAdSpace adSpace = new ImmersiveAdSpace(()->sp.getWorldBound(), tx->{
+                        System.out.println("Applying texture to ad space: " + tx);
+                        tx.setMinFilter(Texture.MinFilter.Trilinear);
+                        tx.setMagFilter(Texture.MagFilter.Bilinear);
+                        tx.setWrap(Texture.WrapMode.EdgeClamp);
+                        tx.setAnisotropicFilter(4);
+                        tx.setName("AdTexture_" + sp.getName() + "_" + size.toString());
+                        applyTexture(sp, tx);
+                    }, key->getSpatialProperty(sp, key));
                     spaces.add(adSpace);  
                 } catch (Exception e) {
                     logger.log(Level.WARNING, "Failed to create ad space for " + sp.getName() + " with size " + size, e);
@@ -191,6 +233,7 @@ public class ImmersiveAdControl extends AbstractControl implements ImmersiveAdGr
    
     }
 
+    
     public List<ImmersiveAdSpace> getSpaces() {
         return adSpaces;
     }

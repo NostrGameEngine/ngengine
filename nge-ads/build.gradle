@@ -2,6 +2,7 @@
 
 dependencies {
     api project(':nge-core')
+    api project(':nge-gui')
     implementation "org.ngengine:nostrads:${nostrAdsVersion}"
     implementation project(':nge-networking')
 }

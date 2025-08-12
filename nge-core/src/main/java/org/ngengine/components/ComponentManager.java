@@ -33,6 +33,7 @@ package org.ngengine.components;
 
 import java.util.List;
 import org.ngengine.components.fragments.Fragment;
+import org.ngengine.store.DataStoreProvider;
 
 /**
  * The ComponentManager is responsible for managing the lifecycle of components within the application.
@@ -301,4 +302,7 @@ public interface ComponentManager {
         }
         return null;
     }
+
+    DataStoreProvider getDataStoreProvider();
+
 }

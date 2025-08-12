@@ -143,7 +143,7 @@ public class ComponentManagerAppState extends BaseAppState implements ComponentM
         updaters.remove(updater);
     }
 
-    private DataStoreProvider getDataStoreProvider() {
+    public DataStoreProvider getDataStoreProvider() {
         if (dataStoreProvider == null) {
             String id = this.app.getContext().getSettings().getString("appId");
             if(id == null || id.isEmpty()) {

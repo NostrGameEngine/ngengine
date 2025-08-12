@@ -7,4 +7,9 @@ public interface ImmersiveAdViewer {
     }
 
     boolean isNear(ImmersiveAdSpace space);
+
+    void showInfo(ImmersiveAdSpace space, String description,String callToAction,String link);
+    
+    void beginUpdate();
+    void endUpdate();
 }

@@ -37,6 +37,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.function.Consumer;
 import java.util.logging.Logger;
 import org.ngengine.components.Component;
 import org.ngengine.components.ComponentManager;
@@ -49,6 +50,7 @@ import org.ngengine.nostr4j.keypair.NostrPublicKey;
 import org.ngengine.nostr4j.signer.NostrSigner;
 import org.ngengine.platform.VStore;
 import org.ngengine.runner.Runner;
+import org.ngengine.store.DataStore;
 import org.ngengine.store.DataStoreProvider;
 
 public class PlayerManagerComponent implements Component<Object>, AssetLoadingFragment {
@@ -128,7 +130,7 @@ public class PlayerManagerComponent implements Component<Object>, AssetLoadingFr
     }
 
     @Override
-    public void loadAssets(AssetManager assetManager) {
+    public void loadAssets(AssetManager assetManager, DataStore cache, Consumer<Object> preload) {
         this.assetManager = assetManager;
     }
 

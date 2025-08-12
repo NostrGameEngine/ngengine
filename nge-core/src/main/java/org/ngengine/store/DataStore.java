@@ -114,6 +114,7 @@ public class DataStore {
 
     private <T> T readFromStream(InputStream is) throws IOException {
         BinaryImporter importer = BinaryImporter.getInstance();
+        importer.setAssetManager(assetManager);
         Object out = importer.load(is);
         if (out instanceof SerializableEntry) {
             SerializableEntry entry = (SerializableEntry) out;

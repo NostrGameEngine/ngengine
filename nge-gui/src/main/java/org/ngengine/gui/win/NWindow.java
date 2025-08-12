@@ -70,7 +70,7 @@ public abstract class NWindow<T> extends Container implements GuiUpdateListener,
     private boolean withTitleBar = true;
     private T args;
 
-    private final List<NWindowListener> closeListeners = new CopyOnWriteArrayList<>();
+    private final List<NWindowListener> listeners = new CopyOnWriteArrayList<>();
 
     protected NWindow() {
         super(new BorderLayout(), new ElementId(ELEMENT_ID));
@@ -149,27 +149,27 @@ public abstract class NWindow<T> extends Container implements GuiUpdateListener,
     }
 
     public final void addWindowListener(NWindowListener listener) {
-        if (listener != null && !closeListeners.contains(listener)) {
-            closeListeners.add(listener);
+        if (listener != null && !listeners.contains(listener)) {
+            listeners.add(listener);
         }
     }
 
     public final void removeWindowListener(NWindowListener listener) {
         if (listener != null) {
-            closeListeners.remove(listener);
+            listeners.remove(listener);
         }
     }
 
     protected abstract void compose(Vector3f size, T args) throws Throwable;
 
     protected final void onShow() {
-        for (NWindowListener listener : closeListeners) {
+        for (NWindowListener listener : listeners) {
             listener.onShow(this);
         }
     }
 
     protected final void onHide() {
-        for (NWindowListener listener : closeListeners) {
+        for (NWindowListener listener : listeners) {
             listener.onHide(this);
         }
     }
