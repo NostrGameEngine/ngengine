@@ -137,7 +137,7 @@ public class GlfwKeyInput implements KeyInput {
 
                 int jmeKey = GlfwKeyMap.toJmeKeyCode(key);
 
-                final KeyInputEvent event = new KeyInputEvent(jmeKey, '\0', GLFW_PRESS == action, GLFW_REPEAT == action);
+                final KeyInputEvent event = new KeyInputEvent(jmeKey, '\0', GLFW_PRESS == action||GLFW_REPEAT == action, GLFW_REPEAT == action);
                 event.setTime(getInputTimeNanos());
 
                 keyInputEvents.add(event);
