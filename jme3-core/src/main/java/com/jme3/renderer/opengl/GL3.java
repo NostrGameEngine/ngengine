@@ -31,6 +31,7 @@
  */
 package com.jme3.renderer.opengl;
 
+import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 
 /**
@@ -132,6 +133,10 @@ public interface GL3 extends GL2 {
     public static final int GL_READ_FRAMEBUFFER = 0x8CA8;
     public static final int GL_DRAW_FRAMEBUFFER = 0x8CA9;
 
+    public static final int GL_MAP_WRITE_BIT = 0x0002;
+    public static final int GL_MAP_INVALIDATE_BUFFER_BIT = 0x0008;
+    public static final int GL_MAP_UNSYNCHRONIZED_BIT = 0x0020;
+
     /**
      * <p><a target="_blank" href="http://docs.gl/gl4/glBindFragDataLocation">Reference Page</a></p>
      * <p>
@@ -227,4 +232,31 @@ public interface GL3 extends GL2 {
      *                            uniformBlockIndex within program.
      */
     public void glUniformBlockBinding(int program, int uniformBlockIndex, int uniformBlockBinding);
+
+
+    /**
+     * <p><a target="_blank" href="https://registry.khronos.org/OpenGL-Refpages/gl4/html/glMapBufferRange.xhtml">Reference Page</a></p>
+     * <p>
+     * Map all or part of a buffer object's data store into the client's address space
+     * 
+     * @param target the target buffer object. 
+     * @param offset the starting offset within the buffer of the range to be mapped. 
+     * @param length the length of the range to be mapped. 
+     * @param access  a combination of access flags indicating the desired access to the mapped range. 
+     */
+    public ByteBuffer glMapBufferRange(int target, long offset, long length, int access);
+
+
+    /**
+     * <p><a target="_blank" href="https://registry.khronos.org/OpenGL-Refpages/es3.0/html/glBindBufferRange.xhtml">Reference Page</a></p>
+     * <p>
+     * Bind a range within a buffer object to an indexed buffer target
+     * 
+     * @param target the target buffer object. 
+     * @param index the index of the binding point within the array specified by target. 
+     * @param buffer the name of a buffer object to bind to the specified binding point. 
+     * @param offset the starting offset in basic machine units into the buffer object buffer.  
+     * @param size the amount of data in machine units that can be read from the buffet object while used as an indexed target. 
+     */
+    public void glBindBufferRange(int target, int index, int buffer, long offset, long size);
 }

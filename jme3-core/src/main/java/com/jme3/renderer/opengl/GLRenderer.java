@@ -113,6 +113,7 @@ public final class GLRenderer implements Renderer {
     private final GL2 gl2;
     private final GL3 gl3;
     private final GL4 gl4;
+    private final GLES_30 gles3;
     private final GLExt glext;
     private final GLFbo glfbo;
     private final TextureUtil texUtil;
@@ -125,9 +126,10 @@ public final class GLRenderer implements Renderer {
         this.gl2 = gl instanceof GL2 ? (GL2)gl : null;
         this.gl3 = gl instanceof GL3 ? (GL3)gl : null;
         this.gl4 = gl instanceof GL4 ? (GL4)gl : null;
+        this.gles3 = gl instanceof GLES_30 ? (GLES_30)gl : null;
         this.glfbo = glfbo;
         this.glext = glext;
-        this.texUtil = new TextureUtil(gl, gl2, glext);
+        this.texUtil = new TextureUtil(gl, gl2, gl3, gles3, glext);
     }
     
     /**
@@ -2676,33 +2678,51 @@ public final class GLRenderer implements Renderer {
         } else {
             imageForUpload = img;
         }
-        if (target == GL.GL_TEXTURE_CUBE_MAP) {
-            List<ByteBuffer> data = imageForUpload.getData();
-            if (data.size() != 6) {
-                logger.log(Level.WARNING, "Invalid texture: {0}\n"
-                        + "Cubemap textures must contain 6 data units.", img);
-                return;
-            }
-            for (int i = 0; i < 6; i++) {
-                texUtil.uploadTexture(imageForUpload, GL.GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, i, linearizeSrgbImages);
-            }
-        } else if (target == GLExt.GL_TEXTURE_2D_ARRAY_EXT) {
-            if (!caps.contains(Caps.TextureArray)) {
-                throw new RendererException("Texture arrays not supported by graphics hardware");
-            }
 
-            List<ByteBuffer> data = imageForUpload.getData();
+        if (!img.isAsync())   {
+            if (target == GL.GL_TEXTURE_CUBE_MAP) {
+                List<ByteBuffer> data = imageForUpload.getData();
+                if (data.size() != 6) {
+                    logger.log(Level.WARNING, "Invalid texture: {0}\n"
+                            + "Cubemap textures must contain 6 data units.", img);
+                    return;
+                }
+                for (int i = 0; i < 6; i++) {
+                    texUtil.uploadTexture(imageForUpload, GL.GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, i, linearizeSrgbImages);
+                }
+            } else if (target == GLExt.GL_TEXTURE_2D_ARRAY_EXT) {
+                if (!caps.contains(Caps.TextureArray)) {
+                    throw new RendererException("Texture arrays not supported by graphics hardware");
+                }
 
-            // -1 index specifies prepare data for 2D Array
-            texUtil.uploadTexture(imageForUpload, target, -1, linearizeSrgbImages);
+                List<ByteBuffer> data = imageForUpload.getData();
 
-            for (int i = 0; i < data.size(); i++) {
-                // upload each slice of 2D array in turn
-                // this time with the appropriate index
-                texUtil.uploadTexture(imageForUpload, target, i, linearizeSrgbImages);
+                // -1 index specifies prepare data for 2D Array
+                texUtil.uploadTexture(imageForUpload, target, -1, linearizeSrgbImages);
+
+                for (int i = 0; i < data.size(); i++) {
+                    // upload each slice of 2D array in turn
+                    // this time with the appropriate index
+                    texUtil.uploadTexture(imageForUpload, target, i, linearizeSrgbImages);
+                }
+            } else {
+                texUtil.uploadTexture(imageForUpload, target, 0, linearizeSrgbImages);
             }
         } else {
-            texUtil.uploadTexture(imageForUpload, target, 0, linearizeSrgbImages);
+            List<ByteBuffer> data = imageForUpload.getData();
+            if (target == GL.GL_TEXTURE_CUBE_MAP) {
+                for (int i = 0; i < 6; i++) {
+                    texUtil.uploadTextureAsync(imageForUpload, GL.GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, i, linearizeSrgbImages);
+                }
+            } else if (target == GLExt.GL_TEXTURE_2D_ARRAY_EXT) {
+                // Allocate storage for full array first
+                texUtil.uploadTextureAsync(imageForUpload, target, -1, linearizeSrgbImages);
+                for (int i = 0; i < data.size(); i++) {
+                    texUtil.uploadTextureAsync(imageForUpload, target, i, linearizeSrgbImages);
+                }
+            } else {
+                texUtil.uploadTextureAsync(imageForUpload, target, 0, linearizeSrgbImages);
+            }
         }
 
         if (img.getMultiSamples() != imageSamples) {
@@ -2717,7 +2737,7 @@ public final class GLRenderer implements Renderer {
         }
 
         img.clearUpdateNeeded();
-    }
+    } 
 
     @Override
     public void setTexture(int unit, Texture tex) throws TextureUnitException {

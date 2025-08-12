@@ -38,6 +38,7 @@ import com.jme3.util.BufferUtils;
 
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
@@ -751,6 +752,25 @@ public class AndroidGL implements GL, GL2, GLES_30, GLExt, GLFbo {
     public void glGenVertexArrays(IntBuffer arrays) {
         GLES30.glGenVertexArrays(arrays.limit(),arrays);
 
+    }
+
+    @Override
+    public ByteBuffer glMapBufferRange(int target, long offset, long length, int access) {
+        Buffer buf = GLES30.glMapBufferRange(target, (int) offset, (int) length, access);
+        // https://stackoverflow.com/questions/29921348/safe-usage-of-glmapbufferrange-on-android-java
+        ByteBuffer bbuf = (ByteBuffer) buf;
+        bbuf.order(ByteOrder.nativeOrder()); // TODO: is this necessary?
+        return bbuf;
+    }
+
+    @Override
+    public boolean glUnmapBuffer(int target) {
+        return GLES30.glUnmapBuffer(target);
+    }
+
+    @Override
+    public void glBindBufferRange(int target, int index, int buffer, long offset, long size) {
+        GLES30.glBindBufferRange(target, index, buffer, (int) offset, (int) size);
     }
 
 }

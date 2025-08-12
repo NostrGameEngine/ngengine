@@ -660,5 +660,19 @@ public class LwjglGL extends LwjglRender implements GL, GL2, GL3, GL4 {
     public void glUniformBlockBinding(final int program, final int uniformBlockIndex, final int uniformBlockBinding) {
         GL31.glUniformBlockBinding(program, uniformBlockIndex, uniformBlockBinding);
     }
+
+    @Override
+    public boolean glUnmapBuffer(int target) {
+        return GL20.glUnmapBuffer(target);
+    }
     
+    @Override
+    public ByteBuffer glMapBufferRange(int target, long offset, long length, int access) {
+        return GL30.glMapBufferRange(target, offset, length, access);
+    }
+
+    @Override
+    public void glBindBufferRange(int target, int index, int buffer, long offset, long size) {
+        GL30.glBindBufferRange(target, index, buffer, offset, size);
+    }
 }

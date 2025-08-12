@@ -36,7 +36,9 @@ import com.jme3.renderer.RendererException;
 import com.jme3.texture.Image;
 import com.jme3.texture.Image.Format;
 import com.jme3.texture.image.ColorSpace;
+import com.jme3.util.BufferUtils;
 import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
 import java.util.EnumSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -52,14 +54,19 @@ public final class TextureUtil {
 
     private final GL gl;
     private final GL2 gl2;
+    private final GL3 gl3;
     private final GLExt glext;
+    private final GLES_30 gles3; 
+    private final IntBuffer intBuf1 = BufferUtils.createIntBuffer(1);
     private GLImageFormat[][] formats;
     private boolean supportUnpackRowLength;
     
-    public TextureUtil(GL gl, GL2 gl2, GLExt glext) {
+    public TextureUtil(GL gl, GL2 gl2, GL3 gl3, GLES_30 gles3, GLExt glext) {
         this.gl = gl;
         this.gl2 = gl2;
+        this.gl3 = gl3;
         this.glext = glext;
+        this.gles3 = gles3;
     }
     
     public void initialize(EnumSet<Caps> caps) {
@@ -401,6 +408,122 @@ public final class TextureUtil {
         }
         data.position(cpos);
 
+    }
+
+    // private class Pbo {
+    //     int pboId;
+    //     Instant createdAt;
+    // }
+
+    // private List<Pbo> danglingPbos = new SafeArrayList<>(Pbo.class);
+
+    // public void updateDanglingTextures(){
+    //     Instant now = Instant.now();
+    //     for (int i = danglingPbos.size() - 1; i >= 0; i--) {
+    //         Pbo pbo = danglingPbos.get(i);
+    //         if (pbo.createdAt.plusSeconds(5).isBefore(now)) {
+    //             // Delete old PBOs
+    //             intBuf1.put(0, pbo.pboId);
+    //             gl.glDeleteBuffers(intBuf1);
+    //             danglingPbos.remove(i);
+    //         }
+    //     }
+    // }
+    
+    public void uploadTextureAsync(Image image,
+                            int target,
+                            int index,
+                            boolean linearizeSrgb) {
+        try {
+            if (gl3==null && gles3==null) throw new UnsupportedOperationException("Async texture upload requires OpenGL 3.0/OpenGL ES 3.0 or higher");
+            System.out.println("Async upload texture: " );
+            boolean getSrgbFormat = image.getColorSpace() == ColorSpace.sRGB && linearizeSrgb;
+            Image.Format jmeFormat = image.getFormat();
+            GLImageFormat oglFormat = getImageFormatWithError(jmeFormat, getSrgbFormat);
+
+            ByteBuffer data = null;
+            if (index >= 0) {
+                data = image.getData(index);
+            }
+
+            int sliceCount = (image.getData() != null) ? image.getData().size() : 1;
+            int width = image.getWidth();
+            int height = image.getHeight();
+            int depth = image.getDepth();   
+            int[] mipSizes = image.getMipMapSizes() == null ? (data != null ? new int[]{data.capacity()} : new int[]{width * height * jmeFormat.getBitsPerPixel() / 8}) : image.getMipMapSizes();
+
+
+            // Setup texture swizzle if needed
+            if (oglFormat.swizzleRequired) {
+                setupTextureSwizzle(target, jmeFormat);
+            }
+            // Copy data to PBOs
+            if (data != null) {
+                int originalPos = data.position();
+                int originalLimit = data.limit();
+                
+                int srcPos = 0;
+                
+                for (int i = 0; i < mipSizes.length; i++) {
+                    gl.glGenBuffers(intBuf1);
+                    int pboId = intBuf1.get(0);
+                    
+                    gl.glBindBuffer(GLExt.GL_PIXEL_UNPACK_BUFFER_ARB, pboId);
+                    gl.glBufferData(GLExt.GL_PIXEL_UNPACK_BUFFER_ARB, mipSizes[i], GL.GL_STREAM_DRAW);
+                    
+                    // Map the buffer for this mip level
+                    ByteBuffer mappedBuffer = null;
+                    if (gl3 != null) {
+                        mappedBuffer = gl3.glMapBufferRange(GLExt.GL_PIXEL_UNPACK_BUFFER_ARB, 0, mipSizes[i],  
+                            GL3.GL_MAP_WRITE_BIT | GL3.GL_MAP_INVALIDATE_BUFFER_BIT | GL3.GL_MAP_UNSYNCHRONIZED_BIT);
+                    } else {
+                        mappedBuffer = gles3.glMapBufferRange(GLExt.GL_PIXEL_UNPACK_BUFFER_ARB, 0, mipSizes[i],  
+                            GLES_30.GL_MAP_WRITE_BIT | GLES_30.GL_MAP_INVALIDATE_BUFFER_BIT | GLES_30.GL_MAP_UNSYNCHRONIZED_BIT);
+                    }
+                    
+                    if (mappedBuffer != null) {
+                        // Copy this mip level's data to the PBO
+                        data.position(srcPos);
+                        data.limit(srcPos + mipSizes[i]);
+                        
+                        mappedBuffer.position(0);
+                        mappedBuffer.put(data);
+                        
+                        // Unmap the buffer
+                        gl2.glUnmapBuffer(GLExt.GL_PIXEL_UNPACK_BUFFER_ARB);
+                       
+                    }
+
+                    int samples = image.getMultiSamples();
+                    int mipWidth = Math.max(1, width >> i);
+                    int mipHeight = Math.max(1, height >> i);
+                    int mipDepth = Math.max(1, depth >> i);
+                            
+                    // Bind the PBO for this mip level
+                    gl.glBindBuffer(GLExt.GL_PIXEL_UNPACK_BUFFER_ARB, pboId);
+                    // Upload texture level (null data = read from bound PBO)
+                    uploadTextureLevel(oglFormat, target, i, index, sliceCount, mipWidth, mipHeight, mipDepth, samples, null);
+                    
+                    srcPos += mipSizes[i];
+
+                    gl.glBindBuffer(GLExt.GL_PIXEL_UNPACK_BUFFER_ARB, 0);
+                    gl2.glDeleteBuffers(intBuf1.put(0,pboId));
+                }
+                
+                // Restore original buffer state
+                data.position(originalPos);
+                data.limit(originalLimit);
+            }
+
+          
+            
+        } catch (Exception e) {
+            System.err.println("Failed to async upload texture: " );
+            logger.log(Level.SEVERE, "Failed to async upload texture, fallback to sync upload", e);
+            // Ensure PBO is unbound on error
+            gl.glBindBuffer(GLExt.GL_PIXEL_UNPACK_BUFFER_ARB, 0);
+            uploadTexture(image, target, index, linearizeSrgb);
+        }
     }
 
 }

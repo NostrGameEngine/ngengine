@@ -78,6 +78,8 @@ public interface GL2 extends GL {
     public static final int GL_READ_ONLY = 35000;
     public static final int GL_WRITE_ONLY = 35001;
     public static final int GL_READ_WRITE = 35002;
+    public static final int GL_UNPACK_IMAGE_HEIGHT = 0x806E;
+    public static final int GL_UNPACK_SKIP_PIXELS = 0x0CF4;
 
     /**
      * <p><a target="_blank" href="http://docs.gl/gl3/glAlphaFunc">Reference Page</a> - <em>This function is deprecated and unavailable in the Core profile</em></p>
@@ -221,4 +223,14 @@ public interface GL2 extends GL {
      */
     public void glTexSubImage3D(int target, int level, int xoffset, int yoffset, int zoffset, int width, int height,
                                 int depth, int format, int type, ByteBuffer data);
+
+
+    /**
+     * <p><a target="_blank" href="https://registry.khronos.org/OpenGL-Refpages/gl4/html/glUnmapBuffer.xhtml">Reference Page</a></p>
+     * <p>
+     * Release the mapping of a buffer object's data store into the client's address space
+     * 
+     * @param target the target buffer object.
+     */
+    public boolean glUnmapBuffer(int target);
 }

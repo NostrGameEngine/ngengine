@@ -804,5 +804,20 @@ public class IosGL implements GL, GL2, GLES_30, GLExt, GLFbo {
         throw new UnsupportedOperationException("Unimplemented method 'glGenVertexArrays'");
     }
 
+    @Override
+    public boolean glUnmapBuffer(int target) {
+        throw new UnsupportedOperationException("Unimplemented method 'glUnmapBuffer'");
+    }
+
+    @Override
+    public ByteBuffer glMapBufferRange(int target, long offset, long length, int access) {
+        throw new UnsupportedOperationException("Unimplemented method 'glMapBufferRange'");
+    }
+
+    @Override
+    public void glBindBufferRange(int target, int index, int buffer, long offset, long size) {
+        throw new UnsupportedOperationException("Unimplemented method 'glBindBufferRange'");
+    }
+
 
 }

@@ -31,6 +31,7 @@
  */
 package com.jme3.renderer.opengl;
 
+import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 
 /**
@@ -42,10 +43,16 @@ public interface GLES_30 extends GL {
 
     public static final int GL_RGB10_A2 = 0x8059;
     public static final int GL_UNSIGNED_INT_2_10_10_10_REV = 0x8368;
- 
+    public static final int GL_MAP_WRITE_BIT = 0x0002;
+    public static final int GL_MAP_INVALIDATE_BUFFER_BIT = 0x0008;
+    public static final int GL_MAP_UNSYNCHRONIZED_BIT = 0x0020;
+
     public void glBindVertexArray(int array);
 
     public void glDeleteVertexArrays(IntBuffer arrays);
    
     public void glGenVertexArrays(IntBuffer arrays);
+
+    public ByteBuffer glMapBufferRange(int target, long offset, long length, int access);
+    public void glBindBufferRange(int target, int index, int buffer, long offset, long size);
 }

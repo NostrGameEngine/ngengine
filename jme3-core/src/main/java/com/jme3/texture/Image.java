@@ -612,6 +612,7 @@ public class Image extends NativeObject implements Savable /*, Cloneable*/ {
     protected boolean mipsWereGenerated = false;
     protected boolean needGeneratedMips = false;
     protected LastTextureState lastTextureState = new LastTextureState();
+    protected boolean async = false;
 
     /**
      * Internal use only.
@@ -1305,4 +1306,11 @@ public class Image extends NativeObject implements Savable /*, Cloneable*/ {
         }
     }
 
+    public void setAsync(boolean async) {
+        this.async = async;
+    }
+
+    public boolean isAsync() {
+        return async;
+    }
 }
