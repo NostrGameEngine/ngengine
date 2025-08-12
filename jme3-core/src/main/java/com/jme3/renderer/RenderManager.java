@@ -65,6 +65,7 @@ import com.jme3.shader.VarType;
 import com.jme3.system.NullRenderer;
 import com.jme3.system.Timer;
 import com.jme3.texture.FrameBuffer;
+import com.jme3.texture.Texture;
 import com.jme3.util.SafeArrayList;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -874,7 +875,7 @@ public class RenderManager {
      *
      * @param scene The scene to preload
      */
-    public void preloadScene(Spatial scene) {
+    public void preload(Spatial scene) {
         if (scene instanceof Node) {
             // recurse for all children
             Node n = (Node) scene;
@@ -903,6 +904,23 @@ public class RenderManager {
         }
     }
     
+    /**
+     * @deprecated Use {@link #preload(Spatial) } instead.
+     */
+    @Deprecated
+    public void preloadScene(Spatial scene) {
+        preload(scene);
+    }
+
+    public void preload(Texture tx) throws TextureUnitException{
+        renderer.setTexture(0, tx);
+    }
+
+    public void preload(Material mat){
+        mat.preload(this, null);
+    }
+
+
     /**
      * Flattens the given scene graph into the ViewPort's RenderQueue,
      * checking for culling as the call goes down the graph recursively.

@@ -994,7 +994,7 @@ public class Material implements CloneableSmartAsset, Cloneable, Savable {
             return;
         }
         // Get world overrides
-        SafeArrayList<MatParamOverride> overrides = geometry.getWorldMatParamOverrides();
+        SafeArrayList<MatParamOverride> overrides = geometry!=null ? geometry.getWorldMatParamOverrides() : null;
 
         Shader shader = technique.makeCurrent(renderManager, overrides, null, null, rendererCaps);
         updateShaderMaterialParameters(renderer, shader, overrides, null);
