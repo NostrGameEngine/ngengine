@@ -31,8 +31,6 @@
  */
 package org.ngengine.platform;
 
-import com.jme3.system.JmeContext;
-import com.jme3.system.JmeSystem;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -51,17 +49,12 @@ public class DesktopPlatform extends NGEPlatform {
         }
         
         try {
-            // Try to get GLFW window handle from JmeContext
-            JmeContext context = JmeSystem.getPlatform() != null ? 
-                JmeSystem.getApplication() != null ? JmeSystem.getApplication().getContext() : null 
-                : null;
-                
-            if (context != null && isGlfwAvailable()) {
+            if (isGlfwAvailable()) {
                 // Use reflection to access GLFW clipboard functions to avoid hard dependency
                 setGlfwClipboard(text);
             } else {
-                // Fallback: no-op for now, could implement other clipboard methods
-                logger.log(Level.WARNING, "Clipboard functionality not available - GLFW context not found");
+                // Fallback: log warning
+                logger.log(Level.WARNING, "Clipboard functionality not available - GLFW not found");
             }
         } catch (Exception e) {
             logger.log(Level.WARNING, "Failed to set clipboard content", e);
@@ -71,16 +64,11 @@ public class DesktopPlatform extends NGEPlatform {
     @Override
     public String getClipboardContent() {
         try {
-            // Try to get GLFW window handle from JmeContext
-            JmeContext context = JmeSystem.getPlatform() != null ? 
-                JmeSystem.getApplication() != null ? JmeSystem.getApplication().getContext() : null 
-                : null;
-                
-            if (context != null && isGlfwAvailable()) {
+            if (isGlfwAvailable()) {
                 // Use reflection to access GLFW clipboard functions to avoid hard dependency
                 return getGlfwClipboard();
             } else {
-                logger.log(Level.WARNING, "Clipboard functionality not available - GLFW context not found");
+                logger.log(Level.WARNING, "Clipboard functionality not available - GLFW not found");
                 return "";
             }
         } catch (Exception e) {
@@ -116,6 +104,7 @@ public class DesktopPlatform extends NGEPlatform {
             long window = (Long) glfwGetCurrentContext.invoke(null);
             if (window != 0L) {
                 glfwSetClipboardString.invoke(null, window, text);
+                logger.log(Level.FINE, "Set clipboard content via GLFW");
             } else {
                 logger.log(Level.WARNING, "No GLFW window context available for clipboard operation");
             }
@@ -138,6 +127,7 @@ public class DesktopPlatform extends NGEPlatform {
             long window = (Long) glfwGetCurrentContext.invoke(null);
             if (window != 0L) {
                 String result = (String) glfwGetClipboardString.invoke(null, window);
+                logger.log(Level.FINE, "Retrieved clipboard content via GLFW");
                 return result != null ? result : "";
             } else {
                 logger.log(Level.WARNING, "No GLFW window context available for clipboard operation");
