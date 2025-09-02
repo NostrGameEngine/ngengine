@@ -42,6 +42,9 @@ public class DesktopPlatform extends NGEPlatform {
     
     private static final Logger logger = Logger.getLogger(DesktopPlatform.class.getName());
     
+    // Simple in-memory fallback for environments where GLFW is not available
+    private String fallbackClipboard = "";
+    
     @Override
     public void setClipboardContent(String text) {
         if (text == null) {
@@ -53,11 +56,14 @@ public class DesktopPlatform extends NGEPlatform {
                 // Use reflection to access GLFW clipboard functions to avoid hard dependency
                 setGlfwClipboard(text);
             } else {
-                // Fallback: log warning
-                logger.log(Level.WARNING, "Clipboard functionality not available - GLFW not found");
+                // Fallback: store in memory for testing/development environments
+                fallbackClipboard = text;
+                logger.log(Level.FINE, "Clipboard content stored in memory fallback");
             }
         } catch (Exception e) {
-            logger.log(Level.WARNING, "Failed to set clipboard content", e);
+            // If GLFW fails, fall back to in-memory storage
+            fallbackClipboard = text;
+            logger.log(Level.WARNING, "Failed to set clipboard content via GLFW, using fallback", e);
         }
     }
     
@@ -68,12 +74,14 @@ public class DesktopPlatform extends NGEPlatform {
                 // Use reflection to access GLFW clipboard functions to avoid hard dependency
                 return getGlfwClipboard();
             } else {
-                logger.log(Level.WARNING, "Clipboard functionality not available - GLFW not found");
-                return "";
+                // Fallback: return from memory storage
+                logger.log(Level.FINE, "Clipboard content retrieved from memory fallback");
+                return fallbackClipboard;
             }
         } catch (Exception e) {
-            logger.log(Level.WARNING, "Failed to get clipboard content", e);
-            return "";
+            // If GLFW fails, fall back to in-memory storage
+            logger.log(Level.WARNING, "Failed to get clipboard content via GLFW, using fallback", e);
+            return fallbackClipboard;
         }
     }
     
