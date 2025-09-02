@@ -78,6 +78,13 @@ public interface Renderer {
     public EnumMap<Limits, Integer> getLimits();
 
     /**
+     * Gets information about the GPU hardware and drivers.
+     *
+     * @return The GPU information, or null if not available
+     */
+    public GpuInfo getGpuInfo();
+
+    /**
      * Copies the render statistics.
      *
      * <p>The statistics allow tracking of how data
