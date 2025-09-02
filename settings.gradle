@@ -22,11 +22,11 @@ include 'jme3-lwjgl3'
 // Other external dependencies
 include 'jme3-jbullet'
 include 'jme3-jogg'
-// include 'jme3-android'  // Temporarily disabled due to network access issues 
+include 'jme3-android'
 include 'jme3-ios'
 
 //native builds
-// include 'jme3-android-native' //cpp  // Temporarily disabled due to network access issues
+include 'jme3-android-native' //cpp
 
 // Test Data project
 include 'jme3-testdata'

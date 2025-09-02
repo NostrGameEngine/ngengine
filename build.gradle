@@ -11,7 +11,7 @@ buildscript {
         }
     }
     dependencies {
-        // classpath libs.android.build.gradle  // Temporarily disabled for build testing
+        classpath libs.android.build.gradle
         classpath libs.spotbugs.gradle.plugin
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.20"
     }
@@ -57,7 +57,7 @@ allprojects {
 }
 
 def mergedJavadocSubprojects = [
-        // ":jme3-android",  // Temporarily disabled due to network access issues
+        ":jme3-android",
         ":jme3-core",
         ":jme3-desktop",
         ":jme3-effects",
