@@ -59,6 +59,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import org.ngengine.runner.MainThreadRunner;
 import org.ngengine.runner.PassthroughRunner;
 import org.ngengine.runner.Runner;
@@ -69,6 +72,7 @@ import org.ngengine.runner.Runner;
  * asset loading.
  */
 public class AsyncAssetManager implements AssetManager, Closeable {
+    private static final Logger log = Logger.getLogger(AsyncAssetManager.class.getName());
 
     private static final Map<AssetManager, AsyncAssetManager> asyncManagers = new WeakHashMap<>();
     protected final AssetManager assetManager;
@@ -113,6 +117,7 @@ public class AsyncAssetManager implements AssetManager, Closeable {
                     callback.accept(res, null);
                 });
             } catch (Throwable ex) {
+                log.log(Level.WARNING, "Error in asset loader thread", ex);
                 callbackRunner.run(() -> {
                     callback.accept(null, ex);
                 });
