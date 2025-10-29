@@ -104,6 +104,15 @@ public final class UserData implements Savable {
         return value.toString();
     }
 
+    public static boolean isSupportedType(Object type) {
+        try {
+            getObjectType(type);
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
     public static byte getObjectType(Object type) {
         if (type instanceof Integer) {
             return TYPE_INTEGER;
@@ -129,6 +138,8 @@ public final class UserData implements Savable {
             return TYPE_SHORT;
         } else if (type instanceof Byte) {
             return TYPE_BYTE;
+        } else if(type instanceof Savable){
+            return TYPE_SAVABLE;
         } else {
             throw new IllegalArgumentException("Unsupported type: " + type.getClass().getName());
         }
