@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="30" height="20" tilewidth="16" tileheight="16" infinite="0" backgroundcolor="#22c07f" nextlayerid="7" nextobjectid="48">
+ <tileset firstgid="1" source="jungle.tsx"/>
+ <tileset firstgid="463" source="tree.tsx"/>
+ <layer id="1" name="Ground" width="30" height="20">
+  <data encoding="base64" compression="zlib">
+   eJzlldENgzAMRD0GG7SAxAYYmIF2/1UapFg6WcSyk0aq1I/7w/diJz4GIhr+VI+kJ2j8opfluSZx0pK1F2o9ftqLs7YCF7+bkl4OzXDGMfd6gJf4LQaXyT7bnc7M5sw/FAt153mqPt6B+0S2ni2T3W+rVsfdRHqJcHv084tcecNRbmtmyA7uwVq9u5F66fV6U3OwFrkRNjKvtyr75GXrzPBmJTLFC9mePK3JyNJOYh9WTrZkVWR+vfcM/0c1mV8rPb+eORnRBxeiVjs=
+  </data>
+ </layer>
+ <layer id="2" name="Plants" width="30" height="20">
+  <data encoding="base64" compression="zlib">
+   eJxjYBh8oHagHTAKUIArkeqIjber5DqEQvABShPrH1oDz4F2AAFwEY1Py3i7hcQWZkSVE0fjUwLeoPE/YFWFH1Aj3urQ+E0k6iclbqiZ3qkRfqSCKDrYQQhQ6oZbhJVQBZAaP4O9DBrqAAA9pxDe
+  </data>
+ </layer>
+ <objectgroup id="6" name="Objects">
+  <object id="29" gid="463" x="105.5" y="187" width="80" height="80"/>
+  <object id="31" gid="465" x="105.5" y="203" width="80" height="16"/>
+  <object id="33" gid="465" x="200" y="116.5" width="80" height="16"/>
+  <object id="34" gid="465" x="270" y="281" width="80" height="16"/>
+  <object id="35" gid="465" x="365" y="208.5" width="80" height="16"/>
+  <object id="36" gid="464" x="200" y="100.5" width="80" height="80"/>
+  <object id="38" gid="464" x="270" y="265" width="80" height="80"/>
+  <object id="39" gid="467" x="160" y="112" width="32" height="16"/>
+  <object id="40" gid="466" x="53.5" y="176.5" width="32" height="32"/>
+  <object id="41" gid="466" x="96" y="288" width="32" height="32"/>
+  <object id="42" gid="463" x="365" y="192.5" width="80" height="80"/>
+  <object id="43" name="north-bound" x="0" y="-8" width="480" height="8" visible="0">
+   <properties>
+    <property name="body_type" value="static"/>
+   </properties>
+  </object>
+  <object id="44" name="west-bound" x="-8" y="0" width="8" height="320" visible="0">
+   <properties>
+    <property name="body_type" value="static"/>
+   </properties>
+  </object>
+  <object id="45" name="east-bound" x="480" y="0" width="8" height="320" visible="0">
+   <properties>
+    <property name="body_type" value="static"/>
+   </properties>
+  </object>
+  <object id="46" name="south-bound" x="0" y="320" width="480" height="8" visible="0">
+   <properties>
+    <property name="body_type" value="static"/>
+   </properties>
+  </object>
+  <object id="47" gid="466" x="299.714" y="252.571" width="32" height="32"/>
+ </objectgroup>
+ <objectgroup id="4" name="Location">
+  <object id="15" name="Start Point" x="70" y="242.833">
+   <point/>
+  </object>
+ </objectgroup>
+</map>

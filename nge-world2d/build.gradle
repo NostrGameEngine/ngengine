@@ -1,0 +1,32 @@
+ 
+dependencies {
+    api project(':nge-core')
+    api project(':jme3-networking')
+    implementation 'org.jbox2d:jbox2d-library:2.2.1.1'
+
+    compileOnly 'com.github.luben:zstd-jni:1.5.0-1' // for z-standard compression and decompression
+    implementation 'net.sf.kxml:kxml2:2.3.0'
+
+    // Test
+    testImplementation 'ch.qos.logback:logback-classic:1.2.13'
+    testImplementation project(':jme3-desktop')
+    testImplementation project(':jme3-lwjgl3')
+    testImplementation project(':jme3-testdata')
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testImplementation "org.ngengine:nge-platform-jvm:${ngePlatformVersion}"
+
+}
+
+javadoc {
+    // Disable doclint for JDK8+.
+    if (JavaVersion.current().isJava8Compatible()){
+        options.addStringOption('Xdoclint:none', '-quiet')
+    }
+}
+
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
