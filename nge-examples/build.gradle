@@ -1,0 +1,95 @@
+ext.mainClassName = 'ngetest.TestChooser'
+
+task run(dependsOn: 'build', type:JavaExec) {
+    mainClass = mainClassName
+    classpath = sourceSets.main.runtimeClasspath
+
+    if (System.properties['java.util.logging.config.file'] != null) {
+        systemProperty "java.util.logging.config.file", System.properties['java.util.logging.config.file']
+    }
+
+    if( assertions  == "true" ){
+        enableAssertions = true;
+    }
+}
+
+dependencies {
+    implementation project(':jme3-core')
+    implementation project(':jme3-desktop')
+    implementation project(':jme3-effects')
+    implementation project(':jme3-jbullet')
+    implementation project(':jme3-jogg')
+    implementation project(':jme3-lwjgl3')
+    implementation project(':jme3-networking')
+    implementation project(':jme3-plugins')
+    implementation project(':jme3-plugins-json')
+    implementation project(':jme3-plugins-json-gson')
+    implementation project(':jme3-terrain')
+    implementation project(':jme3-awt-dialogs')
+    
+    implementation project(':nge-ads')
+    implementation project(':nge-app')
+    implementation project(':nge-auth')
+    implementation project(':nge-core')
+    implementation project(':nge-gui')
+    implementation project(':nge-lemur')
+    implementation project(':nge-networking')
+    implementation project(':nge-world2d')
+
+    api "org.ngengine:nge-platform-jvm:${ngePlatformVersion}"
+
+
+    runtimeOnly project(':jme3-testdata')
+    runtimeOnly libs.nifty.examples // for the "all/intro.xml" example GUI
+}
+
+jar.doFirst{
+    manifest {
+        attributes('Manifest-Version'       : '1.0',
+//                'Created-By'             : vendor,
+//                'Specification-Title'    : appName,
+//                'Specification-Version'  : jmeVersion,
+//                'Specification-Vendor'   : "jMonkeyEngine",
+//                'Implementation-Title'   : appName,
+//                'Implementation-Version' : version,
+//                'Implementation-Vendor'  : vendor,
+                'Main-Class'             : getProperty('mainClassName'),
+                // Add dependencies to manifest, remove version
+                'Class-Path'             : configurations.compileClasspath.resolvedConfiguration.resolvedArtifacts.collect {
+                                                        'lib/' +
+                                                        it.name +
+                                                        (it.classifier != null ? '-' + it.classifier : '') +
+                                                        '.' + it.extension }.join(' ')
+        )
+    }
+}
+
+task dist (dependsOn: ['build', ':jme3-android:jar', ':jme3-android-native:jar', ':nge-android:jar']) {
+    doLast {
+        // Copy all dependencies to ../dist/lib, remove versions from jar files
+        configurations.compileClasspath.resolvedConfiguration.resolvedArtifacts.each { artifact ->
+            copy {
+                from artifact.file
+                into '../dist/lib'
+                if(artifact.classifier != null){
+                    rename { "${artifact.name}-${artifact.classifier}.${artifact.extension}" }
+                } else{
+                    rename { "${artifact.name}.${artifact.extension}" }
+                }
+            }
+        }
+        copy {
+            from jar.archivePath
+            into '../dist'
+            rename { "NostrGameEngine.jar" }
+        }
+    }
+}
+
+
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}

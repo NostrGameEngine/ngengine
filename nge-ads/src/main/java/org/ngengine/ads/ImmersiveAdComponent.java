@@ -73,7 +73,7 @@ import org.ngengine.runner.Runner;
 import org.ngengine.store.DataStore;
 import org.ngengine.store.DataStoreProvider;
 
-public class ImmersiveAdComponent implements Component<Object>, LogicFragment {
+public class ImmersiveAdComponent implements Component, LogicFragment {
 
     private static final Logger logger = Logger.getLogger(ImmersiveAdComponent.class.getName());
     private AdsDisplayClient displayClient;
@@ -118,6 +118,11 @@ public class ImmersiveAdComponent implements Component<Object>, LogicFragment {
         }
         
         this.relays = relays;
+    }
+
+    @Override
+    public Component newInstance() {
+        return new ImmersiveAdComponent(this.relays, this.appKey, this.userAdKey);
     }
 
     public void setFilter(Function<AdBidEvent, Boolean> filter) {
@@ -327,7 +332,7 @@ public class ImmersiveAdComponent implements Component<Object>, LogicFragment {
     }
 
     @Override
-    public void onEnable(ComponentManager mng, Runner runner, DataStoreProvider dataStore, boolean firstTime, Object arg) {
+    public void onEnable(ComponentManager mng, Runner runner, DataStoreProvider dataStore, boolean firstTime) {
         this.mainRunner = runner;
         this.pool = new NostrPool();
         

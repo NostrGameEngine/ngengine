@@ -340,6 +340,7 @@ public class ViewPort {
         if (scene == null) {
             throw new IllegalArgumentException("Scene cannot be null.");
         }
+        scene.setInScene(true);
         sceneList.add(scene);
         if (scene instanceof Geometry) {
             scene.forceRefresh(true, false, true);

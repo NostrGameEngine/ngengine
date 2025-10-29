@@ -31,17 +31,41 @@
  */
 package org.ngengine.components;
 
+import java.io.IOException;
+
 import org.ngengine.runner.Runner;
 import org.ngengine.store.DataStoreProvider;
+
+import com.jme3.export.JmeExporter;
+import com.jme3.export.JmeImporter;
 
 /**
  * A component that is never enabled and does nothing.
  */
-public class StallingComponent implements Component<Object> {
+public class StallingComponent implements Component {
 
     @Override
-    public void onEnable(ComponentManager mng, Runner runner, DataStoreProvider dataStore, boolean firstTime, Object arg) {}
+    public void onEnable(ComponentManager mng, Runner runner, DataStoreProvider dataStore, boolean firstTime) {}
 
     @Override
     public void onDisable(ComponentManager mng, Runner runner, DataStoreProvider dataStore) {}
+
+    @Override
+    public void write(JmeExporter ex) throws IOException {
+      
+    }
+
+    @Override
+    public void read(JmeImporter im) throws IOException {
+      
+    }
+
+    @Override
+    public Component newInstance() {
+        return new StallingComponent();
+    }
+
+ 
+   
+ 
 }

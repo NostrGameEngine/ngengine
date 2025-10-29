@@ -211,7 +211,7 @@ public class Node extends Spatial {
         }
     }
 
-    private SafeArrayList<Spatial> getUpdateList() {
+    public SafeArrayList<Spatial> getUpdateList() {
         if (updateListValid) {
             return updateList;
         }

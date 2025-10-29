@@ -78,4 +78,17 @@ public interface Control extends Savable {
      * @param vp the relevant ViewPort (not null)
      */
     public void render(RenderManager rm, ViewPort vp);
+
+
+    /**
+     * Called when the control ends up being attached to a scene
+     */
+    public default void attachedToScene() {
+    }
+
+    /**
+     * Called when the control ends up being detached from a scene.
+     */
+    public default void detachedFromScene() {   
+    }
 }

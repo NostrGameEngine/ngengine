@@ -807,6 +807,7 @@ public abstract class Spatial implements Savable, Cloneable, Collidable,
         boolean before = requiresUpdates();
         controls.add(control);
         control.setSpatial(this);
+        if (inScene) control.attachedToScene();
         boolean after = requiresUpdates();
         // If the requirement to be updated has changed,
         // then we need to let the parent node know, so it
@@ -860,6 +861,7 @@ public abstract class Spatial implements Savable, Cloneable, Collidable,
         for (int i = 0; i < controls.size(); i++) {
             if (controlType.isAssignableFrom(controls.get(i).getClass())) {
                 Control control = controls.remove(i);
+                if (inScene) control.detachedFromScene();
                 control.setSpatial(null);
                 break; // added to match the javadoc  -pspeed
             }
@@ -887,6 +889,7 @@ public abstract class Spatial implements Savable, Cloneable, Collidable,
         boolean before = requiresUpdates();
         boolean result = controls.remove(control);
         if (result) {
+            if (inScene) control.detachedFromScene();
             control.setSpatial(null);
         }
 
@@ -1043,6 +1046,19 @@ public abstract class Spatial implements Savable, Cloneable, Collidable,
      */
     protected void setParent(Node parent) {
         assert SceneGraphThreadWarden.updateRequirement(this, parent);
+        boolean v = parent != null && parent.inScene;
+        breadthFirstTraversal(sx->{
+            sx.setInScene(v);
+            int n = sx.getNumControls();
+            for (int i = 0; i < n; i++) {
+                Control c = sx.getControl(i);
+                if (v) {
+                    c.attachedToScene();
+                } else {
+                    c.detachedFromScene();
+                }
+            }
+        });
         this.parent = parent;
     }
 
@@ -1913,4 +1929,17 @@ public abstract class Spatial implements Savable, Cloneable, Collidable,
     }
 
     protected abstract void breadthFirstTraversal(SceneGraphVisitor visitor, Queue<Spatial> queue);
+
+
+    protected boolean inScene = false;
+   
+
+    public void setInScene(boolean inScene) {
+        this.inScene = inScene;
+     
+    }
+
+    public boolean isSceneRoot(){
+        return this.inScene && this.parent == null;
+    }
 }

@@ -31,9 +31,17 @@
  */
 package org.ngengine.components;
 
+import java.io.IOException;
+
 import org.ngengine.components.fragments.Fragment;
 import org.ngengine.runner.Runner;
 import org.ngengine.store.DataStoreProvider;
+
+import com.jme3.export.JmeExporter;
+import com.jme3.export.JmeImporter;
+import com.jme3.export.Savable;
+import com.jme3.util.clone.Cloner;
+import com.jme3.util.clone.JmeCloneable;
 
 /**
  * A component is a reusable piece of functionality that can be attached to a {@link ComponentManager}.
@@ -98,10 +106,8 @@ import org.ngengine.store.DataStoreProvider;
  * </p>
  *
  *
- * @param <T>
- *            The type of argument that can be passed when enabling this component
  */
-public interface Component<T> {
+public interface Component extends Savable, JmeCloneable {
     /**
      * Called immediately when the component is attached to a {@link ComponentManager} and a {@link Runner}.
      * <p>
@@ -175,10 +181,8 @@ public interface Component<T> {
      *            - the DataStoreProvider for storing and retrieving data and caches
      * @param firstTime
      *            - whether this is the first time the component is being enabled
-     * @param arg
-     *            - an argument that can be passed when enabling this component, can be null
      */
-    void onEnable(ComponentManager mng, Runner runner, DataStoreProvider dataStore, boolean firstTime, T arg);
+    void onEnable(ComponentManager mng, Runner runner, DataStoreProvider dataStore, boolean firstTime);
 
     /**
      * Called when the component is disabled.
@@ -235,5 +239,33 @@ public interface Component<T> {
      * @param arg
      *            an optional argument passed when enabling this component
      */
-    default void onNudge(ComponentManager mng, Runner runner, DataStoreProvider dataStore, boolean firstTime, T arg) {}
+    default void onNudge(ComponentManager mng, Runner runner, DataStoreProvider dataStore, boolean firstTime) {}
+
+
+
+    @Override
+    default public void write(JmeExporter ex) throws IOException {}
+
+    @Override
+    default public void read(JmeImporter im) throws IOException {}
+
+
+    @Override
+    default void cloneFields(Cloner cloner, Object original) {
+       
+    }
+
+    /**
+     * Returns a new instance of this component initialized with the same
+     * values as this one.
+     * @return a new instance of this component
+     */
+    public Component newInstance();
+
+    @Override
+    default Object jmeClone() {
+        return newInstance();
+    }
+
+
 }

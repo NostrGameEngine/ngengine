@@ -29,42 +29,48 @@
  * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
  * the BSD 3-Clause License. 
  */
-package org.ngengine.components;
+package org.ngengine.components.runners;
+
+import org.ngengine.components.Component;
+import org.ngengine.components.ComponentManager;
 
 /**
- * An interface to load resources and configurations for components in a component manager.
+ * An interface to initializing and cleaning up components in the component manager. This is used to perform
+ * any necessary setup or teardown for a component when it is added or removed.
  */
 
-public interface ComponentLoader {
+public interface ComponentInitializer {
     /**
-     * Load the component in the given component manager. This method is called after the component is
-     * initialized
+     * Initialize the component in the given component manager. This method is called when the component is
+     * added to the component manager.
      *
      * @param mng
      *            the component manager
      * @param fragment
-     *            the component to load
+     *            the component to initialize
      * @param markReady
-     *            a runnable that should be called when the loading is complete
+     *            a runnable that should be called when the initialization is complete
      * @return how many times the markReady callback is expected to be called to mark the complete
-     *         loading.
+     *         initialization.
      */
-    int load(ComponentManager mng, Component fragment, Runnable markReady);
+    int initialize(ComponentManager mng, Component fragment, Runnable markReady);
 
     /**
-     * Frees up resources and configurations for the component in the given component manager.
+     * Cleanup the component in the given component manager. This method is called when the component is
+     * removed from the component manager.
      *
      * @param mng
      *            the component manager
      * @param fragment
      *            the component to cleanup
      */
-    void unload(ComponentManager mng, Component fragment);
+    void cleanup(ComponentManager mng, Component fragment);
 
     /**
-     * Check if the component can be loaded by this loader. This is used to determine if the component is
-     * compatible with this loader and can be initialized without issues. If the component is not compatible,
-     *  the next available loader in the chain.
+     * Check if the component can be initialized by this initializer. This is used to determine if the
+     * component is compatible with this initializer and can be initialized without issues. If the component
+     * is not compatible, it will not be initialized and the component manager will call the next available
+     * initializer in the chain.
      *
      * @param mng
      *            the component manager
@@ -72,5 +78,5 @@ public interface ComponentLoader {
      *            the component to check
      * @return true if the component can be initialized, false otherwise
      */
-    boolean canLoad(ComponentManager mng, Component fragment);
+    boolean canInitialize(ComponentManager mng, Component fragment);
 }

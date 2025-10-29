@@ -64,7 +64,7 @@ import org.ngengine.runner.MainThreadRunner;
 import org.ngengine.runner.Runner;
 import org.ngengine.store.DataStoreProvider;
 
-public class NWindowManagerComponent implements Component<Object>, LogicFragment, InputHandlerFragment {
+public class NWindowManagerComponent implements Component, LogicFragment, InputHandlerFragment {
 
     private static final Logger log = Logger.getLogger(NWindowManagerComponent.class.getName());
     private final ArrayList<NWindow<?>> windowsStack = new ArrayList<>();
@@ -77,6 +77,11 @@ public class NWindowManagerComponent implements Component<Object>, LogicFragment
 
     private int width = 0;
     private int height = 0;
+
+    @Override
+    public Component newInstance() {
+        return new NWindowManagerComponent();
+    }
 
     public void showCursor(boolean v) {
         mng.getGlobalInstance(InputManager.class).setCursorVisible(v);
@@ -163,7 +168,7 @@ public class NWindowManagerComponent implements Component<Object>, LogicFragment
         });
 
         try {
-            for (NWindow window : windowsStack) {
+            for (NWindow<?> window : windowsStack) {
                 window.removeFromParent();
             }
 
@@ -309,7 +314,7 @@ public class NWindowManagerComponent implements Component<Object>, LogicFragment
 
     @Override
     public void onEnable(ComponentManager mng, Runner runner, DataStoreProvider dataStoreProvider,
-            boolean firstTime, Object slot) {
+            boolean firstTime ) {
 
         this.mng = mng;
         int width = getWidth();

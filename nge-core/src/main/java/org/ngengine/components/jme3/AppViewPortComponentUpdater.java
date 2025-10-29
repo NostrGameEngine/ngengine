@@ -34,9 +34,9 @@ package org.ngengine.components.jme3;
 import com.jme3.app.Application;
 import org.ngengine.components.Component;
 import org.ngengine.components.ComponentManager;
-import org.ngengine.components.ComponentUpdater;
 import org.ngengine.components.fragments.GuiViewPortFragment;
 import org.ngengine.components.fragments.MainViewPortFragment;
+import org.ngengine.components.runners.ComponentUpdater;
 
 /**
  * Updates viewport components using JME3 application resources.

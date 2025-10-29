@@ -32,6 +32,7 @@
 package org.ngengine.player;
 
 import com.jme3.network.HostedConnection;
+
 import java.util.Collection;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -49,7 +50,7 @@ import org.ngengine.nostr4j.signer.NostrSigner;
 import org.ngengine.runner.Runner;
 import org.ngengine.store.DataStoreProvider;
 
-public class PlayerManagerComponent implements Component<Object> {
+public class PlayerManagerComponent implements Component {
 
     private static final Logger log = Logger.getLogger(PlayerManagerComponent.class.getName());
     protected Collection<String> connectToRelays;
@@ -72,6 +73,14 @@ public class PlayerManagerComponent implements Component<Object> {
         this.connectToRelays = null;
     }
 
+    public Component newInstance(){
+        if(this.connectToRelays!=null) return new PlayerManagerComponent(this.connectToRelays);
+        if(this.externalPool) return new PlayerManagerComponent(this.nostrPool);
+        return new PlayerManagerComponent();
+    }
+
+    
+
     public void enqueueToRenderThread(Runnable act) {
         runner.run(act);
     }
@@ -85,8 +94,7 @@ public class PlayerManagerComponent implements Component<Object> {
         ComponentManager mng,
         Runner runner,
         DataStoreProvider dataStoreProvider,
-        boolean firstTime,
-        Object slot
+        boolean firstTime
     ) {
         this.mng = mng;
         if (!externalPool) {

@@ -49,10 +49,7 @@ import org.ngengine.ads.ImmersiveAdComponent;
 import org.ngengine.auth.AuthSelectionWindow;
 import org.ngengine.auth.AuthStrategy;
 import org.ngengine.components.ComponentManager;
-import org.ngengine.components.jme3.AppComponentInitializer;
-import org.ngengine.components.jme3.AppComponentLoader;
-import org.ngengine.components.jme3.AppComponentUpdater;
-import org.ngengine.components.jme3.AppViewPortComponentUpdater;
+
 import org.ngengine.components.jme3.ComponentManagerAppState;
 import org.ngengine.config.NGEAppSettings;
 import org.ngengine.gui.win.NWindowManagerComponent;
@@ -95,7 +92,7 @@ public class NGEApplication {
 
             flyCam.setEnabled(false);
 
-            ComponentManagerAppState cmng = new ComponentManagerAppState(ngeapp.getAppSettings(), this);
+            ComponentManagerAppState cmng = new ComponentManagerAppState(ngeapp.getAppSettings());
 
             AsyncAssetManager assetManager = AsyncAssetManager.of(this.assetManager, this);
 
@@ -114,10 +111,6 @@ public class NGEApplication {
             stateManager.attach(new DevMode());
 
             getStateManager().attach(cmng);
-            cmng.addInitializer(new AppComponentInitializer(this));
-            cmng.addUpdater(new AppViewPortComponentUpdater(this));
-            cmng.addUpdater(new AppComponentUpdater(this));
-            cmng.addLoader(new AppComponentLoader(this));
 
             DevMode.registerForReload(rootNode);
 

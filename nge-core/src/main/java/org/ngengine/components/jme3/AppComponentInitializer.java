@@ -38,7 +38,6 @@ import java.util.Map;
 import java.util.logging.Logger;
 import org.ngengine.AsyncAssetManager;
 import org.ngengine.components.Component;
-import org.ngengine.components.ComponentInitializer;
 import org.ngengine.components.ComponentManager;
 import org.ngengine.components.fragments.AppFragment;
 import org.ngengine.components.fragments.AssetLoadingFragment;
@@ -46,6 +45,7 @@ import org.ngengine.components.fragments.GuiViewPortFragment;
 import org.ngengine.components.fragments.InputHandlerFragment;
 import org.ngengine.components.fragments.MainViewPortFragment;
 import org.ngengine.components.fragments.RenderFragment;
+import org.ngengine.components.runners.ComponentInitializer;
 
 /**
  * Initializes components by connecting them to JME3 application resources.
