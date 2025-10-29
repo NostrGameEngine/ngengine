@@ -99,9 +99,13 @@ public class NGEAppSettings {
     }
 
     private void mergeConfig(String ngeappConfig, AppSettings settings){
-        if(ngeappConfig != null && !ngeappConfig.isBlank()){            
-            Map<Object,Object> raw = readConfig(ngeappConfig);
-            mergeConfig(raw, settings);
+        try{
+            if(ngeappConfig != null && !ngeappConfig.isBlank()){            
+                Map<Object,Object> raw = readConfig(ngeappConfig);
+                mergeConfig(raw, settings);
+            }
+        }catch(Exception ex){
+            log.log(Level.WARNING, "Failed to merge config from "+ngeappConfig, ex);
         }
     }
 
