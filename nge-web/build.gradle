@@ -13,7 +13,7 @@ plugins {
 
 dependencies {
     implementation project(':nge-core')
-    implementation project(':nge-lemur')
+    implementation project(':nge-gui')
     implementation project(':jme3-core')
     implementation project(':jme3-plugins')
     implementation project(':jme3-plugins-json')

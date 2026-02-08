@@ -50,7 +50,7 @@ import com.jme3.texture.Texture;
 import com.jme3.texture.Texture.MagFilter;
 import com.jme3.texture.Texture.MinFilter;
 import com.jme3.texture.plugins.SVGTextureKey;
-import com.simsilica.lemur.GuiGlobals;
+import com.simsilica.lemur.NGEGui;
 import com.simsilica.lemur.Panel;
 import com.simsilica.lemur.core.GuiControl;
 import com.simsilica.lemur.core.GuiControlListener;
@@ -92,7 +92,7 @@ public class NLoadingSpinner extends Panel implements GuiUpdateListener, GuiCont
 
 
     protected GuiMaterial createMaterial() {
-        GuiMaterial mat = GuiGlobals.getInstance().createMaterial(color, false);
+        GuiMaterial mat = NGEGui.createMaterial(color, false);
         mat.getMaterial().getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
         return mat;
     }
@@ -101,7 +101,7 @@ public class NLoadingSpinner extends Panel implements GuiUpdateListener, GuiCont
         float min = Math.min(w, h);
         w = min;
         h = min;
-        Texture tx = GuiGlobals.getInstance().loadTexture(new SVGTextureKey(spinnerPath, (int) w, (int) h), false);
+        Texture tx = NGEGui.loadTexture(new SVGTextureKey(spinnerPath, (int) w, (int) h), false);
         tx.setMinFilter(MinFilter.BilinearNoMipMaps);
         tx.setMagFilter(MagFilter.Bilinear);
         material.setTexture(tx);

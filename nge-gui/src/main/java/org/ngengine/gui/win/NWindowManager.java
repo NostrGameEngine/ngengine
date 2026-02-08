@@ -1,0 +1,472 @@
+/**
+ * Copyright (c) 2026, Nostr Game Engine
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
+ * the BSD 3-Clause License. 
+ * 
+ * #########################################
+ * 
+ * nge-gui is built and based on Lemur, which is licensed under the BSD 3-Clause License.
+ * - Copyright (c) 2012-2026 jMonkeyEngine All rights reserved. 
+ * - Copyright (c) 2016-2026, Simsilica, LLC All rights reserved.
+ * 
+ * https://github.com/jMonkeyEngine-Contributions/Lemur
+ */
+
+package org.ngengine.gui.win;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import org.ngengine.gui.NGEStyle;
+import org.ngengine.gui.win.NToast.ToastType;
+import org.ngengine.gui.win.std.NErrorWindow;
+import org.ngengine.runner.MainThreadRunner;
+import org.ngengine.store.DataStoreProvider;
+
+import com.jme3.input.InputDevice;
+import com.jme3.input.InputManager;
+import com.jme3.input.Joystick;
+import com.jme3.input.JoystickAxis;
+import com.jme3.input.JoystickButton;
+import com.jme3.input.KeyInput;
+import com.jme3.input.Keyboard;
+import com.jme3.input.Mouse;
+import com.jme3.input.MouseInput;
+import com.jme3.input.TouchInput;
+import com.jme3.input.TouchScreen;
+import com.jme3.input.controls.JoyAxisTrigger;
+import com.jme3.input.controls.JoyButtonTrigger;
+import com.jme3.input.controls.KeyTrigger;
+import com.jme3.input.controls.MouseAxisTrigger;
+import com.jme3.input.controls.MouseButtonTrigger;
+import com.jme3.input.controls.TouchTrigger;
+import com.jme3.math.Vector3f;
+import com.jme3.renderer.Camera;
+import com.jme3.renderer.ViewPort;
+import com.simsilica.lemur.Axis;
+import com.simsilica.lemur.Container;
+import com.simsilica.lemur.FillMode;
+import com.simsilica.lemur.GuiContext;
+import com.simsilica.lemur.NGEGui;
+import com.simsilica.lemur.component.BorderLayout;
+import com.simsilica.lemur.component.DynamicInsetsComponent;
+import com.simsilica.lemur.component.SpringGridLayout;
+import com.simsilica.lemur.ime.ImeComposer;
+import com.simsilica.lemur.ime.PhysicalKeyboardImeComposer;
+import com.simsilica.lemur.nav.NavigatorInputHandler;
+
+public class NWindowManager {
+    private static final Logger log = Logger.getLogger(NWindowManager.class.getName());
+
+    private final GuiContext ctx;
+    private final NWindowManagerComponent mng;
+    private final ArrayList<NWindow<?>> windows = new ArrayList<>();
+    private final ArrayList<NToast> toastsStack = new ArrayList<>();
+    private Container containerToast;
+    private int oldWidth, oldHeight;
+    private NavigatorInputHandler inputHandler;
+    private InputDevice inputDevice;
+
+
+    public NWindowManager(
+        NWindowManagerComponent mng,
+        GuiContext ctx
+    ) {
+        this.mng = mng;
+        this.ctx = ctx;
+        
+        oldWidth = getWidth();
+        oldHeight = getHeight();
+    }
+
+    public void setInputHandler(NavigatorInputHandler inputHandler){
+        InputManager inputManager = mng.getInstanceOf(InputManager.class);
+        if(this.inputHandler!=null){
+            this.inputHandler.unregisterListener(inputManager);
+            this.inputHandler = null;
+        }
+        if(inputHandler!=null){
+            this.inputHandler = inputHandler;
+            if(this.inputHandler.getViewPort()==null){
+                this.inputHandler.setViewPort(ctx.getViewPort());
+            }
+        }
+        if( this.inputHandler!=null){
+            this.inputHandler.registerListener(inputManager);
+        }
+    }
+
+    public void setInputDevice(InputDevice device){
+        if(inputDevice == device)return;
+        this.inputDevice = device;
+        InputManager inputManager = mng.getInstanceOf(InputManager.class);
+         
+        if(inputHandler!=null){
+            inputHandler.setInputDevice(inputManager, device);
+        } 
+
+        if(device instanceof Keyboard){
+            ImeComposer ime = ctx.getImeComposer();
+            if(!(ime instanceof PhysicalKeyboardImeComposer)){
+                ctx.setImeComposer(new PhysicalKeyboardImeComposer(inputManager));
+            }
+        }
+    }
+
+    public NavigatorInputHandler getInputHandler(){
+        return inputHandler;
+    }
+  
+    public GuiContext getContext(){
+        return ctx;
+    }
+
+    public ViewPort getViewPort(){
+        return ctx.getViewPort();
+    }
+
+    public void update(float tpf){    
+        if(ctx.getViewPort() == null){
+            closeAll();
+            return;
+        }    
+        if (toastsStack.size() > 0) {
+            Instant now = Instant.now();
+            Iterator<NToast> it = toastsStack.iterator();
+            while (it.hasNext()) {
+                NToast toast = it.next();
+                boolean expired = toast.getCreationTime().plus(toast.getDuration()).isBefore(now);
+                boolean closed = toast.isClosed();
+                if (expired) {
+                    toast.close();
+                }
+                if (closed) {
+                    it.remove();
+                }
+            }
+        }
+
+        Camera cam = ctx.getViewPort().getCamera();
+        if (oldWidth != cam.getWidth() || oldHeight != cam.getHeight()) {
+            oldWidth = cam.getWidth();
+            oldHeight = cam.getHeight();
+            for (NWindow<?> window : windows) {
+                window.invalidate();
+            }
+
+            Container toastParent = ((Container) containerToast.getParent());
+            toastParent.setLocalTranslation(0, oldHeight, 10);
+            toastParent.setPreferredSize(new Vector3f(oldWidth, oldHeight, 10));
+        }
+
+        ctx.update(tpf);
+    }
+ 
+
+    public void enqueueInThread(Runnable task) {
+        MainThreadRunner r = mng.getInstanceOf(MainThreadRunner.class);
+        r.enqueue(task);
+    }
+
+    public void runInThread(Runnable task) {
+        MainThreadRunner r = mng.getInstanceOf(MainThreadRunner.class);
+        r.run(task);
+    }
+
+    public DataStoreProvider getDataStoreProvider() {
+        return mng.getInstanceOf(DataStoreProvider.class);
+    }
+
+
+    public int getWidth() {
+        Camera cam = ctx.getViewPort().getCamera();
+        return cam.getWidth();
+    }
+
+    public int getHeight() {
+        Camera cam = ctx.getViewPort().getCamera();
+        return cam.getHeight();
+    }
+  
+    protected void checkThread() {
+        MainThreadRunner r = mng.getInstanceOf(MainThreadRunner.class);
+        r.checkThread();
+    }
+
+
+    /**
+     * Shows a window of the specified class with the given arguments and a callback and returns a closer
+     * function.
+     * 
+     * @param <T>
+     *            the class of the window
+     * @param windowClass
+     *            the class of the window to show
+     * @return an instance of the window
+     */
+    public  <T extends NWindow<A>, A> T  showWindow(Class<T> windowClass) {
+        return showWindow(windowClass, null);
+    }
+
+
+
+    /**
+     * Shows a window of the specified class with the given arguments and a callback and returns a closer
+     * function.
+     * 
+     * @param <T>
+     *            the class of the window
+     * @param windowClass
+     *            the class of the window to show
+     * @param args
+     *            the arguments to pass to the window, can be null
+     * @return an instance of the window
+     */
+    public <T extends NWindow<A>, A> T showWindow(Class<T> windowClass, A args) {
+        checkThread();
+        AtomicBoolean closed = new AtomicBoolean(false);
+        AtomicReference<Runnable> closer = new AtomicReference<>(() -> {
+            closed.set(true);
+        });
+
+        try {
+            for (NWindow<?> window : windows) {
+                window.removeFromParent();
+            }
+
+            log.finer("Opening window: " + windowClass.getSimpleName());
+
+            Consumer<NWindow<A>> backAction = null;
+
+            if ( windows.size() > 0) {
+                backAction = win -> {
+                    closeWindow( windows.get(windows.size() - 1), true);
+                };
+            }
+
+            T window = (T) windowClass.getDeclaredConstructor().newInstance();
+            window.addWindowListener(new NWindowListener() {
+                @Override
+                public void onShow(NWindow<?> window) {
+                    closer.set(() -> {
+                        window.close();
+                    });
+                    if (closed.get()) {
+                        window.close();
+                    }
+                }
+
+                @Override
+                public void onHide(NWindow<?> window) {
+                }
+            });
+            window.initialize(this, backAction);
+            if (args != null) window.setArgs(args);
+
+            showWindow(window);
+            windows.add(window);
+
+            ctx.getNavigator().pushLayer(window);
+            return window;
+
+        } catch (Exception e) {
+            log.log(Level.SEVERE, "Failed to open window: " + windowClass.getSimpleName(), e);
+            throw new RuntimeException("Failed to create window", e);
+        }
+
+    }
+
+    private void showWindow(NWindow<?> window) {
+        checkThread();
+        if (window.getParent() != null) {
+            window.removeFromParent();
+        }
+        window.invalidate();
+        ctx.getGuiNode().attachChild(window);
+        window.onShow();
+    }
+
+
+ 
+
+    public NErrorWindow showFatalError(Throwable exc) {
+        checkThread();
+        log.log(Level.SEVERE, "Fatal error", exc);
+        return (NErrorWindow) showWindow(NErrorWindow.class, exc);
+    }
+
+
+    public <T extends NWindow<?>> T getWindow(Class<T> windowClass){
+        return getWindow(w->{
+            return windowClass.isInstance(w);
+        });
+    }
+
+    public <T extends NWindow<?>> T getWindow(Predicate<NWindow<?>> filter){
+        for (NWindow<?> window : windows) {
+            if(filter.test(window))return (T) window;
+        }
+        return null;
+    }
+
+    public void closeAllWindows() {
+        checkThread();
+        NWindow<?>[] windows = this.windows.toArray(new NWindow[0]);
+        for (NWindow<?> window : windows) {
+            closeWindow(window, false);
+        }
+    }
+    void closeWindow(NWindow<?> window) {
+        closeWindow(window, false);
+    }
+
+    void closeWindow(NWindow<?> window, boolean showPrevious) {
+        checkThread();
+        ctx.getNavigator().popLayer(window);
+        if (window.getParent() != null) {
+            window.removeFromParent();
+        }
+        window.onHide();
+        windows.remove(window);
+        
+        if (windows.size() > 0) {
+            NWindow<?> lastWindow = windows.get(windows.size() - 1);
+            showWindow(lastWindow);
+        }
+    }
+
+    public NToast showToast(Throwable exc) {
+        checkThread();
+        return showToast(exc, null);
+    }
+
+    public NToast showToast(Throwable exc, Duration duration) {
+        checkThread();
+        exc.printStackTrace();
+        StringBuilder message = new StringBuilder();
+        message.append("Error: ");
+        message.append(exc.getClass().getSimpleName());
+        message.append("\n\t");
+        message.append(exc.getMessage());
+        log.log(Level.WARNING, "Exception toast " + message.toString(), exc);
+        return showToast(ToastType.ERROR, message.toString(), duration);
+    }
+
+    public NToast showToast(ToastType type, String message) {
+        return showToast(type, message, null);
+    }
+
+
+    public NToast showToast(ToastType type, String message, Duration duration) {
+        checkThread();
+        Duration finalDuration = duration;
+        if (finalDuration == null) {
+            if (type != ToastType.INFO) {
+                finalDuration = Duration.ofSeconds(10);
+            } else {
+                finalDuration = Duration.ofSeconds(5);
+            }
+        }
+        NToast toast = new NToast(type, message, finalDuration);
+
+        if(containerToast == null){
+            int width = getWidth();
+            int height = getHeight();
+            containerToast = new Container(
+                    new SpringGridLayout(Axis.Y, Axis.X, FillMode.None, FillMode.Even));
+            containerToast.setInsetsComponent(new DynamicInsetsComponent(0f, 1f, 0f, 0f));
+            
+            Container toastParent = new Container(new BorderLayout());
+            toastParent.setLocalTranslation(0, height, 10);
+            toastParent.setPreferredSize(new Vector3f(width, height, 10));
+            toastParent.addChild(containerToast, BorderLayout.Position.South);
+            ctx.getGuiNode().attachChild(toastParent);
+        }
+        containerToast.addChild(toast);
+
+        toastsStack.add(toast);
+        return toast;       
+    }
+
+    public void closeAllToasts() {
+        checkThread();
+        NToast[] toasts = toastsStack.toArray(new NToast[0]);
+        for (NToast toast : toasts) {
+            closeToast(toast);
+        }
+    }
+
+    void closeToast(NToast toast) {
+        checkThread();
+        if (toast.getParent() != null) {
+            toast.removeFromParent();
+        }
+        toastsStack.remove(toast);
+        if(toastsStack.size() == 0){
+            containerToast.removeFromParent();
+            containerToast = null;
+        }
+    }
+
+    public void closeAll() {
+        checkThread();
+        closeAllWindows();
+        closeAllToasts();
+    }
+    public void back() {
+        checkThread();
+        if (windows.size() > 0) {
+            closeWindow(windows.get(windows.size() - 1), true);
+        }
+    }
+
+    public void action(int id) {
+        checkThread();
+        if (windows.size() > 0) {
+            NWindow<?> window = windows.get(windows.size() - 1);
+            window.onAction(id);
+        }
+    }
+
+    public void toastAction(int id) {
+        checkThread();
+        if (toastsStack.size() > 0) {
+            NToast toast = toastsStack.get(toastsStack.size() - 1);
+            toast.onAction(id);
+        }
+    }
+}

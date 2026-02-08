@@ -66,7 +66,7 @@ public class NToast extends Container {
     protected Label message;
     protected Duration duration;
     protected Instant creationTime;
-    protected NWindowManagerComponent appState;
+    protected NWindowManager appState;
     protected boolean closeable = false;
     protected NIconButton closeBtn;
     protected List<Runnable> closeListeners = new CopyOnWriteArrayList<>();
@@ -136,11 +136,11 @@ public class NToast extends Container {
         return getParent() == null;
     }
 
-    protected void initialize(NWindowManagerComponent appState) {
+    protected void initialize(NWindowManager appState) {
         this.appState = appState;
     }
 
-    protected NWindowManagerComponent getManager() {
+    protected NWindowManager getManager() {
         return appState;
     }
 

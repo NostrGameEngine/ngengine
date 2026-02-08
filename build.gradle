@@ -77,9 +77,9 @@ def mergedJavadocSubprojects = [
         ":nge-core",
         ":nge-app",
         ":nge-auth",
-        ":nge-lemur",
+
         ":nge-networking",
-        ":nge-gui",       
+        ":nge-gui",
         ":nge-ads"
 
 ]
@@ -140,9 +140,9 @@ subprojects {
         }
     }
 
-     if (name.startsWith("nge-")&&!name.endsWith("-lemur")) {
+     if (name.startsWith("nge-")) {
         apply plugin: 'com.diffplug.spotless'
-        
+
         spotless {
             enforceCheck = false
             java {
@@ -152,8 +152,6 @@ subprojects {
                 prettier(['prettier': '2.8.8', 'prettier-plugin-java': '2.2.0'])
                     .config(['parser': 'java', 'tabWidth': 4, 'printWidth': 128])
                 formatAnnotations()
- 
-                
             }
         }
     }

@@ -38,7 +38,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.ngengine.gui.win.NWindow;
-import org.ngengine.gui.win.NWindowManagerComponent;
+import org.ngengine.gui.win.NWindowManager;
 import org.ngengine.nostr4j.signer.NostrSigner;
 import org.ngengine.store.DataStore;
 
@@ -55,7 +55,7 @@ public abstract class Auth {
 
     public abstract String getNewIdentityText();
 
-    public NWindow<AuthConfig> open(NWindowManagerComponent manager, String forPubKey) {
+    public NWindow<AuthConfig> open(NWindowManager manager, String forPubKey) {
         AuthConfig options = this.options.clone();
         if (forPubKey != null) {
             options.setForNpub(forPubKey);
@@ -68,7 +68,7 @@ public abstract class Auth {
            
     }
 
-    public NWindow<AuthConfig> open(NWindowManagerComponent manager) {
+    public NWindow<AuthConfig> open(NWindowManager manager) {
        return open(manager, null);
     }
 

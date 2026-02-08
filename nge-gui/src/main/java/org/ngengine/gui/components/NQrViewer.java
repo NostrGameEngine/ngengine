@@ -55,9 +55,9 @@ import com.jme3.util.BufferUtils;
 import com.simsilica.lemur.Axis;
 import com.simsilica.lemur.Container;
 import com.simsilica.lemur.FillMode;
-import com.simsilica.lemur.GuiGlobals;
 import com.simsilica.lemur.HAlignment;
 import com.simsilica.lemur.Label;
+import com.simsilica.lemur.NGEGui;
 import com.simsilica.lemur.VAlignment;
 import com.simsilica.lemur.component.BorderLayout;
 import com.simsilica.lemur.component.BoxLayout;
@@ -67,8 +67,8 @@ import com.simsilica.lemur.component.SpringGridLayout;
 import com.simsilica.lemur.core.GuiControl;
 import com.simsilica.lemur.core.GuiControlListener;
 import com.simsilica.lemur.core.GuiUpdateListener;
-import com.simsilica.lemur.focus.FocusListener;
-import com.simsilica.lemur.focus.ScrollDirection;
+import com.simsilica.lemur.nav.FocusListener;
+import com.simsilica.lemur.nav.ScrollDirection;
 // import com.simsilica.lemur.event.MouseListener;
 import com.simsilica.lemur.style.ElementId;
 import com.simsilica.lemur.style.StyleAttribute;
@@ -244,7 +244,7 @@ public class NQrViewer extends Container implements GuiControlListener, GuiUpdat
         }
 
         if (!isShown()) {
-            Texture texture = GuiGlobals.getInstance().loadTexture("ui/blurred-qr.png", false, false);
+            Texture texture = NGEGui.loadTexture("ui/blurred-qr.png", false, false);
             background.setTexture(texture);
             background.setColor(lightColor);
         } else {

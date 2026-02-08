@@ -47,15 +47,15 @@ import com.jme3.math.Vector2f;
 import com.simsilica.lemur.Button;
 import com.simsilica.lemur.Checkbox;
 import com.simsilica.lemur.Container;
-import com.simsilica.lemur.GuiGlobals;
+
 import com.simsilica.lemur.HAlignment;
 import com.simsilica.lemur.Insets3f;
 import com.simsilica.lemur.ListBox;
+import com.simsilica.lemur.NGEGui;
 import com.simsilica.lemur.Panel;
 import com.simsilica.lemur.ProgressBar;
 import com.simsilica.lemur.Selector;
 import com.simsilica.lemur.Slider;
-import com.simsilica.lemur.Spinner;
 import com.simsilica.lemur.TextField;
 import com.simsilica.lemur.VAlignment;
 import com.simsilica.lemur.component.IconComponent;
@@ -70,18 +70,19 @@ import java.util.Map;
 
 import org.ngengine.DevMode;
 import org.ngengine.gui.components.NSVGIcon;
+import org.ngengine.platform.NGEUtils;
 
 public class NGEStyle {
 
     private static final String NAME = "nge";
 
     public static ColorRGBA fromHex(String hex) {
-         GuiGlobals globals = GuiGlobals.getInstance();
-        ColorRGBA c = globals.srgbaColor(
+        ColorRGBA c = NGEGui.srgbaColor(
             Integer.valueOf(hex.substring(1, 3), 16) / 255f,
             Integer.valueOf(hex.substring(3, 5), 16) / 255f,
             Integer.valueOf(hex.substring(5, 7), 16) / 255f,
-            hex.length() > 7 ? Integer.valueOf(hex.substring(7, 9), 16) / 255f : 1f
+            hex.length() > 7 ? Integer.valueOf(hex.substring(7, 9), 16) / 255f : 1f,
+            true
         );
 
         return c;
@@ -103,8 +104,8 @@ public class NGEStyle {
     }
 
     public static void use() {
-        GuiGlobals globals = GuiGlobals.getInstance();
-        globals.getStyles().setDefaultStyle(NAME);
+    
+        NGEGui.getStyles().setDefaultStyle(NAME);
     }
 
     private static int width = 1280;
@@ -136,8 +137,7 @@ public class NGEStyle {
         if(height>2)NGEStyle.height =720 ;
 
         System.out.println("Installing NGEStyle");
-        GuiGlobals gui = GuiGlobals.getInstance();
-        Styles styles = GuiGlobals.getInstance().getStyles();
+        Styles styles = NGEGui.getStyles();
 
         // --dark-purple: #1f0f33;
         // --medium-purple: #3E1E68;
@@ -176,7 +176,7 @@ public class NGEStyle {
         
         {
             Material highlightMat = new Material(
-                GuiGlobals.getInstance().getAssets(),
+                NGEGui.getAssetManager(),
                 "Common/MatDefs/Misc/Unshaded.j3md"
             );
             highlightMat.getAdditionalRenderState().setBlendMode(BlendMode.Additive);
@@ -198,12 +198,12 @@ public class NGEStyle {
         }
 
         {
-            ElementId parent = new ElementId(Spinner.ELEMENT_ID);  
-            styles.getSelector(parent.child(Spinner.UP_ID), NAME).set("text", "+", false);
-            styles.getSelector(parent.child(Spinner.UP_ID), NAME).set("insets", new Insets3f(0, 0, 0, 0), false);
-            styles.getSelector(parent.child(Spinner.DOWN_ID), NAME).set("text", "-", false);
-            styles.getSelector(parent.child(Spinner.DOWN_ID), NAME).set("insets", new Insets3f(0, 0, 0, 0), false);
-            styles.getSelector(parent.child(Spinner.VALUE_ID), NAME).set("textVAlignment", VAlignment.Center, false);
+            // ElementId parnet = new ElementId(Spinner.ELEMENT_ID);  
+            // styles.getSelector(parent.child(Spinner.UP_ID), NAME).set("text", "+", false);
+            // styles.getSelector(parent.child(Spinner.UP_ID), NAME).set("insets", new Insets3f(0, 0, 0, 0), false);
+            // styles.getSelector(parent.child(Spinner.DOWN_ID), NAME).set("text", "-", false);
+            // styles.getSelector(parent.child(Spinner.DOWN_ID), NAME).set("insets", new Insets3f(0, 0, 0, 0), false);
+            // styles.getSelector(parent.child(Spinner.VALUE_ID), NAME).set("textVAlignment", VAlignment.Center, false);
         }
 
         {
@@ -227,19 +227,18 @@ public class NGEStyle {
         }
 
       {        
-            GuiGlobals globals = GuiGlobals.getInstance();
             ElementId parent = new ElementId(ProgressBar.ELEMENT_ID);        
             styles.getSelector(parent.child(ProgressBar.CONTAINER_ID), NAME).set("background", 
-                                                    new QuadBackgroundComponent(globals.srgbaColor(new ColorRGBA(0.2f, 0.2f, 0.2f, 0.5f))
+                                                    new QuadBackgroundComponent(NGEGui.srgbaColor(new ColorRGBA(0.2f, 0.2f, 0.2f, 0.5f), true)
                                                    , 2, 2) ); 
             styles.getSelector(parent.child(ProgressBar.VALUE_ID), NAME).set("background", 
-                                                    new QuadBackgroundComponent(globals.srgbaColor(new ColorRGBA(0.1f, 0.7f, 0.3f, 1)))); 
+                                                    new QuadBackgroundComponent(NGEGui.srgbaColor(new ColorRGBA(0.1f, 0.7f, 0.3f, 1), true))); 
             styles.getSelector(parent.child(ProgressBar.LABEL_ID), NAME).set("textHAlignment", HAlignment.Center, false);
         }
 
         {        
             Attributes attrs = styles.getSelector(Panel.ELEMENT_ID, NAME);
-            ColorRGBA gray = GuiGlobals.getInstance().srgbaColor(ColorRGBA.Gray);        
+            ColorRGBA gray = NGEGui.srgbaColor(ColorRGBA.Gray, true);        
             attrs.set( "background", new QuadBackgroundComponent(gray) , false );
         }
 
@@ -275,16 +274,15 @@ public class NGEStyle {
 
         {
             Attributes attrs = styles.getSelector(Button.ELEMENT_ID, NAME);
-            GuiGlobals globals = GuiGlobals.getInstance();
             attrs.set("background", new QuadBackgroundComponent(new ColorRGBA(0,0,0,0)), false);
             attrs.set("highlightColor", ColorRGBA.Yellow, false);  // yellow should not need srgb conversion
             // attrs.set("focusColor", ColorRGBA.Green, false);       // green should not need srgb conversion
-            attrs.set("shadowColor", globals.srgbaColor(new ColorRGBA(0, 0, 0, 0.5f)), false);
+            attrs.set("shadowColor", NGEGui.srgbaColor(new ColorRGBA(0, 0, 0, 0.5f), true), false);
         }
 
          {
             Attributes attrs = styles.getSelector("loading-spinner", NAME);
-             ColorRGBA gray = GuiGlobals.getInstance().srgbaColor(ColorRGBA.Gray);
+             ColorRGBA gray = NGEGui.srgbaColor(ColorRGBA.Gray, true);
             attrs.set("color", gray, false);
          }
         {
@@ -296,22 +294,25 @@ public class NGEStyle {
 
         {
             Attributes container = styles.getSelector("window", NAME);
-            int x1 = 100;
-            int x2 = 100;
-            int y1 = 100;
-            int y2 = 100;
-            float scale = 0.24f;
+            // int x1 = 100;
+            // int x2 = 100;
+            // int y1 = 100;
+            // int y2 = 100;
+            // float scale = 0.24f;
 
-            TbtQuadBackgroundComponent background = TbtQuadBackgroundComponent.create(
-                "ui/frame.png",
-                scale,
-                x1,
-                y1,
-                x2,
-                y2,
-                1f,
-                false
-            );
+            // TbtQuadBackgroundComponent background = TbtQuadBackgroundComponent.create(
+            //     "ui/frame.png",
+            //     scale,
+            //     x1,
+            //     y1,
+            //     x2,
+            //     y2,
+            //     1f,
+            //     false
+            // );
+            ColorRGBA c = mediumPurple.clone();
+            c.a=0.8f;
+            QuadBackgroundComponent background = new QuadBackgroundComponent(c);
             background.setMargin(new Vector2f(10, 10));
             background.setColor(darkPurple);
             container.set("background", background);

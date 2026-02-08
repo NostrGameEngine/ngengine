@@ -74,7 +74,6 @@ include 'jme3-screenshot-tests'
 // nge
 include 'nge-core'
 include 'nge-networking'
-include 'nge-lemur'
 include 'nge-gui'
 include 'nge-auth'
 include 'nge-app'
@@ -82,3 +81,4 @@ include 'nge-ads'
 include 'nge-web'
 include 'nge-web-bullet'
 include 'nge-android'
+

@@ -1226,4 +1226,9 @@ public final class FastMath {
         return Float.compare(f1, f2);
     }
 
+    public static int mod(int x, int m) {
+        int r = x % m;
+        return r < 0 ? r + m : r;    
+    }
+
 }

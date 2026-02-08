@@ -40,11 +40,20 @@
 
 package org.ngengine.gui.components.containers;
 
+import java.util.EnumMap;
+import java.util.Map;
+
 import com.jme3.scene.Node;
+import com.simsilica.lemur.Container;
 import com.simsilica.lemur.component.BorderLayout;
 import com.simsilica.lemur.style.ElementId;
 
+/**
+ * A container that can be split into rows and columns.
+ */
 public class NPanel extends NContainer {
+    private Map<BorderLayout.Position, Container> containers = new EnumMap<>(BorderLayout.Position.class);
+
 
     public NPanel() {
         super(new BorderLayout());
@@ -54,18 +63,21 @@ public class NPanel extends NContainer {
         super(new BorderLayout(), id);
     }
 
+    @Override
     public NRow addRow() {
         NRow row = new NRow();
         addChild(row, BorderLayout.Position.Center);
         return row;
     }
 
+    @Override
     public NColumn addCol() {
         NColumn col = new NColumn();
         addChild(col, BorderLayout.Position.Center);
         return col;
     }
 
+    @Override
     public NPanel addSubPanel() {
         NPanel panel = new NPanel();
         addChild(panel, BorderLayout.Position.Center);
@@ -91,6 +103,25 @@ public class NPanel extends NContainer {
     }
 
     public <T extends Node> T addChild(T child, BorderLayout.Position position) {
-        return super.addChild(child, position);
+        Container container = this.containers.get(position);
+        if(container!=null&&container.getParent() != this) {
+            container = null;
+        }
+        if(container == null) {
+            container = new NColumn();
+            super.addChild(container, position);
+            this.containers.put(position, container);
+        }
+        container.addChild(child);
+        return child;
     }
+
+    @Override
+    public void clearChildren() {
+        super.clearChildren();
+        this.containers.clear();
+    }
+
+   
+    
 }

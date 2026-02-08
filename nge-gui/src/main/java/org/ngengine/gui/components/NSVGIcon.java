@@ -42,7 +42,7 @@ package org.ngengine.gui.components;
 
 import com.jme3.math.Vector2f;
 import com.jme3.texture.plugins.SVGTextureKey;
-import com.simsilica.lemur.GuiGlobals;
+import com.simsilica.lemur.NGEGui;
 import com.simsilica.lemur.component.IconComponent;
 
 public class NSVGIcon extends IconComponent {
@@ -65,8 +65,7 @@ public class NSVGIcon extends IconComponent {
         boolean lit
     ) {
         super(
-            GuiGlobals
-                .getInstance()
+            NGEGui
                 .loadTexture(new SVGTextureKey(imagePath, width < 2 ? 2 : width, height < 2 ? 2 : height), false),
             iconScale,
             xMargin,

@@ -39,7 +39,7 @@ import com.jme3.system.AppSettings;
 import com.jme3.system.JmeSystem;
 import com.jme3.system.Platform;
 import com.jme3.util.res.Resources;
-import com.simsilica.lemur.GuiGlobals;
+import com.simsilica.lemur.NGEGui;
 
 import java.util.Collection;
 import java.util.List;
@@ -110,7 +110,7 @@ public class NGEApplication implements ComponentManagerProvider{
                 logger.log(Level.WARNING, "Failed to load NGE configuration file", e);
             }
 
-            GuiGlobals.initialize(this);
+            NGEGui.initialize(assetManager);
             stateManager.attach(new DevMode());
 
             getStateManager().attach(cmng);

@@ -40,21 +40,24 @@
 
 package org.ngengine.gui;
 
+import java.util.Vector;
 import java.util.WeakHashMap;
 
 import com.jme3.bounding.BoundingBox;
 import com.jme3.material.Material;
+import com.jme3.math.Vector3f;
 import com.jme3.renderer.ViewPort;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.shape.Quad;
-import com.simsilica.lemur.GuiGlobals;
+import com.jme3.util.TempVars;
+import com.simsilica.lemur.GuiContext;
+import com.simsilica.lemur.NGEGui;
 import com.simsilica.lemur.Panel;
 import com.simsilica.lemur.anim.Animation;
 import com.simsilica.lemur.effect.AbstractEffect;
 import com.simsilica.lemur.effect.EffectInfo;
-import com.simsilica.lemur.input.InputMapper.ViewState;
 
 public class NGEFocusEffect extends AbstractEffect<Panel> {
     private final boolean onFocus;
@@ -115,7 +118,7 @@ public class NGEFocusEffect extends AbstractEffect<Panel> {
     }
 
     protected Node getOverlay(Spatial target){
-        ViewState vs = GuiGlobals.getInstance().getInputMapper().get(target);
+        GuiContext vs = NGEGui.get(target);
         if (vs==null) return null;
         ViewPort vp = vs.getViewPort();
         Node overlayScene = (Node) vp.getScenes().get(0);
@@ -125,7 +128,6 @@ public class NGEFocusEffect extends AbstractEffect<Panel> {
 
     protected void update(State state, Node overlayScene, Spatial target){
  
-
         if(state.overlay == null){
             Quad quad = new Quad(1,1);
             Geometry geo = new Geometry("focusOverlay", quad);
@@ -136,12 +138,19 @@ public class NGEFocusEffect extends AbstractEffect<Panel> {
         
         if(state.overlay!=null){
             BoundingBox box = (BoundingBox) target.getWorldBound();
-            state.overlay.setLocalScale(box.getXExtent()*2, box.getYExtent()*2, 1);                
-            state.overlay.setLocalTranslation(
-                box.getCenter().x - box.getXExtent(),
-                box.getCenter().y - box.getYExtent(),
-                box.getCenter().z + 0.1f
-            );
+            try(TempVars vars = TempVars.get()){
+                Vector3f scale = vars.vect1;
+                Vector3f translation = vars.vect2;
+
+                scale.set(box.getXExtent()*2, box.getYExtent()*2, 1);
+                translation.set( box.getCenter().x - box.getXExtent(), box.getCenter().y - box.getYExtent(), box.getCenter().z + 0.1f);
+                
+                overlayScene.worldToLocal(translation, translation);
+                scale.divideLocal(overlayScene.getWorldScale());
+
+                state.overlay.setLocalScale(scale);
+                state.overlay.setLocalTranslation(translation);
+            }
         }
         
     }

@@ -43,23 +43,20 @@ package org.ngengine.gui.win;
 import com.jme3.input.InputDevice;
 import com.jme3.input.InputManager;
 import com.jme3.input.event.InputEvent;
-import com.jme3.math.Vector3f;
-import com.jme3.renderer.Camera;
+import com.jme3.input.event.JoyAxisEvent;
+import com.jme3.input.event.JoyButtonEvent;
+import com.jme3.input.event.KeyInputEvent;
+import com.jme3.input.event.MouseButtonEvent;
+import com.jme3.input.event.MouseMotionEvent;
+import com.jme3.input.event.TouchEvent;
 import com.jme3.renderer.ViewPort;
-import com.jme3.scene.Node;
-import com.simsilica.lemur.Axis;
-import com.simsilica.lemur.Container;
-import com.simsilica.lemur.FillMode;
-import com.simsilica.lemur.component.BorderLayout;
-import com.simsilica.lemur.component.DynamicInsetsComponent;
-import com.simsilica.lemur.component.SpringGridLayout;
+import com.simsilica.lemur.GuiContext;
+import com.simsilica.lemur.NGEGui;
+import com.simsilica.lemur.nav.DefaultNavigatorInputHandler;
+import com.simsilica.lemur.nav.NavigatorInputHandler;
+
 import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -74,21 +71,69 @@ import org.ngengine.components.jme3.AppComponentInitializer.InputActions;
 import org.ngengine.gui.NGEStyle;
 import org.ngengine.gui.win.NToast.ToastType;
 import org.ngengine.gui.win.std.NErrorWindow;
-import org.ngengine.runner.MainThreadRunner;
 import org.ngengine.store.DataStoreProvider;
 
-public class NWindowManagerComponent extends AbstractComponent implements  LogicFragment, InputHandlerFragment {
+public class NWindowManagerComponent extends AbstractComponent implements LogicFragment, InputHandlerFragment {
 
     private static final Logger log = Logger.getLogger(NWindowManagerComponent.class.getName());
-    private final ArrayList<NWindow<?>> windowsStack = new ArrayList<>();
-    private final ArrayList<NToast> toastsStack = new ArrayList<>();
+    private final ArrayList<NWindowManager> windowManagers = new ArrayList<>();
+    private Class<? extends NavigatorInputHandler> defaultInputHandlerClass = DefaultNavigatorInputHandler.class;
+    private boolean enabled = false;
 
-    
-    private Container toastContainer;
+    public NWindowManager getManager(ViewPort vp){
+        return getManager(vp, null);
+    }
+
+    public NWindowManager getManager(ViewPort vp, Class<? extends NavigatorInputHandler> inputHandlerClass) {
+         if(vp==null){
+            ViewPortManager vpm = getInstanceOf(ViewPortManager.class);
+            vp= vpm.getGuiViewPort();
+        }
+        for(NWindowManager manager : windowManagers){
+            if(manager.getViewPort() == vp){
+                return manager;
+            }
+        }
+        NGEGui.register(vp, true);
+        GuiContext ctx = NGEGui.get(vp);
+        NWindowManager newmanager = new NWindowManager(this,ctx); 
+        windowManagers.add(newmanager);
+
+        if(inputHandlerClass==null){
+            inputHandlerClass = defaultInputHandlerClass;
+        }
+
+        if(inputHandlerClass!=null){
+            try {
+                NavigatorInputHandler inputHandler = inputHandlerClass.getConstructor().newInstance();
+                newmanager.setInputHandler(inputHandler);
+
+                inputHandler.setPrimaryAction(()->{
+                    newmanager.action(0);
+                });
+                inputHandler.setSecondaryAction(()->{
+                    newmanager.toastAction(0);
+                });
+                inputHandler.setBackAction(()->{
+                    newmanager.back();
+                });
+            } catch (Exception e) {
+                log.log(Level.SEVERE,"Failed to create input handler",e);
+            }
+        }
+
+   
+        
+
+        return newmanager;
+    }
+
+    public void setDefaultInputHandler(Class<? extends NavigatorInputHandler> inputHandler) {
+   
+        this.defaultInputHandlerClass = inputHandler;
+    }
+
   
-    private int width = 0;
-    private int height = 0;
-
     @Override
     public Component newInstance() {
         return new NWindowManagerComponent();
@@ -98,52 +143,33 @@ public class NWindowManagerComponent extends AbstractComponent implements  Logic
         getInstanceOf(InputManager.class).setCursorVisible(v);
     }
 
-    private Node getGuiNode(){
-        ViewPortManager vpm = getInstanceOf(ViewPortManager.class);
-        return vpm.getRootNode(vpm.getGuiViewPort());
-    }
-
-    public ViewPort getViewPort(){
-        ViewPortManager vpm = getInstanceOf(ViewPortManager.class);
-        return vpm.getGuiViewPort();
-    }
 
     public void enqueueInThread(Runnable task) {
-        MainThreadRunner r = getInstanceOf(MainThreadRunner.class);
-        r.enqueue(task);
+        getManager(null).enqueueInThread(task);
     }
 
     public void runInThread(Runnable task) {
-        MainThreadRunner r = getInstanceOf(MainThreadRunner.class);
-        r.run(task);
+        getManager(null).runInThread(task);
     }
 
-  
-
     public DataStoreProvider getDataStoreProvider() {
-        return getInstanceOf(DataStoreProvider.class);
+        return getManager(null).getDataStoreProvider();
     }
 
     
 
     public int getWidth() {
-        ViewPortManager vpm = getInstanceOf(ViewPortManager.class);
-        ViewPort guiVp= vpm.getGuiViewPort();
-        Camera cam = guiVp.getCamera();
-        return cam.getWidth();
+        return getManager(null).getWidth();
     }
 
     public int getHeight() {
-        ViewPortManager vpm = getInstanceOf(ViewPortManager.class);
-        ViewPort guiVp= vpm.getGuiViewPort();
-        Camera cam = guiVp.getCamera();
-        return cam.getHeight();
+        return getManager(null).getHeight();
     }
 
-    protected void checkThread() {
-        MainThreadRunner r = getInstanceOf(MainThreadRunner.class);
-        r.checkThread();
-    }
+    
+
+
+
 
     /**
      * Shows a window of the specified class with the given arguments and a callback and returns a closer
@@ -156,9 +182,10 @@ public class NWindowManagerComponent extends AbstractComponent implements  Logic
      * @return an instance of the window
      */
     public  <T extends NWindow<A>, A> T  showWindow(Class<T> windowClass) {
-        checkThread();
-        return showWindow(windowClass, null);
+        return getManager(null).showWindow(windowClass);
     }
+
+
 
     /**
      * Shows a window of the specified class with the given arguments and a callback and returns a closer
@@ -173,260 +200,98 @@ public class NWindowManagerComponent extends AbstractComponent implements  Logic
      * @return an instance of the window
      */
     public <T extends NWindow<A>, A> T showWindow(Class<T> windowClass, A args) {
-        checkThread();
-        AtomicBoolean closed = new AtomicBoolean(false);
-        AtomicReference<Runnable> closer = new AtomicReference<>(() -> {
-            closed.set(true);
-        });
-
-        try {
-            for (NWindow<?> window : windowsStack) {
-                window.removeFromParent();
-            }
-
-            log.finer("Opening window: " + windowClass.getSimpleName());
-
-            Consumer<NWindow<A>> backAction = null;
-
-            if (windowsStack.size() > 0) {
-                backAction = win -> {
-                    closeWindow(windowsStack.get(windowsStack.size() - 1));
-                };
-            }
-
-            T window = (T) windowClass.getDeclaredConstructor().newInstance();
-            window.addWindowListener(new NWindowListener() {
-                @Override
-                public void onShow(NWindow<?> window) {
-                    closer.set(() -> {
-                        window.close();
-                    });
-                    if (closed.get()) {
-                        window.close();
-                    }
-                }
-
-                @Override
-                public void onHide(NWindow<?> window) {
-                }
-            });
-            window.initialize(this, backAction);
-            if (args != null) window.setArgs(args);
-
-            showWindow(window);
-            windowsStack.add(window);
-            return window;
-
-        } catch (Exception e) {
-            log.log(Level.SEVERE, "Failed to open window: " + windowClass.getSimpleName(), e);
-            throw new RuntimeException("Failed to create window", e);
-        }
-
-    }
-
-    public <T extends NWindow<?>> T getWindow(Predicate<NWindow<?>> filter){
-        for (NWindow<?> window : windowsStack) {
-            if(filter.test(window))return (T) window;
-        }
-        return null;
+        return getManager(null).showWindow(windowClass, args);
     }
 
     public <T extends NWindow<?>> T getWindow(Class<T> windowClass){
-        return getWindow(w->{
-            return windowClass.isInstance(w);
-        });
+        return getManager(null).getWindow(windowClass);
+    }
+
+    public <T extends NWindow<?>> T getWindow(Predicate<NWindow<?>> filter){
+        return getManager(null).getWindow(filter);
     }
 
     public NErrorWindow showFatalError(Throwable exc) {
-        checkThread();
-        log.log(Level.SEVERE, "Fatal error", exc);
-        return (NErrorWindow) showWindow(NErrorWindow.class, exc);
+        return getManager(null).showFatalError(exc);
     }
 
     public NToast showToast(Throwable exc) {
-        checkThread();
-        return showToast(exc, null);
+        return getManager(null).showToast(exc);
     }
 
     public NToast showToast(Throwable exc, Duration duration) {
-        checkThread();
-        exc.printStackTrace();
-        StringBuilder message = new StringBuilder();
-        message.append("Error: ");
-        message.append(exc.getClass().getSimpleName());
-        message.append("\n\t");
-        message.append(exc.getMessage());
-        log.log(Level.WARNING, "Exception toast " + message.toString(), exc);
-        return showToast(ToastType.ERROR, message.toString(), duration);
+        return getManager(null).showToast(exc, duration);
     }
 
     public NToast showToast(ToastType type, String message) {
-        return showToast(type, message, null);
+        return getManager(null).showToast(type, message);
     }
 
     public NToast showToast(ToastType type, String message, Duration duration) {
-        checkThread();
-        Duration finalDuration = duration;
-        if (finalDuration == null) {
-            if (type != ToastType.INFO) {
-                finalDuration = Duration.ofSeconds(10);
-            } else {
-                finalDuration = Duration.ofSeconds(5);
-            }
-        }
-        NToast toast = new NToast(type, message, finalDuration);
-        toastContainer.addChild(toast);
-        toastsStack.add(toast);
-        return toast;       
-    }
-
-    void closeToast(NToast toast) {
-        checkThread();
-        if (toast.getParent() != null) {
-            toast.removeFromParent();
-        }
-        toastsStack.remove(toast);
-    }
-
-    private void showWindow(NWindow<?> window) {
-        checkThread();
-        if (window.getParent() != null) {
-            window.removeFromParent();
-        }
-        window.invalidate();
-        getGuiNode().attachChild(window);
-        window.onShow();
+        return getManager(null).showToast(type, message, duration);
     }
 
     public void closeAllWindows() {
-        checkThread();
-        NWindow<?>[] windows = windowsStack.toArray(new NWindow[0]);
-        for (NWindow<?> window : windows) {
-            closeWindow(window);
-        }
+        getManager(null).closeAllWindows();
     }
 
     public void closeAllToasts() {
-        checkThread();
-        NToast[] toasts = toastsStack.toArray(new NToast[0]);
-        for (NToast toast : toasts) {
-            closeToast(toast);
-        }
+        getManager(null).closeAllToasts();
     }
 
     public void closeAll() {
-        checkThread();
-        // runInThread(()->{
-        closeAllWindows();
-        closeAllToasts();
-        // });
-    }
-
-    void closeWindow(NWindow<?> window) {
-        checkThread();
-        if (window.getParent() != null) {
-            window.removeFromParent();
-        }
-        window.onHide();
-
-        windowsStack.remove(window);
-        if (windowsStack.size() > 0) {
-            NWindow<?> lastWindow = windowsStack.get(windowsStack.size() - 1);
-            showWindow(lastWindow);
-        }
+        getManager(null).closeAll();
     }
 
     @Override
     public void onEnable(ComponentManager mng,
             boolean firstTime ) {
-
-         int width = getWidth();
+        enabled = true;
+        int width = getWidth();
         int height = getHeight();
         NGEStyle.installAndUse(width,height);
 
-        Node guiNode = getGuiNode();
-        {
-            Container toastParent = new Container(new BorderLayout());
-            toastParent.setLocalTranslation(0, height, 10);
-            toastParent.setPreferredSize(new Vector3f(width, height, 10));
-            toastContainer = new Container(
-                    new SpringGridLayout(Axis.Y, Axis.X, FillMode.None, FillMode.Even));
-            toastContainer.setInsetsComponent(new DynamicInsetsComponent(0f, 1f, 0f, 0f));
-            toastParent.addChild(toastContainer, BorderLayout.Position.South);
-            guiNode.attachChild(toastParent);
-        }
+        InputManager inputManager = getInstanceOf(InputManager.class);
+        NWindowManager m = getManager(null);
     }
 
     @Override
     public void onDisable(ComponentManager mng) {
-        closeAll();
-        {
-            toastContainer.getParent().removeFromParent();
+        enabled = false;
+        for(NWindowManager manager : windowManagers) {
+            manager.closeAll();
+            manager.setInputHandler(null);
         }
+ 
     }
-    
+
+    public void setInputDevice(InputDevice device) {
+        getManager(null).setInputDevice(device);
+    }
 
     
     @Override
     public void updateAppLogic(ComponentManager mng, float tpf){
-        ViewPortManager vpm = mng.getInstanceOf(ViewPortManager.class);
-        ViewPort vp= vpm.getGuiViewPort();
-        
-        if (toastsStack.size() > 0) {
-            Instant now = Instant.now();
-            Iterator<NToast> it = toastsStack.iterator();
-            while (it.hasNext()) {
-                NToast toast = it.next();
-                boolean expired = toast.getCreationTime().plus(toast.getDuration()).isBefore(now);
-                boolean closed = toast.isClosed();
-                if (expired) {
-                    toast.close();
-                }
-                if (closed) {
-                    it.remove();
-                }
-            }
-        }
-
-        Camera cam = vp.getCamera();
-        if (width != cam.getWidth() || height != cam.getHeight()) {
-            width = cam.getWidth();
-            height = cam.getHeight();
-            NGEStyle.installAndUse(width,height);
-            for (NWindow<?> window : windowsStack) {
-                window.invalidate();
-            }
-            ((Container) toastContainer.getParent()).setPreferredSize(new Vector3f(width, height, 10));
+        for(NWindowManager manager : windowManagers){
+            manager.update(tpf);
         }
     }
 
     public void back() {
-        checkThread();
-        if (windowsStack.size() > 0) {
-            closeWindow(windowsStack.get(windowsStack.size() - 1));
-        }
+        getManager(null).back();
     }
 
     public void action(int id) {
-        checkThread();
-        if (windowsStack.size() > 0) {
-            NWindow<?> window = windowsStack.get(windowsStack.size() - 1);
-            window.onAction(id);
-        }
+        getManager(null).action(id);
     }
 
     public void toastAction(int id) {
-        checkThread();
-        if (toastsStack.size() > 0) {
-            NToast toast = toastsStack.get(toastsStack.size() - 1);
-            toast.onAction(id);
-        }
+        getManager(null).toastAction(id);
     }
 
  
     @Override
     public void onInputDeviceConnected(ComponentManager mng, InputManager inputManager, InputActions actions, InputDevice device) {
-      
     }
 
     @Override
@@ -438,5 +303,32 @@ public class NWindowManagerComponent extends AbstractComponent implements  Logic
     public void onInputAction(ComponentManager mng, String action, boolean toggled,  float value, InputEvent<?> event,
             float tpf) {
          
+    }
+
+    // any input action will set the input device as 
+    // current for the main window manager
+    public void onJoyAxisEvent(ComponentManager mng, JoyAxisEvent evt) {
+        setInputDevice(evt.getDevice());
+    }
+
+    public void onJoyButtonEvent(ComponentManager mng, JoyButtonEvent evt) {
+        setInputDevice(evt.getDevice());
+    }
+
+    public void onMouseMotionEvent(ComponentManager mng, MouseMotionEvent evt) {
+        setInputDevice(evt.getDevice());
+    }
+
+    public void onMouseButtonEvent(ComponentManager mng, MouseButtonEvent evt) {
+        setInputDevice(evt.getDevice());
+    }
+
+    public void onKeyEvent(ComponentManager mng, KeyInputEvent evt) {
+        setInputDevice(evt.getDevice());
+        
+    }
+
+    public void onTouchEvent(ComponentManager mng, TouchEvent evt) {
+        setInputDevice(evt.getDevice());
     }
 }
