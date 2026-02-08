@@ -324,6 +324,7 @@ public final class AppSettings extends HashMap<String, Object> {
         defaults.put("JoysticksMapper", JOYSTICKS_XBOX_MAPPER);
         defaults.put("JoysticksTriggerToButtonThreshold", 0.5f);
         defaults.put("JoysticksAxisJitterThreshold", 0.0001f);
+        defaults.put("SDLGameControllerDBResourcePath", "");
         //  defaults.put("Icons", null);
     }
 
@@ -1582,6 +1583,24 @@ public final class AppSettings extends HashMap<String, Object> {
      */   
     public float getJoysticksAxisJitterThreshold() {
         return getFloat("JoysticksAxisJitterThreshold");    
+    }
+
+    /**
+     * Set resource path for a custom SDL game controller database.
+     * 
+     * @param path
+     */
+    public void setSDLGameControllerDBResourcePath(String path) {
+        putString("SDLGameControllerDBResourcePath", path);
+    }
+
+    /**
+     * Get resource path for a custom SDL game controller database.
+     * 
+     * @return resource path
+     */
+    public String getSDLGameControllerDBResourcePath() {
+        return getString("SDLGameControllerDBResourcePath");
     }
 
 }
