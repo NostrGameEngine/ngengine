@@ -48,8 +48,6 @@ import com.jme3.terrain.geomipmap.TerrainQuad;
 import java.util.Iterator;
 import java.util.LinkedList;
 
-import org.ngengine.web.json.*;
-
 /**
  * A utility class for generating collision shapes from Spatials.
  * <p>
