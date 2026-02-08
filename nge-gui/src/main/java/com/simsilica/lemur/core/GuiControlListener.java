@@ -37,6 +37,7 @@
  * 
  * https://github.com/jMonkeyEngine-Contributions/Lemur
  */
+
 package com.simsilica.lemur.core;
 
 import com.jme3.math.Vector3f;

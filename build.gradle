@@ -178,7 +178,23 @@ subprojects {
             doLast {
                 def licenseHeader = licenseText
 
-                def isCopyrightHeaderBlock = { String block ->
+                // Only strip the legacy NGE header block.
+                // Then only add the license if the file has no block comment containing "Copyright".
+                def afterFirstComma = { String s ->
+                    if (s == null) {
+                        return null
+                    }
+                    def idx = s.indexOf(',')
+                    if (idx < 0 || idx == s.length() - 1) {
+                        return null
+                    }
+                    return s.substring(idx + 1).trim()
+                }
+
+                def licenseFirstLine = chosenLicenseFile.readLines('UTF-8')?.find { it != null } ?: ""
+                def legacyHeaderMarker = afterFirstComma(licenseFirstLine) ?: licenseFirstLine.trim()
+
+                def firstNonEmptyTextInBlock = { String block ->
                     def body = block
                             .replaceFirst(/(?s)\A\/\*{1,2}/, "")
                             .replaceFirst(/(?s)\*\/\s*\z/, "")
@@ -189,13 +205,22 @@ subprojects {
                             t = t.substring(1).trim()
                         }
                         if (!t.isEmpty()) {
-                            return t.startsWith("Copyright")
+                            return t
                         }
                     }
-                    return false
+                    return null
                 }
 
-                def stripLeadingCopyrightBlocks = { String s ->
+                def shouldStripLegacyHeaderBlock = { String block ->
+                    def firstLine = firstNonEmptyTextInBlock(block)
+                    if (firstLine == null) {
+                        return false
+                    }
+                    def markerInBlock = afterFirstComma(firstLine) ?: firstLine.trim()
+                    return firstLine.trim().startsWith("Copyright") && markerInBlock == legacyHeaderMarker
+                }
+
+                def stripLeadingLegacyHeaderBlocks = { String s ->
                     s = s.replaceFirst(/^\uFEFF/, "")
 
                     while (true) {
@@ -205,7 +230,7 @@ subprojects {
                         }
 
                         def block = m.group(2)
-                        if (isCopyrightHeaderBlock(block)) {
+                        if (shouldStripLegacyHeaderBlock(block)) {
                             s = s.substring(m.end())
                             continue
                         }
@@ -216,21 +241,38 @@ subprojects {
                     return s
                 }
 
+                def hasAnyCopyrightBlockComment = { String s ->
+                    def m = (s =~ /(?s)\/\*{1,2}.*?\*\//)
+                    while (m.find()) {
+                        def block = m.group()
+                        if (block != null && block.contains("Copyright")) {
+                            return true
+                        }
+                    }
+                    return false
+                }
+
                 srcFiles.each { f ->
                     def original = f.getText('UTF-8')
-                    def stripped = stripLeadingCopyrightBlocks(original)
+                    def stripped = stripLeadingLegacyHeaderBlocks(original)
 
-                    def packageMatcher = stripped =~ /(?m)^package\s+[\w.]+;/
+                    // Rule 2: if any block comment contains "Copyright", do not add the license.
+                    // Still persist the legacy-header removal if it changed the file.
                     def updated
-                    if (packageMatcher.find()) {
-                        def position = packageMatcher.start()
-                        updated =
-                                stripped.substring(0, position) +
-                                licenseHeader +
-                                "\n\n" +
-                                stripped.substring(position)
+                    if (hasAnyCopyrightBlockComment(stripped)) {
+                        updated = stripped
                     } else {
-                        updated = licenseHeader + "\n\n" + stripped
+                        def packageMatcher = stripped =~ /(?m)^package\s+[\w.]+;/
+                        if (packageMatcher.find()) {
+                            def position = packageMatcher.start()
+                            updated =
+                                    stripped.substring(0, position) +
+                                    licenseHeader +
+                                    "\n\n" +
+                                    stripped.substring(position)
+                        } else {
+                            updated = licenseHeader + "\n\n" + stripped
+                        }
                     }
 
                     if (updated != original) {

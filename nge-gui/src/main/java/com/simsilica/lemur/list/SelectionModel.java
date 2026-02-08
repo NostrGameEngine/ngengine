@@ -37,6 +37,7 @@
  * 
  * https://github.com/jMonkeyEngine-Contributions/Lemur
  */
+
 package com.simsilica.lemur.list;
 
 import java.util.Objects;
