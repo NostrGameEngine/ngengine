@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025, Nostr Game Engine
+ * Copyright (c) 2026, Nostr Game Engine
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -28,7 +28,16 @@
  * 
  * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
  * the BSD 3-Clause License. 
+ * 
+ * #########################################
+ * 
+ * nge-gui is built and based on Lemur, which is licensed under the BSD 3-Clause License.
+ * - Copyright (c) 2012-2026 jMonkeyEngine All rights reserved. 
+ * - Copyright (c) 2016-2026, Simsilica, LLC All rights reserved.
+ * 
+ * https://github.com/jMonkeyEngine-Contributions/Lemur
  */
+
 package org.ngengine.gui.components;
 
 import com.jme3.math.Vector2f;

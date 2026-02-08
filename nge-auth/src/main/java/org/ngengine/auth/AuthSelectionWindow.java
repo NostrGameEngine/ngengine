@@ -29,6 +29,7 @@
  * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
  * the BSD 3-Clause License. 
  */
+
 package org.ngengine.auth;
 
 import com.jme3.math.Vector2f;

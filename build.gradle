@@ -152,15 +152,78 @@ subprojects {
                 prettier(['prettier': '2.8.8', 'prettier-plugin-java': '2.2.0'])
                     .config(['parser': 'java', 'tabWidth': 4, 'printWidth': 128])
                 formatAnnotations()
-
-                def licenseText = new File(rootProject.rootDir, "nge.LICENSE").text
-                def wrapped = licenseText.readLines().collect { " * " + it }.join("\n")
-                def header = "/**\n" + wrapped + "\n */"
-                licenseHeader(header, "package ")
+ 
                 
             }
         }
     }
+
+      // Prefer: <module>.LICENSE (e.g. nge-gui.LICENSE)
+    // Fallback: <prefix>.LICENSE where prefix is before first '-' (e.g. nge.LICENSE)
+    def moduleLicenseFile = file("${rootProject.rootDir}/${project.name}.LICENSE")
+    def prefix = (project.name.contains('-') ? project.name.substring(0, project.name.indexOf('-')) : project.name)
+    def prefixLicenseFile = file("${rootProject.rootDir}/${prefix}.LICENSE")
+    File chosenLicenseFile = moduleLicenseFile.exists()
+        ? moduleLicenseFile
+        : (prefixLicenseFile.exists() ? prefixLicenseFile : null)
+    if (chosenLicenseFile != null) {
+        project.tasks.register('addLicenseHeaders') {
+            description = 'Adds or updates license headers in Java files'
+            group = 'formatting'
+
+            def srcFiles = project.fileTree(dir: 'src', include: '**/java/**/*.java')
+
+            def licenseText = chosenLicenseFile.text
+            licenseText = licenseText.readLines().collect { " * " + it }.join("\n")
+            licenseText = "/**\n" + licenseText + "\n */"
+
+            doLast {
+                def licenseHeader = licenseText
+
+                // Remove ALL stacked leading /** ... */ blocks that contain "Copyright", then insert the new one.
+                def leadingCopyrightBlockPattern = ~/(?s)\A\s*\/\*\*.*?Copyright.*?\*\/\s*/
+
+                srcFiles.each { f ->
+                    def original = f.text
+                    def stripped = original
+
+                    boolean removedAny = false
+                    while ((stripped =~ leadingCopyrightBlockPattern).find()) {
+                        stripped = stripped.replaceFirst(leadingCopyrightBlockPattern, "")
+                        removedAny = true
+                    }
+
+                    // Insert new header before package line if present, else at very top
+                    def packageMatcher = stripped =~ /(?m)^package\s+[\w.]+;/
+                    def updated
+                    if (packageMatcher.find()) {
+                        def position = packageMatcher.start()
+                        updated =
+                            stripped.substring(0, position) +
+                            licenseHeader +
+                            "\n\n" +
+                            stripped.substring(position)
+                    } else {
+                        updated = licenseHeader + "\n\n" + stripped
+                    }
+
+                    if (updated != original) {
+                        if (removedAny) {
+                            logger.info("Rewriting license header(s) in: ${f.path}")
+                        } else {
+                            logger.info("Adding license header to: ${f.path}")
+                        }
+                        f.text = updated
+                    } else {
+                        logger.debug("License header already up-to-date in: ${f.path}")
+                    }
+                }
+            }
+        }
+    } else {
+        logger.info("No license file found for ${project.path} (tried ${project.name}.LICENSE and ${prefix}.LICENSE). Skipping addLicenseHeaders task.")
+    }
+
 }
 
 task run(dependsOn: ':jme3-examples:run') {
