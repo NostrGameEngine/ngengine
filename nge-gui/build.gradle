@@ -5,7 +5,6 @@ dependencies {
     implementation project(':nge-networking')
     implementation project(':jme3-core')
     implementation "org.ngengine:nge-platform-common:${ngePlatformVersion}"
-    testImplementation "org.ngengine:nge-platform-jvm:${ngePlatformVersion}"
 }
 
 javadoc {

@@ -30,7 +30,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package ngetest;
+package ngetests;
 
 import com.jme3.app.LegacyApplication;
 import com.jme3.app.SimpleApplication;

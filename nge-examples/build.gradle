@@ -32,9 +32,7 @@ dependencies {
     implementation project(':nge-auth')
     implementation project(':nge-core')
     implementation project(':nge-gui')
-    implementation project(':nge-lemur')
     implementation project(':nge-networking')
-    implementation project(':nge-world2d')
 
     api "org.ngengine:nge-platform-jvm:${ngePlatformVersion}"
 

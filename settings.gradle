@@ -81,4 +81,5 @@ include 'nge-ads'
 include 'nge-web'
 include 'nge-web-bullet'
 include 'nge-android'
+include 'nge-examples'
 
