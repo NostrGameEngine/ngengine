@@ -72,11 +72,15 @@ public class GlfwJoystickInput implements JoyInput {
 
     public GlfwJoystickInput(AppSettings settings) {
         this.settings = settings;
-        try{
-            ByteBuffer bbf = SdlGameControllerDb.getGamecontrollerDb(); 
-            if(!glfwUpdateGamepadMappings(bbf)) throw new Exception("Failed to load");
+        try {
+            String path = settings.getSDLGameControllerDBResourcePath();
+            if (!path.isBlank()) {
+                ByteBuffer bbf = SdlGameControllerDb.getGamecontrollerDb(path);
+                if (!glfwUpdateGamepadMappings(bbf)) throw new Exception("Failed to load");
+            }
         } catch (Exception e) {
-            LOGGER.log(Level.WARNING, "Unable to load gamecontrollerdb, fallback to glfw default mappings", e);
+            LOGGER.log(Level.WARNING, "Unable to load gamecontrollerdb, fallback to glfw default mappings",
+                    e);
         }
     }
 

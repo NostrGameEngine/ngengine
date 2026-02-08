@@ -45,9 +45,12 @@ public class SdlJoystickInput implements JoyInput {
     public SdlJoystickInput(AppSettings settings) {
         this.settings = settings;
         try {
-            ByteBuffer bbf = SdlGameControllerDb.getGamecontrollerDb();
-            if (SDL_AddGamepadMapping(bbf) == -1) {
-                throw new Exception("Failed to load");
+            String path = settings.getSDLGameControllerDBResourcePath();
+            if (!path.isBlank()) {
+                ByteBuffer bbf = SdlGameControllerDb.getGamecontrollerDb(path);
+                if (SDL_AddGamepadMapping(bbf) == -1) {
+                    throw new Exception("Failed to load");
+                }
             }
         } catch (Exception e) {
             LOGGER.log(Level.WARNING, "Unable to load gamecontrollerdb, fallback to sdl default mappings", e);
@@ -64,10 +67,11 @@ public class SdlJoystickInput implements JoyInput {
         globalJitterThreshold = settings.getJoysticksAxisJitterThreshold();
 
         String mapper = settings.getJoysticksMapper();
-        switch(mapper){
+        switch (mapper) {
             case AppSettings.JOYSTICKS_RAW_MAPPER:
                 loadGamepads = false;
                 loadRaw = true;
+                break;
             case AppSettings.JOYSTICKS_XBOX_MAPPER:
                 loadGamepads = true;
                 loadRaw = false;
@@ -76,14 +80,14 @@ public class SdlJoystickInput implements JoyInput {
             case AppSettings.JOYSTICKS_XBOX_WITH_FALLBACK_MAPPER:
                 loadGamepads = true;
                 loadRaw = true;
-                break;            
+                break;
         }
 
         initialized = true;
     }
 
     private void onDeviceConnected(int deviceIndex, boolean isGamepad) {
-        if (!isGamepad && SDL_IsGamepad(deviceIndex)) {
+        if (loadGamepads && !isGamepad && SDL_IsGamepad(deviceIndex)) {
             // SDL will fire both GAMEPAD and JOYSTICK events for recognized
             // gamepads, so here we check if the joystick is expected to be
             // a gamepad, and skip it if so to avoid duplicates.
@@ -110,7 +114,7 @@ public class SdlJoystickInput implements JoyInput {
             for (int axisIndex = 0; axisIndex < SDL_GAMEPAD_AXIS_COUNT; axisIndex++) {
                 String logicalId = remapAxisToJme(axisIndex);
                 if (logicalId == null) continue;
-                
+
                 String axisName = getAxisLabel(joystick, axisIndex);
 
                 JoystickAxis axis = new DefaultJoystickAxis(inputManager, joystick, axisIndex, axisName,
@@ -118,23 +122,14 @@ public class SdlJoystickInput implements JoyInput {
                 joystick.addAxis(axisIndex, axis);
             }
 
-            // Virtual POV axes for D-pad.
-            JoystickAxis povX = new DefaultJoystickAxis(inputManager, joystick, POV_X_AXIS_ID,
-                    JoystickAxis.POV_X, JoystickAxis.POV_X, true, false, 0.0f);
-            joystick.addAxis(POV_X_AXIS_ID, povX);
-
-            JoystickAxis povY = new DefaultJoystickAxis(inputManager, joystick, POV_Y_AXIS_ID,
-                    JoystickAxis.POV_Y, JoystickAxis.POV_Y, true, false, 0.0f);
-            joystick.addAxis(POV_Y_AXIS_ID, povY);
-
             // Managed buttons: map SDL gamepad buttons into your JME logical ids
-            for (int buttonIndex = 0; buttonIndex <= SDL_GAMEPAD_BUTTON_COUNT; buttonIndex++) {
+            for (int buttonIndex = 0; buttonIndex < SDL_GAMEPAD_BUTTON_COUNT; buttonIndex++) {
                 String logicalId = remapButtonToJme(buttonIndex);
-                if (logicalId == null) continue;                
+                if (logicalId == null) continue;
                 String buttonName = getButtonLabel(joystick, buttonIndex);
 
-                JoystickButton button = new DefaultJoystickButton(inputManager, joystick, buttonIndex, buttonName,
-                        logicalId);
+                JoystickButton button = new DefaultJoystickButton(inputManager, joystick, buttonIndex,
+                        buttonName, logicalId);
                 joystick.addButton(button);
                 joyButtonPressed.put(button, false);
             }
@@ -168,6 +163,15 @@ public class SdlJoystickInput implements JoyInput {
                 joystick.addButton(button);
             }
         }
+
+        // Virtual POV axes for D-pad.
+        JoystickAxis povX = new DefaultJoystickAxis(inputManager, joystick, POV_X_AXIS_ID, JoystickAxis.POV_X,
+                JoystickAxis.POV_X, true, false, 0.0f);
+        joystick.addAxis(POV_X_AXIS_ID, povX);
+
+        JoystickAxis povY = new DefaultJoystickAxis(inputManager, joystick, POV_Y_AXIS_ID, JoystickAxis.POV_Y,
+                JoystickAxis.POV_Y, true, false, 0.0f);
+        joystick.addAxis(POV_Y_AXIS_ID, povY);
 
         ((InputManager) listener).fireJoystickConnectedEvent(joystick);
 
@@ -209,7 +213,7 @@ public class SdlJoystickInput implements JoyInput {
         joyButtonPressed.clear();
         joyAxisValues.clear();
 
-        if(loadGamepads){
+        if (loadGamepads) {
             // load managed gamepads
             IntBuffer gamepads = SDL_GetGamepads();
             if (gamepads != null) {
@@ -220,7 +224,7 @@ public class SdlJoystickInput implements JoyInput {
             }
         }
 
-        if(loadRaw){
+        if (loadRaw) {
             // load raw gamepads
             IntBuffer joys = SDL_GetJoysticks();
             if (joys != null) {
@@ -267,8 +271,6 @@ public class SdlJoystickInput implements JoyInput {
                                     value > virtualTriggerThreshold);
                         }
                     }
-
-                    
 
                     // Dpad -> virtual POV axes
                     float povXValue = 0f;
@@ -329,14 +331,18 @@ public class SdlJoystickInput implements JoyInput {
             while (SDL_PollEvent(evt)) {
                 int type = evt.type();
                 if (type == SDL_EVENT_GAMEPAD_ADDED) {
-                    int which = evt.gdevice().which();
-                    onDeviceConnected(which, true);
+                    if (loadGamepads) {
+                        int which = evt.gdevice().which();
+                        onDeviceConnected(which, true);
+                    }
                 } else if (type == SDL_EVENT_GAMEPAD_REMOVED) {
                     int which = evt.gdevice().which();
                     onDeviceDisconnected(which);
                 } else if (type == SDL_EVENT_JOYSTICK_ADDED) {
-                    int which = evt.jdevice().which();
-                    onDeviceConnected(which, false);
+                    if (loadRaw) {
+                        int which = evt.jdevice().which();
+                        onDeviceConnected(which, false);
+                    }
                 } else if (type == SDL_EVENT_JOYSTICK_REMOVED) {
                     int which = evt.jdevice().which();
                     onDeviceDisconnected(which);
@@ -347,22 +353,21 @@ public class SdlJoystickInput implements JoyInput {
 
     @Override
     public void setJoyRumble(int joyId, float amount) {
-        setJoyRumble(joyId, amount, amount, 100f/1000f);
+        setJoyRumble(joyId, amount, amount, 100f / 1000f);
     }
 
-    @Override
     public void setJoyRumble(int joyId, float highFrequency, float lowFrequency, float duration) {
         SdlJoystick js = joysticks.get(joyId);
         if (js == null) return;
 
         highFrequency = FastMath.clamp(highFrequency, 0f, 1f);
         lowFrequency = FastMath.clamp(lowFrequency, 0f, 1f);
-        
+
         if (js.isGamepad() && js.gamepad != 0L) {
             int ampHigh = (int) (highFrequency * 0xFFFF);
             int ampLow = (int) (lowFrequency * 0xFFFF);
             int durationMs = (int) (duration * 1000f);
-            SDL_RumbleGamepad(js.gamepad, (short)ampHigh, (short)ampLow, durationMs); 
+            SDL_RumbleGamepad(js.gamepad, (short) ampHigh, (short) ampLow, durationMs);
         }
     }
 
