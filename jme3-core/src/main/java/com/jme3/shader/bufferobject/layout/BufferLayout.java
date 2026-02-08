@@ -34,9 +34,9 @@ package com.jme3.shader.bufferobject.layout;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 import com.jme3.math.FastMath;
-import com.jme3.util.functional.Function;
 
 /**
  * Layout serializer for buffers
@@ -46,7 +46,7 @@ import com.jme3.util.functional.Function;
 public abstract class  BufferLayout {
 
     public static abstract class ObjectSerializer<T> {
-        private Function<Boolean, Object> filter;
+        private Function<Object, Boolean> filter;
 
         public ObjectSerializer(Class<T> cls) {
             this(obj -> {
@@ -56,12 +56,12 @@ public abstract class  BufferLayout {
 
         }
 
-        public ObjectSerializer(Function<Boolean, Object> filter) {
+        public ObjectSerializer(Function<Object, Boolean> filter) {
             this.filter = filter;
         }
 
         public final boolean canSerialize(Object obj) {
-            return filter.eval(obj);
+            return filter.apply(obj);
         }
 
         public abstract int length(BufferLayout layout, T obj);
