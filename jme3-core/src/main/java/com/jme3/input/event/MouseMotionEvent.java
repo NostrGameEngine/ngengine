@@ -44,8 +44,7 @@ import com.jme3.input.Mouse;
 public class MouseMotionEvent extends InputEvent {
 
     private final int x, y, dx, dy, wheel, deltaWheel;
-    private final static Mouse mouse = new Mouse();
-
+    private final static Mouse mouse = MouseButtonEvent.mouse;
     public MouseMotionEvent(int x, int y, int dx, int dy, int wheel, int deltaWheel) {
         this.x = x;
         this.y = y;

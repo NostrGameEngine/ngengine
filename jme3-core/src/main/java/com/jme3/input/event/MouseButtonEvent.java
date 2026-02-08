@@ -45,7 +45,7 @@ public class MouseButtonEvent extends InputEvent<Mouse> {
     private final int y;
     private final int btnIndex;
     private final boolean pressed;
-    private final static Mouse mouse = new Mouse();
+    final static Mouse mouse = new Mouse();
 
     public MouseButtonEvent(int btnIndex, boolean pressed, int x, int y) {
         this.btnIndex = btnIndex;
