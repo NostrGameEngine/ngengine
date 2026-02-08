@@ -568,20 +568,24 @@ public class InputManager implements RawInputListener {
      * @see InputManager#addMapping(java.lang.String, com.jme3.input.controls.Trigger[])
      */
     public void deleteMapping(String mappingName) {
-        Mapping mapping = mappings.remove(mappingName);
+        Mapping mapping = mappings.get(mappingName);
         if (mapping == null) {
-            //throw new IllegalArgumentException("Cannot find mapping: " + mappingName);
-            logger.log(Level.WARNING, "Cannot find mapping to be removed, skipping: {0}", mappingName);
-            return;
+            throw new IllegalArgumentException("Cannot find mapping: " + mappingName);
         }
 
         ArrayList<Integer> triggers = mapping.triggers;
         for (int i = triggers.size() - 1; i >= 0; i--) {
             int hash = triggers.get(i);
             ArrayList<Mapping> maps = bindings.get(hash);
-            maps.remove(mapping);
+            if (maps != null) {
+                maps.remove(mapping);
+                if (maps.isEmpty()) bindings.remove(hash);
+            }
         }
+        mapping.triggers.clear();
     }
+
+    
 
     /**
      * Deletes a specific trigger registered to a mapping.
