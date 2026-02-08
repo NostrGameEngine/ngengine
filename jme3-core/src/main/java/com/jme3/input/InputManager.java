@@ -92,7 +92,7 @@ public class InputManager implements RawInputListener {
     private final TouchInput touch;
     private float frameTPF;
     private boolean eventsPermitted = false;
-    private boolean mouseVisible = true;
+    private boolean mouseVisible = false;
     private final Vector2f cursorPos = new Vector2f();
     private Joystick[] joysticks;
     private final IntMap<ArrayList<Mapping>> bindings = new IntMap<>();
