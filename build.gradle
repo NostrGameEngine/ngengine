@@ -180,40 +180,64 @@ subprojects {
             doLast {
                 def licenseHeader = licenseText
 
-                // Remove ALL stacked leading /** ... */ blocks that contain "Copyright", then insert the new one.
-                def leadingCopyrightBlockPattern = ~/(?s)\A\s*\/\*\*.*?Copyright.*?\*\/\s*/
+                def isCopyrightHeaderBlock = { String block ->
+                    def body = block
+                            .replaceFirst(/(?s)\A\/\*{1,2}/, "")
+                            .replaceFirst(/(?s)\*\/\s*\z/, "")
 
-                srcFiles.each { f ->
-                    def original = f.text
-                    def stripped = original
+                    for (String line : body.readLines()) {
+                        def t = line.trim()
+                        if (t.startsWith("*")) {
+                            t = t.substring(1).trim()
+                        }
+                        if (!t.isEmpty()) {
+                            return t.startsWith("Copyright")
+                        }
+                    }
+                    return false
+                }
 
-                    boolean removedAny = false
-                    while ((stripped =~ leadingCopyrightBlockPattern).find()) {
-                        stripped = stripped.replaceFirst(leadingCopyrightBlockPattern, "")
-                        removedAny = true
+                def stripLeadingCopyrightBlocks = { String s ->
+                    s = s.replaceFirst(/^\uFEFF/, "")
+
+                    while (true) {
+                        def m = (s =~ /(?s)\A(\s*)(\/\*{1,2}.*?\*\/)(\s*)/)
+                        if (!m.find()) {
+                            break
+                        }
+
+                        def block = m.group(2)
+                        if (isCopyrightHeaderBlock(block)) {
+                            s = s.substring(m.end())
+                            continue
+                        }
+
+                        break
                     }
 
-                    // Insert new header before package line if present, else at very top
+                    return s
+                }
+
+                srcFiles.each { f ->
+                    def original = f.getText('UTF-8')
+                    def stripped = stripLeadingCopyrightBlocks(original)
+
                     def packageMatcher = stripped =~ /(?m)^package\s+[\w.]+;/
                     def updated
                     if (packageMatcher.find()) {
                         def position = packageMatcher.start()
                         updated =
-                            stripped.substring(0, position) +
-                            licenseHeader +
-                            "\n\n" +
-                            stripped.substring(position)
+                                stripped.substring(0, position) +
+                                licenseHeader +
+                                "\n\n" +
+                                stripped.substring(position)
                     } else {
                         updated = licenseHeader + "\n\n" + stripped
                     }
 
                     if (updated != original) {
-                        if (removedAny) {
-                            logger.info("Rewriting license header(s) in: ${f.path}")
-                        } else {
-                            logger.info("Adding license header to: ${f.path}")
-                        }
-                        f.text = updated
+                        logger.info("Rewriting license header(s) in: ${f.path}")
+                        f.write(updated, 'UTF-8')
                     } else {
                         logger.debug("License header already up-to-date in: ${f.path}")
                     }
