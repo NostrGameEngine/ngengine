@@ -171,6 +171,7 @@ public class BufferObject extends NativeObject implements Savable {
                 BufferUtils.destroyDirectBuffer(this.data);
                 this.data = null;
             }
+            setUpdateNeeded();
             return;
         }
         ByteBuffer source = data == this.data ? data.duplicate() : data;
@@ -182,6 +183,7 @@ public class BufferObject extends NativeObject implements Savable {
         if (oldData != null) {
             BufferUtils.destroyDirectBuffer(oldData);
         }
+        setUpdateNeeded();
     }
 
 
