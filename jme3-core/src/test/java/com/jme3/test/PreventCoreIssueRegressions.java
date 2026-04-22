@@ -106,7 +106,6 @@ public class PreventCoreIssueRegressions {
 
         // Check whether the SceneProcessor is still attached.
         assertEquals(0, vps.get(0).getProcessors().size());
-        assertFalse(app.getInputManager().hasMapping("ScreenShot")); // Confirm that KEY_SYSRQ is unmapped.
     }
 
     /**

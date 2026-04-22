@@ -17,20 +17,22 @@ version = jmeFullVersion
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(11)
+        languageVersion = JavaLanguageVersion.of(25)
     }
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
 }
 
 
 tasks.named('compileTestJava') {
     javaCompiler = javaToolchains.compilerFor {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = JavaLanguageVersion.of(25)
     }
 }
 
 tasks.named('test') {
     javaLauncher = javaToolchains.launcherFor {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = JavaLanguageVersion.of(25)
     }
 }
 
@@ -38,9 +40,7 @@ tasks.withType(JavaCompile) { // compile-time options:
     //options.compilerArgs << '-Xlint:deprecation' // to show deprecation warnings
     options.compilerArgs << '-Xlint:unchecked'
     options.encoding = 'UTF-8'
-    if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_1_10)) {
-        options.release = 11
-    }
+    options.release = 11
 }
 
 repositories {
