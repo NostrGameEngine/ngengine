@@ -91,3 +91,14 @@ java {
         languageVersion = JavaLanguageVersion.of(21)
     }
 }
+
+// Override global source/target and release for this module so Gradle
+// resolves JVM-21 variants (some platform artifacts require JVM 21+).
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 21
+}

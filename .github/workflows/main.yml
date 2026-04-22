@@ -244,7 +244,7 @@ jobs:
           # Normal build plus ZIP distribution and merged javadoc
           ./gradlew -PuseCommitHashAsVersionName=true -PskipPrebuildLibraries=true \
           -x checkstyleMain -x checkstyleTest \
-          build createZipDistribution mergedJavadoc
+          build mergedJavadoc
 
           if [ "${{ matrix.deploy }}" = "true" ];
           then
