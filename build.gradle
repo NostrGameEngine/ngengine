@@ -15,7 +15,7 @@ buildscript {
     dependencies {
         classpath libs.android.build.gradle
         classpath libs.spotbugs.gradle.plugin
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.20"
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:2.3.20"
     }
 }
 
