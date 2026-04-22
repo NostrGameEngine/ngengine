@@ -60,22 +60,17 @@ public class ByteUtils {
             bytesRead += read;
         }
         if (bytesRead < b.length) {
-            throw new IOException("End of stream reached before reading fully.");
+            throw new IOException(
+                    "End of stream reached prematurely after " + bytesRead + " of " + b.length + " bytes.");
         }
     }
 
-    public static byte[] readFully(InputStream is) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        byte[] buffer = new byte[1024*16];
-        int bytesRead;
-        while ((bytesRead = is.read(buffer)) != -1) {
-            baos.write(buffer, 0, bytesRead);
-        }
-        return baos.toByteArray();
-    }
- 
 
     public static void skipFully(InputStream in, long n) throws IOException {
+        skipFully(in, n, true);
+    }
+
+    public static void skipFully(InputStream in, long n, boolean throwOnEOF) throws IOException {
         while (n > 0) {
             long skipped = in.skip(n);
             if (skipped > 0 && skipped <= n) { // skipped some bytes
@@ -83,28 +78,46 @@ public class ByteUtils {
             } else if (skipped == 0) { // skipped nothing
                 // distinguish between EOF and no bytes available
                 if (in.read() == -1) {
-                    throw new EOFException();
+                    if (throwOnEOF) {
+                        throw new EOFException();
+                    } else {
+                        return;
+                    }
                 } else {
                     // stream was just hangling 
                     n--;
                 }
             } else {
-                throw new IOException("Unable to skip exactly " + n + " bytes, actually skipped " + skipped + " bytes." );
+                throw new IOException(
+                        "Unable to skip exactly " + n + " bytes. Only " + skipped + " bytes were skipped.");
             }
         }
     }
 
     public static void skipFully(DataInput in, int n) throws IOException {
+        skipFully(in, n, true);
+    }
+
+    public static void skipFully(DataInput in, int n, boolean throwOnEOF) throws IOException {
         while (n > 0) {
             long skipped = in.skipBytes(n);
             if (skipped > 0 && skipped <= n) { // skipped some bytes
                 n -= skipped;
             } else if (skipped == 0) { // skipped nothing
                 // distinguish between EOF and no bytes available
-                in.readByte();
+                try {
+                    in.readByte();
+                } catch (EOFException e) {
+                    if (throwOnEOF) {
+                        throw e;
+                    } else {
+                        return;
+                    }
+                }
                 n--;
             } else {
-                throw new IOException("Unable to skip exactly " + n + " bytes, actually skipped " + skipped + " bytes." );
+                throw new IOException(
+                        "Unable to skip exactly " + n + " bytes. Only " + skipped + " bytes were skipped.");
             }
         }
     }

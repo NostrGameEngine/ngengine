@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2024 jMonkeyEngine
+ * Copyright (c) 2009-2026 jMonkeyEngine
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -137,6 +137,7 @@ public final class GLRenderer implements Renderer {
     public void setGenerateMipmapsForFrameBuffer(boolean v) {
         generateMipmapsForFramebuffers = v;
     }
+
 
     public void setDebugEnabled(boolean v) {
         debug = v;
@@ -3604,5 +3605,23 @@ public final class GLRenderer implements Renderer {
     @Override
     public boolean isMainFrameBufferSrgb() {
         return mainFrameBufferSrgb;
+    }
+
+    //TODO: How should the GL4 specific functionalities here be exposed? Via the renderer?
+    public GL4 getGl4(){
+        return gl4;
+    }
+
+    @Override
+    public void deleteFence(GLFence fence) {
+        if(gl4 != null && fence.getId() != NativeObject.INVALID_ID){
+            gl4.glDeleteSync(fence);
+            fence.resetObject();
+        }
+    }
+
+    @Override
+    public void registerNativeObject(NativeObject nativeObject) {
+        objManager.registerObject(nativeObject);
     }
 }

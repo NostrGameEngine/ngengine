@@ -32,27 +32,62 @@
 
 package org.ngengine.network.protocol;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.nio.ByteBuffer;
 import java.nio.ReadOnlyBufferException;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class TestGrowableByteBuffer {
 
-    @Test(expected = RuntimeException.class)
-    public void testNonGrowableBuffer() {
-        // Test with non-growable buffer (chunkSize <= 0)
-        GrowableByteBuffer buffer = new GrowableByteBuffer(ByteBuffer.allocate(10), 0);
-        buffer.put(new byte[11]); // Should throw RuntimeException
+    private static void assertEquals(String message, int expected, int actual) {
+        org.junit.jupiter.api.Assertions.assertEquals(expected, actual, message);
     }
 
-    @Test(expected = NullPointerException.class)
+    private static void assertEquals(int expected, int actual) {
+        org.junit.jupiter.api.Assertions.assertEquals(expected, actual);
+    }
+
+    private static void assertEquals(String message, byte expected, byte actual) {
+        org.junit.jupiter.api.Assertions.assertEquals(expected, actual, message);
+    }
+
+    private static void assertEquals(byte expected, byte actual) {
+        org.junit.jupiter.api.Assertions.assertEquals(expected, actual);
+    }
+
+    private static void assertEquals(String message, long expected, long actual) {
+        org.junit.jupiter.api.Assertions.assertEquals(expected, actual, message);
+    }
+
+    private static void assertEquals(long expected, long actual) {
+        org.junit.jupiter.api.Assertions.assertEquals(expected, actual);
+    }
+
+    private static void assertEquals(String message, double expected, double actual, double delta) {
+        org.junit.jupiter.api.Assertions.assertEquals(expected, actual, delta, message);
+    }
+
+    private static void assertEquals(String message, Object expected, Object actual) {
+        org.junit.jupiter.api.Assertions.assertEquals(expected, actual, message);
+    }
+
+    @Test
+    public void testNonGrowableBuffer() {
+        assertThrows(RuntimeException.class, () -> {
+            GrowableByteBuffer buffer = new GrowableByteBuffer(ByteBuffer.allocate(10), 0);
+            buffer.put(new byte[11]);
+        });
+    }
+
+    @Test
     public void testNullInitialBuffer() {
-        // Test with null initial buffer
-        GrowableByteBuffer buffer = new GrowableByteBuffer(null, 10);
-        buffer.put((byte) 1); // Should throw NullPointerException
+        assertThrows(NullPointerException.class, () -> {
+            GrowableByteBuffer buffer = new GrowableByteBuffer(null, 10);
+            buffer.put((byte) 1);
+        });
     }
 
     @Test

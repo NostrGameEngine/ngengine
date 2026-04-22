@@ -266,14 +266,13 @@ public final class AppSettings extends HashMap<String, Object> {
      * Map gamepads to Xbox-like layout.
      */
     public static final String JOYSTICKS_XBOX_MAPPER = "JOYSTICKS_XBOX_MAPPER";
-    
     /**
      * Map gamepads to an Xbox-like layout, with fallback to raw if the gamepad is not recognized.
      */
     public static final String JOYSTICKS_XBOX_WITH_FALLBACK_MAPPER = "JOYSTICKS_XBOX_WITH_FALLBACK_MAPPER";
 
     /**
-     *  Map gamepads to an Xbox-like layout using the legacy jME input
+     * Map gamepads to an Xbox-like layout using the legacy jME input
      */
     public static final String JOYSTICKS_XBOX_LEGACY_MAPPER = "JOYSTICKS_XBOX_LEGACY_MAPPER";
 
@@ -286,8 +285,6 @@ public final class AppSettings extends HashMap<String, Object> {
      * Don't map gamepads, use raw events instead (ie. bring your own mapper)
      */
     public static final String JOYSTICKS_RAW_MAPPER = "JOYSTICKS_RAW_MAPPER";
-    
-    
 
     static {
         defaults.put("Display", 0);
@@ -1527,16 +1524,17 @@ public final class AppSettings extends HashMap<String, Object> {
     /**
      * Set which joystick mapping to use for normalization of controller inputs
      *
-     * @param mapper JOYSTICKS_MAPPER_* constant defining which mapping to use
+     * @param mapper
+     *            JOYSTICKS_MAPPER_* constant defining which mapping to use
      */
-    public void setJoysticksMapper(String mapper){
+    public void setJoysticksMapper(String mapper) {
         putString("JoysticksMapper", mapper);
     }
 
     /**
      * Get which joystick mapping to use for normalization of controller inputs
      */
-    public String getJoysticksMapper(){
+    public String getJoysticksMapper() {
         return getString("JoysticksMapper");
     }
 
@@ -1568,8 +1566,8 @@ public final class AppSettings extends HashMap<String, Object> {
      * Sets the jitter threshold for joystick axes.
      * 
      * <p>
-     * Axis movements with a delta smaller than this threshold will be ignored.
-     * This is intended to reduce noise from analog joysticks.
+     * Axis movements with a delta smaller than this threshold will be ignored. This is intended to reduce
+     * noise from analog joysticks.
      */
     public void setJoysticksAxisJitterThreshold(float threshold) {
         putFloat("JoysticksAxisJitterThreshold", threshold);
@@ -1580,9 +1578,9 @@ public final class AppSettings extends HashMap<String, Object> {
      * 
      * @return the jitter threshold
      * @see #setJoysticksAxisJitterThreshold(float)
-     */   
+     */
     public float getJoysticksAxisJitterThreshold() {
-        return getFloat("JoysticksAxisJitterThreshold");    
+        return getFloat("JoysticksAxisJitterThreshold");
     }
 
     /**
@@ -1602,6 +1600,5 @@ public final class AppSettings extends HashMap<String, Object> {
     public String getSDLGameControllerDBResourcePath() {
         return getString("SDLGameControllerDBResourcePath");
     }
-
 }
 

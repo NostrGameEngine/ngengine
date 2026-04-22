@@ -46,7 +46,9 @@ public class TestJoystick extends SimpleApplication {
     public static void main(String[] args){
         TestJoystick app = new TestJoystick();
         AppSettings settings = new AppSettings(true);
+        settings.setJoysticksMapper(AppSettings.JOYSTICKS_XBOX_MAPPER);
         settings.setUseJoysticks(true);
+        settings.setX11PlatformPreferred(true);
         app.setSettings(settings);
         app.start();
     }
@@ -301,7 +303,6 @@ public class TestJoystick extends SimpleApplication {
         }
  
         public void setAxisValue( JoystickAxis axis, float value ) {
-        
             if( axis == axis.getJoystick().getAxis(JoystickAxis.AXIS_XBOX_LEFT_THUMB_STICK_X)){
                 setXAxis(value);
             } else if( axis == axis.getJoystick().getAxis(JoystickAxis.AXIS_XBOX_LEFT_THUMB_STICK_Y)){

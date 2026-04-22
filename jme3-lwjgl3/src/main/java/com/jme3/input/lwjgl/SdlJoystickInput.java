@@ -22,6 +22,11 @@ import static org.lwjgl.sdl.SDLJoystick.*;
 import static org.lwjgl.sdl.SDLError.*;
 import static org.lwjgl.sdl.SDLTimer.*;
 
+/**
+ * The SDL based implementation of {@link JoyInput}.
+ *
+ * @author Riccardo Balbo
+ */
 public class SdlJoystickInput implements JoyInput {
 
     private static final Logger LOGGER = Logger.getLogger(SdlJoystickInput.class.getName());
@@ -46,7 +51,7 @@ public class SdlJoystickInput implements JoyInput {
         this.settings = settings;
         try {
             String path = settings.getSDLGameControllerDBResourcePath();
-            if (!path.isBlank()) {
+            if (path != null && !path.trim().isEmpty()) {
                 ByteBuffer bbf = SdlGameControllerDb.getGamecontrollerDb(path);
                 if (SDL_AddGamepadMapping(bbf) == -1) {
                     throw new Exception("Failed to load");

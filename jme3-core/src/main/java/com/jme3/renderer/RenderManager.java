@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 jMonkeyEngine
+ * Copyright (c) 2025 jMonkeyEngine
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,7 @@ import com.jme3.material.MaterialDef;
 import com.jme3.material.RenderState;
 import com.jme3.material.Technique;
 import com.jme3.material.TechniqueDef;
+import com.jme3.math.FastMath;
 import com.jme3.math.Matrix4f;
 import com.jme3.post.SceneProcessor;
 import com.jme3.profile.AppProfiler;
@@ -75,48 +76,58 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * A high-level rendering interface that is
- * above the Renderer implementation. RenderManager takes care
- * of rendering the scene graphs attached to each viewport and
- * handling SceneProcessors.
- *
- * @see SceneProcessor
- * @see ViewPort
- * @see Spatial
+ * The `RenderManager` is a high-level rendering interface that manages
+ * {@link ViewPort}s, {@link SceneProcessor}s, and the overall rendering pipeline.
+ * It is responsible for orchestrating the rendering of scenes into various
+ * viewports.
  */
 public class RenderManager {
 
     private static final Logger logger = Logger.getLogger(RenderManager.class.getName());
+
+    /**
+     * Number of vec4 fragment uniform vectors consumed per light in g_LightData (lightColor, lightData1,
+     * lightData2/spotDir).
+     */
+    private static final int VEC4_UNIFORMS_PER_LIGHT = 3;
+    /**
+     * Fraction of the total fragment uniform budget reserved for shader parameters other than g_LightData
+     * (material params, transforms, etc.). A value of 4 means one quarter is reserved.
+     */
+    private static final int RESERVED_UNIFORM_FRACTION = 4;
+    /**
+     * Hard upper limit for reserved uniform budget
+     */
+    private static final int RESERVED_UNIFORMS_MAX = 16;
+
     private final Renderer renderer;
     private final UniformBindingManager uniformBindingManager = new UniformBindingManager();
     private final ArrayList<ViewPort> preViewPorts = new ArrayList<>();
     private final ArrayList<ViewPort> viewPorts = new ArrayList<>();
     private final ArrayList<ViewPort> postViewPorts = new ArrayList<>();
-    private final HashMap<Class, PipelineContext> contexts = new HashMap<>();
-    private final ArrayList<PipelineContext> usedContexts = new ArrayList<>();
-    private final ArrayList<RenderPipeline> usedPipelines = new ArrayList<>();
-    private RenderPipeline defaultPipeline = new ForwardPipeline();
+    private final HashMap<Class<? extends PipelineContext>, PipelineContext> contexts = new HashMap<>();
+    private final LinkedList<PipelineContext> usedContexts = new LinkedList<>();
+    private final LinkedList<RenderPipeline<? extends PipelineContext>> usedPipelines = new LinkedList<>();
+    private RenderPipeline<? extends PipelineContext> defaultPipeline = new ForwardPipeline();
     private Camera prevCam = null;
     private Material forcedMaterial = null;
     private String forcedTechnique = null;
     private RenderState forcedRenderState = null;
-    private final SafeArrayList<MatParamOverride> forcedOverrides
-            = new SafeArrayList<>(MatParamOverride.class);
-    private int viewX;
-    private int viewY;
-    private int viewWidth;
-    private int viewHeight;
+    private final SafeArrayList<MatParamOverride> forcedOverrides = new SafeArrayList<>(MatParamOverride.class);
+
     private final Matrix4f orthoMatrix = new Matrix4f();
     private final LightList filteredLightList = new LightList(null);
     private boolean handleTranslucentBucket = true;
     private AppProfiler prof;
     private LightFilter lightFilter = new DefaultLightFilter();
-    private TechniqueDef.LightMode preferredLightMode = TechniqueDef.LightMode.MultiPass;
+    private TechniqueDef.LightMode preferredLightMode = TechniqueDef.LightMode.SinglePass;
     private int singlePassLightBatchSize = 1;
-    private MatParamOverride boundDrawBufferId=new MatParamOverride(VarType.Int, "BoundDrawBuffer", 0);
+    private int maxSinglePassLightBatchSize = 16;
+    private final MatParamOverride boundDrawBufferId = new MatParamOverride(VarType.Int, "BoundDrawBuffer", 0);
     private Predicate<Geometry> renderFilter;
 
 
@@ -124,67 +135,70 @@ public class RenderManager {
      * Creates a high-level rendering interface over the
      * low-level rendering interface.
      *
-     * @param renderer (alias created)
+     * @param renderer The low-level renderer implementation.
      */
     public RenderManager(Renderer renderer) {
         this.renderer = renderer;
         this.forcedOverrides.add(boundDrawBufferId);
         // register default pipeline context
         contexts.put(PipelineContext.class, new DefaultPipelineContext());
+        setMaxSinglePassLightBatchSize(maxSinglePassLightBatchSize);
     }
-    
+
     /**
      * Gets the default pipeline used when a ViewPort does not have a
      * pipeline already assigned to it.
-     * 
-     * @return 
+     *
+     * @return The default {@link RenderPipeline}, which is {@link ForwardPipeline} by default.
      */
-    public RenderPipeline getPipeline() {
+    public RenderPipeline<? extends PipelineContext> getPipeline() {
         return defaultPipeline;
     }
-    
+
     /**
      * Sets the default pipeline used when a ViewPort does not have a
      * pipeline already assigned to it.
      * <p>
      * default={@link ForwardPipeline}
-     * 
-     * @param pipeline default pipeline (not null)
+     *
+     * @param pipeline The default rendering pipeline (not null).
      */
-    public void setPipeline(RenderPipeline pipeline) {
+    public void setPipeline(RenderPipeline<? extends PipelineContext> pipeline) {
         assert pipeline != null;
         this.defaultPipeline = pipeline;
     }
-    
+
     /**
      * Gets the default pipeline context registered under
-     * {@link PipelineContext#getClass()}.
-     * 
-     * @return 
+     * {@link PipelineContext}.
+     *
+     * @return The default {@link PipelineContext}.
      */
     public PipelineContext getDefaultContext() {
         return getContext(PipelineContext.class);
     }
-    
+
     /**
-     * Gets the pipeline context registered under the class.
-     * 
-     * @param <T>
-     * @param type
-     * @return registered context or null
+     * Gets the pipeline context registered under the given class type.
+     *
+     * @param type The class type of the context to retrieve.
+     * @param <T>  The type of the {@link PipelineContext}.
+     * @return The registered context instance, or null if not found.
      */
+    @SuppressWarnings("unchecked")
     public <T extends PipelineContext> T getContext(Class<T> type) {
-        return (T)contexts.get(type);
+        return (T) contexts.get(type);
     }
-    
+
     /**
      * Gets the pipeline context registered under the class or creates
      * and registers a new context from the supplier.
-     * 
-     * @param <T>
-     * @param type
-     * @param supplier interface for creating a new context if necessary
-     * @return registered or newly created context
+     *
+     * @param <T>      The type of the {@link PipelineContext}.
+     * @param type     The class type under which the context is registered.
+     * @param supplier A function interface for creating a new context
+     *                 if one is not already registered under the given type.
+     * @return The registered or newly created context.
      */
     public <T extends PipelineContext> T getOrCreateContext(Class<T> type, Supplier<T> supplier) {
         T c = getContext(type);
@@ -194,15 +208,16 @@ public class RenderManager {
         }
         return c;
     }
-    
+
     /**
      * Gets the pipeline context registered under the class or creates
      * and registers a new context from the function.
-     * 
-     * @param <T>
-     * @param type
-     * @param function interface for creating a new context if necessary
-     * @return registered or newly created context
+     *
+     * @param <T>      The type of the {@link PipelineContext}.
+     * @param type     The class type under which the context is registered.
+     * @param function A function interface for creating a new context, taking the {@code RenderManager} as an argument,
+     *                 if one is not already registered under the given type.
+     * @return The registered or newly created context.
      */
     public <T extends PipelineContext> T getOrCreateContext(Class<T> type, Function<RenderManager, T> function) {
         T c = getContext(type);
@@ -212,16 +227,16 @@ public class RenderManager {
         }
         return c;
     }
-    
+
     /**
-     * Registers the pipeline context under the class.
+     * Registers a pipeline context under the given class type.
      * <p>
      * If another context is already registered under the class, that
      * context will be replaced by the given context.
-     * 
-     * @param <T>
-     * @param type class type to register the context under (not null)
-     * @param context context to register (not null)
+     *
+     * @param type    The class type under which the context is registered.
+     * @param context The context instance to register.
+     * @param <T>     The type of the {@link PipelineContext}.
      */
     public <T extends PipelineContext> void registerContext(Class<T> type, T context) {
         assert type != null;
@@ -230,11 +245,11 @@ public class RenderManager {
         }
         contexts.put(type, context);
     }
-    
+
     /**
      * Gets the application profiler.
-     * 
-     * @return 
+     *
+     * @return The {@link AppProfiler} instance, or null if none is set.
      */
     public AppProfiler getProfiler() {
         return prof;
@@ -523,7 +538,7 @@ public class RenderManager {
         for (ViewPort vp : preViewPorts) {
             notifyRescale(vp, x, y);
         }
-        for (ViewPort vp : viewPorts) {      
+        for (ViewPort vp : viewPorts) {
             notifyRescale(vp, x, y);
         }
         for (ViewPort vp : postViewPorts) {
@@ -532,22 +547,19 @@ public class RenderManager {
     }
 
     /**
-     * Sets the material to use to render all future objects.
-     * This overrides the material set on the geometry and renders
-     * with the provided material instead.
-     * Use null to clear the material and return renderer to normal
-     * functionality.
+     * Sets a material that will be forced on all rendered geometries.
+     * This can be used for debugging (e.g., solid color) or special effects.
      *
-     * @param mat The forced material to set, or null to return to normal
+     * @param forcedMaterial The material to force, or null to disable forcing.
      */
-    public void setForcedMaterial(Material mat) {
-        forcedMaterial = mat;
+    public void setForcedMaterial(Material forcedMaterial) {
+        this.forcedMaterial = forcedMaterial;
     }
-    
+
     /**
-     * Gets the forced material.
-     * 
-     * @return 
+     * Gets the forced material that overrides materials set on geometries.
+     *
+     * @return The forced {@link Material}, or null if no material is forced.
      */
     public Material getForcedMaterial() {
         return forcedMaterial;
@@ -598,10 +610,9 @@ public class RenderManager {
     }
 
     /**
-     * Returns the forced technique name set.
+     * Returns the name of the forced technique.
      *
-     * @return the forced technique name set.
-     *
+     * @return The name of the forced technique, or null if none is forced.
      * @see #setForcedTechnique(java.lang.String)
      */
     public String getForcedTechnique() {
@@ -617,9 +628,7 @@ public class RenderManager {
      * If a forced material is not set and the forced technique name cannot
      * be found on the material, the geometry will <em>not</em> be rendered.
      *
-     * @param forcedTechnique The forced technique name to use, set to null
-     *     to return to normal functionality.
-     *
+     * @param forcedTechnique The technique to force, or null to disable forcing.
      * @see #renderGeometry(com.jme3.scene.Geometry)
      */
     public void setForcedTechnique(String forcedTechnique) {
@@ -628,13 +637,12 @@ public class RenderManager {
 
     /**
      * Adds a forced material parameter to use when rendering geometries.
-     *
-     * <p>The provided parameter takes precedence over parameters set on the
+     * <p>
+     * The provided parameter takes precedence over parameters set on the
      * material or any overrides that exist in the scene graph that have the
      * same name.
      *
-     * @param override The override to add
-     * @see MatParamOverride
+     * @param override The material parameter override to add.
      * @see #removeForcedMatParam(com.jme3.material.MatParamOverride)
      */
     public void addForcedMatParam(MatParamOverride override) {
@@ -642,9 +650,9 @@ public class RenderManager {
     }
 
     /**
-     * Removes a forced material parameter previously added.
+     * Removes a material parameter override.
      *
-     * @param override The override to remove.
+     * @param override The material parameter override to remove.
      * @see #addForcedMatParam(com.jme3.material.MatParamOverride)
      */
     public void removeForcedMatParam(MatParamOverride override) {
@@ -758,33 +766,49 @@ public class RenderManager {
      * @see com.jme3.material.Material#render(com.jme3.scene.Geometry, com.jme3.renderer.RenderManager)
      */
     public void renderGeometry(Geometry geom) {
-        
+
         if (renderFilter != null && !renderFilter.test(geom)) {
             return;
         }
-        
+
         LightList lightList = geom.getWorldLightList();
         if (lightFilter != null) {
             filteredLightList.clear();
             lightFilter.filterLights(geom, filteredLightList);
             lightList = filteredLightList;
         }
-        
+
         renderGeometry(geom, lightList);
-        
     }
-    
+
     /**
+     * Auto-scale singlePassLightBatchSize exponentially (powers of 2) up to maxSinglePassLightBatchSize only
+     * when a tecnique needs it
      * 
-     * @param geom
-     * @param lightList 
+     * @param tech
+     * @param nLights
+     */
+    private void maybeResizeLightBatch(TechniqueDef tech, int nLights) {
+        boolean isSPL = tech.getLightMode() == TechniqueDef.LightMode.SinglePass || tech.getLightMode() == TechniqueDef.LightMode.SinglePassAndImageBased;
+        if (isSPL && nLights > singlePassLightBatchSize && singlePassLightBatchSize < maxSinglePassLightBatchSize) {
+            singlePassLightBatchSize = Math.min(FastMath.nearestPowerOfTwo(nLights), maxSinglePassLightBatchSize);
+        }
+    }
+
+    /**
+     * Renders a single {@link Geometry} with a specific list of lights.
+     * This method applies the world transform, handles forced materials and techniques,
+     * and manages the `BoundDrawBuffer` parameter for multi-target frame buffers.
+     *
+     * @param geom The {@link Geometry} to render.
+     * @param lightList The {@link LightList} containing the lights that affect this geometry.
      */
     public void renderGeometry(Geometry geom, LightList lightList) {
-        
+
         if (renderFilter != null && !renderFilter.test(geom)) {
             return;
         }
-        
+
         this.renderer.pushDebugGroup(geom.getName());
         if (geom.isIgnoreTransform()) {
             setWorldMatrix(Matrix4f.IDENTITY);
@@ -819,11 +843,14 @@ public class RenderManager {
                 RenderState tmpRs = forcedRenderState;
                 if (geom.getMaterial().getActiveTechnique().getDef().getForcedRenderState() != null) {
                     //forcing forced technique renderState
-                    forcedRenderState
-                            = geom.getMaterial().getActiveTechnique().getDef().getForcedRenderState();
+                    forcedRenderState = geom.getMaterial().getActiveTechnique().getDef().getForcedRenderState();
                 }
+                
                 // use geometry's material
                 material.render(geom, lightList, this);
+                
+                // resize light batch if needed before rendering
+                maybeResizeLightBatch(geom.getMaterial().getActiveTechnique().getDef(), lightList.size());
                 material.selectTechnique(previousTechniqueName, this);
 
                 //restoring forcedRenderState
@@ -835,12 +862,19 @@ public class RenderManager {
             } else if (forcedMaterial != null) {
                 // use forced material
                 forcedMaterial.render(geom, lightList, this);
+
+                // resize light batch if needed before rendering
+                maybeResizeLightBatch(forcedMaterial.getActiveTechnique().getDef(), lightList.size());
             }
         } else if (forcedMaterial != null) {
             // use forced material
             forcedMaterial.render(geom, lightList, this);
+            // resize light batch if needed before rendering
+            maybeResizeLightBatch(forcedMaterial.getActiveTechnique().getDef(), lightList.size());
         } else {
             material.render(geom, lightList, this);
+            // resize light batch if needed before rendering
+            maybeResizeLightBatch(geom.getMaterial().getActiveTechnique().getDef(), lightList.size());
         }
         this.renderer.popDebugGroup();
     }
@@ -903,7 +937,7 @@ public class RenderManager {
             }
         }
     }
-    
+
     /**
      * @deprecated Use {@link #preload(Spatial) } instead.
      */
@@ -1084,6 +1118,11 @@ public class RenderManager {
     /**
      * Returns the number of lights used for each pass when the light mode is single pass.
      *
+     * <p>
+     * This value is automatically scaled up (in powers of two, up to
+     * {@link #getMaxSinglePassLightBatchSize()}) during rendering whenever a geometry has more lights than
+     * the current batch size.
+     *
      * @return the number of lights.
      */
     public int getSinglePassLightBatchSize() {
@@ -1091,15 +1130,68 @@ public class RenderManager {
     }
 
     /**
-     * Sets the number of lights to use for each pass when the light mode is single pass.
+     * Sets the number of lights to use for each pass when the light mode is single pass, and simultaneously
+     * sets the maximum batch size to the same value.
      *
-     * @param singlePassLightBatchSize the number of lights.
+     * <p>
+     * This effectively pins the batch size and disables the automatic scaling, which is useful when you know
+     * in advance how many lights your scene uses.
+     *
+     * <p>
+     * To set only the upper limit while still allowing automatic scaling, use
+     * {@link #setMaxSinglePassLightBatchSize(int)} instead.
+     *
+     * @param singlePassLightBatchSize the number of lights (minimum 1).
      */
     public void setSinglePassLightBatchSize(int singlePassLightBatchSize) {
-        // Ensure the batch size is no less than 1
-        this.singlePassLightBatchSize = singlePassLightBatchSize < 1 ? 1 : singlePassLightBatchSize;
+        this.singlePassLightBatchSize = Math.max(singlePassLightBatchSize, 1);
+        this.maxSinglePassLightBatchSize = this.singlePassLightBatchSize;
     }
 
+    /**
+     * Returns the maximum number of lights allowed in a single pass batch.
+     *
+     * <p>
+     * The batch size will never be auto-scaled beyond this value. 
+     *
+     * @return the maximum single pass light batch size.
+     */
+    public int getMaxSinglePassLightBatchSize() {
+        return maxSinglePassLightBatchSize;
+    }
+
+    /**
+     * Sets the maximum number of lights allowed in a single pass batch.
+     *
+     * <p>
+     * The requested value is clamped to a hardware-safe upper bound.
+     *
+     * <p>
+     * If the current {@link #getSinglePassLightBatchSize() batch size} exceeds the new maximum, it is clamped
+     * down to the new maximum. Otherwise the current batch size is left unchanged and will continue to
+     * auto-scale up to the new limit.
+     *
+     * @param maxSinglePassLightBatchSize    the maximum number of lights (minimum 1).
+     */
+    public void setMaxSinglePassLightBatchSize(int maxSinglePassLightBatchSize) {
+        this.maxSinglePassLightBatchSize = Math.max(maxSinglePassLightBatchSize, 1);
+        // Clamp to a hardware-safe value.
+        Integer fragUniformVecs = renderer.getLimits().get(Limits.FragmentUniformVectors);
+        if (fragUniformVecs != null && fragUniformVecs > 0) {
+            int reservedUniforms = Math.min(Math.max(fragUniformVecs / RESERVED_UNIFORM_FRACTION, 1), RESERVED_UNIFORMS_MAX);
+            int maxBatchForHardware = Math.max((fragUniformVecs - reservedUniforms) / VEC4_UNIFORMS_PER_LIGHT, 1);
+            if (this.maxSinglePassLightBatchSize > 16 && maxBatchForHardware < 16) {
+                logger.log(Level.WARNING,
+                        "setMaxSinglePassLightBatchSize({0}) was requested but hardware only supports"
+                                + " {1} lights per pass (FragmentUniformVectors={2}); clamping to {1}.",
+                        new Object[] { maxSinglePassLightBatchSize, maxBatchForHardware, fragUniformVecs });
+            }
+            this.maxSinglePassLightBatchSize = Math.min(this.maxSinglePassLightBatchSize, maxBatchForHardware);
+        }
+        if (singlePassLightBatchSize > this.maxSinglePassLightBatchSize) {
+            singlePassLightBatchSize = this.maxSinglePassLightBatchSize;
+        }
+    }
 
     /**
      * Renders the given viewport queues.
@@ -1143,7 +1235,6 @@ public class RenderManager {
             rq.renderQueue(Bucket.Sky, this, cam, flush);
             depthRangeChanged = true;
         }
-
 
         // transparent objects are last because they require blending with the
         // rest of the scene's objects. Consequently, they are sorted
@@ -1202,12 +1293,12 @@ public class RenderManager {
     private void setViewPort(Camera cam) {
         // this will make sure to clearReservations viewport only if needed
         if (cam != prevCam || cam.isViewportChanged()) {
-            viewX      = (int) (cam.getViewPortLeft() * cam.getWidth());
-            viewY      = (int) (cam.getViewPortBottom() * cam.getHeight());
+            int viewX  = (int) (cam.getViewPortLeft() * cam.getWidth());
+            int viewY  = (int) (cam.getViewPortBottom() * cam.getHeight());
             int viewX2 = (int) (cam.getViewPortRight() * cam.getWidth());
             int viewY2 = (int) (cam.getViewPortTop() * cam.getHeight());
-            viewWidth  = viewX2 - viewX;
-            viewHeight = viewY2 - viewY;
+            int viewWidth  = viewX2 - viewX;
+            int viewHeight = viewY2 - viewY;
             uniformBindingManager.setViewPort(viewX, viewY, viewWidth, viewHeight);
             renderer.setViewPort(viewX, viewY, viewWidth, viewHeight);
             renderer.setClipRect(viewX, viewY, viewWidth, viewHeight);
@@ -1284,8 +1375,8 @@ public class RenderManager {
     /**
      * Applies the ViewPort's Camera and FrameBuffer in preparation
      * for rendering.
-     * 
-     * @param vp 
+     *
+     * @param vp The ViewPort to apply.
      */
     public void applyViewPort(ViewPort vp) {
         renderer.setFrameBuffer(vp.getOutputFrameBuffer());
@@ -1297,7 +1388,7 @@ public class RenderManager {
             renderer.clearBuffers(vp.isClearColor(), vp.isClearDepth(), vp.isClearStencil());
         }
     }
-    
+
     /**
      * Renders the {@link ViewPort} using the ViewPort's {@link RenderPipeline}.
      * <p>
@@ -1312,11 +1403,12 @@ public class RenderManager {
     public void renderViewPort(ViewPort vp, float tpf) {
         if (!vp.isEnabled()) {
             return;
-        }        
+        }
         RenderPipeline pipeline = vp.getPipeline();
         if (pipeline == null) {
             pipeline = defaultPipeline;
         }
+
         PipelineContext context = pipeline.fetchPipelineContext(this);
         if (context == null) {
             throw new NullPointerException("Failed to fetch pipeline context.");
@@ -1328,6 +1420,7 @@ public class RenderManager {
             usedPipelines.add(pipeline);
             pipeline.startRenderFrame(this);
         }
+
         pipeline.pipelineRender(this, context, vp, tpf);
         context.endViewPortRender(this, vp);
     }
@@ -1351,7 +1444,7 @@ public class RenderManager {
         if (renderer instanceof NullRenderer) {
             return;
         }
-        
+
         uniformBindingManager.newFrame();
 
         if (prof != null) {
@@ -1383,17 +1476,16 @@ public class RenderManager {
                 renderViewPort(vp, tpf);
             }
         }
-        
+
         // cleanup for used render pipelines and pipeline contexts only
         for (int i = 0; i < usedContexts.size(); i++) {
             usedContexts.get(i).endContextRenderFrame(this);
         }
-        for (int i = 0; i < usedPipelines.size(); i++) {
-            usedPipelines.get(i).endRenderFrame(this);
+        for (RenderPipeline<?> p : usedPipelines) {
+            p.endRenderFrame(this);
         }
         usedContexts.clear();
         usedPipelines.clear();
-        
     }
 
     /**
@@ -1402,41 +1494,42 @@ public class RenderManager {
      * @return True if the draw buffer target id is passed to the shaders.
      */
     public boolean getPassDrawBufferTargetIdToShaders() {
-        return this.forcedOverrides.contains(boundDrawBufferId);
+        return forcedOverrides.contains(boundDrawBufferId);
     }
 
     /**
      * Enable or disable passing the draw buffer target id to the shaders. This
      * is needed to handle FrameBuffer.setTargetIndex correctly in some
-     * backends.
+     * backends. When enabled, a material parameter named "BoundDrawBuffer" of
+     * type Int will be added to forced material parameters.
      *
-     * @param v
-     *            True to enable, false to disable (default is true)
+     * @param enable True to enable, false to disable (default is true)
      */
-    public void setPassDrawBufferTargetIdToShaders(boolean v) {
-        if (v) {
-            if (!this.forcedOverrides.contains(boundDrawBufferId)) {
-                this.forcedOverrides.add(boundDrawBufferId);
+    public void setPassDrawBufferTargetIdToShaders(boolean enable) {
+        if (enable) {
+            if (!forcedOverrides.contains(boundDrawBufferId)) {
+                forcedOverrides.add(boundDrawBufferId);
             }
         } else {
-            this.forcedOverrides.remove(boundDrawBufferId);
+            forcedOverrides.remove(boundDrawBufferId);
         }
     }
-    
+
     /**
      * Set a render filter. Every geometry will be tested against this filter
      * before rendering and will only be rendered if the filter returns true.
-     * 
-     * @param filter the render filter
+     * This allows for custom culling or selective rendering based on geometry properties.
+     *
+     * @param filter The render filter to apply, or null to remove any existing filter.
      */
     public void setRenderFilter(Predicate<Geometry> filter) {
         renderFilter = filter;
     }
 
     /**
-     * Returns the render filter that the RenderManager is currently using
-     * 
-     * @return the render filter 
+     * Returns the render filter that the RenderManager is currently using.
+     *
+     * @return The currently active render filter, or null if no filter is set.
      */
     public Predicate<Geometry> getRenderFilter() {
         return renderFilter;

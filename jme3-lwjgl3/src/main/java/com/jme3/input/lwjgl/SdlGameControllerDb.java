@@ -6,7 +6,6 @@ import java.nio.ByteBuffer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.jme3.export.binary.ByteUtils;
 import com.jme3.util.BufferUtils;
 import com.jme3.util.res.Resources;
 

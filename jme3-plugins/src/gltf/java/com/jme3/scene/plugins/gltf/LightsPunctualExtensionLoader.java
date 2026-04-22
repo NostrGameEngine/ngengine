@@ -144,15 +144,17 @@ public class LightsPunctualExtensionLoader implements ExtensionLoader {
             outerConeAngle = FastMath.HALF_PI - 0.000001f;
         }
 
-        if(APPLY_INTENSITY_CONVERSION)  {
+        if (APPLY_INTENSITY_CONVERSION) {
             float solidAngle = 2.0f * FastMath.PI * (1.0f - FastMath.cos(outerConeAngle));
             intensity = intensity / solidAngle;
         }
 
-        float range = obj.has("range") ? obj.get("range").getAsFloat() : (COMPUTE_LIGHT_RANGE ? getCutoffDistance(color, intensity) : Float.POSITIVE_INFINITY);
+        float range = obj.has("range")
+                ? obj.get("range").getAsFloat()
+                : (COMPUTE_LIGHT_RANGE ? getCutoffDistance(color, intensity) : Float.POSITIVE_INFINITY);
 
         color = lumensToColor(color, intensity);
-      
+
         SpotLight spotLight = new SpotLight(true);
         spotLight.setName(name);
         spotLight.setColor(color);
@@ -199,7 +201,9 @@ public class LightsPunctualExtensionLoader implements ExtensionLoader {
         
         if(APPLY_INTENSITY_CONVERSION) intensity = intensity / (4.0f * FastMath.PI);
 
-        float range = obj.has("range") ? obj.get("range").getAsFloat() : (COMPUTE_LIGHT_RANGE ? getCutoffDistance(color, intensity) : Float.POSITIVE_INFINITY);
+        float range = obj.has("range")
+                ? obj.get("range").getAsFloat()
+                : (COMPUTE_LIGHT_RANGE ? getCutoffDistance(color, intensity) : Float.POSITIVE_INFINITY);
         color = lumensToColor(color, intensity);
 
         PointLight pointLight = new PointLight(true);

@@ -169,10 +169,11 @@ public class BulletDebugAppState extends AbstractAppState {
         setupMaterials(app);
         physicsDebugRootNode.setCullHint(Spatial.CullHint.Never);
 
+
         viewPort = rm.createMainView("Physics Debug Overlay", app.getCamera());
         viewPort.setClearFlags(false, true, false);
         viewPort.attachScene(physicsDebugRootNode);
-
+        
     }
 
     /**
@@ -182,11 +183,8 @@ public class BulletDebugAppState extends AbstractAppState {
      * is invoked.
      */
     @Override
-    public void cleanup() {
-
-        rm.removeMainView(viewPort);
-
-
+    public void cleanup() {        
+        rm.removeMainView(viewPort);        
         super.cleanup();
     }
 
@@ -421,6 +419,4 @@ public class BulletDebugAppState extends AbstractAppState {
          */
         public boolean displayObject(Object obj);
     }
-
-
 }

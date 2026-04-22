@@ -61,7 +61,7 @@ public final class LwjglDevice implements Device {
     public LwjglPlatform getPlatform() {
         return platform;
     }
-
+    
     @Override
     public DeviceType getDeviceType() {
         long type = Info.clGetDeviceInfoInt(device, CL10.CL_DEVICE_TYPE);

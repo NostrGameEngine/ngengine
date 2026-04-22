@@ -69,12 +69,11 @@ public class GlfwJoystickInput implements JoyInput {
     private GLFWGamepadState gamepadState;
     private RawInputListener listener;
 
-
     public GlfwJoystickInput(AppSettings settings) {
         this.settings = settings;
         try {
             String path = settings.getSDLGameControllerDBResourcePath();
-            if (!path.isBlank()) {
+            if (path != null && !path.trim().isEmpty()) {
                 ByteBuffer bbf = SdlGameControllerDb.getGamecontrollerDb(path);
                 if (!glfwUpdateGamepadMappings(bbf)) throw new Exception("Failed to load");
             }
@@ -87,7 +86,6 @@ public class GlfwJoystickInput implements JoyInput {
     @Override
     public void initialize() {
         gamepadState = GLFWGamepadState.create();
-        
         virtualTriggerThreshold = settings.getJoysticksTriggerToButtonThreshold();
         xboxStyle = settings.getJoysticksMapper().equals(AppSettings.JOYSTICKS_XBOX_LEGACY_MAPPER);
         globalJitterThreshold = settings.getJoysticksAxisJitterThreshold();
@@ -129,14 +127,15 @@ public class GlfwJoystickInput implements JoyInput {
                 boolean isGlfwGamepad = xboxStyle && glfwJoystickIsGamepad(i);
 
                 String name;
-                if(isGlfwGamepad) {
+                if (isGlfwGamepad) {
                     name = glfwGetGamepadName(i);
-                    name += " ("+glfwGetJoystickGUID(i)+")";
                 } else {
                     name = glfwGetJoystickName(i);
-                    LOGGER.log(Level.WARNING,"Unknown controller detected: {0} - guid: {1}. Fallback to raw input handling", new Object[]{name, glfwGetJoystickGUID(i)});
+                    LOGGER.log(Level.WARNING,
+                            "Unknown controller detected: {0} - guid: {1}. Fallback to raw input handling",
+                            new Object[] { name, glfwGetJoystickGUID(i) });
                 }
-                
+
                 GlfwJoystick joystick = new GlfwJoystick(inputManager, this, i, name, isGlfwGamepad);
                 joysticks.put(i, joystick);
 
@@ -149,8 +148,10 @@ public class GlfwJoystickInput implements JoyInput {
                     while (floatBuffer.hasRemaining()) {
                         floatBuffer.get();
 
-                        String logicalId = JoystickCompatibilityMappings.remapAxis(joystick.getName(), convertAxisIndex(axisIndex));
-                        JoystickAxis joystickAxis = new DefaultJoystickAxis(inputManager, joystick, axisIndex, convertAxisIndex(axisIndex), logicalId, true, false, 0.0f);
+                        String logicalId = JoystickCompatibilityMappings.remapAxis(joystick.getName(),
+                                convertAxisIndex(axisIndex));
+                        JoystickAxis joystickAxis = new DefaultJoystickAxis(inputManager, joystick, axisIndex,
+                                convertAxisIndex(axisIndex), logicalId, true, false, 0.0f);
                         joystick.addAxis(axisIndex, joystickAxis);
                         axisIndex++;
                     }
@@ -163,8 +164,10 @@ public class GlfwJoystickInput implements JoyInput {
                         while (byteBuffer.hasRemaining()) {
                             byteBuffer.get();
 
-                            String logicalId = JoystickCompatibilityMappings.remapButton(joystick.getName(), String.valueOf(buttonIndex));
-                            JoystickButton button = new DefaultJoystickButton(inputManager, joystick, buttonIndex, String.valueOf(buttonIndex), logicalId);
+                            String logicalId = JoystickCompatibilityMappings.remapButton(joystick.getName(),
+                                    String.valueOf(buttonIndex));
+                            JoystickButton button = new DefaultJoystickButton(inputManager, joystick,
+                                    buttonIndex, String.valueOf(buttonIndex), logicalId);
                             joystick.addButton(button);
                             joyButtonPressed.put(button, false);
                             buttonIndex++;
@@ -174,25 +177,30 @@ public class GlfwJoystickInput implements JoyInput {
                     // Managed axis
                     for (int axisIndex = 0; axisIndex <= GLFW_GAMEPAD_AXIS_LAST; axisIndex++) {
                         String logicalId = remapAxisToJme(axisIndex);
-                        if (logicalId==null)   continue;
-                        String axisName = logicalId;  // no need to remap with JoystickCompatibilityMappings as glfw already handles remapping
-                        JoystickAxis axis = new DefaultJoystickAxis(inputManager, joystick, axisIndex, axisName, logicalId, true, false, 0.0f);
+                        if (logicalId == null) continue;
+                        String axisName = logicalId; // no need to remap with JoystickCompatibilityMappings as
+                                                     // glfw already handles remapping
+                        JoystickAxis axis = new DefaultJoystickAxis(inputManager, joystick, axisIndex,
+                                axisName, logicalId, true, false, 0.0f);
                         joystick.addAxis(axisIndex, axis);
                     }
 
                     // Virtual POV axes for D-pad.
-                    JoystickAxis povX = new DefaultJoystickAxis(inputManager, joystick, POV_X_AXIS_ID, JoystickAxis.POV_X, JoystickAxis.POV_X, true, false, 0.0f);
+                    JoystickAxis povX = new DefaultJoystickAxis(inputManager, joystick, POV_X_AXIS_ID,
+                            JoystickAxis.POV_X, JoystickAxis.POV_X, true, false, 0.0f);
                     joystick.addAxis(POV_X_AXIS_ID, povX);
 
-                    JoystickAxis povY = new DefaultJoystickAxis(inputManager, joystick, POV_Y_AXIS_ID, JoystickAxis.POV_Y, JoystickAxis.POV_Y, true, false, 0.0f);
+                    JoystickAxis povY = new DefaultJoystickAxis(inputManager, joystick, POV_Y_AXIS_ID,
+                            JoystickAxis.POV_Y, JoystickAxis.POV_Y, true, false, 0.0f);
                     joystick.addAxis(POV_Y_AXIS_ID, povY);
 
                     // managed buttons
                     for (int buttonIndex = 0; buttonIndex <= GLFW_GAMEPAD_BUTTON_LAST; buttonIndex++) {
                         String logicalId = remapButtonToJme(buttonIndex);
-                        if (logicalId==null)   continue;
-                        String buttonName =  logicalId;
-                        JoystickButton button = new DefaultJoystickButton(inputManager, joystick, buttonIndex, buttonName, logicalId);
+                        if (logicalId == null) continue;
+                        String buttonName = logicalId;
+                        JoystickButton button = new DefaultJoystickButton(inputManager, joystick, buttonIndex,
+                                buttonName, logicalId);
                         joystick.addButton(button);
                         joyButtonPressed.put(button, false);
                     }
@@ -271,17 +279,21 @@ public class GlfwJoystickInput implements JoyInput {
 
                 // virtual trigger buttons
                 if (virtualTriggerThreshold > 0.0f) {
-                    float leftTrigger = remapAxisValueToJme(GLFW_GAMEPAD_AXIS_LEFT_TRIGGER, axes.get(GLFW_GAMEPAD_AXIS_LEFT_TRIGGER));
-                    float rightTrigger = remapAxisValueToJme(GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER, axes.get(GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER));
-                    updateButton(joystick.getButton(JoystickButton.BUTTON_XBOX_LT), leftTrigger > virtualTriggerThreshold);
-                    updateButton(joystick.getButton(JoystickButton.BUTTON_XBOX_RT), rightTrigger > virtualTriggerThreshold);
+                    float leftTrigger = remapAxisValueToJme(GLFW_GAMEPAD_AXIS_LEFT_TRIGGER,
+                            axes.get(GLFW_GAMEPAD_AXIS_LEFT_TRIGGER));
+                    float rightTrigger = remapAxisValueToJme(GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER,
+                            axes.get(GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER));
+                    updateButton(joystick.getButton(JoystickButton.BUTTON_XBOX_LT),
+                            leftTrigger > virtualTriggerThreshold);
+                    updateButton(joystick.getButton(JoystickButton.BUTTON_XBOX_RT),
+                            rightTrigger > virtualTriggerThreshold);
                 }
 
                 ByteBuffer buttons = gamepadState.buttons();
              
-                for(int btnIndex = 0; btnIndex <= GLFW_GAMEPAD_BUTTON_LAST; btnIndex++) {
+                for (int btnIndex = 0; btnIndex <= GLFW_GAMEPAD_BUTTON_LAST; btnIndex++) {
                     String jmeButtonIndex = remapButtonToJme(btnIndex);
-                    if(jmeButtonIndex==null) continue;                    
+                    if (jmeButtonIndex == null) continue;
 
                     JoystickButton button = joystick.getButton(jmeButtonIndex);
                     if (button == null) continue;
@@ -330,7 +342,6 @@ public class GlfwJoystickInput implements JoyInput {
                 return JoystickAxis.AXIS_XBOX_RIGHT_TRIGGER;
             default:
                 return null;
-        
         }
     }
 
@@ -388,7 +399,7 @@ public class GlfwJoystickInput implements JoyInput {
         }
     }
 
-    private void updateAxis(JoystickAxis axis, float value, float rawValue){
+    private void updateAxis(JoystickAxis axis, float value, float rawValue) {
         if (axis == null) return;
         Float old = joyAxisValues.get(axis);
         float jitter = FastMath.clamp(Math.max(axis.getJitterThreshold(), globalJitterThreshold), 0f, 1f);
@@ -397,7 +408,6 @@ public class GlfwJoystickInput implements JoyInput {
             listener.onJoyAxisEvent(new JoyAxisEvent(axis, value, rawValue));
         }
     }
-
 
     @Override
     public void destroy() {
@@ -426,9 +436,8 @@ public class GlfwJoystickInput implements JoyInput {
         private JoystickAxis povAxisX;
         private JoystickAxis povAxisY;
 
-        public GlfwJoystick(
-            InputManager inputManager, 
-            JoyInput joyInput, int joyId, String name, boolean gamepad) {
+        public GlfwJoystick(InputManager inputManager, JoyInput joyInput, int joyId, String name,
+                boolean gamepad) {
             super(inputManager, joyInput, joyId, name);
             this.isGlfwGamepad = gamepad;
         }

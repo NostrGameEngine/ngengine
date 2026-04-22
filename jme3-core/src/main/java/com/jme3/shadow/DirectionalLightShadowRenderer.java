@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2021 jMonkeyEngine
+ * Copyright (c) 2009-2025 jMonkeyEngine
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,6 @@ import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
 import com.jme3.renderer.queue.GeometryList;
 import com.jme3.renderer.queue.RenderQueue;
-import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import com.jme3.util.clone.Cloner;
 
@@ -69,7 +68,8 @@ public class DirectionalLightShadowRenderer extends AbstractShadowRenderer {
     protected float[] splitsArray;
     protected DirectionalLight light;
     protected Vector3f[] points = new Vector3f[8];
-    //Holding the info for fading shadows in the far distance   
+    protected final Vector3f tempVec = new Vector3f();
+
     private boolean stabilize = true;
 
     /**
@@ -97,10 +97,12 @@ public class DirectionalLightShadowRenderer extends AbstractShadowRenderer {
     }
 
     private void init(int nbSplits, int shadowMapSize) {
-        nbShadowMaps = Math.max(Math.min(nbSplits, 4), 1);
-        if (nbShadowMaps != nbSplits) {
-            throw new IllegalArgumentException("Number of splits must be between 1 and 4. Given value : " + nbSplits);
+        // Ensure the number of shadow maps is within the valid range [1, 4]
+        if (nbSplits < 1 || nbSplits > 4) {
+            throw new IllegalArgumentException("Number of splits must be between 1 and 4. Given value: " + nbSplits);
         }
+
+        nbShadowMaps = nbSplits;
         splits = new ColorRGBA();
         splitsArray = new float[nbSplits + 1];
         shadowCam = new Camera(shadowMapSize, shadowMapSize);
@@ -151,7 +153,7 @@ public class DirectionalLightShadowRenderer extends AbstractShadowRenderer {
         ShadowUtil.updateFrustumPoints(viewCam, frustumNear, zFar, 1.0f, points);
 
         shadowCam.setFrustumFar(zFar);
-        shadowCam.getRotation().lookAt(light.getDirection(), shadowCam.getUp());
+        shadowCam.getRotation().lookAt(light.getDirection(), shadowCam.getUp(tempVec));
         shadowCam.update();
         shadowCam.updateViewProjection();
 
@@ -212,9 +214,9 @@ public class DirectionalLightShadowRenderer extends AbstractShadowRenderer {
 
     @Override
     protected void doDisplayFrustumDebug(int shadowMapIndex) {
-        ((Node) viewPort.getScenes().get(0)).attachChild(createFrustum(points, shadowMapIndex));
+        getSceneForDebug().attachChild(createFrustum(points, shadowMapIndex));
         ShadowUtil.updateFrustumPoints2(shadowCam, points);
-        ((Node) viewPort.getScenes().get(0)).attachChild(createFrustum(points, shadowMapIndex));
+        getSceneForDebug().attachChild(createFrustum(points, shadowMapIndex));
     }
 
     @Override

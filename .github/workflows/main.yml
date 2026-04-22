@@ -7,25 +7,156 @@ on:
     types: [published, released]
 
 jobs:
+  Checkstyle:
+    name: Run Checkstyle
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - name: Setup the java environment
+        uses: actions/setup-java@v5.2.0
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+      - name: Validate the Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v5.0.2
+      - name: Run Checkstyle
+        run: |
+          ./gradlew checkstyleMain checkstyleTest --console=plain --stacktrace
+      - name: Upload Checkstyle Reports
+        uses: actions/upload-artifact@v7.0.0
+        if: always()
+        with:
+          name: checkstyle-report
+          retention-days: 30
+          path: |
+            **/build/reports/checkstyle/**
 
-  # Build natives on android
+  SpotBugs:
+    name: Run SpotBugs
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - name: Setup the java environment
+        uses: actions/setup-java@v5.2.0
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+      - name: Validate the Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v5.0.2
+      - name: Run SpotBugs
+        run: |
+          ./gradlew -PenableSpotBugs=true spotbugsMain spotbugsTest --console=plain --stacktrace
+      - name: Upload SpotBugs Reports
+        uses: actions/upload-artifact@v7.0.0
+        if: always()
+        with:
+          name: spotbugs-report
+          retention-days: 30
+          path: |
+            **/build/reports/spotbugs/**
+
+  ScreenshotTests:
+    name: Run Screenshot Tests
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/onemillionworlds/opengl-docker-image:v1
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - name: Start xvfb
+        run: |
+          Xvfb :99 -ac -screen 0 1024x768x16 &
+          export DISPLAY=:99
+          echo "DISPLAY=:99" >> $GITHUB_ENV
+      - name: Report GL/Vulkan
+        run: |
+          set -x
+          echo "DISPLAY=$DISPLAY"
+          glxinfo | grep -E "OpenGL version|OpenGL renderer|OpenGL vendor" || true
+          vulkaninfo --summary || true
+          echo "VK_ICD_FILENAMES=$VK_ICD_FILENAMES"
+          echo "MESA_LOADER_DRIVER_OVERRIDE=$MESA_LOADER_DRIVER_OVERRIDE"
+          echo "GALLIUM_DRIVER=$GALLIUM_DRIVER"
+      - name: Validate the Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v5.0.2
+      - name: Test with Gradle Wrapper
+        run: |
+          ./gradlew :jme3-screenshot-test:screenshotTest
+      - name: Upload Test Reports
+        uses: actions/upload-artifact@v7.0.0
+        if: always()
+        with:
+          name: screenshot-test-report
+          retention-days: 30
+          path: |
+            **/build/reports/**
+            **/build/changed-images/**
+            **/build/test-results/**
+
+  # Build iOS natives
+  BuildIosNatives:
+    name: Build natives for iOS
+    runs-on: macOS-14
+
+    steps:
+      - name: Check default JAVAs 
+        run: echo $JAVA_HOME --- $JAVA_HOME_8_X64 --- $JAVA_HOME_11_X64 --- $JAVA_HOME_17_X64 --- $JAVA_HOME_21_X64 ---
+
+      - name: Setup the java environment
+        uses: actions/setup-java@v5.2.0
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup the XCode version to 15.1.0 
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
+        with:
+          xcode-version: '15.1.0'
+
+      - name: Clone the repo
+        uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 1
+
+      - name: Validate the Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v5.0.2
+
+      - name: Build
+        run: |
+          ./gradlew -PuseCommitHashAsVersionName=true --no-daemon -PbuildNativeProjects=true \
+          :jme3-ios-native:build
+
+      - name: Upload natives
+        uses: actions/upload-artifact@v7.0.0
+        with:
+          name: ios-natives
+          path: jme3-ios-native/template/META-INF/robovm/ios/libs/jme3-ios-native.xcframework
+
+  # Build the natives on android
   BuildAndroidNatives:
     name: Build natives for android
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/cirruslabs/android-sdk:35-ndk
+      image: ghcr.io/cirruslabs/android-sdk:36-ndk
 
     steps:
       - name: Clone the repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 1
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - name: Setup Java 17
+        uses: actions/setup-java@v5.2.0
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: '17'
 
       - name: Check java version
         run: java -version
@@ -36,35 +167,24 @@ jobs:
           apt-get install -y cmake
           cmake --version
 
-      - name: Validate the Gradle wrap-per
-        uses: gradle/actions/wrapper-validation@v4
+      - name: Validate the Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v5.0.2
 
       - name: Build
         run: |
-          export VERSION=""
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-              export VERSION=${GITHUB_REF#refs/tags/}
-              echo "Publishing release $VERSION"
-          fi
           export ANDROID_NDK="$ANDROID_SDK_ROOT/ndk/$ANDROID_NDK_VERSION"
-          ls -la "$ANDROID_SDK_ROOT"
-          ls -la "$ANDROID_NDK"
-          ./gradlew  --no-daemon -PbuildNativeProjects=true \
-            -PjmeVersionName="$VERSION" \
-            build :jme3-android-native:assemble
-          find . -type f -print
+          ./gradlew -PuseCommitHashAsVersionName=true --no-daemon -PbuildNativeProjects=true \
+          :jme3-android-native:assemble
 
       - name: Upload natives
-        uses: actions/upload-artifact@master
+        uses: actions/upload-artifact@v7.0.0
         with:
           name: android-natives
           path: build/native
 
-  
-
-  # Build the engine, only deploy from ubuntu-latest jdk21
-  BuildEngine:
-    needs: [BuildAndroidNatives]
+  # Build the engine, we only deploy from ubuntu-latest jdk25
+  BuildJMonkey:
+    needs: [BuildAndroidNatives, BuildIosNatives]
     name: Build on ${{ matrix.osName }} jdk${{ matrix.jdk }}
     runs-on: ${{ matrix.os }}
     permissions:
@@ -75,7 +195,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macOS-latest]
+        os: [ubuntu-latest,windows-latest,macOS-latest]
+        jdk: [17, 21, 25]
         include:
           - os: ubuntu-latest
             osName: linux
@@ -86,33 +207,70 @@ jobs:
           - os: macOS-latest
             osName: mac
             deploy: false
-          
+          - jdk: 17
+            deploy: false
+          - jdk: 21
+            deploy: false
+
     steps:
       - name: Clone the repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 1
 
-      - name: Setup the java
-        uses: actions/setup-java@v4
+      - name: Setup the java environment
+        uses: actions/setup-java@v5.2.0
         with:
           distribution: 'temurin'
           java-version: '21'
 
       - name: Download natives for android
-        uses: actions/download-artifact@master
+        uses: actions/download-artifact@v8.0.1
         with:
           name: android-natives
           path: build/native
 
-      - name: Validate the Gradle wrapper
-        uses: gradle/actions/wrapper-validation@v4
+      - name: Download natives for iOS
+        uses: actions/download-artifact@v8.0.1
+        with:
+          name: ios-natives
+          path: jme3-ios-native/template/META-INF/robovm/ios/libs/jme3-ios-native.xcframework
 
+      - name: Validate the Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v5.0.2
       - name: Build Engine
         shell: bash
         run: |
-            export VERSION=""
-            if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-                export VERSION=${GITHUB_REF#refs/tags/}
-                echo "Publishing release $VERSION"
+          # Normal build plus ZIP distribution and merged javadoc
+          ./gradlew -PuseCommitHashAsVersionName=true -PskipPrebuildLibraries=true \
+          -x checkstyleMain -x checkstyleTest \
+          build createZipDistribution mergedJavadoc
+
+          if [ "${{ matrix.deploy }}" = "true" ];
+          then
+            # We are going to need "zip"
+            sudo apt-get update
+            sudo apt-get install -y zip
+
+            # We prepare the release for deploy
+            mkdir -p ./dist/release/
+            mv build/distributions/*.zip dist/release/
+
+            # Install maven artifacts to ./dist/maven and sign them if possible
+            if [ "${{ secrets.SIGNING_PASSWORD }}" = "" ];
+            then
+              echo "Configure the following secrets to enable signing:"
+              echo "SIGNING_KEY, SIGNING_PASSWORD"
+
+              ./gradlew publishMavenPublicationToDistRepository \
+              -PskipPrebuildLibraries=true -PuseCommitHashAsVersionName=true \
+              --console=plain --stacktrace
+            else
+              ./gradlew publishMavenPublicationToDistRepository \
+              -PsigningKey='${{ secrets.SIGNING_KEY }}' \
+              -PsigningPassword='${{ secrets.SIGNING_PASSWORD }}' \
+              -PskipPrebuildLibraries=true -PuseCommitHashAsVersionName=true \
+              --console=plain --stacktrace
             fi
             ./gradlew --no-daemon configureVersionInfo \
               -PjmeVersionName="$VERSION" \
@@ -131,7 +289,7 @@ jobs:
 
       - name: Upload merged natives
         if: matrix.deploy==true
-        uses: actions/upload-artifact@master
+        uses: actions/upload-artifact@v7.0.0
         with:
           name: merged-natives
           path: dist/merged-natives.zip
@@ -175,7 +333,7 @@ jobs:
 
       - name: Upload maven artifacts
         if: matrix.deploy==true
-        uses: actions/upload-artifact@master
+        uses: actions/upload-artifact@v7.0.0
         with:
           name: maven-artifacts
           path: dist/maven

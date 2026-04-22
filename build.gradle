@@ -1,6 +1,5 @@
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
-import org.gradle.util.VersionNumber
 
 
 buildscript {
@@ -8,7 +7,7 @@ buildscript {
         mavenCentral()
         google()
         maven {
-            url "https://plugins.gradle.org/m2/"
+            url = "https://plugins.gradle.org/m2/"
         }
         maven { url = uri("https://teavm.org/maven/repository") }
         maven { url = uri("https://maven.ngengine.org/riccardobl/teavm") }
@@ -120,13 +119,13 @@ subprojects {
         // Currently we only warn about issues and try to fix them as we go, but those aren't mission critical.
         spotbugs {
             ignoreFailures = true
-            toolVersion = '4.8.6'
+            toolVersion = libs.versions.spotbugs.get()
         }
 
         tasks.withType(com.github.spotbugs.snom.SpotBugsTask ) {
             reports {
-                html.enabled = !project.hasProperty("xml-reports")
-                xml.enabled = project.hasProperty("xml-reports")
+                html.required = !project.hasProperty("xml-reports")
+                xml.required = project.hasProperty("xml-reports")
             }
         }
     }
@@ -290,7 +289,8 @@ subprojects {
 
 }
 
-task run(dependsOn: ':jme3-examples:run') {
+tasks.register('run') {
+    dependsOn ':jme3-examples:run'
     description = 'Run the jME3 examples'
 }
 
@@ -316,19 +316,20 @@ task mergedJavadoc(type: Javadoc, description: 'Creates Javadoc from all the pro
     classpath = files(mergedJavadocSubprojects.collect { project(it).sourceSets.main.compileClasspath })
 }
 
-clean.dependsOn('cleanMergedJavadoc')
-task cleanMergedJavadoc(type: Delete) {
+def cleanMergedJavadoc = tasks.register('cleanMergedJavadoc', Delete) {
     delete file('dist/javadoc')
 }
 
-task mergedSource(type: Copy){
-
+tasks.named('clean') {
+    dependsOn cleanMergedJavadoc
 }
 
 ext {
     ndkCommandPath  = ""
     ndkExists       = false
 }
+
+apply from: 'gradle/jacoco.gradle'
 
 task configureAndroidNDK {
     def ndkBuildFile = "ndk-build"
@@ -351,7 +352,7 @@ task configureAndroidNDK {
             def ndkDirs = ndkBase.listFiles()?.findAll { it.isDirectory() } ?: []
             if (!ndkDirs.isEmpty()) {
                 def latest = ndkDirs
-                    .collect { [dir: it, ver: VersionNumber.parse(it.name)] }
+                    .collect { [dir: it, ver: it.name.tokenize('._-').collect { token -> token.isInteger() ? token.toInteger() : token }] }
                     .max { it.ver }?.dir
                 if (latest) {
                     ndkBuildPath = new File(latest, ndkBuildFile).absolutePath
@@ -375,55 +376,62 @@ task configureAndroidNDK {
 gradle.rootProject.ext.set("usePrebuildNatives", buildNativeProjects!="true");
 
 if (skipPrebuildLibraries != "true" && buildNativeProjects != "true") {
-    String rootPath = rootProject.projectDir.absolutePath
-
-    Properties nativesSnapshotProp = new Properties()
-    File nativesSnapshotPropF = new File("${rootPath}/natives-snapshot.properties");
+    File nativesSnapshotPropF = file('natives-snapshot.properties')
 
     if (nativesSnapshotPropF.exists()) {
+        def readNativesConfig = {
+            Properties nativesSnapshotProp = new Properties()
+            nativesSnapshotPropF.withInputStream { nativesSnapshotProp.load(it) }
 
-        nativesSnapshotPropF.withInputStream { nativesSnapshotProp.load(it) }
+            String nativesSnapshot = nativesSnapshotProp.getProperty("natives.snapshot")
+            if (!nativesSnapshot) {
+                throw new GradleException("Missing 'natives.snapshot' in ${nativesSnapshotPropF}")
+            }
 
-        String nativesSnapshot = nativesSnapshotProp.getProperty("natives.snapshot");
-        String nativesUrl = PREBUILD_NATIVES_URL.replace('${natives.snapshot}', nativesSnapshot)
-        println "Use natives snapshot: " + nativesUrl
+            [
+                snapshot: nativesSnapshot,
+                url: PREBUILD_NATIVES_URL.replace('${natives.snapshot}', nativesSnapshot),
+                zipFile: layout.buildDirectory.file("${nativesSnapshot}-natives.zip"),
+                nativeDir: layout.buildDirectory.dir("native"),
+            ]
+        }
 
-        String nativesZipFile = "${rootPath}" + File.separator + "build" + File.separator + nativesSnapshot + "-natives.zip"
-        String nativesPath = "${rootPath}" + File.separator + "build" + File.separator + "native"
+        def nativesZipFile = providers.provider { readNativesConfig().zipFile.get().asFile }
+        def nativesPath = layout.buildDirectory.dir("native")
 
-
-        task getNativesZipFile {
-            outputs.file nativesZipFile
+        def getNativesZipFile = tasks.register('getNativesZipFile') {
+            outputs.file(nativesZipFile)
             doFirst {
-                File target = file(nativesZipFile);
-                println("Download natives from " + nativesUrl + " to " + nativesZipFile);
-                target.getParentFile().mkdirs();
-                ant.get(src: nativesUrl, dest: target);
+                def nativesConfig = readNativesConfig()
+                File target = nativesConfig.zipFile.get().asFile
+                println("Use natives snapshot: ${nativesConfig.url}")
+                println("Download natives from ${nativesConfig.url} to ${target}")
+                target.getParentFile().mkdirs()
+                ant.get(src: nativesConfig.url, dest: target)
             }
         }
 
-        task extractPrebuiltNatives {
-            inputs.file nativesZipFile
-            outputs.dir nativesPath
-            dependsOn getNativesZipFile
-
-            doFirst {
-                for (File src : zipTree(nativesZipFile)) {
-                    String srcRel = src.getAbsolutePath().substring((int) (nativesZipFile.length() + 1));
-                    srcRel = srcRel.substring(srcRel.indexOf(File.separator) + 1);
-
-                    File dest = new File(nativesPath + File.separator + srcRel);
-                    boolean doCopy = !(dest.exists() && dest.lastModified() > src.lastModified())
-                    if (doCopy) {
-                        println("Copy " + src + " " + dest);
-                        dest.getParentFile().mkdirs();
-                        Files.copy(src.toPath(), dest.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        def extractPrebuiltNatives = tasks.register('extractPrebuiltNatives', Sync) {
+            dependsOn(getNativesZipFile)
+            into(nativesPath)
+            from({
+                zipTree(readNativesConfig().zipFile.get().asFile)
+            }) {
+                eachFile { details ->
+                    def segments = details.relativePath.segments
+                    if (segments.length <= 1) {
+                        details.exclude()
+                    } else {
+                        details.relativePath = new RelativePath(details.isDirectory(), segments[1..-1] as String[])
                     }
                 }
+                includeEmptyDirs = false
             }
         }
 
-        assemble.dependsOn extractPrebuiltNatives
+        tasks.named('assemble') {
+            dependsOn extractPrebuiltNatives
+        }
     }
 }
 
@@ -432,4 +440,3 @@ if (skipPrebuildLibraries != "true" && buildNativeProjects != "true") {
 dokkaGfmMultiModule {
     outputDirectory.set(file("build/dokka"))
 }
-

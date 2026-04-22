@@ -55,9 +55,11 @@ include 'jme3-jbullet'
 include 'jme3-jogg'
 include 'jme3-android'
 include 'jme3-ios'
+include 'jme3-saferallocator'
 
 //native builds
 include 'jme3-android-native' //cpp
+include 'jme3-ios-native' //cpp
 
 // Test Data project
 include 'jme3-testdata'

@@ -52,9 +52,12 @@ repositories {
 
 dependencies {
     // Adding dependencies here will add the dependencies to each subproject.
-    testImplementation libs.junit4
+    testImplementation platform(libs.junit.bom)
+    testImplementation libs.junit.jupiter
     testImplementation libs.mokito.core
+    testImplementation libs.mokito.junit.jupiter
     testImplementation libs.groovy.test
+    testRuntimeOnly libs.junit.platform.launcher
 }
 
 // Uncomment if you want to see the status of every test that is run and
@@ -86,10 +89,14 @@ javadoc {
     options.use = "true"
     options.charSet = "UTF-8"
     options.encoding = "UTF-8"
+    if (JavaVersion.current().isJava8Compatible()) {
+        options.addStringOption('Xdoclint:none', '-quiet')
+    }
     source = sourceSets.main.allJava // main only, exclude tests
 }
 
 test {
+    useJUnitPlatform()
     testLogging {
         exceptionFormat = 'full'
     }
@@ -135,11 +142,10 @@ ext.pomConfig = {
     }
 }
 
-artifacts {
-    archives jar
-    archives sourcesJar
+tasks.named('assemble') {
+    dependsOn sourcesJar
     if (buildJavaDoc == "true") {
-        archives javadocJar
+        dependsOn javadocJar
     }
 }
  
@@ -185,6 +191,7 @@ publishing {
                 }
                 url = POM_URL
             }
+            version = project.version
         }
     }
 
@@ -234,9 +241,11 @@ tasks.withType(Sign) {
     }
 }
 
+def checkstyleSupported = JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_21)
+
 checkstyle {
-    toolVersion libs.versions.checkstyle.get()
-    configFile file("${gradle.rootProject.rootDir}/config/checkstyle/checkstyle.xml")
+    toolVersion = libs.versions.checkstyle.get()
+    configFile = file("${gradle.rootProject.rootDir}/config/checkstyle/checkstyle.xml")
 }
 
 checkstyleMain {
@@ -248,6 +257,7 @@ checkstyleTest {
 }
 
 tasks.withType(Checkstyle) {
+    enabled = checkstyleSupported
     reports {
         xml.required.set(false)
         html.required.set(true)

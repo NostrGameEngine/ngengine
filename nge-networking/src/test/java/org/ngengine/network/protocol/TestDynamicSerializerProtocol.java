@@ -32,7 +32,7 @@
 
 package org.ngengine.network.protocol;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.FastMath;
@@ -48,8 +48,9 @@ import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.ngengine.network.protocol.messages.BinaryMessage;
 import org.ngengine.network.protocol.messages.ByteDataMessage;
 import org.ngengine.network.protocol.messages.CompressedMessage;
@@ -168,11 +169,91 @@ public class TestDynamicSerializerProtocol {
         }
     }
 
-    @Before
+    @BeforeEach
     public void setUp() {
         // Create protocol in SpiderMonkey compatible mode
         protocol = new DynamicSerializerProtocol(true, this::onClassRegistered,0 );
         protocol.setForceStaticBuffer(false);
+    }
+
+    private static void assertEquals(String message, Object expected, Object actual) {
+        Assertions.assertEquals(expected, actual, message);
+    }
+
+    private static void assertEquals(Object expected, Object actual) {
+        Assertions.assertEquals(expected, actual);
+    }
+
+    private static void assertEquals(String message, int expected, int actual) {
+        Assertions.assertEquals(expected, actual, message);
+    }
+
+    private static void assertEquals(String message, long expected, long actual) {
+        Assertions.assertEquals(expected, actual, message);
+    }
+
+    private static void assertEquals(String message, float expected, float actual, float delta) {
+        Assertions.assertEquals(expected, actual, delta, message);
+    }
+
+    private static void assertEquals(String message, double expected, double actual, double delta) {
+        Assertions.assertEquals(expected, actual, delta, message);
+    }
+
+    private static void assertArrayEquals(String message, byte[] expected, byte[] actual) {
+        Assertions.assertArrayEquals(expected, actual, message);
+    }
+
+    private static void assertArrayEquals(byte[] expected, byte[] actual) {
+        Assertions.assertArrayEquals(expected, actual);
+    }
+
+    private static void assertArrayEquals(String message, int[] expected, int[] actual) {
+        Assertions.assertArrayEquals(expected, actual, message);
+    }
+
+    private static void assertArrayEquals(int[] expected, int[] actual) {
+        Assertions.assertArrayEquals(expected, actual);
+    }
+
+    private static void assertArrayEquals(String message, String[] expected, String[] actual) {
+        Assertions.assertArrayEquals(expected, actual, message);
+    }
+
+    private static void assertArrayEquals(String[] expected, String[] actual) {
+        Assertions.assertArrayEquals(expected, actual);
+    }
+
+    private static void assertArrayEquals(String message, boolean[] expected, boolean[] actual) {
+        Assertions.assertArrayEquals(expected, actual, message);
+    }
+
+    private static void assertArrayEquals(boolean[] expected, boolean[] actual) {
+        Assertions.assertArrayEquals(expected, actual);
+    }
+
+    private static void assertNotNull(String message, Object value) {
+        Assertions.assertNotNull(value, message);
+    }
+
+    private static void assertNotNull(Object value) {
+        Assertions.assertNotNull(value);
+    }
+
+    private static void assertNull(String message, Object value) {
+        Assertions.assertNull(value, message);
+    }
+
+    private static void assertNull(Object value) {
+        Assertions.assertNull(value);
+    }
+
+    private static void assertTrue(String message, boolean condition) {
+        Assertions.assertTrue(condition, message);
+    }
+
+    private static void assertTrue(boolean condition) {
+        Assertions.assertTrue(condition);
     }
 
     private void onClassRegistered(long classId) {

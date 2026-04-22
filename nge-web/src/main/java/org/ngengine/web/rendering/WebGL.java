@@ -168,6 +168,13 @@ public class WebGL implements GL, GL2, GLES_30, GLExt, GLFbo {
         }
     }
 
+    private void _tr(Int32Array in, IntBuffer out) {
+        int p = out.position();
+        for (int i = 0; i < in.getLength(); ++i) {
+            out.put(p++, in.get(i));
+        }
+    }
+
 
     private Float32Array _a(FloatBuffer buffer) {
         if (buffer == null) return null;
@@ -447,6 +454,13 @@ public class WebGL implements GL, GL2, GLES_30, GLExt, GLFbo {
     public void glGetBufferSubData(int target, long offset, ByteBuffer data) {
         Uint8Array a = Uint8Array.create(data.remaining());
         gl.getBufferSubData(target,(int) offset, a);
+        _tr(a, data);
+    }
+
+    @Override
+    public void glGetBufferSubData(int target, long offset, IntBuffer data) {
+        Int32Array a = Int32Array.create(data.remaining());
+        gl.getBufferSubData(target, (int) offset, a);
         _tr(a, data);
     }
 

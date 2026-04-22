@@ -51,9 +51,10 @@ import android.widget.FrameLayout;
 import com.jme3.input.*;
 import com.jme3.input.android.AndroidInputHandler;
 import com.jme3.input.android.AndroidInputHandler14;
+import com.jme3.input.android.AndroidInputHandler24;
+import com.jme3.input.android.AndroidInputHandler26;
 import com.jme3.input.controls.SoftTextDialogInputListener;
 import com.jme3.input.dummy.DummyKeyInput;
-import com.jme3.input.dummy.DummyMouseInput;
 import com.jme3.renderer.android.AndroidGL;
 import com.jme3.renderer.opengl.*;
 import com.jme3.system.*;
@@ -73,6 +74,7 @@ import javax.microedition.khronos.opengles.GL10;
 public class OGLESContext implements JmeContext, GLSurfaceView.Renderer, SoftTextDialogInput {
 
     private static final Logger logger = Logger.getLogger(OGLESContext.class.getName());
+    private static final String SAFER_BUFFER_ALLOCATOR_CLASS = "com.jme3.util.SaferBufferAllocator";
     protected final AtomicBoolean created = new AtomicBoolean(false);
     protected final AtomicBoolean renderable = new AtomicBoolean(false);
     protected final AtomicBoolean needClose = new AtomicBoolean(false);
@@ -90,7 +92,20 @@ public class OGLESContext implements JmeContext, GLSurfaceView.Renderer, SoftTex
         final String implementation = BufferAllocatorFactory.PROPERTY_BUFFER_ALLOCATOR_IMPLEMENTATION;
 
         if (System.getProperty(implementation) == null) {
-            System.setProperty(implementation, PrimitiveAllocator.class.getName());
+            if (isClassPresent(SAFER_BUFFER_ALLOCATOR_CLASS)) {
+                System.setProperty(implementation, SAFER_BUFFER_ALLOCATOR_CLASS);
+            } else {
+                System.setProperty(implementation, PrimitiveAllocator.class.getName());
+            }
+        }
+    }
+
+    private static boolean isClassPresent(String className) {
+        try {
+            Class.forName(className, false, OGLESContext.class.getClassLoader());
+            return true;
+        } catch (Throwable ignored) {
+            return false;
         }
     }
 
@@ -130,7 +145,11 @@ public class OGLESContext implements JmeContext, GLSurfaceView.Renderer, SoftTex
         GLSurfaceView view = new GLSurfaceView(context);
         logger.log(Level.INFO, "Android Build Version: {0}", Build.VERSION.SDK_INT);
         if (androidInput == null) {
-            if (Build.VERSION.SDK_INT >= 14) {
+            if (Build.VERSION.SDK_INT >= 26) {
+                androidInput = new AndroidInputHandler26();
+            } else if (Build.VERSION.SDK_INT >= 24) {
+                androidInput = new AndroidInputHandler24();
+            } else if (Build.VERSION.SDK_INT >= 14) {
                 androidInput = new AndroidInputHandler14();
             } else if (Build.VERSION.SDK_INT >= 9) {
                 androidInput = new AndroidInputHandler();
@@ -146,6 +165,9 @@ public class OGLESContext implements JmeContext, GLSurfaceView.Renderer, SoftTex
 
         view.setFocusableInTouchMode(true);
         view.setFocusable(true);
+        view.setFocusedByDefault(true);
+        view.requestFocus();
+        //view.setClickable(true);
 
         // Surface pixel format based on requested alpha bits.
         // For best performance and sRGB support, prefer OPAQUE (alphaBits = 0).
@@ -384,7 +406,7 @@ public class OGLESContext implements JmeContext, GLSurfaceView.Renderer, SoftTex
 
     @Override
     public MouseInput getMouseInput() {
-        return new DummyMouseInput();
+        return androidInput.getMouseInput();
     }
 
     @Override

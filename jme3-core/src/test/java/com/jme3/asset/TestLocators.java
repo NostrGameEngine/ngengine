@@ -11,8 +11,10 @@ import com.jme3.util.res.Resources;
 
 import java.io.IOException;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class TestLocators {
 
@@ -28,8 +30,8 @@ public class TestLocators {
         am.registerLoader(WAVLoader.class, "wav");
         am.registerLoader(AWTLoader.class, "jpg");
 
-        Assert.assertNotNull(am.loadAudio("Sound/Effects/Gun.wav"));
-        Assert.assertNotNull(am.loadTexture("Textures/Terrain/Pond/Pond.jpg"));
+        assertNotNull(am.loadAudio("Sound/Effects/Gun.wav"));
+        assertNotNull(am.loadTexture("Textures/Terrain/Pond/Pond.jpg"));
     }
 
     /**
@@ -41,7 +43,7 @@ public class TestLocators {
         am.registerLocator("/", ClasspathLocator.class);
         am.registerLoader(TextLoader.class, "fnt");
         String result = (String)am.loadAsset("Interface/Fonts/Console.fnt");
-        Assert.assertTrue(result.startsWith("info face=\"Lucida Console\" size=11 bold=0 italic=0 charset=\"\" unicode=1" +
+        assertTrue(result.startsWith("info face=\"Lucida Console\" size=11 bold=0 italic=0 charset=\"\" unicode=1" +
                 " stretchH=100 smooth=1 aa=1 padding=0,0,0,0 spacing=1,1 outline=0"));
     }
 
@@ -59,19 +61,19 @@ public class TestLocators {
         am.registerLocator("/", ClasspathLocator.class);
 
         // Try loading from jme3-core resources using the ClasspathLocator.
-        Assert.assertNotNull("Failed to load from classpath",
-                am.locateAsset(new AssetKey<>("Interface/Fonts/Default.fnt")));
+        assertNotNull(am.locateAsset(new AssetKey<>("Interface/Fonts/Default.fnt")),
+                "Failed to load from classpath");
 
         // Try loading from the "town.zip" file using the ZipLocator.
-        Assert.assertNotNull("Failed to load from town.zip file",
-                am.locateAsset(new ModelKey("casaamarela.jpg")));
+        assertNotNull(am.locateAsset(new ModelKey("casaamarela.jpg")),
+                "Failed to load from town.zip file");
 
         // Try loading from the Google Code Archive website using the HttpZipLocator.
-        Assert.assertNotNull("Failed to load from wildhouse.zip on googleapis.com",
-                am.locateAsset(new ModelKey("glasstile2.png")));
+        assertNotNull(am.locateAsset(new ModelKey("glasstile2.png")),
+                "Failed to load from wildhouse.zip on googleapis.com");
 
         // Try loading from the GitHub website using the UrlLocator.
-        Assert.assertNotNull("Failed to load from HTTP",
-                am.locateAsset(new TextureKey("beginner-physics.png")));
+        assertNotNull(am.locateAsset(new TextureKey("beginner-physics.png")),
+                "Failed to load from HTTP");
     }
 }

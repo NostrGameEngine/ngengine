@@ -1,10 +1,10 @@
 package com.jme3.scene.threadwarden;
 
 import com.jme3.scene.Node;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -12,8 +12,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Tests for SceneGraphThreadWarden class.
@@ -26,9 +26,10 @@ import static org.junit.Assert.fail;
 public class SceneGraphThreadWardenTest {
 
     private static ExecutorService executorService;
+    private static ExecutorService executorService2;
 
     @SuppressWarnings({"ReassignedVariable", "AssertWithSideEffects"})
-    @BeforeClass
+    @BeforeAll
     public static void setupClass() {
         // Make sure assertions are enabled
         boolean assertsEnabled = false;
@@ -39,14 +40,16 @@ public class SceneGraphThreadWardenTest {
         }
     }
 
-    @Before
+    @BeforeEach
     public void setup() {
         executorService = newSingleThreadDaemonExecutor();
+        executorService2 = newSingleThreadDaemonExecutor();
     }
 
-    @After
+    @AfterEach
     public void tearDown() {
         executorService.shutdown();
+        executorService2.shutdown();
         SceneGraphThreadWarden.reset();
     }
 
@@ -69,6 +72,31 @@ public class SceneGraphThreadWardenTest {
         // Detach should also work fine
         child.detachChild(grandchild);
         rootNode.detachChild(child);
+    }
+
+    @Test
+    public void restrictingTheSameRootNodeToTwoThreadsIsIllegal() throws ExecutionException, InterruptedException {
+        Node rootNode = new Node("root");
+
+        executorService.submit(() -> SceneGraphThreadWarden.setup(rootNode)).get();
+
+        try {
+            executorService2.submit(() -> SceneGraphThreadWarden.setup(rootNode)).get();
+            fail("Expected an IllegalThreadSceneGraphMutation exception");
+        } catch (ExecutionException e) {
+            // This is expected - verify it's the right exception type
+            assertTrue(e.getCause() instanceof IllegalStateException,
+                    "Expected IllegalStateException, got: " + e.getCause().getClass().getName());
+        }
+    }
+
+    @Test
+    public void restrictingTwoRootNodesIsFine(){
+        Node rootNode = new Node("root");
+        Node rootNode2 = new Node("root2");
+
+        SceneGraphThreadWarden.setup(rootNode);
+        SceneGraphThreadWarden.setup(rootNode2);
     }
 
     /**
@@ -107,7 +135,7 @@ public class SceneGraphThreadWardenTest {
      * exception.
      */
     @Test
-    public void testAddingNodeToSceneGraphOnNonMainThread() throws InterruptedException {
+    public void testAddingNodeToSceneGraphOnNonMainThread() {
         Node rootNode = new Node("root");
         SceneGraphThreadWarden.setup(rootNode);
 
@@ -122,14 +150,7 @@ public class SceneGraphThreadWardenTest {
             return null;
         });
 
-        try {
-            illegalMutationFuture.get();
-            fail("Expected an IllegalThreadSceneGraphMutation exception");
-        } catch (ExecutionException e) {
-            // This is expected - verify it's the right exception type
-            assertTrue("Expected IllegalThreadSceneGraphMutation, got: " + e.getCause().getClass().getName(),
-                    e.getCause() instanceof IllegalThreadSceneGraphMutation);
-        }
+        expectSceneGraphException(illegalMutationFuture);
     }
 
     /**
@@ -141,7 +162,7 @@ public class SceneGraphThreadWardenTest {
      * </p>
      */
     @Test
-    public void testMovingNodeAttachedToRootOnNonMainThread() throws InterruptedException {
+    public void testMovingNodeAttachedToRootOnNonMainThread() {
         Node rootNode = new Node("root");
         SceneGraphThreadWarden.setup(rootNode);
 
@@ -157,14 +178,7 @@ public class SceneGraphThreadWardenTest {
             return null;
         });
 
-        try {
-            illegalMutationFuture.get();
-            fail("Expected an IllegalThreadSceneGraphMutation exception");
-        } catch (ExecutionException e) {
-            // This is expected - verify it's the right exception type
-            assertTrue("Expected IllegalThreadSceneGraphMutation, got: " + e.getCause().getClass().getName(),
-                    e.getCause() instanceof IllegalThreadSceneGraphMutation);
-        }
+        expectSceneGraphException(illegalMutationFuture);
     }
 
     /**
@@ -199,7 +213,7 @@ public class SceneGraphThreadWardenTest {
      * then try (and fail) to make an illegal on-thread change to the grandchild.
      */
     @Test
-    public void testAddingAChildToTheRootNodeAlsoRestrictsTheGrandChild() throws InterruptedException {
+    public void testAddingAChildToTheRootNodeAlsoRestrictsTheGrandChild() {
         Node rootNode = new Node("root");
         SceneGraphThreadWarden.setup(rootNode);
 
@@ -221,14 +235,7 @@ public class SceneGraphThreadWardenTest {
             return null;
         });
 
-        try {
-            illegalMutationFuture.get();
-            fail("Expected an IllegalThreadSceneGraphMutation exception");
-        } catch (ExecutionException e) {
-            // This is expected - verify it's the right exception type
-            assertTrue("Expected IllegalThreadSceneGraphMutation, got: " + e.getCause().getClass().getName(),
-                    e.getCause() instanceof IllegalThreadSceneGraphMutation);
-        }
+        expectSceneGraphException(illegalMutationFuture);
     }
 
     /**
@@ -294,7 +301,96 @@ public class SceneGraphThreadWardenTest {
         mutationFuture.get();
     }
 
+    /**
+     * This tests that scenarios where multiple JME applications are running simultaneously within the same
+     * JMV. This is a weird case but does happen sometimes (e.g. in TestChooser).
+     * <p>
+     * This test tests that using two seperate executor services with their own seperate threads
+     * </p>
+     */
+    @Test
+    public void testCanCopeWithMultipleSimultaneousRootThreads() throws ExecutionException, InterruptedException {
+        Node rootNodeThread1 = new Node("root1");
+        Node rootNodeThread2 = new Node("root2");
 
+        // Create a child node and attach it to the root node
+        Node childThread1 = new Node("child1");
+        Node childThread2 = new Node("child2");
+
+        // on two threads set up two root nodes (for two JME applications on the same VM)
+        Future<Void> mutationFuture1 = executorService.submit(() -> {
+            SceneGraphThreadWarden.setup(rootNodeThread1);
+            rootNodeThread1.attachChild(childThread1);
+            return null;
+        });
+
+        Future<Void> mutationFuture2 = executorService2.submit(() -> {
+            SceneGraphThreadWarden.setup(rootNodeThread2);
+            rootNodeThread2.attachChild(childThread2);
+            return null;
+        });
+
+        // These should complete without exceptions, these are independent scene graphs
+        mutationFuture1.get();
+        mutationFuture2.get();
+
+        // try to use a child from one thread on the other, this should exception as the child is reserved
+        expectSceneGraphException(executorService.submit(() -> {
+            SceneGraphThreadWarden.setup(rootNodeThread1);
+            rootNodeThread1.attachChild(childThread2);
+            return null;
+        }));
+    }
+
+    /**
+     * Where there are multiple JME roots this tests that is *is* allowed to remove a child from one root and attach it
+     * to another as long as the detachments and reattachments are done in the right threads.
+     *
+     * <p>
+     *     This is a weird thing to do and unlikely to come up in practice but is allowed
+     * </p>
+     */
+    @Test
+    public void testCanTransferNodeBetweenMultipleSimultaneousRootThreads() throws ExecutionException, InterruptedException {
+        Node rootNodeThread1 = new Node("root1");
+        Node rootNodeThread2 = new Node("root2");
+
+        // Create a child node and attach it to the root node
+        Node childThread1 = new Node("child1");
+        Node childThread2 = new Node("child2");
+        Node childTransferred = new Node("childTransferred");
+
+        // on two threads set up two root nodes (for two JME applications on the same VM)
+        Future<Void> mutationFuture1 = executorService.submit(() -> {
+            SceneGraphThreadWarden.setup(rootNodeThread1);
+            rootNodeThread1.attachChild(childThread1);
+            rootNodeThread1.attachChild(childTransferred);
+            return null;
+        });
+
+        Future<Void> mutationFuture2 = executorService2.submit(() -> {
+            SceneGraphThreadWarden.setup(rootNodeThread2);
+            rootNodeThread2.attachChild(childThread2);
+            return null;
+        });
+
+        // These should complete without exceptions, these are independent scene graphs
+        mutationFuture1.get();
+        mutationFuture2.get();
+
+        Future<Void> legalRemovalFuture = executorService.submit(() -> {
+            childTransferred.removeFromParent();
+            return null;
+        });
+
+        legalRemovalFuture.get();
+
+        Future<Void> legalAttachmentFuture = executorService2.submit(() -> {
+            rootNodeThread2.attachChild(childTransferred);
+            return null;
+        });
+        legalAttachmentFuture.get();
+    }
 
     /**
      * Creates a single-threaded executor service with daemon threads.
@@ -312,5 +408,18 @@ public class SceneGraphThreadWardenTest {
             t.setDaemon(true);
             return t;
         };
+    }
+
+    private void expectSceneGraphException(Future<Void> future){
+        try {
+            future.get();
+            fail("Expected an IllegalThreadSceneGraphMutation exception");
+        } catch (ExecutionException e) {
+            // This is expected - verify it's the right exception type
+            assertTrue(e.getCause() instanceof IllegalThreadSceneGraphMutation,
+                    "Expected IllegalThreadSceneGraphMutation, got: " + e.getCause().getClass().getName());
+        } catch (InterruptedException e){
+            fail("Unexpected InterruptedException");
+        }
     }
 }

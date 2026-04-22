@@ -123,5 +123,7 @@ public interface JoystickAxis {
      * 
      * @return the jitter threshold
      */
-    public float getJitterThreshold();
+    public default float getJitterThreshold(){
+        return 0;
+    }
 }

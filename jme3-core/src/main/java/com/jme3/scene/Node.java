@@ -272,7 +272,7 @@ public class Node extends Spatial {
             for (int i = 0; i < children.size(); i++) {
                 Spatial child = children.get(i);
                 if ((child.refreshFlags & RF_GLOBAL_LIGHTS)!= 0) {
-                    findGlobalLights(child, list);       
+                    findGlobalLights(child, list);
                 }
             }
         }

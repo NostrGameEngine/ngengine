@@ -110,7 +110,7 @@ public class NGEAppSettings {
             } else{
                 URL url = Resources.getResource(path);
                 if(url == null) throw new Exception("Failed to find config from "+path);
-                byte data[] = ByteUtils.readFully(new BufferedInputStream(url.openStream()));
+                byte data[] = ByteUtils.getByteContent(new BufferedInputStream(url.openStream()));
                 String content = new String(data, StandardCharsets.UTF_8);
                 return NGEPlatform.get().fromJSON(content, Map.class);
             }

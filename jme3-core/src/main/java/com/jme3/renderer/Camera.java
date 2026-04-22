@@ -42,6 +42,7 @@ import com.jme3.math.FastMath;
 import com.jme3.math.Matrix4f;
 import com.jme3.math.Plane;
 import com.jme3.math.Quaternion;
+import com.jme3.math.Ray;
 import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
 import com.jme3.math.Vector4f;
@@ -1343,10 +1344,14 @@ public class Camera implements Savable, Cloneable {
             coeffTop[0] = -frustumNear * inverseLength;
             coeffTop[1] = frustumTop * inverseLength;
         } else {
-            coeffLeft[0] = 1;
+            // getLeft() returns up×direction, but the view matrix (fromFrame)
+            // uses direction×up = -getLeft() as its X axis. Negate the left/right
+            // coefficients so the frustum plane normals match the view matrix,
+            // giving correct culling for any camera orientation.
+            coeffLeft[0] = -1;
             coeffLeft[1] = 0;
 
-            coeffRight[0] = -1;
+            coeffRight[0] = 1;
             coeffRight[1] = 0;
 
             coeffBottom[0] = 1;
@@ -1571,6 +1576,37 @@ public class Camera implements Savable, Cloneable {
     }
 
     /**
+     * Returns a ray going from camera through a screen point.
+     * <p>
+     * Resulting ray is in world space, starting on the near plane
+     * of the camera and going through position's (x,y) pixel coordinates on the screen.
+     *
+     * @param pos A {@link Vector2f} representing the 2D screen coordinates (in pixels)
+     * @return A {@link Ray} object representing the picking ray in world coordinates.
+     *
+     * <pre>{@code
+     * // Usage Example:
+     * Ray pickingRay = cam.screenPointToRay(inputManager.getCursorPosition());
+     * }</pre>
+     */
+    public Ray screenPointToRay(Vector2f pos) {
+        TempVars vars = TempVars.get();
+        Vector3f nearPoint = vars.vect1;
+        Vector3f farPoint = vars.vect2;
+
+        // Get the world coordinates for the near and far points
+        getWorldCoordinates(pos, 0, nearPoint);
+        getWorldCoordinates(pos, 1, farPoint);
+
+        // Calculate direction and normalize
+        Vector3f direction = farPoint.subtractLocal(nearPoint).normalizeLocal();
+        Ray ray = new Ray(nearPoint, direction);
+
+        vars.release();
+        return ray;
+    }
+
+    /**
      * Returns the display width.
      *
      * @return the width/resolution of the display.
@@ -1590,7 +1626,8 @@ public class Camera implements Savable, Cloneable {
 
     @Override
     public String toString() {
-        return "Camera[location=" + location + "\n, direction=" + getDirection() + "\n"
+        return "Camera[location=" + location + "\n"
+                + "direction=" + getDirection() + "\n"
                 + "res=" + width + "x" + height + ", parallel=" + parallelProjection + "\n"
                 + "near=" + frustumNear + ", far=" + frustumFar + "]";
     }
