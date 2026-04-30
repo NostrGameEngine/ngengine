@@ -106,6 +106,7 @@ public final class GLRenderer implements Renderer {
     private int clipX, clipY, clipW, clipH;
     private int defaultAnisotropicFilter = 1;
     private boolean linearizeSrgbImages;
+    private boolean mainFrameBufferSrgb;
     private HashSet<String> extensions;
     private boolean generateMipmapsForFramebuffers = true;
 
@@ -1916,6 +1917,7 @@ public final class GLRenderer implements Renderer {
             int dstY1;
 
             int prevFBO = context.boundFBO;
+            FrameBuffer prevFB = context.boundFB;
 
             if (mainFbOverride != null) {
                 if (src == null) {
@@ -1957,6 +1959,8 @@ public final class GLRenderer implements Renderer {
                 dstY1 = dst.getHeight();
             }
 
+            toggleFramebufferSrgb(dst);
+
             int mask = 0;
 
             if(copyColor){
@@ -1973,6 +1977,9 @@ public final class GLRenderer implements Renderer {
 
 
             glfbo.glBindFramebufferEXT(GLFbo.GL_FRAMEBUFFER_EXT, prevFBO);
+            context.boundFBO = prevFBO;
+            context.boundFB = prevFB;
+            toggleFramebufferSrgb(prevFB);
         } else {
             throw new RendererException("Framebuffer blitting not supported by the video hardware");
         }
@@ -2136,16 +2143,16 @@ public final class GLRenderer implements Renderer {
     private void toggleFramebufferSrgb(FrameBuffer fb) {
         boolean isSrgb = fb == null ? mainFrameBufferSrgb : fb.isSrgb();
 
-        if(isSrgb != context.srgbWriteEnabled) {
+        if (isSrgb != context.srgbWriteEnabled) {
             if (caps.contains(Caps.Srgb)) {
-                if(!caps.contains(Caps.WebGL)){ // this not supported in WebGL
+                if (!caps.contains(Caps.WebGL)) {
                     if (isSrgb) {
                         gl.glEnable(GLExt.GL_FRAMEBUFFER_SRGB_EXT);
                     } else {
                         gl.glDisable(GLExt.GL_FRAMEBUFFER_SRGB_EXT);
                     }
                 }
-            }  
+            }
             context.srgbWriteEnabled = isSrgb;
         }
     }
@@ -2282,7 +2289,7 @@ public final class GLRenderer implements Renderer {
 
         if (context.boundFB == fb) {
             if (fb == null || !fb.isUpdateNeeded()) {
-                toggleFramebufferSrgb(fb);  
+                toggleFramebufferSrgb(fb);
                 return;
             }
         }
@@ -2334,7 +2341,7 @@ public final class GLRenderer implements Renderer {
                 if (fb.getName() != null) glext.glObjectLabel(GL3.GL_FRAMEBUFFER, fb.getId(), fb.getName());
             }
         }
-        toggleFramebufferSrgb(fb);  
+        toggleFramebufferSrgb(fb);
     }
 
     @Override
@@ -3598,6 +3605,9 @@ public final class GLRenderer implements Renderer {
         }
 
         mainFrameBufferSrgb = enableSrgb;
+        if (context.boundFB == null) {
+            toggleFramebufferSrgb(null);
+        }
     }
 
     @Override
@@ -3691,7 +3701,11 @@ public final class GLRenderer implements Renderer {
      */
     @Override
     public boolean isMainFrameBufferSrgb() {
-        return mainFrameBufferSrgb;
+        if (!caps.contains(Caps.Srgb)) {
+            return false;
+        } else {
+            return mainFrameBufferSrgb;
+        }
     }
 
     //TODO: How should the GL4 specific functionalities here be exposed? Via the renderer?
