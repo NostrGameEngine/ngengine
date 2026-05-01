@@ -33,7 +33,6 @@ toolchainManagement {
  **/
 rootProject.name = 'NostrGameEngine'
 
-
 // Core classes, should work on all java platforms
 include 'jme3-core'
 include 'jme3-effects'
