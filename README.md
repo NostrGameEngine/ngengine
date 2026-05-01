@@ -45,3 +45,17 @@ A game engine and framework for building games and applications integrated with 
 - Android Sdk 33 or higher
 - Android NDK
 - Gradle 8.13+ (or included gradlew wrapper)
+
+## Running examples
+
+The engine comes with examples that you can run with:
+
+```bash
+./gradlew runExamples
+```
+
+You can use the `-Pexample` property to start an example directly:
+
+```bash
+./gradlew runExamples -Pexample=jme3test.light.pbr.TestPBRSimple
+```
