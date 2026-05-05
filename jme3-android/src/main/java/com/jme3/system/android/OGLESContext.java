@@ -48,6 +48,8 @@ import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import com.jme3.app.Application;
+import com.jme3.asset.AssetManager;
 import com.jme3.input.*;
 import com.jme3.input.android.AndroidInputHandler;
 import com.jme3.input.android.AndroidInputHandler14;
@@ -55,24 +57,33 @@ import com.jme3.input.android.AndroidInputHandler24;
 import com.jme3.input.android.AndroidInputHandler26;
 import com.jme3.input.controls.SoftTextDialogInputListener;
 import com.jme3.input.dummy.DummyKeyInput;
+import com.jme3.material.Material;
+import com.jme3.renderer.Caps;
+import com.jme3.renderer.RenderManager;
 import com.jme3.renderer.android.AndroidGL;
 import com.jme3.renderer.opengl.*;
 import com.jme3.system.*;
+import com.jme3.texture.FrameBuffer;
+import com.jme3.texture.FrameBuffer.FrameBufferTarget;
+import com.jme3.texture.Image;
+import com.jme3.texture.Image.Format;
+import com.jme3.texture.Texture2D;
+import com.jme3.texture.image.ColorSpace;
+import com.jme3.ui.Picture;
 import com.jme3.util.BufferAllocatorFactory;
 import com.jme3.util.PrimitiveAllocator;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
 import javax.microedition.khronos.egl.EGL10;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.egl.EGLContext;
 import javax.microedition.khronos.egl.EGLDisplay;
-import javax.microedition.khronos.egl.EGLSurface;
 import javax.microedition.khronos.opengles.GL10;
 
 public class OGLESContext implements JmeContext, GLSurfaceView.Renderer, SoftTextDialogInput {
 
+    private static final String BLIT_MATERIAL = "Common/MatDefs/Blit/Blit.j3md";
     private static final Logger logger = Logger.getLogger(OGLESContext.class.getName());
     private static final String SAFER_BUFFER_ALLOCATOR_CLASS = "com.jme3.util.SaferBufferAllocator";
     protected final AtomicBoolean created = new AtomicBoolean(false);
@@ -87,6 +98,13 @@ public class OGLESContext implements JmeContext, GLSurfaceView.Renderer, SoftTex
     protected AndroidInputHandler androidInput;
     protected long minFrameDuration = 0; // No FPS cap
     protected long lastUpdateTime = 0;
+    private Application application;
+    private Material blitMaterial;
+    private Picture blitGeometry;
+    private FrameBuffer linearFrameBuffer;
+    private Texture2D linearFrameBufferColorTexture;
+    private boolean linearFrameBufferDirty;
+    private boolean multisampleTextureWarningIssued;
 
     static {
         final String implementation = BufferAllocatorFactory.PROPERTY_BUFFER_ALLOCATOR_IMPLEMENTATION;
@@ -129,16 +147,8 @@ public class OGLESContext implements JmeContext, GLSurfaceView.Renderer, SoftTex
     public GLSurfaceView createView(Context context) {
         ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
         ConfigurationInfo info = am.getDeviceConfigurationInfo();
-        // NOTE: We assume all ICS devices have OpenGL ES 2.0.
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
-            // below 4.0, check OpenGL ES 2.0 support.
-            if (info.reqGlEsVersion < 0x20000) {
-                throw new UnsupportedOperationException(
-                    "OpenGL ES 2.0 or better is not supported on this device"
-                );
-            }
-        } else if (Build.VERSION.SDK_INT < 9) {
-            throw new UnsupportedOperationException("jME3 requires Android 2.3 or later");
+        if (info.reqGlEsVersion < 0x30000) {
+            throw new UnsupportedOperationException("OpenGL ES 3.0 or better is not supported on this device");
         }
 
         // Start to set up the view
@@ -158,10 +168,8 @@ public class OGLESContext implements JmeContext, GLSurfaceView.Renderer, SoftTex
         androidInput.setView(view);
         androidInput.loadSettings(settings);
 
-        // Request GLES3 if available (API 18+), otherwise GLES2.
-        // Must be called before setRenderer.
-        int glesMajor = (Build.VERSION.SDK_INT >= 18) ? 3 : 2;
-        view.setEGLContextClientVersion(glesMajor);
+        // setEGLContextClientVersion must be set before calling setRenderer.
+        view.setEGLContextClientVersion(3);
 
         view.setFocusableInTouchMode(true);
         view.setFocusable(true);
@@ -169,8 +177,8 @@ public class OGLESContext implements JmeContext, GLSurfaceView.Renderer, SoftTex
         view.requestFocus();
         //view.setClickable(true);
 
-        // Surface pixel format based on requested alpha bits.
-        // For best performance and sRGB support, prefer OPAQUE (alphaBits = 0).
+        // setFormat must be set before AndroidConfigChooser is called by the surfaceview.
+        // For best rendering performance and sRGB support, prefer Opaque (alpha bits = 0).
         int curAlphaBits = settings.getAlphaBits();
         logger.log(Level.FINE, "curAlphaBits: {0}", curAlphaBits);
         if (curAlphaBits >= 8) {
@@ -187,92 +195,13 @@ public class OGLESContext implements JmeContext, GLSurfaceView.Renderer, SoftTex
 
         AndroidConfigChooser configChooser = new AndroidConfigChooser(settings);
         view.setEGLConfigChooser(configChooser);
-
-        // High-priority context when available (EGL_IMG_context_priority)
-        view.setEGLContextFactory(new GLSurfaceView.EGLContextFactory() {
-            // Spec-defined constants
-            private static final int EGL_CONTEXT_CLIENT_VERSION     = 0x3098;
-            private static final int EGL_CONTEXT_PRIORITY_LEVEL_IMG = 0x3100;
-            private static final int EGL_CONTEXT_PRIORITY_HIGH_IMG  = 0x3101;
-
-            @Override
-            public EGLContext createContext(EGL10 egl,
-                                            EGLDisplay display,
-                                            EGLConfig config) {
-
-                String ext = egl.eglQueryString(display, EGL10.EGL_EXTENSIONS);
-                boolean hasPrio = ext != null && ext.contains("EGL_IMG_context_priority");
-
-                int[] attribs = hasPrio
-                        ? new int[] {
-                            EGL_CONTEXT_CLIENT_VERSION, glesMajor,
-                            EGL_CONTEXT_PRIORITY_LEVEL_IMG, EGL_CONTEXT_PRIORITY_HIGH_IMG,
-                            EGL10.EGL_NONE
-                        }
-                        : new int[] {
-                            EGL_CONTEXT_CLIENT_VERSION, glesMajor,
-                            EGL10.EGL_NONE
-                        };
-
-                EGLContext ctx = egl.eglCreateContext(display, config, EGL10.EGL_NO_CONTEXT, attribs);
-                if (ctx == null || ctx == EGL10.EGL_NO_CONTEXT) {
-                    // Fallback without priority if that failed
-                    attribs = new int[] { EGL_CONTEXT_CLIENT_VERSION, glesMajor, EGL10.EGL_NONE };
-                    ctx = egl.eglCreateContext(display, config, EGL10.EGL_NO_CONTEXT, attribs);
-                }
-                return ctx;
-            }
-
-            @Override
-            public void destroyContext(EGL10 egl,
-                                       javax.microedition.khronos.egl.EGLDisplay display,
-                                       EGLContext context) {
-                egl.eglDestroyContext(display, context);
-            }
-        });
-
-        // sRGB window surface (gamma-correct output) when requested
-        final boolean isSrgb = settings.isGammaCorrection();
-        view.setEGLWindowSurfaceFactory(new GLSurfaceView.EGLWindowSurfaceFactory() {
-            private static final int EGL_GL_COLORSPACE_KHR      = 0x309D;
-            private static final int EGL_GL_COLORSPACE_SRGB_KHR = 0x3089;
-
-            @Override
-            public EGLSurface createWindowSurface(
-                    EGL10 egl, EGLDisplay display,
-                    EGLConfig config, Object nativeWindow) {
-
-                String ext = egl.eglQueryString(display, EGL10.EGL_EXTENSIONS);
-                boolean hasColorspace = ext != null && ext.contains("EGL_KHR_gl_colorspace");
-
-                int[] attribs = (isSrgb && hasColorspace)
-                        ? new int[]{EGL_GL_COLORSPACE_KHR, EGL_GL_COLORSPACE_SRGB_KHR, EGL10.EGL_NONE}
-                        : null;
-
-                EGLSurface surface =
-                        egl.eglCreateWindowSurface(display, config, nativeWindow, attribs);
-
-                if (surface == null || surface == EGL10.EGL_NO_SURFACE) {
-                    // Fallback without colorspace attribs
-                    surface = egl.eglCreateWindowSurface(display, config, nativeWindow, null);
-                }
-
-                // Note: EGL10 has no eglSwapInterval; Android compositor enforces vsync.
-
-                return surface;
-            }
-
-            @Override
-            public void destroySurface(EGL10 egl,
-                    EGLDisplay display,
-                    EGLSurface surface) {
-                egl.eglDestroySurface(display, surface);
-            }
-        });
-
+        view.setEGLContextFactory(new Gles3ContextFactory());
         view.setRenderer(this);
 
         // Attempt to preserve the EGL Context on app pause/resume.
+        // Not destroying and recreating the EGL context
+        // will help with resume time by reusing the existing context to avoid
+        // reloading all the OpenGL objects.
         if (Build.VERSION.SDK_INT >= 11) {
             view.setPreserveEGLContextOnPause(true);
         }
@@ -280,11 +209,63 @@ public class OGLESContext implements JmeContext, GLSurfaceView.Renderer, SoftTex
         return view;
     }
 
+    private static final class Gles3ContextFactory implements GLSurfaceView.EGLContextFactory {
+        private static final int EGL_CONTEXT_CLIENT_VERSION = 0x3098;
+        private static final int EGL_CONTEXT_PRIORITY_LEVEL_IMG = 0x3100;
+        private static final int EGL_CONTEXT_PRIORITY_HIGH_IMG = 0x3101;
+
+        @Override
+        public EGLContext createContext(EGL10 egl, EGLDisplay display, EGLConfig config) {
+            EGLContext context = createGles3Context(egl, display, config, true);
+            if (context == null || context == EGL10.EGL_NO_CONTEXT) {
+                context = createGles3Context(egl, display, config, false);
+            }
+            if (context == null || context == EGL10.EGL_NO_CONTEXT) {
+                throw new IllegalStateException("Unable to create an OpenGL ES 3 context");
+            }
+            return context;
+        }
+
+        private EGLContext createGles3Context(EGL10 egl, EGLDisplay display,
+                                              EGLConfig config, boolean preferHighPriority) {
+            boolean usePriority = preferHighPriority && hasExtension(egl, display, "EGL_IMG_context_priority");
+            int[] attributes = usePriority
+                    ? new int[]{
+                        EGL_CONTEXT_CLIENT_VERSION, 3,
+                        EGL_CONTEXT_PRIORITY_LEVEL_IMG, EGL_CONTEXT_PRIORITY_HIGH_IMG,
+                        EGL10.EGL_NONE
+                    }
+                    : new int[]{
+                        EGL_CONTEXT_CLIENT_VERSION, 3,
+                        EGL10.EGL_NONE
+                    };
+            return egl.eglCreateContext(display, config, EGL10.EGL_NO_CONTEXT, attributes);
+        }
+
+        @Override
+        public void destroyContext(EGL10 egl, EGLDisplay display, EGLContext context) {
+            egl.eglDestroyContext(display, context);
+        }
+    }
+
+    private static boolean hasExtension(EGL10 egl, EGLDisplay display, String extension) {
+        String extensions = egl.eglQueryString(display, EGL10.EGL_EXTENSIONS);
+        if (extensions == null) {
+            return false;
+        }
+        // EGL extension list is space separated. Ensure we only match full
+        // extension names to avoid false positives when one name is a
+        // substring of another.
+        String padded = " " + extensions + " ";
+        return padded.contains(" " + extension + " ");
+    }
+
     // renderer:initialize
     @Override
     public void onSurfaceCreated(GL10 gl, EGLConfig cfg) {
         if (created.get() && renderer != null) {
             renderer.resetGLObjects();
+            destroyLinearFrameBuffer();
         } else {
             if (!created.get()) {
                 logger.fine("GL Surface created, initializing JME3 renderer");
@@ -333,6 +314,13 @@ public class OGLESContext implements JmeContext, GLSurfaceView.Renderer, SoftTex
         renderer = new GLRenderer(gl, (GLExt) gl, (GLFbo) gl);
         renderer.initialize();
 
+        boolean blitSrgbConversion = useBlitSrgbConversion();
+        renderer.setMainFrameBufferSrgb(false);
+        renderer.setLinearizeSrgbImages(settings.isGammaCorrection());
+        logger.log(Level.INFO,
+                "Android gamma correction: requested={0}, main framebuffer sRGB=false, blit sRGB={1}",
+                new Object[]{settings.isGammaCorrection(), blitSrgbConversion});
+
         JmeSystem.setSoftTextDialogInput(this);
 
         needClose.set(false);
@@ -344,20 +332,27 @@ public class OGLESContext implements JmeContext, GLSurfaceView.Renderer, SoftTex
     protected void deinitInThread() {
         if (renderable.get()) {
             created.set(false);
+            destroyLinearFrameBufferResources();
             if (renderer != null) {
                 renderer.cleanup();
             }
 
             listener.destroy();
             // releases the view holder from the Android Input Resources
+            // releasing the view enables the context instance to be
+            // reclaimed by the GC.
+            // if not released; it leads to a weak reference leak
+            // disabling the destruction of the Context View Holder.
             androidInput.setView(null);
 
             // nullifying the references
+            // signals their memory to be reclaimed
             listener = null;
             renderer = null;
             timer = null;
             androidInput = null;
 
+            // do android specific cleaning here
             logger.fine("Display destroyed.");
 
             renderable.set(false);
@@ -392,6 +387,9 @@ public class OGLESContext implements JmeContext, GLSurfaceView.Renderer, SoftTex
     @Override
     public void setSystemListener(SystemListener listener) {
         this.listener = listener;
+        if (listener instanceof Application) {
+            application = (Application) listener;
+        }
     }
 
     @Override
@@ -484,7 +482,9 @@ public class OGLESContext implements JmeContext, GLSurfaceView.Renderer, SoftTex
                 throw new IllegalStateException("onDrawFrame without create");
             }
 
-            listener.update();
+            if (!renderFrameWithBlitSrgbConversion()) {
+                listener.update();
+            }
             if (autoFlush) {
                 renderer.postFrame();
             }
@@ -493,6 +493,8 @@ public class OGLESContext implements JmeContext, GLSurfaceView.Renderer, SoftTex
 
             // Enforce a FPS cap
             if (updateDelta < minFrameDuration) {
+                //                    logger.log(Level.INFO, "lastUpdateTime: {0}, updateDelta: {1}, minTimePerFrame: {2}",
+                //                            new Object[]{lastUpdateTime, updateDelta, minTimePerFrame});
                 try {
                     Thread.sleep(minFrameDuration - updateDelta);
                 } catch (InterruptedException e) {}
@@ -539,6 +541,150 @@ public class OGLESContext implements JmeContext, GLSurfaceView.Renderer, SoftTex
                 Thread.sleep(10);
             } catch (InterruptedException ex) {}
         }
+    }
+
+    private boolean useBlitSrgbConversion() {
+        return settings.isGammaCorrection() && application != null;
+    }
+
+    private int getLinearFrameBufferSampleCount() {
+        int samples = Math.max(settings.getSamples(), 1);
+        if (samples > 1 && renderer != null && !renderer.getCaps().contains(Caps.TextureMultisample)) {
+            if (!multisampleTextureWarningIssued) {
+                logger.warning("sRGB blit conversion requires multisampled textures for MSAA. "
+                        + "Falling back to a single-sample linear framebuffer.");
+                multisampleTextureWarningIssued = true;
+            }
+            return 1;
+        }
+        return samples;
+    }
+
+    private void rebuildLinearFrameBufferIfNeeded() {
+        if (!useBlitSrgbConversion()) {
+            destroyLinearFrameBufferResources();
+            return;
+        }
+
+        int width = Math.max(settings.getWidth(), 1);
+        int height = Math.max(settings.getHeight(), 1);
+        int samples = getLinearFrameBufferSampleCount();
+
+        if (linearFrameBuffer != null && linearFrameBuffer.getWidth() == width
+                && linearFrameBuffer.getHeight() == height && linearFrameBuffer.getSamples() == samples) {
+            return;
+        }
+
+        destroyLinearFrameBuffer();
+
+        FrameBuffer frameBuffer = new FrameBuffer(width, height, samples);
+        frameBuffer.setName("Android Linear Blit FrameBuffer");
+        frameBuffer.setSrgb(false);
+
+        Texture2D colorTexture = new Texture2D(
+                new Image(getLinearFrameBufferColorFormat(), width, height, null, ColorSpace.Linear));
+        if (samples > 1) {
+            colorTexture.getImage().setMultiSamples(samples);
+        }
+        frameBuffer.addColorTarget(FrameBufferTarget.newTarget(colorTexture));
+
+        if (settings.getDepthBits() > 0 || settings.getStencilBits() > 0) {
+            frameBuffer.setDepthTarget(FrameBufferTarget
+                    .newTarget(renderer.getBestDepthTargetFormat(false, false, settings.getStencilBits() > 0)));
+        }
+
+        linearFrameBufferColorTexture = colorTexture;
+        linearFrameBuffer = frameBuffer;
+        linearFrameBufferDirty = true;
+    }
+
+    private Format getLinearFrameBufferColorFormat() {
+        if (renderer != null && renderer.getCaps().contains(Caps.HalfFloatColorBufferRGBA)) {
+            return Format.RGBA16F;
+        }
+        logger.warning("RGBA16F color framebuffer is not supported. "
+                + "Falling back to RGBA8 for Android sRGB blit conversion.");
+        return Format.RGBA8;
+    }
+
+    private boolean ensureBlitResources() {
+        if (!useBlitSrgbConversion()) {
+            return false;
+        }
+
+        AssetManager assetManager = application.getAssetManager();
+        RenderManager renderManager = application.getRenderManager();
+        if (assetManager == null || renderManager == null) {
+            return false;
+        }
+
+        if (blitMaterial == null) {
+            blitMaterial = new Material(assetManager, BLIT_MATERIAL);
+            blitMaterial.setBoolean("Srgb", true);
+            blitMaterial.getAdditionalRenderState().setDepthTest(false);
+            blitMaterial.getAdditionalRenderState().setDepthWrite(false);
+        }
+
+        if (blitGeometry == null) {
+            blitGeometry = new Picture("Linear to sRGB Blit");
+            blitGeometry.setWidth(1f);
+            blitGeometry.setHeight(1f);
+            blitGeometry.setMaterial(blitMaterial);
+        }
+
+        if (linearFrameBufferDirty && linearFrameBufferColorTexture != null) {
+            blitMaterial.setTexture("Texture", linearFrameBufferColorTexture);
+            if (linearFrameBuffer != null && linearFrameBuffer.getSamples() > 1) {
+                blitMaterial.setInt("NumSamples", linearFrameBuffer.getSamples());
+            } else {
+                blitMaterial.clearParam("NumSamples");
+            }
+            linearFrameBufferDirty = false;
+        }
+
+        return true;
+    }
+
+    private void destroyLinearFrameBuffer() {
+        if (linearFrameBuffer != null) {
+            linearFrameBuffer.dispose();
+            linearFrameBuffer = null;
+        }
+        if (linearFrameBufferColorTexture != null && linearFrameBufferColorTexture.getImage() != null) {
+            linearFrameBufferColorTexture.getImage().dispose();
+        }
+        linearFrameBufferColorTexture = null;
+        linearFrameBufferDirty = true;
+    }
+
+    private void destroyLinearFrameBufferResources() {
+        destroyLinearFrameBuffer();
+        blitMaterial = null;
+        blitGeometry = null;
+        multisampleTextureWarningIssued = false;
+    }
+
+    private boolean renderFrameWithBlitSrgbConversion() {
+        if (!useBlitSrgbConversion()) {
+            return false;
+        }
+
+        rebuildLinearFrameBufferIfNeeded();
+        if (linearFrameBuffer == null || !ensureBlitResources()) {
+            return false;
+        }
+
+        renderer.setMainFrameBufferOverride(linearFrameBuffer);
+        try {
+            listener.update();
+        } finally {
+            renderer.setMainFrameBufferOverride(null);
+        }
+
+        renderer.setFrameBuffer(null);
+        blitGeometry.updateGeometricState();
+        application.getRenderManager().renderGeometry(blitGeometry);
+        return true;
     }
 
     @Override

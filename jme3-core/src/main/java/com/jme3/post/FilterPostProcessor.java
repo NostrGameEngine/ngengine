@@ -107,7 +107,7 @@ public class FilterPostProcessor implements SceneProcessor, Savable {
     private boolean multiView = false;
     private AppProfiler prof;
 
-    private Format fbFormat = Format.RGBA16F;
+    private Format fbFormat = null;
     private Format depthFormat = Format.Depth;
 
     /**
@@ -207,16 +207,7 @@ public class FilterPostProcessor implements SceneProcessor, Savable {
 
         // Determine optimal framebuffer format based on renderer capabilities
         if (fbFormat == null) {
-            fbFormat = Format.RGB111110F;
-            if (!renderer.getCaps().contains(Caps.PackedFloatTexture)) {
-                if (renderer.getCaps().contains(Caps.FloatColorBufferRGB)) {
-                    fbFormat = Format.RGB16F;
-                } else if (renderer.getCaps().contains(Caps.FloatColorBufferRGBA)) {
-                    fbFormat = Format.RGBA16F;
-                } else {
-                    fbFormat = Format.RGB8;
-                }
-            }
+            fbFormat = renderer.getBestColorTargetFormat(true, false, false);
         }
 
         Camera cam = vp.getCamera();
@@ -394,7 +385,7 @@ public class FilterPostProcessor implements SceneProcessor, Savable {
                 if (msDepth && filter.isRequiresDepthTexture()) {
                     mat.setInt("NumSamplesDepth", depthTexture.getImage().getMultiSamples());
                 }
-                
+
                 if (filter.isRequiresSceneTexture()) {
                     mat.setTexture("Texture", tex);
                     if (tex.getImage().getMultiSamples() > 1) {

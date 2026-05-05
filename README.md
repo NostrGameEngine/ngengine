@@ -7,7 +7,7 @@ A game engine and framework for building games and applications integrated with 
 
 - Roadmap: https://ngengine.org/
 - Release: [mavenCentral](https://central.sonatype.com/search?namespace=org.ngengine)
-- Documentation: https://ngengine.org/docs 
+- Documentation: https://ngengine.org/docs
 
 
 ## Build-time requirements
@@ -22,7 +22,7 @@ A game engine and framework for building games and applications integrated with 
 
 ### Linux, Windows, macOS (portable jar)
 - Java 21 or higher
-- OpenGL 3.2+ 
+- OpenGL 3.2+
 
 ### Linux, Windows, macOS (GraalVM native build)
 - OpenGL 3.2+
@@ -59,3 +59,30 @@ You can use the `-Pexample` property to start an example directly:
 ```bash
 ./gradlew runExamples -Pexample=jme3test.light.pbr.TestPBRSimple
 ```
+
+### Android examples
+
+You can run the Android examples on a local android emulator with:
+
+```bash
+./gradlew -PbuildAndroidExamples=true -PbuildNativeProjects=true runAndroidExamples
+# or for a specific example:
+# ./gradlew -PbuildAndroidExamples=true -PbuildNativeProjects=true runAndroidExamples -Pexample=jme3test.post.TestBloom
+```
+
+*Make sure to have the SDK and NDK installed and configured properly, and the emulator running before executing the command.*
+
+
+## Running Tests
+
+To run all tests and generate a JaCoCo code coverage report, run the `testCodeCoverageReport` Gradle task. To avoid the generation of the report, use the `test` task instead.
+
+This runs all subproject tests and produces two sets of HTML reports:
+
+- **Aggregated report** (all modules combined):
+  `build/reports/jacoco/testCodeCoverageReport/html/index.html`
+- **Per-module reports**:
+  `<module>/build/reports/jacoco/test/html/index.html`
+
+A summary index linking to every per-module report is also generated at:
+`build/reports/jacoco/index.html`
