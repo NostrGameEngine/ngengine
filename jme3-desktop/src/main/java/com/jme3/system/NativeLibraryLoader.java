@@ -44,6 +44,7 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.jme3.system.NativeLibraries.LibraryInfo;
 import com.jme3.util.res.Resources;
 
 /**
@@ -66,15 +67,15 @@ import com.jme3.util.res.Resources;
  * NativeLibraryLoader.loadNativeLibrary("mystuff", true);
  * </pre>
  * It will load the right library automatically based on the platform.
- * 
+ *
  * @author Kirill Vainer
  */
 public final class NativeLibraryLoader {
-    
+
     private static final Logger logger = Logger.getLogger(NativeLibraryLoader.class.getName());
     private static File extractionFolderOverride = null;
     private static File extractionFolder = null;
-    
+
     private static final HashMap<NativeLibrary.Key, NativeLibrary> nativeLibraryMap = new HashMap<>();
 
     static {
@@ -93,15 +94,25 @@ public final class NativeLibraryLoader {
 
     /**
      * Register a new native library.
-     * 
+     *
+     * This simply registers a known library, the actual extraction and loading is performed by calling
+     * {@link #loadNativeLibrary(java.lang.String, boolean) }.
+     */
+    public static void registerNativeLibrary(LibraryInfo library) {
+        library.getNativeVariants().forEach(NativeLibraryLoader::registerNativeLibrary);
+    }
+
+    /**
+     * Register a new native library.
+     *
      * This simply registers a known library, the actual extraction and loading
      * is performed by calling {@link #loadNativeLibrary(java.lang.String, boolean) }.
-     * 
+     *
      * @param name The name / ID of the library (not OS or architecture specific).
-     * @param platform The platform for which the in-natives-jar path has 
+     * @param platform The platform for which the in-natives-jar path has
      * been specified for.
      * @param path The path inside the natives-jar or classpath
-     * corresponding to this library. Must be compatible with the platform 
+     * corresponding to this library. Must be compatible with the platform
      * argument.
      * @param extractAsName The filename that the library should be extracted as,
      * if null, use the same name as in the path.
@@ -111,38 +122,38 @@ public final class NativeLibraryLoader {
         nativeLibraryMap.put(new NativeLibrary.Key(name, platform),
                 new NativeLibrary(name, platform, path, extractAsName));
     }
-    
+
     /**
      * Register a new native library.
-     * 
+     *
      * This simply registers a known library, the actual extraction and loading
      * is performed by calling {@link #loadNativeLibrary(java.lang.String, boolean) }.
-     * 
-     * This method should be called several times for each library name, 
+     *
+     * This method should be called several times for each library name,
      * each time specifying a different platform + path combination.
-     * 
+     *
      * @param name The name / ID of the library (not OS or architecture specific).
-     * @param platform The platform for which the in-natives-jar path has 
+     * @param platform The platform for which the in-natives-jar path has
      * been specified for.
      * @param path The path inside the natives-jar or classpath
-     * corresponding to this library. Must be compatible with the platform 
+     * corresponding to this library. Must be compatible with the platform
      * argument.
      */
     public static void registerNativeLibrary(String name, Platform platform,
             String path) {
         registerNativeLibrary(name, platform, path, null);
     }
-    
+
     private NativeLibraryLoader() {
     }
-    
+
     /**
      * Determines whether native Bullet is on the classpath.
-     * 
+     *
      * Currently, the context extracts the native Bullet libraries, so
      * this method is needed to determine if they are needed.
      * Ideally, native Bullet would be responsible for its own natives.
-     * 
+     *
      * @return True native bullet is on the classpath, false otherwise.
      */
     public static boolean isUsingNativeBullet() {
@@ -153,14 +164,14 @@ public final class NativeLibraryLoader {
             return false;
         }
     }
-    
+
     /**
      * Specify a custom location where native libraries should
      * be extracted to. Ensure this is a unique path not used
      * by other applications to extract their libraries.
      * Set to <code>null</code> to restore default
      * functionality.
-     * 
+     *
      * @param path Path where to extract native libraries.
      */
     public static void setCustomExtractionFolder(String path) {
@@ -169,7 +180,7 @@ public final class NativeLibraryLoader {
 
     /**
      * Returns the folder where native libraries will be extracted.
-     * This is automatically determined at run-time based on the 
+     * This is automatically determined at run-time based on the
      * following criteria:<br>
      * <ul>
      * <li>If a {@link #setCustomExtractionFolder(java.lang.String) custom
@@ -182,7 +193,7 @@ public final class NativeLibraryLoader {
      * is computed automatically as the XOR of the classpath hash code
      * and the last modified date of this class.
      * </ul>
-     * 
+     *
      * @return Path where natives will be extracted to.
      */
     public static File getExtractionFolder() {
@@ -215,27 +226,27 @@ public final class NativeLibraryLoader {
         }
         return extractionFolder;
     }
-    
+
     /**
      * Determine jME3's cache folder for the user account based on the OS.
-     * 
+     *
      * If the OS cache folder is missing, the assumption is that this
      * particular version of the OS does not have a dedicated cache folder,
      * hence, we use the user's home folder instead as the root.
-     * 
+     *
      * The folder returned is as follows:<br>
      * <ul>
      * <li>Windows: ~\AppData\Local\jme3</li>
      * <li>Mac OS X: ~/Library/Caches/jme3</li>
      * <li>Linux: ~/.cache/jme3</li>
      * </ul>
-     * 
+     *
      * @return the user cache folder.
      */
     private static File getJmeUserCacheFolder() {
         File userHomeFolder = new File(System.getProperty("user.home"));
         File userCacheFolder = null;
-        
+
         switch (JmeSystem.getPlatform().getOs()) {
             case Linux:
                 userCacheFolder = new File(userHomeFolder, ".cache");
@@ -247,30 +258,30 @@ public final class NativeLibraryLoader {
                 userCacheFolder = new File(new File(userHomeFolder, "AppData"), "Local");
                 break;
         }
-        
+
         if (userCacheFolder == null || !userCacheFolder.exists()) {
             // Fallback to home directory if cache folder is missing
             return new File(userHomeFolder, ".jme3");
         }
-        
+
         return new File(userCacheFolder, "jme3");
     }
 
     private static void setExtractionFolderToUserCache() {
         File extractFolderInHome = getJmeUserCacheFolder();
-        
+
         if (!extractFolderInHome.exists()) {
             extractFolderInHome.mkdir();
         }
-        
+
         extractionFolder = new File(extractFolderInHome, "natives_" + Integer.toHexString(computeNativesHash()));
-        
+
         if (!extractionFolder.exists()) {
             extractionFolder.mkdir();
         }
-        
+
         logger.log(Level.WARNING, "Temp directory is not writable. "
-                                + "Natives will be extracted to:\n{0}", 
+                                + "Natives will be extracted to:\n{0}",
                                 extractionFolder);
     }
 
@@ -307,7 +318,7 @@ public final class NativeLibraryLoader {
             }
         }
     }
-    
+
     public static File[] getJarsWithNatives() {
         HashSet<File> jarFiles = new HashSet<>();
         for (Map.Entry<NativeLibrary.Key, NativeLibrary> lib : nativeLibraryMap.entrySet()) {
@@ -318,7 +329,7 @@ public final class NativeLibraryLoader {
         }
         return jarFiles.toArray(new File[0]);
     }
-    
+
     public static void extractNativeLibraries(Platform platform, File targetDir) throws IOException {
         for (Map.Entry<NativeLibrary.Key, NativeLibrary> lib : nativeLibraryMap.entrySet()) {
             if (lib.getValue().getPlatform() == platform) {
@@ -329,7 +340,7 @@ public final class NativeLibraryLoader {
             }
         }
     }
-    
+
     /**
      * Removes platform-specific portions of a library file name so
      * that it can be accepted by {@link System#loadLibrary(java.lang.String) }.
@@ -340,7 +351,7 @@ public final class NativeLibraryLoader {
      * <li>liblwjgl64.so => lwjgl64</li>
      * <li>libopenal.so => openal</li>
      * </ul>
-     * 
+     *
      * @param filename The filename to strip platform-specific parts
      * @return The stripped library name
      */
@@ -355,7 +366,7 @@ public final class NativeLibraryLoader {
         }
         return sb.toString();
     }
-    
+
     public static File getJarForNativeLibrary(Platform platform, String name) {
         NativeLibrary library = nativeLibraryMap.get(new NativeLibrary.Key(name, platform));
         if (library == null) {
@@ -366,23 +377,23 @@ public final class NativeLibraryLoader {
         if (pathInJar == null) {
             return null;
         }
-        
+
         String fileNameInJar;
         if (pathInJar.contains("/")) {
             fileNameInJar = pathInJar.substring(pathInJar.lastIndexOf("/") + 1);
         } else {
             fileNameInJar = pathInJar;
         }
-        
+
         URL url = Resources.getResource(pathInJar);
         if (url == null) {
             url = Resources.getResource(fileNameInJar);
         }
-        
+
         if (url == null) {
             return null;
         }
-        
+
         StringBuilder sb = new StringBuilder(url.toString());
         if (sb.indexOf("jar:file:/") == 0) {
             sb.delete(0, 9);
@@ -392,7 +403,7 @@ public final class NativeLibraryLoader {
             return null; // not a jar
         }
     }
-    
+
     public static void extractNativeLibrary(Platform platform, String name, File targetDir) throws IOException {
         NativeLibrary library = nativeLibraryMap.get(new NativeLibrary.Key(name, platform));
         if (library == null) {
@@ -403,7 +414,7 @@ public final class NativeLibraryLoader {
         if (pathInJar == null) {
             return;
         }
-        
+
         URL url = Resources.getResource(pathInJar);
         if (url == null) {
             return;
@@ -415,7 +426,7 @@ public final class NativeLibraryLoader {
         } else {
             loadedAsFileName = Paths.get(pathInJar).getFileName().toString();
         }
-        
+
         URLConnection conn = url.openConnection();
 
         File targetFile = new File(targetDir, loadedAsFileName);
@@ -428,12 +439,16 @@ public final class NativeLibraryLoader {
 
     /**
      * First extracts the native library and then loads it.
-     * 
-     * @param name The name of the library to load.
-     * @param isRequired If true and the library fails to load, throw exception. If
-     * false, do nothing if it fails to load.
+     *
+     * @param name
+     *            The name of the library to load.
+     * @param isRequired
+     *            If true and the library fails to load, throw exception. If false, do nothing if it fails to
+     *            load.
+     *
+     * @return The absolute path of the loaded library.
      */
-    public static void loadNativeLibrary(String name, boolean isRequired) {
+    public static String loadNativeLibrary(String name, boolean isRequired) {
         if (JmeSystem.isLowPermissions()) {
             throw new UnsupportedOperationException("JVM is running under "
                     + "reduced permissions. Cannot load native libraries.");
@@ -441,7 +456,7 @@ public final class NativeLibraryLoader {
 
         Platform platform = JmeSystem.getPlatform();
         NativeLibrary library = nativeLibraryMap.get(new NativeLibrary.Key(name, platform));
-        
+
         if (library == null) {
             // No library exists for this platform.
             if (isRequired) {
@@ -454,15 +469,15 @@ public final class NativeLibraryLoader {
                                     " is not available for your OS: {1}",
                             new Object[]{name, platform});
                 }
-                return;
+                return null;
             }
         }
-        
+
         final String pathInJar = library.getPathInNativesJar();
 
         if (pathInJar == null) {
             // This platform does not require the native library to be loaded.
-            return;
+            return null;
         }
 
         URL url = Resources.getResource(pathInJar);
@@ -477,9 +492,9 @@ public final class NativeLibraryLoader {
                                 " was not found in the classpath via ''{1}''.",
                         new Object[]{library.getName(), pathInJar});
             }
-            return;
+            return null;
         }
-        
+
         // The library has been found and is ready to be extracted.
         // Determine what filename it should be extracted as.
         String loadedAsFileName;
@@ -489,7 +504,7 @@ public final class NativeLibraryLoader {
             // Just use the original filename as it is in the JAR.
             loadedAsFileName = Paths.get(pathInJar).getFileName().toString();
         }
-        
+
         File extractionDirectory = getExtractionFolder();
         URLConnection conn;
 
@@ -497,10 +512,10 @@ public final class NativeLibraryLoader {
             conn = url.openConnection();
         } catch (IOException ex) {
             // Maybe put more detail here? Not sure.
-            throw new UncheckedIOException("Failed to open file: '" + url + 
+            throw new UncheckedIOException("Failed to open file: '" + url +
                                            "'. Error: " + ex, ex);
         }
-        
+
         File targetFile = new File(extractionDirectory, loadedAsFileName);
         try (InputStream in = conn.getInputStream()) {
             if (isExtractingRequired(conn, targetFile)) {
@@ -527,6 +542,8 @@ public final class NativeLibraryLoader {
             if (logger.isLoggable(Level.FINE)) {
                 logger.log(Level.FINE, "Loaded native library {0}.", library.getName());
             }
+
+            return targetFile.getAbsolutePath();
         } catch (IOException ex) {
             /*if (ex.getMessage().contains("used by another process")) {
                 return;
