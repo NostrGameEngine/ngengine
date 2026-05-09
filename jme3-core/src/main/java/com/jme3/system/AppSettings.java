@@ -31,8 +31,6 @@
  */
 package com.jme3.system;
 
-import com.jme3.opencl.DefaultPlatformChooser;
-import com.jme3.opencl.PlatformChooser;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -318,8 +316,6 @@ public final class AppSettings extends HashMap<String, Object> {
         defaults.put("GammaCorrection", true);
         defaults.put("Resizable", true);
         defaults.put("SwapBuffers", true);
-        defaults.put("OpenCL", false);
-        defaults.put("OpenCLPlatformChooser", DefaultPlatformChooser.class.getName());
         defaults.put("UseRetinaFrameBuffer", false);
         defaults.put("WindowYPosition", 0);
         defaults.put("WindowXPosition", 0);
@@ -1262,32 +1258,45 @@ public final class AppSettings extends HashMap<String, Object> {
     }
 
     /**
-     * True to enable the creation of an OpenCL context.
+     * OpenCL support has been removed from the engine.
      *
-     * @param support whether to create the context or not
+     * @param support ignored
+     * @deprecated OpenCL support has been removed.
      */
+    @Deprecated
     public void setOpenCLSupport(boolean support) {
-        putBoolean("OpenCL", support);
-    }
-
-    public boolean isOpenCLSupport() {
-        return getBoolean("OpenCL");
     }
 
     /**
-     * Sets a custom platform chooser. This chooser specifies which platform and
-     * which devices are used for the OpenCL context.
-     * <p>
-     * Default: an implementation defined one.
+     * OpenCL support has been removed from the engine.
      *
-     * @param chooser the class of the chooser, must have a default constructor
+     * @return false
+     * @deprecated OpenCL support has been removed.
      */
-    public void setOpenCLPlatformChooser(Class<? extends PlatformChooser> chooser) {
-        putString("OpenCLPlatformChooser", chooser.getName());
+    @Deprecated
+    public boolean isOpenCLSupport() {
+        return false;
     }
 
+    /**
+     * OpenCL support has been removed from the engine.
+     *
+     * @param chooser ignored
+     * @deprecated OpenCL support has been removed.
+     */
+    @Deprecated
+    public void setOpenCLPlatformChooser(Class<?> chooser) {
+    }
+
+    /**
+     * OpenCL support has been removed from the engine.
+     *
+     * @return null
+     * @deprecated OpenCL support has been removed.
+     */
+    @Deprecated
     public String getOpenCLPlatformChooser() {
-        return getString("OpenCLPlatformChooser");
+        return null;
     }
 
     /**
