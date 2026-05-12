@@ -22,7 +22,7 @@ buildscript {
 plugins {
     id 'org.jetbrains.dokka' version '2.0.0'
     id 'com.diffplug.spotless' version '7.0.2' apply false
-    id "io.github.gradle-nexus.publish-plugin"          version "2.0.0" 
+    id "io.github.gradle-nexus.publish-plugin"          version "2.0.0"
 }
 apply from: file('version.gradle')
 
@@ -444,10 +444,8 @@ if (skipPrebuildLibraries != "true" && buildNativeProjects != "true") {
             }) {
                 eachFile { details ->
                     def segments = details.relativePath.segments
-                    if (segments.length <= 1) {
-                        details.exclude()
-                    } else {
-                        details.relativePath = new RelativePath(details.isDirectory(), segments[1..-1] as String[])
+                    if (segments.length > 1) {
+                        details.path = segments[1..-1].join('/')
                     }
                 }
                 includeEmptyDirs = false
