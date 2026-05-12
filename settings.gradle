@@ -1,7 +1,9 @@
 pluginManagement {
+    includeBuild 'jme3-nativeimage-plugin'
     repositories {
         mavenCentral()
         gradlePluginPortal()
+        google()
         maven { url = uri("https://teavm.org/maven/repository") }
         maven { url = uri("https://maven.ngengine.org/riccardobl/teavm") }
         mavenLocal()

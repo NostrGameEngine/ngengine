@@ -37,6 +37,8 @@ tasks.named('test') {
     }
 }
 
+apply plugin: 'org.jmonkeyengine.nativeimage'
+
 tasks.withType(JavaCompile) { // compile-time options:
     //options.compilerArgs << '-Xlint:deprecation' // to show deprecation warnings
     options.compilerArgs << '-Xlint:unchecked'

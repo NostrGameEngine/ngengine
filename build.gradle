@@ -23,6 +23,7 @@ plugins {
     id 'org.jetbrains.dokka' version '2.0.0'
     id 'com.diffplug.spotless' version '7.0.2' apply false
     id "io.github.gradle-nexus.publish-plugin"          version "2.0.0"
+    id 'org.jmonkeyengine.nativeimage' apply false
 }
 apply from: file('version.gradle')
 
@@ -35,7 +36,7 @@ if(System.getenv("SONATYPE_USERNAME") || project.findProperty("sonatypeUsername"
 
                 username = System.getenv("SONATYPE_USERNAME") ?: project.findProperty("sonatypeUsername") ?: ""
                 password = System.getenv("SONATYPE_PASSWORD") ?: project.findProperty("sonatypePassword") ?: ""
-                packageGroup = "org.ngengine" 
+                packageGroup = "org.ngengine"
             }
         }
     }
@@ -49,7 +50,7 @@ allprojects {
     repositories {
         mavenLocal()
         mavenCentral()
-        maven { 
+        maven {
            url = uri("https://central.sonatype.com/repository/maven-snapshots")
         }
         google()
@@ -135,7 +136,7 @@ subprojects {
 
         dokkaGfm {
             moduleName.set(project.name)
-            moduleVersion.set(project.version.toString())      
+            moduleVersion.set(project.version.toString())
         }
     }
 
@@ -297,6 +298,25 @@ subprojects {
 
 }
 
+def nativeImagePluginBuild = gradle.includedBuild('jme3-nativeimage-plugin')
+def nativeImagePluginPublishTasks = [
+        publish                                      : ':publish',
+        publishToMavenLocal                         : ':publishToMavenLocal',
+        install                                      : ':install',
+        publishAllPublicationsToCentralRepository   : ':publishAllPublicationsToCentralRepository',
+        publishAllPublicationsToSNAPSHOTRepository  : ':publishAllPublicationsToSNAPSHOTRepository',
+        publishAllPublicationsToDistRepository      : ':publishAllPublicationsToDistRepository'
+]
+
+subprojects {
+    tasks.configureEach { task ->
+        String includedTaskPath = nativeImagePluginPublishTasks[task.name]
+        if (includedTaskPath != null) {
+            task.dependsOn nativeImagePluginBuild.task(includedTaskPath)
+        }
+    }
+}
+
 tasks.register('run') {
     dependsOn ':jme3-examples:run'
     description = 'Run the jME3 examples'
@@ -310,7 +330,7 @@ task mergedJavadoc(type: Javadoc, description: 'Creates Javadoc from all the pro
     destinationDir = mkdir("dist/javadoc")
 
     options.encoding = 'UTF-8'
-    
+
 
     // Allows Javadoc to be generated on Java 8 despite doclint errors.
     if (JavaVersion.current().isJava8Compatible()) {
