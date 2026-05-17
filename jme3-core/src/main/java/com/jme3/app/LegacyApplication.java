@@ -50,6 +50,7 @@ import com.jme3.renderer.Camera;
 import com.jme3.renderer.RenderManager;
 import com.jme3.renderer.Renderer;
 import com.jme3.renderer.ViewPort;
+import com.jme3.scene.Spatial;
 import com.jme3.system.AppSettings;
 import com.jme3.system.Displays;
 import com.jme3.system.JmeContext;
@@ -65,6 +66,7 @@ import com.jme3.util.res.Resources;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Future;
@@ -346,12 +348,12 @@ public class LegacyApplication implements Application, SystemListener {
             renderManager.setAppProfiler(prof);
         }
 
-        viewPort = renderManager.createMainView("Default", cam);
+        viewPort = renderManager.createManagedMainView("Default", cam);
         viewPort.setClearFlags(true, true, true);
 
         // Create a new cam for the gui
         Camera guiCam = new Camera(settings.getWidth(), settings.getHeight());
-        guiViewPort = renderManager.createPostView("Gui Default", guiCam);
+        guiViewPort = renderManager.createManagedPostView("Gui Default", guiCam);
         guiViewPort.setClearFlags(false, false, false);
     }
 
@@ -897,6 +899,33 @@ public class LegacyApplication implements Application, SystemListener {
     @Override
     public ViewPort getViewPort() {
         return viewPort;
+    }
+
+    protected void handleViewPorts(float tpf){
+        handleViewPorts(renderManager.getPreViews(), true, tpf);
+        handleViewPorts(renderManager.getMainViews(), true, tpf);
+        handleViewPorts(renderManager.getPostViews(), true, tpf);
+
+        handleViewPorts(renderManager.getPreViews(), false, tpf);
+        handleViewPorts(renderManager.getMainViews(), false, tpf);
+        handleViewPorts(renderManager.getPostViews(), false, tpf);
+    }
+
+    protected void handleViewPorts(List<ViewPort> viewPorts, boolean logic, float tpf){
+        for(int i = 0; i < viewPorts.size(); i++){
+            ViewPort vp = viewPorts.get(i);
+            if(vp==null||!vp.isManagedScenes())continue;
+            List<Spatial> scenes = vp.getScenes();
+            for(int j = 0; j < scenes.size(); j++){
+                Spatial scene = scenes.get(j);
+                if(scene==null)continue;
+                if(logic){
+                    scene.updateLogicalState(tpf);
+                } else {
+                    scene.updateGeometricState();
+                }
+            }
+        }
     }
 
     private class RunnableWrapper implements Callable {

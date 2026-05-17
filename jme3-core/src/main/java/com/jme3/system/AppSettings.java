@@ -266,6 +266,7 @@ public final class AppSettings extends HashMap<String, Object> {
      * Map gamepads to Xbox-like layout.
      */
     public static final String JOYSTICKS_XBOX_MAPPER = "JOYSTICKS_XBOX_MAPPER";
+
     /**
      * Map gamepads to an Xbox-like layout, with fallback to raw if the gamepad is not recognized.
      */
@@ -1601,4 +1602,3 @@ public final class AppSettings extends HashMap<String, Object> {
         return getString("SDLGameControllerDBResourcePath");
     }
 }
-

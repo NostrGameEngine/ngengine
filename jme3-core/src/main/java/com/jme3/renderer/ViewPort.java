@@ -112,6 +112,8 @@ public class ViewPort {
     protected boolean clearStencil = false;
     private boolean enabled = true;
 
+    private boolean managedScenes = false;
+
     /**
      * Creates a new viewport. User code should generally use these methods instead:<br>
      * <ul>
@@ -127,6 +129,46 @@ public class ViewPort {
     public ViewPort(String name, Camera cam) {
         this.name = name;
         this.cam = cam;
+    }
+
+    /**
+     * Creates a new viewport. User code should generally use these methods instead:<br>
+     * <ul>
+     * <li>{@link RenderManager#createPreView(java.lang.String, com.jme3.renderer.Camera) }</li>
+     * <li>{@link RenderManager#createMainView(java.lang.String, com.jme3.renderer.Camera)  }</li>
+     * <li>{@link RenderManager#createPostView(java.lang.String, com.jme3.renderer.Camera)  }</li>
+     * </ul>
+     * 
+     * @param name The name of the viewport. Used for debugging only.
+     * @param cam The camera through which the viewport is rendered. The camera
+     * @param managed If true, the viewport scenes will be automatically 
+     * updated by the application as part of the update loop. 
+     * If false, the application will not update the viewport scenes, 
+     * and they must be updated manually by calling {@link Spatial#updateLogicalState(float) } 
+     * and {@link Spatial#updateGeometricState() } on all attached scenes.
+     */
+    public ViewPort(String name, Camera cam, boolean managed){
+        this.name = name;
+        this.cam = cam;
+        this.managedScenes = managed;
+    }
+
+    /**
+     * If set to true, the viewport scenes will be automatically
+     * updated by the application as part of the update loop.
+     * (same as with the application rootNode)
+     * @param managedScenes true to enable automatic scene updates, false otherwise (default: false)
+     */
+    public void setManagedScenes(boolean managedScenes) {
+        this.managedScenes = managedScenes;
+    }
+
+    /**
+     * Returns true if the viewport scenes are automatically updated by the application as part of the update loop, false otherwise.
+     * @return true if automatic scene updates are enabled, false otherwise
+     */
+    public boolean isManagedScenes() {
+        return managedScenes;
     }
 
     /**

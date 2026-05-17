@@ -139,6 +139,20 @@ public class SdlJoystickInput implements JoyInput {
                 joyButtonPressed.put(button, false);
             }
 
+            // Virtual trigger buttons (LT/RT) are generated from axis values and must
+            // exist as logical buttons for input mappings to resolve correctly.
+            JoystickButton ltButton = new DefaultJoystickButton(
+                    inputManager, joystick, SDL_GAMEPAD_BUTTON_COUNT,
+                    JoystickButton.BUTTON_XBOX_LT, JoystickButton.BUTTON_XBOX_LT);
+            joystick.addButton(ltButton);
+            joyButtonPressed.put(ltButton, false);
+
+            JoystickButton rtButton = new DefaultJoystickButton(
+                    inputManager, joystick, SDL_GAMEPAD_BUTTON_COUNT + 1,
+                    JoystickButton.BUTTON_XBOX_RT, JoystickButton.BUTTON_XBOX_RT);
+            joystick.addButton(rtButton);
+            joyButtonPressed.put(rtButton, false);
+
         } else {
             long joy = SDL_OpenJoystick(deviceIndex);
             if (joy == 0L) return;

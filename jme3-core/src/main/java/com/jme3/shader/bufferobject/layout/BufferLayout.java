@@ -34,8 +34,6 @@ package com.jme3.shader.bufferobject.layout;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Function;
-
 import com.jme3.math.FastMath;
 import java.util.function.Predicate;
 

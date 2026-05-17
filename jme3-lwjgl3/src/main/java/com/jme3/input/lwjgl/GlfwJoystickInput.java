@@ -204,6 +204,20 @@ public class GlfwJoystickInput implements JoyInput {
                         joystick.addButton(button);
                         joyButtonPressed.put(button, false);
                     }
+
+                    // Virtual trigger buttons (LT/RT) are driven from axis values, but still need
+                    // explicit button entries so mappings using BUTTON_XBOX_LT/RT can resolve them.
+                    JoystickButton ltButton = new DefaultJoystickButton(
+                            inputManager, joystick, GLFW_GAMEPAD_BUTTON_LAST + 1,
+                            JoystickButton.BUTTON_XBOX_LT, JoystickButton.BUTTON_XBOX_LT);
+                    joystick.addButton(ltButton);
+                    joyButtonPressed.put(ltButton, false);
+
+                    JoystickButton rtButton = new DefaultJoystickButton(
+                            inputManager, joystick, GLFW_GAMEPAD_BUTTON_LAST + 2,
+                            JoystickButton.BUTTON_XBOX_RT, JoystickButton.BUTTON_XBOX_RT);
+                    joystick.addButton(rtButton);
+                    joyButtonPressed.put(rtButton, false);
                 }
 
             }

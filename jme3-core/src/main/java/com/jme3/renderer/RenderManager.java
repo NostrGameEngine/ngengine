@@ -106,9 +106,15 @@ public class RenderManager {
 
     private final Renderer renderer;
     private final UniformBindingManager uniformBindingManager = new UniformBindingManager();
+    
     private final ArrayList<ViewPort> preViewPorts = new ArrayList<>();
     private final ArrayList<ViewPort> viewPorts = new ArrayList<>();
     private final ArrayList<ViewPort> postViewPorts = new ArrayList<>();
+    
+    private final List<ViewPort> preViewPortsRO = Collections.unmodifiableList(preViewPorts);
+    private final List<ViewPort> viewPortsRO = Collections.unmodifiableList(viewPorts);
+    private final List<ViewPort> postViewPortsRO = Collections.unmodifiableList(postViewPorts);
+
     private final HashMap<Class<? extends PipelineContext>, PipelineContext> contexts = new HashMap<>();
     private final LinkedList<PipelineContext> usedContexts = new LinkedList<>();
     private final LinkedList<RenderPipeline<? extends PipelineContext>> usedPipelines = new LinkedList<>();
@@ -404,7 +410,7 @@ public class RenderManager {
      * @see #createPreView(java.lang.String, com.jme3.renderer.Camera)
      */
     public List<ViewPort> getPreViews() {
-        return Collections.unmodifiableList(preViewPorts);
+        return preViewPortsRO;
     }
 
     /**
@@ -414,7 +420,7 @@ public class RenderManager {
      * @see #createMainView(java.lang.String, com.jme3.renderer.Camera)
      */
     public List<ViewPort> getMainViews() {
-        return Collections.unmodifiableList(viewPorts);
+        return viewPortsRO;
     }
 
     /**
@@ -424,7 +430,7 @@ public class RenderManager {
      * @see #createPostView(java.lang.String, com.jme3.renderer.Camera)
      */
     public List<ViewPort> getPostViews() {
-        return Collections.unmodifiableList(postViewPorts);
+        return postViewPortsRO;
     }
 
     /**
@@ -438,6 +444,24 @@ public class RenderManager {
      */
     public ViewPort createPreView(String viewName, Camera cam) {
         ViewPort vp = new ViewPort(viewName, cam);
+        preViewPorts.add(vp);
+        return vp;
+    }
+
+    /**
+     * Creates a new pre ViewPort, to display the given camera's content.
+     *
+     * <p>The view will be processed before the main and post viewports.
+     * same as {@link #createPreView(java.lang.String, com.jme3.renderer.Camera) } 
+     * but it will hint the application to manage the attached scenes automatically.
+     *
+     * @param viewName the desired viewport name
+     * @param cam the Camera to use for rendering (alias created)
+     * @return a new instance
+     */
+    public ViewPort createManagedPreView(String viewName, Camera cam) {
+        ViewPort vp = new ViewPort(viewName, cam);
+        vp.setManagedScenes(true);
         preViewPorts.add(vp);
         return vp;
     }
@@ -458,6 +482,26 @@ public class RenderManager {
         return vp;
     }
 
+  
+    /**
+     * Creates a new main ViewPort, to display the given camera's content.
+     *
+     * <p>The view will be processed before the post viewports but after
+     * the pre viewports.
+     * same as {@link #createMainView(java.lang.String, com.jme3.renderer.Camera) }
+     * but it will hint the application to manage the attached scenes automatically.
+     *
+     * @param viewName the desired viewport name
+     * @param cam the Camera to use for rendering (alias created)
+     * @return a new instance
+     */
+    public ViewPort createManagedMainView(String viewName, Camera cam) {
+        ViewPort vp = new ViewPort(viewName, cam);
+        vp.setManagedScenes(true);
+        viewPorts.add(vp);
+        return vp;
+    }
+
     /**
      * Creates a new post ViewPort, to display the given camera's content.
      *
@@ -472,6 +516,25 @@ public class RenderManager {
         postViewPorts.add(vp);
         return vp;
     }
+
+    /**
+     * Creates a new post ViewPort, to display the given camera's content.
+     * 
+     * <p>The view will be processed after the pre and main viewports.
+     * same as {@link #createPostView(java.lang.String, com.jme3.renderer.Camera) }
+     * but it will hint the application to manage the attached scenes automatically.
+     * 
+     * @param viewName the desired viewport name
+     * @param cam the Camera to use for rendering (alias created)
+     * @return a new instance
+     */
+    public ViewPort createManagedPostView(String viewName, Camera cam) {
+        ViewPort vp = new ViewPort(viewName, cam);
+        vp.setManagedScenes(true);
+        postViewPorts.add(vp);
+        return vp;
+    }
+
 
     private void notifyReshape(ViewPort vp, int w, int h) {
         List<SceneProcessor> processors = vp.getProcessors();

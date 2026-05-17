@@ -436,6 +436,7 @@ public abstract class Spatial implements Savable, Cloneable, Collidable,
      * @return This spatial's name.
      */
     public String getName() {
+        if(name==null) return getClass().getSimpleName();
         return name;
     }
 

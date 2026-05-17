@@ -233,9 +233,6 @@ public class TempVars implements Closeable {
     public final ArrayList<BIHStackData> bihStack = new ArrayList<>();
     public final Transform trans1 = new Transform();
 
-
-   
-
     /**
      * Removes all references held to other object by the tempVars instance to
      * avoid memory leaks.

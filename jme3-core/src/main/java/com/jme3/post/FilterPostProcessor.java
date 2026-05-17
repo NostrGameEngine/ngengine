@@ -107,7 +107,7 @@ public class FilterPostProcessor implements SceneProcessor, Savable {
     private boolean multiView = false;
     private AppProfiler prof;
 
-    private Format fbFormat = null;
+    private Format fbFormat = Format.RGBA16F;
     private Format depthFormat = Format.Depth;
 
     /**

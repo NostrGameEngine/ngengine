@@ -31,10 +31,13 @@
  */
 package com.jme3.input.controls;
 
+import java.util.logging.Logger;
+
 import com.jme3.input.Joystick;
 import com.jme3.input.JoystickAxis;
 
 public class JoyAxisTrigger implements Trigger {
+    private final static Logger logger = Logger.getLogger(JoyAxisTrigger.class.getName());
 
     private final int joyId, axisId;
     private final boolean negative;

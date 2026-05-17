@@ -68,55 +68,89 @@ public class Preprocessor {
      *      do something with $i
      * #endfor
      */
-    private static final Pattern FOR_REGEX = Pattern.compile("([^=]+)=\\s*([0-9]+)\\s*\\.\\.\\s*([0-9]+)\\s*\\((.+)\\)");
+    private static final Pattern FOR_REGEX = Pattern.compile(
+            "\\s*(\\w+)\\s*=\\s*(\\d+)\\s*\\.\\.\\s*(\\d+)\\s*(?:\\((.+)\\))?\\s*"
+    );
 
     public static String forMacro(String code) {
-        StringBuilder expandedCode = new StringBuilder();
+        StringBuilder expanded = new StringBuilder();
+
         StringBuilder currentFor = null;
         String forDec = null;
-        int skip = 0;
-        String codel[] = code.split("\n");
-        boolean captured = false;
-        for (String l : codel) {
-            if (!captured) {
-                String ln = l.trim();
-                if (ln.startsWith("#for")) {
-                    if (skip == 0) {
-                        forDec = ln;
-                        currentFor = new StringBuilder();
-                        skip++;
-                        continue;
-                    }
-                    skip++;
-                } else if (ln.startsWith("#endfor")) {
-                    skip--;
-                    if (skip == 0) {
-                        forDec = forDec.substring("#for ".length()).trim();
+        String forLineOriginal = null;
 
-                        Matcher matcher = FOR_REGEX.matcher(forDec);
-                        if (matcher.matches()) {
-                            String varN = "$" + matcher.group(1);
-                            int start = Integer.parseInt(matcher.group(2));
-                            int end = Integer.parseInt(matcher.group(3));
-                            String inj = matcher.group(4);
-                            if (inj.trim().isEmpty()) inj = "$0";
-                            String inCode = currentFor.toString();
-                            currentFor = null;
-                            for (int i = start; i < end; i++) {
-                                expandedCode.append("\n").append(inj.replace("$0", "\n" + inCode ).replace(varN, "" + i)).append("\n");
-                            }
-                            captured = true;
-                            continue;
+        int depth = 0;
+        boolean expandedOnce = false;
+
+        String[] lines = code.split("\n", -1); 
+        for (String line : lines) {
+            String trimmed = line.trim();
+
+            if (!expandedOnce && trimmed.startsWith("#for")) {
+                if (depth++ == 0) {
+                    forLineOriginal = line;
+                    forDec = trimmed.substring("#for".length()).trim();
+                    currentFor = new StringBuilder();
+                    continue; 
+                }
+            }
+
+            if (!expandedOnce && trimmed.startsWith("#endfor")) {
+                depth--;
+                if (depth == 0 && currentFor != null) {
+                    Matcher m = FOR_REGEX.matcher(forDec);
+                    if (m.matches()) {
+                        String varName = "$" + m.group(1);
+                        int start = Integer.parseInt(m.group(2));
+                        int end = Integer.parseInt(m.group(3));
+
+                        String inj = m.group(4); // optional
+                        if (inj == null || inj.trim().isEmpty()) {
+                            inj = "$0";
                         }
+
+                        String body = currentFor.toString();
+
+                        currentFor = null;
+                        forDec = null;
+                        forLineOriginal = null;
+
+                        for (int i = start; i < end; i++) {
+                            String expandedBlock =
+                                    inj.replace("$0", "\n" + body)
+                                    .replace(varName, Integer.toString(i));
+                            expanded.append("\n").append(expandedBlock).append("\n");
+                        }
+
+                        expandedOnce = true;
+                        continue; 
+                    } else {
+                        expanded.append(forLineOriginal).append("\n");
+                        expanded.append(currentFor);
+                        expanded.append(line).append("\n");
+
+                        currentFor = null;
+                        forDec = null;
+                        forLineOriginal = null;
+                        continue;
                     }
                 }
             }
-            if (currentFor != null) currentFor.append(l).append("\n");
-            else expandedCode.append(l).append("\n");
+
+            if (currentFor != null) {
+                currentFor.append(line).append("\n");
+            } else {
+                expanded.append(line).append("\n");
+            }
         }
-        code = expandedCode.toString();
-        if (captured) code = forMacro(code);
-        return code;
+
+        if (currentFor != null) {
+            expanded.append(forLineOriginal).append("\n");
+            expanded.append(currentFor);
+        }
+
+        String result = expanded.toString();
+        return expandedOnce ? forMacro(result) : result;
     }
 
     /**

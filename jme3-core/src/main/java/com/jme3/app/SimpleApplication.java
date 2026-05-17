@@ -343,11 +343,8 @@ public abstract class SimpleApplication extends LegacyApplication {
         if (prof != null) {
             prof.appStep(AppStep.SpatialUpdate);
         }
-        rootNode.updateLogicalState(tpf);
-        guiNode.updateLogicalState(tpf);
 
-        rootNode.updateGeometricState();
-        guiNode.updateGeometricState();
+        handleViewPorts(tpf);
 
         // Render AppStates and the scene
         if (prof != null) {
