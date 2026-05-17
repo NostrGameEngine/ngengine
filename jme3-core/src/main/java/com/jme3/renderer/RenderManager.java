@@ -31,10 +31,6 @@
  */
 package com.jme3.renderer;
 
-import com.jme3.renderer.pipeline.ForwardPipeline;
-import com.jme3.renderer.pipeline.DefaultPipelineContext;
-import com.jme3.renderer.pipeline.RenderPipeline;
-import com.jme3.renderer.pipeline.PipelineContext;
 import com.jme3.light.DefaultLightFilter;
 import com.jme3.light.LightFilter;
 import com.jme3.light.LightList;
@@ -50,6 +46,10 @@ import com.jme3.post.SceneProcessor;
 import com.jme3.profile.AppProfiler;
 import com.jme3.profile.AppStep;
 import com.jme3.profile.VpStep;
+import com.jme3.renderer.pipeline.DefaultPipelineContext;
+import com.jme3.renderer.pipeline.ForwardPipeline;
+import com.jme3.renderer.pipeline.PipelineContext;
+import com.jme3.renderer.pipeline.RenderPipeline;
 import com.jme3.renderer.queue.GeometryList;
 import com.jme3.renderer.queue.RenderQueue;
 import com.jme3.renderer.queue.RenderQueue.Bucket;
@@ -106,11 +106,11 @@ public class RenderManager {
 
     private final Renderer renderer;
     private final UniformBindingManager uniformBindingManager = new UniformBindingManager();
-    
+
     private final ArrayList<ViewPort> preViewPorts = new ArrayList<>();
     private final ArrayList<ViewPort> viewPorts = new ArrayList<>();
     private final ArrayList<ViewPort> postViewPorts = new ArrayList<>();
-    
+
     private final List<ViewPort> preViewPortsRO = Collections.unmodifiableList(preViewPorts);
     private final List<ViewPort> viewPortsRO = Collections.unmodifiableList(viewPorts);
     private final List<ViewPort> postViewPortsRO = Collections.unmodifiableList(postViewPorts);
@@ -1467,12 +1467,15 @@ public class RenderManager {
         if (!vp.isEnabled()) {
             return;
         }
-        RenderPipeline pipeline = vp.getPipeline();
+        RenderPipeline<? extends PipelineContext> pipeline = vp.getPipeline();
         if (pipeline == null) {
             pipeline = defaultPipeline;
         }
+        renderViewPort(vp, tpf, pipeline);
+    }
 
-        PipelineContext context = pipeline.fetchPipelineContext(this);
+    private <T extends PipelineContext> void renderViewPort(ViewPort vp, float tpf, RenderPipeline<T> pipeline) {
+        T context = pipeline.fetchPipelineContext(this);
         if (context == null) {
             throw new NullPointerException("Failed to fetch pipeline context.");
         }
