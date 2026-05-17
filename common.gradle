@@ -19,8 +19,8 @@ java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(25)
     }
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
+    sourceCompatibility = name.startsWith("nge-") ? JavaVersion.VERSION_21 : JavaVersion.VERSION_11
+    targetCompatibility = name.startsWith("nge-") ? JavaVersion.VERSION_21 : JavaVersion.VERSION_11
 }
 
 
@@ -40,7 +40,7 @@ tasks.withType(JavaCompile) { // compile-time options:
     //options.compilerArgs << '-Xlint:deprecation' // to show deprecation warnings
     options.compilerArgs << '-Xlint:unchecked'
     options.encoding = 'UTF-8'
-    options.release = 11
+    options.release = name.startsWith("nge-") ? 21 : 11
 }
 
 repositories {

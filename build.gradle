@@ -222,22 +222,30 @@ subprojects {
                 def stripLeadingLegacyHeaderBlocks = { String s ->
                     s = s.replaceFirst(/^\uFEFF/, "")
 
+                    // Iterate over *all* leading block comments (plus surrounding whitespace).
+                    // Keep non-matching blocks (e.g. upstream jME headers), but strip matching legacy NGE blocks
+                    // even if they appear after other headers.
+                    def keptPrefix = new StringBuilder()
                     while (true) {
                         def m = (s =~ /(?s)\A(\s*)(\/\*{1,2}.*?\*\/)(\s*)/)
                         if (!m.find()) {
                             break
                         }
 
+                        def leadingWs = m.group(1)
                         def block = m.group(2)
-                        if (shouldStripLegacyHeaderBlock(block)) {
-                            s = s.substring(m.end())
-                            continue
-                        }
+                        def trailingWs = m.group(3)
+                        def rest = s.substring(m.end())
 
-                        break
+                        if (shouldStripLegacyHeaderBlock(block)) {
+                            s = rest
+                        } else {
+                            keptPrefix.append(leadingWs).append(block).append(trailingWs)
+                            s = rest
+                        }
                     }
 
-                    return s
+                    return keptPrefix.toString() + s
                 }
 
                 def hasAnyCopyrightBlockComment = { String s ->
