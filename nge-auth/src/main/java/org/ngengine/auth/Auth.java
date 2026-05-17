@@ -37,8 +37,9 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.ngengine.gui.win.NWindow;
-import org.ngengine.gui.win.NWindowManager;
+import org.ngengine.gui.guix.win.NWindow;
+import org.ngengine.gui.guix.win.NWindowManager;
+import org.ngengine.gui.guix.win.NWindowManagerComponent;
 import org.ngengine.nostr4j.signer.NostrSigner;
 import org.ngengine.store.DataStore;
 

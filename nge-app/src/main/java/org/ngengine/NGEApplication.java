@@ -39,7 +39,6 @@ import com.jme3.system.AppSettings;
 import com.jme3.system.JmeSystem;
 import com.jme3.system.Platform;
 import com.jme3.util.res.Resources;
-import com.simsilica.lemur.NGEGui;
 
 import java.util.Collection;
 import java.util.List;
@@ -49,11 +48,13 @@ import java.util.logging.Logger;
 import org.ngengine.ads.ImmersiveAdComponent;
 import org.ngengine.auth.AuthSelectionWindow;
 import org.ngengine.auth.AuthStrategy;
+import org.ngengine.components.Component;
 import org.ngengine.components.ComponentManager;
 import org.ngengine.components.ComponentManagerProvider;
 import org.ngengine.components.jme3.ComponentManagerAppState;
 import org.ngengine.config.NGEAppSettings;
-import org.ngengine.gui.win.NWindowManagerComponent;
+import org.ngengine.gui.NGEGui;
+import org.ngengine.gui.guix.win.NWindowManagerComponent;
 import org.ngengine.nostr4j.keypair.NostrPrivateKey;
 import org.ngengine.nostr4j.keypair.NostrPublicKey;
 

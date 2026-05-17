@@ -38,6 +38,7 @@ import com.jme3.input.Joystick;
 import com.jme3.input.JoystickConnectionListener;
 import com.jme3.input.RawInputListener;
 
+import com.jme3.input.controls.Trigger;
 import com.jme3.input.controls.UnifiedInputListener;
 import com.jme3.input.event.InputEvent;
 import com.jme3.input.event.JoyAxisEvent;

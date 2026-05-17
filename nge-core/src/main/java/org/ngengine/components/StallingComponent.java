@@ -32,6 +32,14 @@
 
 package org.ngengine.components;
 
+import java.io.IOException;
+
+import org.ngengine.runner.Runner;
+import org.ngengine.store.DataStoreProvider;
+
+import com.jme3.export.JmeExporter;
+import com.jme3.export.JmeImporter;
+
 /**
  * A component that is never enabled and does nothing.
  */

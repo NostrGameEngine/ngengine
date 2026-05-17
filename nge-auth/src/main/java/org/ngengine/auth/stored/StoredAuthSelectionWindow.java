@@ -34,15 +34,16 @@ package org.ngengine.auth.stored;
 
 import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
-import com.simsilica.lemur.Button;
-import com.simsilica.lemur.HAlignment;
-import com.simsilica.lemur.Label;
-import com.simsilica.lemur.component.DynamicInsetsComponent;
-import com.simsilica.lemur.component.IconComponent;
-import com.simsilica.lemur.style.ElementId;
-import org.ngengine.gui.components.NVSpacer;
-import org.ngengine.gui.components.containers.NColumn;
-import org.ngengine.gui.win.NWindow;
+import org.ngengine.gui.component.DynamicInsetsComponent;
+import org.ngengine.gui.component.IconComponent;
+import org.ngengine.gui.guix.NVSpacer;
+import org.ngengine.gui.guix.containers.NColumn;
+import org.ngengine.gui.guix.win.NWindow;
+import org.ngengine.gui.style.ElementId;
+
+import org.ngengine.gui.Button;
+import org.ngengine.gui.HAlignment;
+import org.ngengine.gui.Label;
 
 public class StoredAuthSelectionWindow extends NWindow<StoredAuthSelectionOptions> {
 

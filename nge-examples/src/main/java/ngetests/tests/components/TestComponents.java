@@ -34,7 +34,7 @@ package ngetests.tests.components;
 
 import org.ngengine.Components;
 import org.ngengine.NGEApplication;
-import org.ngengine.gui.win.NWindowManagerComponent;
+import org.ngengine.gui.guix.win.NWindowManagerComponent;
 
 public class TestComponents {
     

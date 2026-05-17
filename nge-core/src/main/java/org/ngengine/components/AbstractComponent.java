@@ -32,6 +32,7 @@
 
 package org.ngengine.components;
 
+import java.lang.reflect.InvocationTargetException;
 
 import org.ngengine.runner.Runner;
 import org.ngengine.store.DataStoreProvider;
@@ -103,5 +104,5 @@ public abstract class AbstractComponent implements Component, ComponentManagerPr
     }
 
   
- 
+    
 }

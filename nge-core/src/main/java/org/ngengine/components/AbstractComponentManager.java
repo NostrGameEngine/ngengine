@@ -710,8 +710,7 @@ public abstract class AbstractComponentManager  implements ComponentManager, Sav
         this.initialize(this, getSettings());
 
     }
- 
-
+  
     @Override
     public List<Component> getAllComponents(){
         return componentList;

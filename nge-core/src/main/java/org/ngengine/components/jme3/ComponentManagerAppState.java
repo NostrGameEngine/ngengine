@@ -47,6 +47,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.ngengine.ViewPortManager;
+import org.ngengine.components.ComponentManager;
 import org.ngengine.config.NGEAppSettings;
 
 /**
@@ -77,6 +78,7 @@ public class ComponentManagerAppState extends Jme3AppComponentManager implements
     }
  
     
+ 
     @Override
     public final void initialize(AppStateManager stateManager, Application app) {
         setApplication(app);

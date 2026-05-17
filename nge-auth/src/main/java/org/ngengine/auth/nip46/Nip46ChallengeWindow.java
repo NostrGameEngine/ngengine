@@ -33,14 +33,16 @@
 package org.ngengine.auth.nip46;
 
 import com.jme3.math.Vector3f;
-import com.simsilica.lemur.Button;
-import com.simsilica.lemur.HAlignment;
-import com.simsilica.lemur.Label;
-import com.simsilica.lemur.VAlignment;
+
 import java.util.logging.Logger;
-import org.ngengine.gui.components.containers.NColumn;
-import org.ngengine.gui.win.NToast.ToastType;
-import org.ngengine.gui.win.NWindow;
+
+import org.ngengine.gui.Button;
+import org.ngengine.gui.HAlignment;
+import org.ngengine.gui.Label;
+import org.ngengine.gui.VAlignment;
+import org.ngengine.gui.guix.containers.NColumn;
+import org.ngengine.gui.guix.win.NWindow;
+import org.ngengine.gui.guix.win.NToast.ToastType;
 import org.ngengine.platform.NGEPlatform;
 
 public class Nip46ChallengeWindow extends NWindow<String[]> {

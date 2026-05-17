@@ -33,6 +33,7 @@
 package org.ngengine.components;
 
 import java.util.List;
+import java.util.function.Predicate;
 
 import org.ngengine.components.fragments.Fragment;
 import org.ngengine.components.runners.ComponentInitializer;
@@ -42,6 +43,7 @@ import org.ngengine.config.NGEAppSettings;
 import org.ngengine.runner.Runner;
 import org.ngengine.store.DataStoreProvider;
 
+import com.jme3.app.Application;
 
 /**
  * The ComponentManager is responsible for managing the lifecycle of components within the application.
@@ -330,6 +332,8 @@ public interface ComponentManager {
     List<ComponentUpdater> getUpdaters();
     List<ComponentInitializer> getInitializers();
     List<ComponentLoader> getLoaders();
+ 
+
 
     boolean hasComponent(Component component);
     boolean hasComponent(Class<? extends Component> cls) ;
@@ -347,7 +351,8 @@ public interface ComponentManager {
      */
     void setEnabled(boolean enabled);
 
-    
+   
+  
     void addChild(ComponentManager child);
     void removeChild(ComponentManager child);
     

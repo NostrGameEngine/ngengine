@@ -34,13 +34,10 @@ package org.ngengine.auth;
 
 import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
-import com.simsilica.lemur.Axis;
-import com.simsilica.lemur.Button;
-import com.simsilica.lemur.Container;
-import com.simsilica.lemur.FillMode;
-import com.simsilica.lemur.VAlignment;
-import com.simsilica.lemur.component.IconComponent;
-import com.simsilica.lemur.component.SpringGridLayout;
+import org.ngengine.gui.component.IconComponent;
+import org.ngengine.gui.component.SpringGridLayout;
+import org.ngengine.gui.guix.NIconButton;
+import org.ngengine.gui.guix.win.NWindow;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -55,8 +52,11 @@ import org.ngengine.auth.nip46.Nip46Auth;
 import org.ngengine.auth.nsec.NsecAuth;
 import org.ngengine.auth.stored.StoredAuthSelectionOptions;
 import org.ngengine.auth.stored.StoredAuthSelectionWindow;
-import org.ngengine.gui.components.NIconButton;
-import org.ngengine.gui.win.NWindow;
+import org.ngengine.gui.Axis;
+import org.ngengine.gui.Button;
+import org.ngengine.gui.Container;
+import org.ngengine.gui.FillMode;
+import org.ngengine.gui.VAlignment;
 import org.ngengine.nostr4j.keypair.NostrPublicKey;
 import org.ngengine.player.Player;
 import org.ngengine.player.PlayerManagerComponent;
@@ -97,7 +97,7 @@ public class AuthSelectionWindow extends NWindow<AuthStrategy> {
         }
         storedIdentityButton.setTextVAlignment(VAlignment.Center);
 
-        NIconButton deleteBtn = new NIconButton("icons/outline/activity.svg");
+        NIconButton deleteBtn = new NIconButton("org/ngengine/gui/icons/outline/activity.svg");
         storedIdentityButton.attachChild(deleteBtn);
         deleteBtn.setLocalTranslation(0, 0, 1);
 

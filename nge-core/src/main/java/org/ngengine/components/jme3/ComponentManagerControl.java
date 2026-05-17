@@ -34,11 +34,16 @@ package org.ngengine.components.jme3;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 import org.ngengine.components.AbstractComponentManager;
 import org.ngengine.components.Component;
+import org.ngengine.components.ComponentManager;
 import org.ngengine.components.ComponentMount;
 import org.ngengine.config.NGEAppSettings;
 
+import com.jme3.app.Application;
 import com.jme3.export.InputCapsule;
 import com.jme3.export.JmeExporter;
 import com.jme3.export.JmeImporter;
@@ -71,7 +76,6 @@ public class ComponentManagerControl extends Jme3AppComponentManager implements 
         setEnabled(false);      
     }
  
-
     @Override
     protected void initialize(AbstractComponentManager mng, NGEAppSettings settings){
         super.initialize(mng, settings);

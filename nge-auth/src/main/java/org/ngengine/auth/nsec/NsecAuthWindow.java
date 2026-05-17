@@ -33,18 +33,19 @@
 package org.ngengine.auth.nsec;
 
 import com.jme3.math.Vector3f;
-import com.simsilica.lemur.Button;
-import com.simsilica.lemur.Checkbox;
-import com.simsilica.lemur.HAlignment;
-import com.simsilica.lemur.VAlignment;
-import com.simsilica.lemur.component.DynamicInsetsComponent;
+import org.ngengine.gui.component.DynamicInsetsComponent;
+import org.ngengine.gui.guix.NTextInput;
+import org.ngengine.gui.guix.NVSpacer;
+import org.ngengine.gui.guix.containers.NColumn;
+import org.ngengine.gui.guix.win.NWindow;
+
 import java.util.logging.Logger;
 import org.ngengine.auth.AuthConfig;
 import org.ngengine.auth.AuthStrategy;
-import org.ngengine.gui.components.NTextInput;
-import org.ngengine.gui.components.NVSpacer;
-import org.ngengine.gui.components.containers.NColumn;
-import org.ngengine.gui.win.NWindow;
+import org.ngengine.gui.Button;
+import org.ngengine.gui.Checkbox;
+import org.ngengine.gui.HAlignment;
+import org.ngengine.gui.VAlignment;
 import org.ngengine.nostr4j.keypair.NostrKeyPair;
 import org.ngengine.nostr4j.keypair.NostrPrivateKey;
 import org.ngengine.nostr4j.nip49.Nip49;

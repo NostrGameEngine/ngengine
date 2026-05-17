@@ -46,6 +46,7 @@ import org.ngengine.AsyncAssetManager;
 import org.ngengine.ViewPortManager;
 import org.ngengine.components.AbstractComponentManager;
 import org.ngengine.components.ComponentManager;
+import org.ngengine.components.actions.ActionsComponentInitializer;
 import org.ngengine.config.NGEAppSettings;
 import org.ngengine.runner.MainThreadRunner;
 import org.ngengine.runner.Runner;
@@ -84,15 +85,19 @@ public abstract class Jme3AppComponentManager extends AbstractComponentManager{
         this.settings = settings;
     }
 
-    
+
+
+ 
 
     @Override
     protected void initialize(AbstractComponentManager mng, NGEAppSettings settings){
         super.initialize(mng, settings);
         mng.getInitializers().add(new AppComponentInitializer(app));
+        mng.getInitializers().add(new ActionsComponentInitializer());   
         mng.getUpdaters().add(new AppViewPortComponentUpdater(app));
         mng.getUpdaters().add(new AppComponentUpdater(app));
         mng.getLoaders().add(new AppComponentLoader(app));
+
     }
     
     @Override
