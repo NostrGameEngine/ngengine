@@ -210,10 +210,20 @@ public final class AppSettings extends HashMap<String, Object> {
      * Use the LWJGL OpenAL based renderer for audio capabilities.
      *
      * @see AppSettings#setAudioRenderer(java.lang.String)
+     * @deprecated Use {@link #OPENAL} instead.
      */
+    @Deprecated
     public static final String LWJGL_OPENAL = "LWJGL";
 
     public static final String ANGLE_GLES3 = "ANGLE_GLES3";
+
+    /**
+     * Use the default OpenAL renderer for the current platform.
+     *
+     * @see AppSettings#setAudioRenderer(java.lang.String)
+     */
+    public static final String OPENAL = "OPENAL";
+
 
     /**
      * Use the Android MediaPlayer / SoundPool based renderer for Android audio capabilities.
@@ -221,8 +231,7 @@ public final class AppSettings extends HashMap<String, Object> {
      * NOTE: Supports Android 2.2+ platforms.
      *
      * @see AppSettings#setAudioRenderer(java.lang.String)
-     * @deprecated This audio renderer has too many limitations.
-     * use {@link #ANDROID_OPENAL_SOFT} instead.
+     * @deprecated This audio renderer has too many limitations. Use {@link #OPENAL} instead.
      */
     @Deprecated
     public static final String ANDROID_MEDIAPLAYER = "MediaPlayer";
@@ -230,11 +239,12 @@ public final class AppSettings extends HashMap<String, Object> {
     /**
      * Use the OpenAL Soft based renderer for Android audio capabilities.
      * <p>
-     * This is the current default for Android platforms.
      * NOTE: Only to be used on Android 2.3+ platforms due to using OpenSL.
      *
      * @see AppSettings#setAudioRenderer(java.lang.String)
+     * @deprecated Use {@link #OPENAL} instead.
      */
+    @Deprecated
     public static final String ANDROID_OPENAL_SOFT = "OpenAL_SOFT";
 
     /**
@@ -243,7 +253,9 @@ public final class AppSettings extends HashMap<String, Object> {
      * N.B: This backend is EXPERIMENTAL
      *
      * @see AppSettings#setRenderer(java.lang.String)
+     * @deprecated Use LWJGL
      */
+    @Deprecated
     public static final String JOGL_OPENGL_FORWARD_COMPATIBLE = "JOGL_OPENGL_FORWARD_COMPATIBLE";
 
     /**
@@ -252,7 +264,9 @@ public final class AppSettings extends HashMap<String, Object> {
      * N.B: This backend is EXPERIMENTAL
      *
      * @see AppSettings#setRenderer(java.lang.String)
+     * @deprecated Use LWJGL
      */
+    @Deprecated
     public static final String JOGL_OPENGL_BACKWARD_COMPATIBLE = "JOGL_OPENGL_BACKWARD_COMPATIBLE";
 
     /**
@@ -261,7 +275,9 @@ public final class AppSettings extends HashMap<String, Object> {
      * N.B: This backend is EXPERIMENTAL
      *
      * @see AppSettings#setAudioRenderer(java.lang.String)
+     * @deprecated Use {@link #OPENAL} instead.
      */
+    @Deprecated
     public static final String JOAL = "JOAL";
 
 
@@ -305,7 +321,7 @@ public final class AppSettings extends HashMap<String, Object> {
         defaults.put("Fullscreen", false);
         defaults.put("Title", JmeVersion.FULL_NAME);
         defaults.put("Renderer", ANGLE_GLES3);
-        defaults.put("AudioRenderer", LWJGL_OPENAL);
+        defaults.put("AudioRenderer", OPENAL);
         defaults.put("DisableJoysticks", false);
         defaults.put("UseInput", true);
         defaults.put("VSync", true);
@@ -435,7 +451,7 @@ public final class AppSettings extends HashMap<String, Object> {
         }
         props.store(out, "jME3 AppSettings");
     }
-    
+
 
     /**
      * Get an integer from the settings.
@@ -718,12 +734,13 @@ public final class AppSettings extends HashMap<String, Object> {
     /**
      * Set the audio renderer to use. One of:<br>
      * <ul>
-     * <li>AppSettings.LWJGL_OPENAL - Default for LWJGL</li>
+     * <li>AppSettings.OPENAL - Default OpenAL renderer for the current platform</li>
+     * <li>AppSettings.LWJGL_OPENAL - Deprecated LWJGL OpenAL renderer identifier</li>
      * <li>AppSettings.JOAL</li>
      * <li>null - Disable audio</li>
      * </ul>
      * @param audioRenderer
-     * (Default: LWJGL)
+     * (Default: AppSettings.OPENAL)
      */
     public void setAudioRenderer(String audioRenderer) {
         putString("AudioRenderer", audioRenderer);
@@ -1158,7 +1175,7 @@ public final class AppSettings extends HashMap<String, Object> {
     /**
      * Get the audio renderer
      *
-     * @return the audio renderer's name, for example "LWJGL"
+     * @return the audio renderer's name, for example "OPENAL"
      * @see #setAudioRenderer(java.lang.String)
      */
     public String getAudioRenderer() {
@@ -1523,7 +1540,7 @@ public final class AppSettings extends HashMap<String, Object> {
     public void setX11PlatformPreferred(boolean preferred) {
         putBoolean("X11PlatformPreferred", preferred);
     }
-    
+
     /**
      * Determines which native platform is preferred for GL context creation on Linux distributions.
      * <p>
@@ -1561,7 +1578,7 @@ public final class AppSettings extends HashMap<String, Object> {
      * This is intended to normalize behavior between controllers that expose triggers as analog
      * axes and controllers that expose triggers as digital buttons.
      *
-     * @param threshold the trigger threshold in the range [0, 1] (default: 0.5f) 
+     * @param threshold the trigger threshold in the range [0, 1] (default: 0.5f)
      */
     public void setJoysticksTriggerToButtonThreshold(float threshold) {
         putFloat("JoysticksTriggerToButtonThreshold", threshold);
@@ -1579,7 +1596,7 @@ public final class AppSettings extends HashMap<String, Object> {
 
     /**
      * Sets the jitter threshold for joystick axes.
-     * 
+     *
      * <p>
      * Axis movements with a delta smaller than this threshold will be ignored. This is intended to reduce
      * noise from analog joysticks.
@@ -1590,7 +1607,7 @@ public final class AppSettings extends HashMap<String, Object> {
 
     /**
      * Gets the jitter threshold for joystick axes.
-     * 
+     *
      * @return the jitter threshold
      * @see #setJoysticksAxisJitterThreshold(float)
      */
@@ -1600,7 +1617,7 @@ public final class AppSettings extends HashMap<String, Object> {
 
     /**
      * Set resource path for a custom SDL game controller database.
-     * 
+     *
      * @param path
      */
     public void setSDLGameControllerDBResourcePath(String path) {
@@ -1609,7 +1626,7 @@ public final class AppSettings extends HashMap<String, Object> {
 
     /**
      * Get resource path for a custom SDL game controller database.
-     * 
+     *
      * @return resource path
      */
     public String getSDLGameControllerDBResourcePath() {
