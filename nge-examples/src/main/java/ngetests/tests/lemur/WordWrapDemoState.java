@@ -31,12 +31,19 @@
  */
 
 package ngetests.tests.lemur;
+import org.ngengine.gui.ActionButton;
+import org.ngengine.gui.CallMethodAction;
+import org.ngengine.gui.Command;
+import org.ngengine.gui.Container;
+import org.ngengine.gui.Label;
+import org.ngengine.gui.NGEGui;
+
 import com.jme3.app.Application;
 import com.jme3.app.state.BaseAppState;
 
-import com.simsilica.lemur.*;
-import com.simsilica.lemur.nav.PopupHandler;
-import com.simsilica.lemur.style.ElementId;
+import org.ngengine.gui.*;
+import org.ngengine.gui.nav.PopupHandler;
+import org.ngengine.gui.style.ElementId;
 
 
 /**

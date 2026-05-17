@@ -31,12 +31,21 @@
  */
 
 package ngetests.tests.lemur;
+import org.ngengine.gui.ActionButton;
+import org.ngengine.gui.Axis;
+import org.ngengine.gui.CallMethodAction;
+import org.ngengine.gui.Command;
+import org.ngengine.gui.Container;
+import org.ngengine.gui.Label;
+import org.ngengine.gui.NGEGui;
+import org.ngengine.gui.TextField;
+
 import com.jme3.app.Application;
 import com.jme3.app.state.BaseAppState;
 
-import com.simsilica.lemur.*;
-import com.simsilica.lemur.component.SpringGridLayout;
-import com.simsilica.lemur.style.ElementId;
+import org.ngengine.gui.*;
+import org.ngengine.gui.component.SpringGridLayout;
+import org.ngengine.gui.style.ElementId;
 
 /**
  *  A demo of a Textfield that allows direct entry as well as provides

@@ -40,7 +40,6 @@
 
 package org.ngengine.gui;
 
-import java.util.Vector;
 import java.util.WeakHashMap;
 
 import com.jme3.bounding.BoundingBox;
@@ -52,12 +51,9 @@ import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.shape.Quad;
 import com.jme3.util.TempVars;
-import com.simsilica.lemur.GuiContext;
-import com.simsilica.lemur.NGEGui;
-import com.simsilica.lemur.Panel;
-import com.simsilica.lemur.anim.Animation;
-import com.simsilica.lemur.effect.AbstractEffect;
-import com.simsilica.lemur.effect.EffectInfo;
+import org.ngengine.gui.anim.Animation;
+import org.ngengine.gui.effect.AbstractEffect;
+import org.ngengine.gui.effect.EffectInfo;
 
 public class NGEFocusEffect extends AbstractEffect<Panel> {
     private final boolean onFocus;

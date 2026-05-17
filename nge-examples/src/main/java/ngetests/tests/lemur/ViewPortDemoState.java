@@ -33,6 +33,14 @@
 package ngetests.tests.lemur;
 import java.util.logging.Logger;
 
+import org.ngengine.gui.ActionButton;
+import org.ngengine.gui.Button;
+import org.ngengine.gui.CallMethodAction;
+import org.ngengine.gui.Command;
+import org.ngengine.gui.Container;
+import org.ngengine.gui.Label;
+import org.ngengine.gui.NGEGui;
+
 import com.jme3.app.Application;
 import com.jme3.app.state.AppStateManager;
 import com.jme3.app.state.BaseAppState;
@@ -43,9 +51,9 @@ import com.jme3.renderer.ViewPort;
 import com.jme3.renderer.queue.GuiComparator;
 import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.*;
-import com.simsilica.lemur.*;
-import com.simsilica.lemur.nav.DefaultNavigatorInputHandler;
-import com.simsilica.lemur.style.ElementId;
+import org.ngengine.gui.*;
+import org.ngengine.gui.nav.DefaultNavigatorInputHandler;
+import org.ngengine.gui.style.ElementId;
 
 /**
  *  

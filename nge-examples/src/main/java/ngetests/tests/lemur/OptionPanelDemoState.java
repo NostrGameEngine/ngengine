@@ -32,12 +32,12 @@
 
 package ngetests.tests.lemur;
 
+import org.ngengine.gui.CallMethodAction;
+import org.ngengine.gui.NGEGui;
+import org.ngengine.gui.OptionPanelState;
+
 import com.jme3.app.Application;
 import com.jme3.app.state.BaseAppState;
-
-import com.simsilica.lemur.CallMethodAction;
-import com.simsilica.lemur.NGEGui;
-import com.simsilica.lemur.OptionPanelState;
 
 /**
  *  A quick demo of the option panel.

@@ -35,7 +35,7 @@ package ngetests.tests.gui;
 import org.ngengine.components.AbstractComponent;
 import org.ngengine.components.Component;
 import org.ngengine.components.ComponentManager;
-import org.ngengine.gui.win.NWindowManagerComponent;
+import org.ngengine.gui.guix.win.NWindowManagerComponent;
 
 public class MainComponent extends AbstractComponent {
 

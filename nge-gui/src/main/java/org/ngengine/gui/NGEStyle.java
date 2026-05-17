@@ -44,32 +44,18 @@ import com.jme3.material.Material;
 import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector2f;
-import com.simsilica.lemur.Button;
-import com.simsilica.lemur.Checkbox;
-import com.simsilica.lemur.Container;
-
-import com.simsilica.lemur.HAlignment;
-import com.simsilica.lemur.Insets3f;
-import com.simsilica.lemur.ListBox;
-import com.simsilica.lemur.NGEGui;
-import com.simsilica.lemur.Panel;
-import com.simsilica.lemur.ProgressBar;
-import com.simsilica.lemur.Selector;
-import com.simsilica.lemur.Slider;
-import com.simsilica.lemur.TextField;
-import com.simsilica.lemur.VAlignment;
-import com.simsilica.lemur.component.IconComponent;
-import com.simsilica.lemur.component.QuadBackgroundComponent;
-import com.simsilica.lemur.component.SpringGridLayout;
-import com.simsilica.lemur.component.TbtQuadBackgroundComponent;
-import com.simsilica.lemur.style.Attributes;
-import com.simsilica.lemur.style.ElementId;
-import com.simsilica.lemur.style.Styles;
+import org.ngengine.gui.component.IconComponent;
+import org.ngengine.gui.component.QuadBackgroundComponent;
+import org.ngengine.gui.component.SpringGridLayout;
+import org.ngengine.gui.component.TbtQuadBackgroundComponent;
+import org.ngengine.gui.guix.NSVGIcon;
+import org.ngengine.gui.style.Attributes;
+import org.ngengine.gui.style.ElementId;
+import org.ngengine.gui.style.Styles;
 import java.util.List;
 import java.util.Map;
 
 import org.ngengine.DevMode;
-import org.ngengine.gui.components.NSVGIcon;
 import org.ngengine.platform.NGEUtils;
 
 public class NGEStyle {
@@ -184,8 +170,8 @@ public class NGEStyle {
             highlightMat.setColor("Color", colorRGBA);
 
             glob.set("effects", Map.of(
-                "focus", new NGEFocusEffect(true,highlightMat),
-                "unfocus", new NGEFocusEffect(false,highlightMat)
+                "focus", new FocusEffect(true,highlightMat),
+                "unfocus", new FocusEffect(false,highlightMat)
             ));
         
 
@@ -258,9 +244,9 @@ public class NGEStyle {
 
         {
             Attributes attrs = styles.getSelector(Checkbox.ELEMENT_ID, NAME);
-            IconComponent on = new IconComponent("/com/simsilica/lemur/icons/Check.png", 1.2f,
+            IconComponent on = new IconComponent("/org/ngengine/gui/icons/Check.png", 1.2f,
                                    2, 2, 0.01f, false);
-            IconComponent off = new IconComponent("/com/simsilica/lemur/icons/Check.png", 1.2f,
+            IconComponent off = new IconComponent("/org/ngengine/gui/icons/Check.png", 1.2f,
                                     2, 2, 0.01f, false);
             off.setColor(new ColorRGBA(0,0,0,0));
 
@@ -344,7 +330,7 @@ public class NGEStyle {
             warnLabel.set("fontSize", vmin(1.9f));
             warnLabel.set("insets", new Insets3f(vmin(2), vmin(2), vmin(2), vmin(2)));
             TbtQuadBackgroundComponent border = TbtQuadBackgroundComponent.create(
-                "/com/simsilica/lemur/icons/border.png",
+                "/org/ngengine/gui/icons/border.png",
                 1,
                 6,
                 6,
@@ -425,12 +411,12 @@ public class NGEStyle {
             int squareSize = (int) (vmin(2.8f));
 
             Attributes checkbox = styles.getSelector("checkbox", NAME);
-            IconComponent on = new NSVGIcon("icons/outline/square-check.svg", squareSize, squareSize);
+            IconComponent on = new NSVGIcon("org/ngengine/gui/icons/outline/square-check.svg", squareSize, squareSize);
             on.setColor(new ColorRGBA(0.5f, 0.9f, 0.9f, 0.9f));
             on.setMargin(5, 0);
             on.setColor(lightPurple);
 
-            IconComponent off = new NSVGIcon("icons/outline/square.svg", squareSize, squareSize);
+            IconComponent off = new NSVGIcon("org/ngengine/gui/icons/outline/square.svg", squareSize, squareSize);
             off.setColor(new ColorRGBA(0.6f, 0.8f, 0.8f, 0.8f));
             off.setMargin(5, 0);
             off.setColor(lightPurple);
@@ -525,7 +511,7 @@ public class NGEStyle {
 
             {
                 int iconSize = vmin(2.1f);
-                NSVGIcon on = new NSVGIcon("icons/outline/x.svg", iconSize, iconSize);
+                NSVGIcon on = new NSVGIcon("org/ngengine/gui/icons/outline/x.svg", iconSize, iconSize);
 
                 Attributes closeBtn = styles.getSelector("toast.close.iconButton", NAME);
                 closeBtn.set("iconSize", vmin(2.1f));
@@ -537,7 +523,7 @@ public class NGEStyle {
             {
                 int iconSize = vmin(2.1f);
                 Attributes toastIcon = styles.getSelector("toast.iconButton", NAME);
-                NSVGIcon on = new NSVGIcon("icons/outline/info-square-rounded.svg", iconSize, iconSize);
+                NSVGIcon on = new NSVGIcon("org/ngengine/gui/icons/outline/info-square-rounded.svg", iconSize, iconSize);
                 toastIcon.set("color", lightPurple);
                 toastIcon.set("svgIconComponent",on );
             }
@@ -545,14 +531,14 @@ public class NGEStyle {
             {
                 Attributes errorToastIcon = styles.getSelector("error.toast.iconButton", NAME);
                 int iconSize = vmin(2.1f);
-                NSVGIcon on = new NSVGIcon("icons/outline/alert-triangle.svg", iconSize, iconSize);
+                NSVGIcon on = new NSVGIcon("org/ngengine/gui/icons/outline/alert-triangle.svg", iconSize, iconSize);
                 errorToastIcon.set("svgIconComponent",on );
             }
 
             {
                 Attributes warningToastIcon = styles.getSelector("warning.toast.iconButton", NAME);
                 int iconSize = vmin(2.1f);
-                NSVGIcon on = new NSVGIcon("icons/outline/alert-triangle.svg", iconSize, iconSize);
+                NSVGIcon on = new NSVGIcon("org/ngengine/gui/icons/outline/alert-triangle.svg", iconSize, iconSize);
                 warningToastIcon.set("svgIconComponent",on );
             }
 

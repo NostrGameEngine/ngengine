@@ -32,6 +32,7 @@
 
 package ngetests.tests.lemur;
 
+import org.ngengine.gui.NGEGui;
 import org.ngengine.gui.NGEStyle;
 
 import com.jme3.app.*;
@@ -52,10 +53,9 @@ import com.jme3.input.event.MouseMotionEvent;
 import com.jme3.input.event.TouchEvent;
 import com.jme3.math.ColorRGBA;
 import com.jme3.system.AppSettings;
-import com.simsilica.lemur.NGEGui;
-import com.simsilica.lemur.ime.PhysicalKeyboardImeComposer;
-import com.simsilica.lemur.nav.DefaultNavigatorInputHandler;
-import com.simsilica.lemur.nav.Navigator;
+import org.ngengine.gui.ime.PhysicalKeyboardImeComposer;
+import org.ngengine.gui.nav.DefaultNavigatorInputHandler;
+import org.ngengine.gui.nav.Navigator;
 
 public class DemoLauncher extends SimpleApplication implements RawInputListener {
 

@@ -1,0 +1,132 @@
+/*
+ * $Id$
+ * 
+ * Copyright (c) 2014, Simsilica, LLC
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions 
+ * are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright 
+ *    notice, this list of conditions and the following disclaimer.
+ * 
+ * 2. Redistributions in binary form must reproduce the above copyright 
+ *    notice, this list of conditions and the following disclaimer in 
+ *    the documentation and/or other materials provided with the 
+ *    distribution.
+ * 
+ * 3. Neither the name of the copyright holder nor the names of its 
+ *    contributors may be used to endorse or promote products derived 
+ *    from this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS 
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE 
+ * COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, 
+ * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR 
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, 
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED 
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+package org.ngengine.gui.list;
+
+import java.util.function.Function;
+
+import org.ngengine.gui.Button;
+import org.ngengine.gui.Panel;
+
+import org.ngengine.gui.style.ElementId;
+
+
+/**
+ *
+ *  @author    Paul Speed
+ */
+public class DefaultCellRenderer<T> implements CellRenderer<T>, Cloneable {
+
+    private ElementId elementId;
+    private Function<T, String> transform;
+    
+    public DefaultCellRenderer() {
+        this(null);
+    }
+
+    public DefaultCellRenderer(ElementId elementId) {
+        this( elementId, null);
+    }
+    
+    public DefaultCellRenderer(ElementId elementId, Function<T, String> transform) {
+        this.elementId = elementId;
+        this.transform = transform;
+    }
+
+
+    @Override
+    @SuppressWarnings("unchecked") 
+    public DefaultCellRenderer<T> clone() {
+        try {
+            return (DefaultCellRenderer<T>)super.clone();
+        } catch( CloneNotSupportedException e ) {
+            throw new RuntimeException("Error cloning", e);
+        }
+    }
+
+    /**
+     *  Default implementation uses the specified style unless the renderer
+     *  already has an elementId and style set. 
+     */
+    @Override
+    public void configureStyle( ElementId elementId ) {
+        if( this.elementId == null ) {
+            this.elementId = elementId;
+        }
+       
+    }
+    
+    public void setTransform( Function<T, String> transform ) {
+        this.transform = transform;
+    }
+    
+    public Function<T, String> getTransform() {
+        return transform;
+    } 
+ 
+    /**
+     *  This was a typo that went into a release.  Use getElementId() instead.
+     */
+    @Deprecated 
+    public ElementId getElement() {
+        return elementId;
+    }
+
+    public ElementId getElementId() {
+        return elementId;
+    }
+    
+
+    
+    protected String valueToString( T value ) {
+        if( transform != null ) {
+            return transform.apply(value);
+        }
+        return String.valueOf(value);
+    }
+
+    @Override
+    public Panel getView( T value, boolean selected, Panel existing ) {
+        if( existing == null ) {
+            existing = new Button(valueToString(value), elementId);
+        } else {
+            ((Button)existing).setText(valueToString(value));
+        }
+        return existing;
+    }
+}
+
+

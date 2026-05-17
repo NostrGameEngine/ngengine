@@ -31,16 +31,23 @@
  */
 
 package ngetests.tests.lemur;
+import org.ngengine.gui.ActionButton;
+import org.ngengine.gui.CallMethodAction;
+import org.ngengine.gui.Command;
+import org.ngengine.gui.Container;
+import org.ngengine.gui.Label;
+import org.ngengine.gui.NGEGui;
+
 import com.jme3.app.Application;
 import com.jme3.app.state.BaseAppState;
 import com.jme3.font.*;
 import com.jme3.math.*;
 
-import com.simsilica.lemur.*;
-import com.simsilica.lemur.component.QuadBackgroundComponent;
-import com.simsilica.lemur.style.Attributes;
-import com.simsilica.lemur.style.ElementId;
-import com.simsilica.lemur.style.Styles;
+import org.ngengine.gui.*;
+import org.ngengine.gui.component.QuadBackgroundComponent;
+import org.ngengine.gui.style.Attributes;
+import org.ngengine.gui.style.ElementId;
+import org.ngengine.gui.style.Styles;
 
 /**
  *  A demo of text styling.

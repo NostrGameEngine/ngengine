@@ -1,0 +1,412 @@
+/**
+ * Copyright (c) 2026, Nostr Game Engine
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
+ * the BSD 3-Clause License. 
+ * 
+ * #########################################
+ * 
+ * nge-gui is built and based on Lemur, which is licensed under the BSD 3-Clause License.
+ * - Copyright (c) 2012-2026 jMonkeyEngine All rights reserved. 
+ * - Copyright (c) 2016-2026, Simsilica, LLC All rights reserved.
+ * 
+ * https://github.com/jMonkeyEngine-Contributions/Lemur
+ */
+
+package org.ngengine.gui.guix;
+
+import com.jme3.input.event.MouseButtonEvent;
+import com.jme3.input.event.MouseMotionEvent;
+import com.jme3.math.ColorRGBA;
+import com.jme3.math.Vector3f;
+import com.jme3.scene.Spatial;
+import com.jme3.texture.Image;
+import com.jme3.texture.Image.Format;
+import com.jme3.texture.Texture;
+import com.jme3.texture.Texture2D;
+import com.jme3.texture.image.ColorSpace;
+import com.jme3.texture.image.ImageRaster;
+import com.jme3.util.BufferUtils;
+import org.ngengine.gui.component.BorderLayout;
+import org.ngengine.gui.component.BoxLayout;
+import org.ngengine.gui.component.DynamicInsetsComponent;
+import org.ngengine.gui.component.QuadBackgroundComponent;
+import org.ngengine.gui.component.SpringGridLayout;
+import org.ngengine.gui.core.GuiControl;
+import org.ngengine.gui.core.GuiControlListener;
+import org.ngengine.gui.core.GuiUpdateListener;
+import org.ngengine.gui.nav.FocusListener;
+import org.ngengine.gui.nav.ScrollDirection;
+// import org.ngengine.gui.event.MouseListener;
+import org.ngengine.gui.style.ElementId;
+import org.ngengine.gui.style.StyleAttribute;
+import java.util.function.Consumer;
+
+import org.ngengine.gui.Axis;
+import org.ngengine.gui.Container;
+import org.ngengine.gui.FillMode;
+import org.ngengine.gui.HAlignment;
+import org.ngengine.gui.Label;
+import org.ngengine.gui.NGEGui;
+import org.ngengine.gui.VAlignment;
+import org.ngengine.gui.qr.QrCode;
+import org.ngengine.platform.NGEPlatform;
+
+public class NQrViewer extends Container implements GuiControlListener, GuiUpdateListener, FocusListener {
+
+    public static final String ELEMENT_ID = "qr";
+
+    public enum ErrorCorrectionLevel {
+        LOW,
+        MEDIUM,
+        QUARTILE,
+        HIGH,
+    }
+
+    protected String value;
+    protected boolean secret = true;
+    protected boolean show = false;
+    protected ErrorCorrectionLevel errorCorrectionLevel = ErrorCorrectionLevel.MEDIUM;
+    protected final QuadBackgroundComponent background = new NAspectPreservingQuadBackground();
+    protected ColorRGBA lightColor;
+    protected ColorRGBA darkPixelsColor;
+
+    protected Label label = new Label("", new ElementId(ELEMENT_ID).child("label"));
+    protected boolean invalidated = false;
+
+    protected Container iconBar;
+    protected Container qrCode;
+    protected int qrSize = 0;
+    protected int qrPreferredSize = 100;
+
+    protected Consumer<String> copyAction;
+    protected Consumer<String> clickAction = src -> {
+        if (copyAction != null) {
+            copyAction.accept(value);
+        }
+    };
+
+    public NQrViewer() {
+        this("");
+    }
+
+    public NQrViewer(String text) {
+        super(new SpringGridLayout(Axis.Y, Axis.X, FillMode.None, FillMode.None), new ElementId(ELEMENT_ID));
+        applyStyles(NQrViewer.class);
+        
+        this.value = text;
+
+        Container qrContainer = new Container(
+            new SpringGridLayout(Axis.Y, Axis.X, FillMode.None, FillMode.None),
+            new ElementId(ELEMENT_ID).child("qrContainer")
+        );
+        setInsetsComponent(new DynamicInsetsComponent(0.5f, 0.5f, 0.5f, 0.5f));
+
+        this.iconBar = new Container(new BoxLayout(Axis.X, FillMode.None), new ElementId("qr").child("iconContainer"));
+        this.iconBar.setInsetsComponent(new DynamicInsetsComponent(0f, 1f, 0f, 0f));
+
+        this.qrCode = new Container(new BorderLayout(), new ElementId("qr").child("qrCode"));
+        this.qrCode.setBackground(background);
+
+        qrContainer.addChild(qrCode);
+        qrContainer.addChild(iconBar);
+        qrContainer.setInsetsComponent(new DynamicInsetsComponent(0.5f, 0.5f, 0.5f, 0.5f));
+
+        addChild(label);
+        addChild(qrContainer);
+
+        qrCode.getControl(GuiControl.class).addFocusChangeListener(this);
+        // qrCode.addMouseListener(this);
+        label.setTextHAlignment(HAlignment.Center);
+        label.setTextVAlignment(VAlignment.Center);
+
+        setCopyAction(src -> {
+            NGEPlatform platform = NGEPlatform.get();
+            platform.setClipboardContent(src);
+        });
+
+        getControl(GuiControl.class).addListener(this);
+        getControl(GuiControl.class).addUpdateListener(this);
+        invalidate();
+    }
+
+    public void setQrSize(int qrSize) {
+        this.qrSize = qrSize;
+        if (qrSize > qrPreferredSize) {
+            qrPreferredSize = qrSize;
+        }
+        invalidate();
+    }
+
+    public int getQrSize() {
+        return qrSize;
+    }
+
+    public void setQrPreferredSize(int qrPreferredSize) {
+        this.qrPreferredSize = qrPreferredSize;
+        invalidate();
+    }
+
+    public int getQrPreferredSize() {
+        return qrPreferredSize;
+    }
+
+    public void setLabel(String text) {
+        label.setText(text == null ? "" : text);
+    }
+
+    public void setLabelHAlignment(HAlignment alignment) {
+        label.setTextHAlignment(alignment);
+    }
+
+    public void setLabelVAlignment(VAlignment alignment) {
+        label.setTextVAlignment(alignment);
+    }
+
+    public void setCopyAction(Consumer<String> action) {
+        this.copyAction = action;
+    }
+
+    public void setClickAction(Consumer<String> action) {
+        this.clickAction = action;
+    }
+
+    @StyleAttribute(value = "lightPixelsColor", lookupDefault = false)
+    public void setLightPixelsColor(ColorRGBA color) {
+        this.lightColor = color.clone();
+        invalidate();
+    }
+
+    @StyleAttribute(value = "darkPixelsColor", lookupDefault = false)
+    public void setDarkPixelsColor(ColorRGBA color) {
+        this.darkPixelsColor = color;
+        invalidate();
+    }
+
+    public void setErrorCorrectionLevel(ErrorCorrectionLevel errorCorrectionLevel) {
+        this.errorCorrectionLevel = errorCorrectionLevel;
+        invalidate();
+    }
+
+    public boolean isSecret() {
+        return secret;
+    }
+
+    public void setIsSecret(boolean secret) {
+        this.secret = secret;
+        invalidate();
+    }
+
+    public void setValue(String value) {
+        this.value = value;
+        invalidate();
+    }
+
+    public String getValue() {
+        return value;
+    }
+
+    protected void invalidate() {
+        invalidated = true;
+    }
+
+    protected void repaint() {
+        if (qrPreferredSize <= 0) {
+            qrCode.setPreferredSize(null);
+        } else {
+            qrCode.setPreferredSize(new Vector3f(qrPreferredSize, qrPreferredSize, 0));
+        }
+
+        if (qrSize > 0) {
+            qrCode.setSize(new Vector3f(qrSize, qrSize, 0));
+        }
+
+        if (!isShown()) {
+            Texture texture = NGEGui.loadTexture("ui/blurred-qr.png", false, false);
+            background.setTexture(texture);
+            background.setColor(lightColor);
+        } else {
+            QrCode.Ecc ecc = QrCode.Ecc.MEDIUM;
+            switch (errorCorrectionLevel) {
+                case LOW:
+                    ecc = QrCode.Ecc.LOW;
+                    break;
+                case MEDIUM:
+                    ecc = QrCode.Ecc.MEDIUM;
+                    break;
+                case QUARTILE:
+                    ecc = QrCode.Ecc.QUARTILE;
+                    break;
+                case HIGH:
+                    ecc = QrCode.Ecc.HIGH;
+                    break;
+            }
+            QrCode qr = QrCode.encodeText(value, ecc);
+
+            int margin = (int) (qrSize * 0.07f);
+            Image img = toImage(qr, qrSize - margin, margin);
+            Texture2D texture = new Texture2D(img);
+            background.setTexture(texture);
+        }
+
+        this.qrCode.clearChildren();
+        this.iconBar.clearChildren();
+
+        if (isSecret()) {
+            NIconButton showBtn = new NIconButton("org/ngengine/gui/icons/outline/eye.svg");
+            NIconButton hideBtn = new NIconButton("org/ngengine/gui/icons/outline/eye-off.svg");
+
+            showBtn.addClickCommands(src -> {
+                if (!show) {
+                    show = true;
+                    invalidate();
+                }
+            });
+
+            hideBtn.addClickCommands(src -> {
+                if (show) {
+                    show = false;
+                    invalidate();
+                }
+            });
+
+            showBtn.setInsetsComponent(new DynamicInsetsComponent(0.5f, 0.5f, 0.5f, 0.5f));
+            this.iconBar.addChild(hideBtn);
+
+            if (!isShown()) {
+                hideBtn.setAlpha(0);
+                showBtn.setAlpha(1);
+                this.qrCode.addChild(showBtn, BorderLayout.Position.Center, BorderLayout.Position.Center);
+            } else {
+                showBtn.setAlpha(0);
+                hideBtn.setAlpha(1);
+                showBtn.removeFromParent();
+            }
+        }
+
+        if (copyAction != null) {
+            NIconButton copyBtn = new NIconButton("org/ngengine/gui/icons/outline/copy.svg");
+            copyBtn.setInsetsComponent(new DynamicInsetsComponent(0.5f, 0.5f, 0.5f, 0.5f));
+            copyBtn.addClickCommands(src -> {
+                clickAction.accept(value);
+            });
+            this.iconBar.addChild(copyBtn);
+        }
+    }
+
+    public boolean isShown() {
+        return !secret || show;
+    }
+
+    protected Image toImage(QrCode qr, int qrSize, int margin) {
+        int size = qrSize + margin * 2;
+        Image img = new Image(
+            Format.RGBA8,
+            size,
+            size,
+            BufferUtils.createByteBuffer(size * size * Format.RGBA8.getBitsPerPixel() / 8),
+            null,
+            ColorSpace.Linear
+        );
+        ImageRaster imgr = ImageRaster.create(img);
+
+        for (int y = 0; y < size; y++) {
+            for (int x = 0; x < size; x++) {
+                if (x < margin || y < margin || x >= size - margin || y >= size - margin) {
+                    imgr.setPixel(x, y, darkPixelsColor);
+                    continue;
+                }
+
+                int xQr = (int) ((float) (x - margin) / (float) qrSize * qr.size);
+                int yQr = (int) ((float) (y - margin) / (float) qrSize * qr.size);
+                boolean color = qr.getModule(xQr, yQr);
+                imgr.setPixel(x, y, color ? lightColor : darkPixelsColor);
+            }
+        }
+        return img;
+    }
+
+    @Override
+    public void reshape(GuiControl source, Vector3f pos, Vector3f size) {
+        //  invalidate();
+    }
+
+    @Override
+    public void focusGained(GuiControl source) {}
+
+    @Override
+    public void focusLost(GuiControl source) {}
+
+    @Override
+    public void guiUpdate(GuiControl source, float tpf) {
+        if (invalidated) {
+            repaint();
+            invalidated = false;
+        }
+    }
+
+    @Override
+    public void focusGained(Spatial target) {
+    }
+
+    @Override
+    public void focusLost(Spatial target) {
+    }
+
+    @Override
+    public void focusAction(Spatial target,     boolean pressed) {
+            if (this.isShown()) {
+                clickAction.accept(value);
+            }
+        
+    }
+
+    @Override
+    public void focusScrollUpdate(Spatial target,  ScrollDirection dir, double value) {
+        
+      
+    }
+
+    // @Override
+    // public void mouseButtonEvent(MouseButtonEvent event, Spatial target, Spatial capture) {
+    //     if (event.isPressed() && event.getButtonIndex() == 0) {
+    //         if (this.isShown()) {
+    //             clickAction.accept(value);
+    //         }
+    //     }
+    // }
+
+    // @Override
+    // public void mouseEntered(MouseMotionEvent event, Spatial target, Spatial capture) {}
+
+    // @Override
+    // public void mouseExited(MouseMotionEvent event, Spatial target, Spatial capture) {}
+
+    // @Override
+    // public void mouseMoved(MouseMotionEvent event, Spatial target, Spatial capture) {}
+}

@@ -34,7 +34,7 @@ package ngetests.tests.gui;
 import org.ngengine.Components;
 import org.ngengine.NGEApplication;
 import org.ngengine.NGEApplication.NGEAppRunner;
-import org.ngengine.gui.win.NWindowManagerComponent;
+import org.ngengine.gui.guix.win.NWindowManagerComponent;
 import org.ngengine.platform.NGEPlatform;
 import org.ngengine.platform.jvm.JVMAsyncPlatform;
 

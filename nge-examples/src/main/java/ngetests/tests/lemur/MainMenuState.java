@@ -35,13 +35,23 @@ package ngetests.tests.lemur;
 import java.util.*;
 import java.util.logging.Logger;
 
+import org.ngengine.gui.ActionButton;
+import org.ngengine.gui.Button;
+import org.ngengine.gui.CallMethodAction;
+import org.ngengine.gui.Checkbox;
+import org.ngengine.gui.Command;
+import org.ngengine.gui.Container;
+import org.ngengine.gui.Insets3f;
+import org.ngengine.gui.Label;
+import org.ngengine.gui.NGEGui;
+
 import com.jme3.app.Application;
 import com.jme3.app.state.AppState;
 import com.jme3.app.state.BaseAppState;
 import com.jme3.math.*;
 import com.jme3.scene.*;
 
-import com.simsilica.lemur.*;
+import org.ngengine.gui.*;
 
 /**
  *

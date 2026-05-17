@@ -31,17 +31,17 @@
  */
 
 package ngetests.tests.gui;
-import org.ngengine.gui.components.NButton;
-import org.ngengine.gui.components.NLabel;
-import org.ngengine.gui.components.NTextInput;
-import org.ngengine.gui.components.NVSpacer;
-import org.ngengine.gui.components.containers.NColumn;
-import org.ngengine.gui.components.containers.NPanel;
-import org.ngengine.gui.components.containers.NRow;
-import org.ngengine.gui.win.NWindow;
+import org.ngengine.gui.FillMode;
+import org.ngengine.gui.guix.NButton;
+import org.ngengine.gui.guix.NLabel;
+import org.ngengine.gui.guix.NTextInput;
+import org.ngengine.gui.guix.NVSpacer;
+import org.ngengine.gui.guix.containers.NColumn;
+import org.ngengine.gui.guix.containers.NPanel;
+import org.ngengine.gui.guix.containers.NRow;
+import org.ngengine.gui.guix.win.NWindow;
 
 import com.jme3.math.Vector3f;
-import com.simsilica.lemur.FillMode;
 
 public class MainWindow extends NWindow<Object> {
 
