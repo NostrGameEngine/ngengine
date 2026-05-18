@@ -33,7 +33,6 @@ LOCAL_SRC_FILES := \
 		Tremor/misc.c \
 		Tremor/res012.c \
 		Tremor/vorbisfile.c \
-		com_jme3_audio_plugins_NativeVorbisFile.c \
-		com_jme3_texture_plugins_StbImageLoader.c
+		com_jme3_audio_plugins_NativeVorbisFile.c
 
 include $(BUILD_SHARED_LIBRARY)

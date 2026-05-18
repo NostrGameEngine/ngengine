@@ -4,6 +4,7 @@ dependencies {
     api project(':nge-app')
     api project(':nge-gui')
     api project(':jme3-networking')
+    implementation project(':jme3-plugins')
     api 'org.jbox2d:jbox2d-library:2.2.1.1'
 
     compileOnly 'com.github.luben:zstd-jni:1.5.0-1' // for z-standard compression and decompression

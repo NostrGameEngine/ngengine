@@ -39,13 +39,13 @@ import com.jme3.asset.TextureKey;
 import com.jme3.texture.Image;
 import com.jme3.texture.Texture;
 import com.jme3.texture.Texture2D;
+import com.jme3.texture.plugins.StbImageLoader;
 
 import io.github.jmecn.tiled.core.entity.TiledImageEntity;
 import io.github.jmecn.tiled.xml.XmlNode;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.lang.reflect.Method;
 import java.util.Base64;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -149,42 +149,6 @@ public final class ImageLoader {
     }
 
     private Texture2D loadTexture2D(final byte[] data) {
-        Class<?> loaderClass = null;
-        Object loaderInstance;
-        Method loadMethod;
-
-        try {
-            // try Desktop first
-            loaderClass = Class.forName("com.jme3.texture.plugins.AWTLoader");
-        } catch (ClassNotFoundException e) {
-            logger.info("Can't find AWTLoader.");
-            try {
-                // then try Android Native Image Loader
-                loaderClass = Class.forName("com.jme3.texture.plugins.AndroidNativeImageLoader");
-            } catch (ClassNotFoundException e1) {
-                logger.info("Can't find AndroidNativeImageLoader.");
-                try {
-                    // then try Android BufferImage Loader
-                    loaderClass = Class.forName("com.jme3.texture.plugins.AndroidBufferImageLoader");
-                } catch (ClassNotFoundException e2) {
-                    logger.info("Can't find AndroidNativeImageLoader.");
-                }
-            }
-        }
-
-        if (loaderClass == null) {
-            return null;
-        } else {
-            // try Desktop first
-            try {
-                loaderInstance = loaderClass.getConstructor().newInstance();
-                loadMethod = loaderClass.getMethod("load", AssetInfo.class);
-            } catch (ReflectiveOperationException e) {
-                logger.log(Level.SEVERE, "Can't find loader class.", e);
-                throw new IllegalArgumentException("Can't find AWTLoader.");
-            }
-        }
-
         TextureKey texKey = new TextureKey();
         AssetInfo info = new AssetInfo(assetManager, texKey) {
             public InputStream openStream() {
@@ -194,7 +158,7 @@ public final class ImageLoader {
 
         Texture2D tex = null;
         try {
-            Image img = (Image) loadMethod.invoke(loaderInstance, info);
+            Image img = (Image) new StbImageLoader().load(info);
 
             tex = new Texture2D();
             tex.setWrap(Texture.WrapMode.EdgeClamp);

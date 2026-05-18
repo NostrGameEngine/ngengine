@@ -43,7 +43,6 @@ import com.jme3.scene.Spatial;
 import com.jme3.scene.plugins.OBJLoader;
 import com.jme3.shader.ShaderGenerator;
 import com.jme3.texture.Texture;
-import com.jme3.texture.plugins.TGALoader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -73,7 +72,6 @@ import java.util.List;
  * Some examples of loaders:
  * <ul>
  * <li>{@link OBJLoader} - Used to load Wavefront .OBJ model files</li>
- * <li>{@link TGALoader} - Used to load Targa image files</li>
  * </ul>
  * <p>
  * Once the asset has been loaded, it will be 

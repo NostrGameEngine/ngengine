@@ -10,7 +10,6 @@ dependencies {
     api project(':nge-gui')
     api project(':nge-auth')
     api project(':nge-ads')
-    implementation 'org.sejda.imageio:webp-imageio:0.1.6'
 
 }
 

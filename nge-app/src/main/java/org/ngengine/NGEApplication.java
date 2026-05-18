@@ -34,16 +34,11 @@ package org.ngengine;
 
 import com.jme3.app.LostFocusBehavior;
 import com.jme3.app.SimpleApplication;
-import com.jme3.asset.AssetConfig;
 import com.jme3.system.AppSettings;
-import com.jme3.system.JmeSystem;
-import com.jme3.system.Platform;
-import com.jme3.util.res.Resources;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.function.Consumer;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.ngengine.ads.ImmersiveAdComponent;
 import org.ngengine.auth.AuthSelectionWindow;
@@ -99,17 +94,6 @@ public class NGEApplication implements ComponentManagerProvider{
             ComponentManagerAppState cmng = new ComponentManagerAppState(ngeapp.getAppSettings());
 
             AsyncAssetManager assetManager = AsyncAssetManager.of(this.assetManager, this);
-
-            try {
-                if (
-                    JmeSystem.getPlatform().getOs() != Platform.Os.Web
-                    && (JmeSystem.getPlatform().getOs() != Platform.Os.MacOS || !JmeSystem.getPlatform().isGraalVM())
-                ) {
-                    AssetConfig.loadText(assetManager, Resources.getResource("com/jme3/asset/Awt.cfg"));
-                }
-            } catch (Exception e) {
-                logger.log(Level.WARNING, "Failed to load NGE configuration file", e);
-            }
 
             NGEGui.initialize(assetManager);
             stateManager.attach(new DevMode());
