@@ -232,12 +232,6 @@ public class RenderContext {
      */
     public int boundRB;
 
-
-    /**
-     * Convert writes to srgb target from linear space to srgb
-     */
-    public boolean srgbWriteEnabled;
-  
     /**
      * Currently bound element array vertex buffer.
      *

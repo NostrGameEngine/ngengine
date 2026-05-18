@@ -3807,7 +3807,6 @@ public final class GLRenderer implements Renderer {
 //        }
     }
 
-    private boolean mainFrameBufferSrgb = false;
     @Override
     public void setMainFrameBufferSrgb(boolean enableSrgb) {
         // Gamma correction
