@@ -69,7 +69,11 @@ public class TmxLoader implements AssetLoader {
                 return tilesetLoader.load(assetInfo.openStream());
             case TiledConst.TX_EXTENSION:
                 ObjectLayerLoader objectLayerLoader = new ObjectLayerLoader(assetManager, key, null);
-                return objectLayerLoader.loadObjectTemplate(assetInfo.openStream());
+                Object template = objectLayerLoader.loadObjectTemplate(assetInfo.openStream());
+                if (template instanceof io.github.jmecn.tiled.core.TiledObjectTemplate) {
+                    ((io.github.jmecn.tiled.core.TiledObjectTemplate) template).setSource(key.getName());
+                }
+                return template;
             default:
                 return null;
         }

@@ -521,7 +521,18 @@ public class TiledMap extends TiledBase  implements ComponentManagerProvider{
     }
 
     public TiledObjectTemplate getObjectTemplate(String source) {
-        return templateMap.get(source);
+        TiledObjectTemplate objectTemplate = templateMap.get(source);
+        if (objectTemplate != null) {
+            return objectTemplate;
+        }
+
+        for (Entry<String, TiledObjectTemplate> entry : templateMap.entrySet()) {
+            String key = entry.getKey();
+            if (source.endsWith(key) || key.endsWith(source)) {
+                return entry.getValue();
+            }
+        }
+        return null;
     }
 
     /**
