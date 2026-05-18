@@ -2,7 +2,16 @@
 dependencies {
     api project(':nge-core')
     api project(':jme3-networking')
+    testRuntimeOnly "org.ngengine:nge-platform-jvm:${ngePlatformVersion}"
 
+}
+
+configurations {
+    testRuntimeClasspath {
+        attributes {
+            attribute(org.gradle.api.attributes.java.TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 21)
+        }
+    }
 }
 
 javadoc {

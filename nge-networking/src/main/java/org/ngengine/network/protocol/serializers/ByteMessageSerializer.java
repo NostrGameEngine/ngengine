@@ -35,6 +35,7 @@ package org.ngengine.network.protocol.serializers;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import org.ngengine.network.protocol.GrowableByteBuffer;
+import org.ngengine.network.protocol.VarInt;
 import org.ngengine.network.protocol.messages.ByteDataMessage;
 
 public class ByteMessageSerializer extends DynamicSerializer {
@@ -43,10 +44,18 @@ public class ByteMessageSerializer extends DynamicSerializer {
     public <T> T readObject(ByteBuffer buffer, Class<T> c) throws IOException {
         try {
             ByteDataMessage message = (ByteDataMessage) c.getDeclaredConstructor().newInstance();
-            int length = buffer.getInt();
+            long len = VarInt.decodeUnsigned(buffer);
+            if (len > Integer.MAX_VALUE) {
+                throw new IOException("ByteMessage length too large: " + len);
+            }
+            int length = (int) len;
+            if (length > buffer.remaining()) {
+                throw new IOException("Invalid ByteMessage length: " + length);
+            }
             ByteBuffer bbf = buffer.slice();
             bbf.limit(length);
             message.setData(bbf.slice());
+            buffer.position(buffer.position() + length);
             return (T) message;
         } catch (Exception e) {
             throw new IOException("Error deserializing ByteMessage", e);
@@ -56,9 +65,10 @@ public class ByteMessageSerializer extends DynamicSerializer {
     @Override
     public void writeObject(GrowableByteBuffer buffer, Object object) throws IOException {
         ByteDataMessage message = (ByteDataMessage) object;
-        ByteBuffer data = message.getData().slice();
-        if (data == null) throw new IOException("The message data is null");
-        buffer.putInt(data.remaining());
+        ByteBuffer dataRef = message.getData();
+        if (dataRef == null) throw new IOException("The message data is null");
+        ByteBuffer data = dataRef.slice();
+        VarInt.encodeUnsigned(data.remaining(), buffer);
         buffer.put(data);
     }
 }

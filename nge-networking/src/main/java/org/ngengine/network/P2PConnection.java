@@ -41,33 +41,32 @@ import com.jme3.network.Server;
 import com.jme3.network.base.MessageListenerRegistry;
 import com.jme3.network.base.MessageProtocol;
 import com.jme3.network.service.HostedServiceManager;
-import com.jme3.network.service.serializer.ServerSerializerRegistrationsService;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 import org.ngengine.network.protocol.DynamicSerializerProtocol;
 import org.ngengine.network.protocol.messages.ClassRegistrationAckMessage;
 import org.ngengine.nostr4j.NostrPool;
+import org.ngengine.nostr4j.RTCSettings;
 import org.ngengine.nostr4j.keypair.NostrKeyPair;
 import org.ngengine.nostr4j.keypair.NostrPrivateKey;
 import org.ngengine.nostr4j.rtc.NostrRTCRoom;
+import org.ngengine.nostr4j.rtc.NostrTURNPool;
 import org.ngengine.nostr4j.rtc.listeners.NostrRTCRoomPeerDiscoveredListener;
 import org.ngengine.nostr4j.rtc.signal.NostrRTCLocalPeer;
-import org.ngengine.nostr4j.rtc.turn.NostrTURNSettings;
+import org.ngengine.nostr4j.rtc.signal.NostrRTCPeer;
 import org.ngengine.nostr4j.signer.NostrSigner;
 import org.ngengine.platform.NGEPlatform;
-import org.ngengine.platform.RTCSettings;
 import org.ngengine.runner.Runner;
 
-public class P2PChannel implements Server {
+public class P2PConnection implements Server {
 
-    private static final Logger log = Logger.getLogger(P2PChannel.class.getName());
+    private static final Logger log = Logger.getLogger(P2PConnection.class.getName());
     private boolean isStarted = false;
 
     private final String gameName;
@@ -77,15 +76,69 @@ public class P2PChannel implements Server {
     private final MessageListenerRegistry<HostedConnection> messageListeners = new MessageListenerRegistry<>();
     private final List<ConnectionListener> connectionListeners = new CopyOnWriteArrayList<>();
     private final List<NostrRTCRoomPeerDiscoveredListener> peerDiscoveredListeners = new CopyOnWriteArrayList<>();
+    private final AtomicInteger nextConnectionId = new AtomicInteger();
 
     private final NostrSigner localSigner;
     private final NostrPool masterServersPool;
     private final NostrRTCRoom rtcRoom;
+    private final NostrTURNPool turnPool;
 
-    private boolean forceTurn = false; // If true, all connections will use TURN servers
     private Runner dispatcher;
 
-    public P2PChannel(
+    private static String peerKeyOf(NostrRTCPeer peer) {
+        if (peer == null) {
+            return null;
+        }
+        if (peer.getPubkey() != null) {
+            return peer.getPubkey().asHex();
+        }
+        return peer.toString();
+    }
+
+    private RemotePeer findConnectionByPeer(NostrRTCPeer peer) {
+        String key = peerSessionKeyOf(peer);
+        if (key == null) {
+            return null;
+        }
+        for (RemotePeer connection : connections.values()) {
+            if (connection == null) {
+                continue;
+            }
+            String connectionKey = peerSessionKeyOf(connection.getRemotePeer());
+            if (key.equals(connectionKey)) {
+                return connection;
+            }
+        }
+        return null;
+    }
+
+    private static String peerSessionKeyOf(NostrRTCPeer peer) {
+        if (peer == null) {
+            return null;
+        }
+        String pub = peer.getPubkey() != null ? peer.getPubkey().asHex() : "null";
+        String session = peer.getSessionId() != null ? peer.getSessionId() : "null";
+        return pub + "|" + session;
+    }
+
+    private RemotePeer findConnectionByPubkey(NostrRTCPeer peer) {
+        String key = peerKeyOf(peer);
+        if (key == null) {
+            return null;
+        }
+        for (RemotePeer connection : connections.values()) {
+            if (connection == null) {
+                continue;
+            }
+            String connectionKey = peerKeyOf(connection.getRemotePeer());
+            if (key.equals(connectionKey)) {
+                return connection;
+            }
+        }
+        return null;
+    }
+
+    public P2PConnection(
         NostrSigner localSigner,
         String gameName,
         int gameVersion,
@@ -101,15 +154,27 @@ public class P2PChannel implements Server {
         this.version = gameVersion;
         this.localSigner = localSigner;
         this.masterServersPool = masterServer;
+      
+
+        NostrKeyPair roomKeyPair = new NostrKeyPair(roomKey);
+        NostrRTCLocalPeer localPeer = new NostrRTCLocalPeer(
+            localSigner, 
+            RTCSettings.PUBLIC_STUN_SERVERS, 
+            gameName,
+            gameName+":"+gameVersion,
+            roomKeyPair,
+            turnServer
+        );
+ 
+        this.turnPool = new NostrTURNPool();
 
         this.rtcRoom = new NostrRTCRoom(
             RTCSettings.DEFAULT,
-            // new NostrTURNSettings(NostrTURNSettings.CHUNK_LENGTH, NostrTURNSettings.PACKET_TIMEOUT,
-            // NostrTURNSettings.MAX_LATENCY, Duration.ofMillis(10), NostrTURNSettings.TURN_KIND),
-            NostrTURNSettings.DEFAULT,
-            new NostrRTCLocalPeer(localSigner, RTCSettings.PUBLIC_STUN_SERVERS, turnServer, new HashMap<String, Object>()),
-            new NostrKeyPair(roomKey),
-            masterServersPool
+            localPeer,
+            roomKeyPair,
+            masterServersPool,
+            turnServer,
+            turnPool
         );
 
         rtcRoom.addPeerDiscoveryListener((var1, var2, var3) -> {
@@ -120,60 +185,82 @@ public class P2PChannel implements Server {
             });
         });
 
-        rtcRoom.addConnectionListener((peerKey, socket) -> {
-            if (forceTurn) {
-                socket.setForceTURN(true);
-            }
+        rtcRoom.addPeerSocketAvailableListener((peerKey, socket) -> {
+      
             log.fine("New connection from: " + peerKey);
-
-            RemotePeer connection = new RemotePeer(connections.size(), socket, this);
+            RemotePeer existingConnection = findConnectionByPeer(socket.getRemotePeer());
+            if (existingConnection != null) {
+                log.fine("Socket available for existing peer session: " + peerSessionKeyOf(socket.getRemotePeer()));
+                return;
+            }
+            RemotePeer existingPubkeyConnection = findConnectionByPubkey(socket.getRemotePeer());
+            if (existingPubkeyConnection != null) {
+                // Session rollover for same pubkey: replace the old connection with a fresh one.
+                connections.remove(existingPubkeyConnection.getId());
+                this.dispatcher.run(() -> {
+                    for (ConnectionListener listener : connectionListeners) {
+                        listener.connectionRemoved(this, existingPubkeyConnection);
+                    }
+                });
+            }
+            RemotePeer connection = new RemotePeer(nextConnectionId.getAndIncrement(), rtcRoom, socket.getLocalPeer(), socket.getRemotePeer(), this);
             connections.put(connection.getId(), connection);
+            RemotePeer finalConnection = connection;
             this.dispatcher.run(() -> {
                 for (ConnectionListener listener : connectionListeners) {
-                    listener.connectionAdded(this, connection);
+                    listener.connectionAdded(this, finalConnection);
                 }
             });
         });
 
         rtcRoom.addDisconnectionListener((peerKey, socket) -> {
             log.fine("Connection closed: " + peerKey);
-            for (Entry<Integer, RemotePeer> entry : connections.entrySet()) {
-                if (entry.getValue().getSocket() == socket) {
-                    RemotePeer connection = entry.getValue();
-                    connections.remove(connection.getId());
-                    this.dispatcher.run(() -> {
-                        for (ConnectionListener listener : connectionListeners) {
-                            listener.connectionRemoved(this, connection);
-                        }
-                    });
-                    break;
-                }
+            RemotePeer connection = findConnectionByPeer(socket.getRemotePeer());
+            if (connection == null) {
+                return;
             }
+            connections.remove(connection.getId());
+            this.dispatcher.run(() -> {
+                for (ConnectionListener listener : connectionListeners) {
+                    listener.connectionRemoved(this, connection);
+                }
+            });
         });
 
-        rtcRoom.addMessageListener((peerKey, socket, bbf, isTurn) -> {
-            log.fine("Message from: " + peerKey);
-            for (Entry<Integer, RemotePeer> entry : connections.entrySet()) {
-                if (entry.getValue().getSocket() == socket) {
-                    RemotePeer connection = entry.getValue();
-                    MessageProtocol protocol = entry.getValue().getProtocol();
-                    Message message = protocol.toMessage(bbf);
-                    if(message instanceof ClassRegistrationAckMessage && protocol instanceof DynamicSerializerProtocol){
-                        int id = (int)((ClassRegistrationAckMessage)message).getClassId();
-                        log.fine("Class registration acknowledged by remote peer for id: " + id);
-                        DynamicSerializerProtocol dyn = (DynamicSerializerProtocol)protocol;
-                        dyn.markClassRegistered(id);
-                    }
-                    if (message == null) {
-                        log.warning("Received null message from: " + peerKey);
-                        return;
-                    }
-                    message.setReliable(true);
-                    this.dispatcher.run(() -> {
-                        messageListeners.messageReceived(connection, message);
-                    });
-                    break;
+        rtcRoom.addMessageListener((peerKey, socket, channel, bbf, isTurn) -> {
+            try{
+                RemotePeer connection = findConnectionByPeer(socket.getRemotePeer());
+                if (connection == null) {
+                    connection = findConnectionByPubkey(socket.getRemotePeer());
                 }
+                if (connection == null) {
+                    log.finer("Message received for unknown peer: " + peerKeyOf(socket.getRemotePeer()));
+                    return;
+                }
+                MessageProtocol protocol = connection.getProtocol();
+                Message message = protocol.toMessage(bbf);
+                if(message instanceof ClassRegistrationAckMessage && protocol instanceof DynamicSerializerProtocol){
+                    int id = (int)((ClassRegistrationAckMessage)message).getClassId();
+                    log.finer("Class registration acknowledged by remote peer for id: " + id);
+                    DynamicSerializerProtocol dyn = (DynamicSerializerProtocol)protocol;
+                    dyn.markClassRegistered(id);
+                }
+                if (message instanceof OpenChannelMessage) {
+                    connection.confirmOpenChannel(((OpenChannelMessage) message).getChannel());
+                    return;
+                }
+                if (message == null) {
+                    log.warning("Received null message from: " + peerKey);
+                    return;
+                }
+            
+                message.setReliable(channel.isOrdered()&&channel.isReliable());
+                RemotePeer finalConnection = connection;
+                this.dispatcher.run(() -> {
+                    messageListeners.messageReceived(finalConnection, message);
+                });
+            } catch (Throwable e) {
+                log.log(java.util.logging.Level.FINER, "Error processing message", e);
             }
         });
 
@@ -190,13 +277,10 @@ public class P2PChannel implements Server {
         return localSigner;
     }
 
-    public void setForceTurn(boolean forceTurn) {
-        this.forceTurn = forceTurn;
-    }
+    
 
     protected void addStandardServices() {
-        log.fine("Adding standard services...");
-        services.addService(new ServerSerializerRegistrationsService());
+ 
     }
 
     @Override
@@ -217,7 +301,11 @@ public class P2PChannel implements Server {
     @Override
     public void broadcast(Message message) {
         for (HostedConnection connection : connections.values()) {
-            connection.send(message);
+            if (connection instanceof RemotePeer) {
+                ((RemotePeer) connection).send(message);
+            } else {
+                connection.send(message);
+            }
         }
     }
 
@@ -225,18 +313,33 @@ public class P2PChannel implements Server {
     public void broadcast(Filter<? super HostedConnection> filter, Message message) {
         for (HostedConnection connection : connections.values()) {
             if (filter.apply(connection)) {
-                connection.send(message);
+                if (connection instanceof RemotePeer) {
+                    ((RemotePeer) connection).send(message);
+                } else {
+                    connection.send(message);
+                }
             }
         }
     }
 
     @Override
     public void broadcast(int channel, Filter<? super HostedConnection> filter, Message message) {
-        broadcast(filter, message);
+         for (HostedConnection connection : connections.values()) {
+            if (filter.apply(connection)) {
+                if (connection instanceof RemotePeer) {
+                    ((RemotePeer) connection).send(channel, message);
+                } else {
+                    connection.send(message);
+                }
+            }
+        }
     }
 
     @Override
     public void start() {
+        if (isStarted) {
+            return;
+        }
         rtcRoom.start();
         isStarted = true;
     }

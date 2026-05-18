@@ -36,18 +36,19 @@ import com.jme3.math.Vector2f;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import org.ngengine.network.protocol.GrowableByteBuffer;
+import org.ngengine.network.protocol.VarFloat;
 
 public class Vector2fSerializer extends DynamicSerializer {
 
     @Override
     public Vector2f readObject(ByteBuffer data, Class c) throws IOException {
-        return new Vector2f(data.getFloat(), data.getFloat());
+        return new Vector2f(VarFloat.decodeFloat(data), VarFloat.decodeFloat(data));
     }
 
     @Override
     public void writeObject(GrowableByteBuffer buffer, Object object) throws IOException {
         Vector2f vector = (Vector2f) object;
-        buffer.putFloat(vector.getX());
-        buffer.putFloat(vector.getY());
+        VarFloat.encodeFloat(vector.getX(), buffer);
+        VarFloat.encodeFloat(vector.getY(), buffer);
     }
 }

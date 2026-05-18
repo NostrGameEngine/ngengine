@@ -36,6 +36,7 @@ import com.jme3.math.Matrix3f;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import org.ngengine.network.protocol.GrowableByteBuffer;
+import org.ngengine.network.protocol.VarFloat;
 
 public class Matrix3fSerializer extends DynamicSerializer {
 
@@ -46,7 +47,7 @@ public class Matrix3fSerializer extends DynamicSerializer {
         int cols = 3;
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < cols; j++) {
-                float value = data.getFloat();
+                float value = VarFloat.decodeFloat(data);
                 matrix.set(i, j, value);
             }
         }
@@ -60,7 +61,7 @@ public class Matrix3fSerializer extends DynamicSerializer {
         int cols = 3;
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < cols; j++) {
-                buffer.putFloat(m.get(i, j));
+                VarFloat.encodeFloat(m.get(i, j), buffer);
             }
         }
     }

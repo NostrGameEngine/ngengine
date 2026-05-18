@@ -190,7 +190,8 @@ public class GrowableByteBuffer {
     }
 
     public void position(int newPosition) {
-        ensureCapacity(newPosition - buffer.position());
+        int delta = newPosition - buffer.position();
+        if (delta > 0) ensureCapacity(delta);
         buffer.position(newPosition);
     }
 

@@ -35,14 +35,24 @@ package org.ngengine.network.protocol.serializers;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import org.ngengine.network.protocol.GrowableByteBuffer;
+import org.ngengine.network.protocol.VarInt;
 
 public class ByteBufferSerializer extends DynamicSerializer {
 
     @Override
     public <T> T readObject(ByteBuffer buffer, Class<T> c) throws IOException {
-        int length = buffer.getInt();
+        long len = VarInt.decodeUnsigned(buffer);
+        if (len > Integer.MAX_VALUE) {
+            throw new IOException("ByteBuffer length too large: " + len);
+        }
+        int length = (int) len;
+        if (length > buffer.remaining()) {
+            throw new IOException("Invalid ByteBuffer length: " + length);
+        }
         ByteBuffer bbf = ByteBuffer.allocate(length);
-        bbf.put(buffer);
+        byte[] bytes = new byte[length];
+        buffer.get(bytes);
+        bbf.put(bytes);
         bbf.flip();
         return (T) bbf;
     }
@@ -53,7 +63,7 @@ public class ByteBufferSerializer extends DynamicSerializer {
         bbf = bbf.slice();
         byte[] bytes = new byte[bbf.remaining()];
         bbf.get(bytes);
-        buffer.putInt(bytes.length);
+        VarInt.encodeUnsigned(bytes.length, buffer);
         buffer.put(bytes);
     }
 }

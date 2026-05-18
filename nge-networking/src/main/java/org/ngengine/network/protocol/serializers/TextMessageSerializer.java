@@ -36,6 +36,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import org.ngengine.network.protocol.GrowableByteBuffer;
+import org.ngengine.network.protocol.VarInt;
 import org.ngengine.network.protocol.messages.TextDataMessage;
 
 public class TextMessageSerializer extends DynamicSerializer {
@@ -44,7 +45,14 @@ public class TextMessageSerializer extends DynamicSerializer {
     public <T> T readObject(ByteBuffer buffer, Class<T> c) throws IOException {
         try {
             TextDataMessage message = (TextDataMessage) c.getDeclaredConstructor().newInstance();
-            short length = buffer.getShort();
+            long len = VarInt.decodeUnsigned(buffer);
+            if (len > Integer.MAX_VALUE) {
+                throw new IOException("Text message length too large: " + len);
+            }
+            int length = (int) len;
+            if (length > buffer.remaining()) {
+                throw new IOException("Invalid text message length: " + length);
+            }
             byte[] bytes = new byte[length];
             buffer.get(bytes);
             String text = new String(bytes, StandardCharsets.UTF_8);
@@ -61,7 +69,7 @@ public class TextMessageSerializer extends DynamicSerializer {
         String data = message.getData();
         if (data == null) throw new IOException("The message data is null");
         byte[] bytes = data.getBytes(StandardCharsets.UTF_8);
-        buffer.putShort((short) bytes.length);
+        VarInt.encodeUnsigned(bytes.length, buffer);
         buffer.put(bytes);
     }
 }

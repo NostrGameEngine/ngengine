@@ -42,6 +42,7 @@ import java.util.logging.Logger;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
 import org.ngengine.network.protocol.GrowableByteBuffer;
+import org.ngengine.network.protocol.VarInt;
 import org.ngengine.network.protocol.messages.CompressedMessage;
 
 /**
@@ -74,10 +75,14 @@ public class CompressedMessageSerializer extends DynamicSerializer {
     @Override
     public <T> T readObject(ByteBuffer data, Class<T> c) throws IOException {
         try {
-            if (data.remaining() < 2) {
+            if (data.remaining() < 1) {
                 throw new IOException("Not enough data to read compressed message");
             }
-            int length = data.getInt();
+            long len = VarInt.decodeUnsigned(data);
+            if (len > Integer.MAX_VALUE) {
+                throw new IOException("Invalid compressed message length: " + len);
+            }
+            int length = (int) len;
 
             if (length < 0 || length > data.remaining()) {
                 throw new IOException("Invalid compressed message length: " + length);
@@ -140,7 +145,7 @@ public class CompressedMessageSerializer extends DynamicSerializer {
         deflater.end();
 
         byte[] compressedData = outputStream.toByteArray();
-        buffer.putInt(compressedData.length);
+        VarInt.encodeUnsigned(compressedData.length, buffer);
         buffer.put(compressedData);
     }
 }

@@ -35,6 +35,8 @@ package org.ngengine.network.protocol.serializers;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import org.ngengine.network.protocol.GrowableByteBuffer;
+import org.ngengine.network.protocol.VarFloat;
+import org.ngengine.network.protocol.VarInt;
 
 /**
  * Boolean serializer.
@@ -46,18 +48,26 @@ public class NumberSerializer extends DynamicSerializer {
 
     @Override
     public Number readObject(ByteBuffer data, Class c) throws IOException {
-        if (c == Byte.class) {
+        if (c == Byte.class || c == byte.class) {
             return data.get();
-        } else if (c == Short.class) {
-            return data.getShort();
-        } else if (c == Integer.class) {
-            return data.getInt();
-        } else if (c == Long.class) {
-            return data.getLong();
-        } else if (c == Float.class) {
-            return data.getFloat();
-        } else if (c == Double.class) {
-            return data.getDouble();
+        } else if (c == Short.class || c == short.class) {
+            long value = VarInt.decodeSigned(data);
+            if (value < Short.MIN_VALUE || value > Short.MAX_VALUE) {
+                throw new IOException("Decoded short out of range: " + value);
+            }
+            return (short) value;
+        } else if (c == Integer.class || c == int.class) {
+            long value = VarInt.decodeSigned(data);
+            if (value < Integer.MIN_VALUE || value > Integer.MAX_VALUE) {
+                throw new IOException("Decoded int out of range: " + value);
+            }
+            return (int) value;
+        } else if (c == Long.class || c == long.class) {
+            return VarInt.decodeSigned(data);
+        } else if (c == Float.class || c == float.class) {
+            return VarFloat.decodeFloat(data);
+        } else if (c == Double.class || c == double.class) {
+            return VarFloat.decodeDouble(data);
         } else {
             throw new IOException("Unsupported number type: " + c);
         }
@@ -68,15 +78,15 @@ public class NumberSerializer extends DynamicSerializer {
         if (object instanceof Byte) {
             buffer.put((Byte) object);
         } else if (object instanceof Short) {
-            buffer.putShort((Short) object);
+            VarInt.encodeSigned((Short) object, buffer);
         } else if (object instanceof Integer) {
-            buffer.putInt((Integer) object);
+            VarInt.encodeSigned((Integer) object, buffer);
         } else if (object instanceof Long) {
-            buffer.putLong((Long) object);
+            VarInt.encodeSigned((Long) object, buffer);
         } else if (object instanceof Float) {
-            buffer.putFloat((Float) object);
+            VarFloat.encodeFloat((Float) object, buffer);
         } else if (object instanceof Double) {
-            buffer.putDouble((Double) object);
+            VarFloat.encodeDouble((Double) object, buffer);
         } else {
             throw new IOException("Unsupported number type: " + object.getClass());
         }

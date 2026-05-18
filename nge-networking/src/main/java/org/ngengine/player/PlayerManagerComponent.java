@@ -43,13 +43,15 @@ import org.ngengine.AsyncAssetManager;
 import org.ngengine.components.AbstractComponent;
 import org.ngengine.components.Component;
 import org.ngengine.components.ComponentManager;
-import org.ngengine.network.P2PChannel;
+import org.ngengine.network.P2PConnection;
 import org.ngengine.network.RemotePeer;
 import org.ngengine.nostr4j.NostrPool;
 import org.ngengine.nostr4j.NostrRelay;
 import org.ngengine.nostr4j.keypair.NostrPublicKey;
 import org.ngengine.nostr4j.signer.NostrSigner;
 import org.ngengine.runner.MainThreadRunner;
+import org.ngengine.runner.Runner;
+import org.ngengine.store.DataStoreProvider;
 
 public class PlayerManagerComponent extends AbstractComponent {
 
@@ -171,10 +173,10 @@ public class PlayerManagerComponent extends AbstractComponent {
     }
 
     public Player getPlayer(RemotePeer peer) {
-        return getPlayer(peer.getSocket().getRemotePeer().getPubkey());
+        return getPlayer(peer.getRemotePeer().getPubkey());
     }
 
-    public LocalPlayer getPlayer(P2PChannel chan) {
+    public LocalPlayer getPlayer(P2PConnection chan) {
         return getPlayer(chan.getLocalSigner());
     }
 

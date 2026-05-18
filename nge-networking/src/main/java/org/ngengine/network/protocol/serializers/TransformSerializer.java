@@ -38,15 +38,21 @@ import com.jme3.math.Vector3f;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import org.ngengine.network.protocol.GrowableByteBuffer;
+import org.ngengine.network.protocol.VarFloat;
 
 public class TransformSerializer extends DynamicSerializer {
 
     @Override
     public Transform readObject(ByteBuffer data, Class c) throws IOException {
         return new Transform(
-            new Vector3f(data.getFloat(), data.getFloat(), data.getFloat()),
-            new Quaternion(data.getFloat(), data.getFloat(), data.getFloat(), data.getFloat()),
-            new Vector3f(data.getFloat(), data.getFloat(), data.getFloat())
+            new Vector3f(VarFloat.decodeFloat(data), VarFloat.decodeFloat(data), VarFloat.decodeFloat(data)),
+            new Quaternion(
+                VarFloat.decodeFloat(data),
+                VarFloat.decodeFloat(data),
+                VarFloat.decodeFloat(data),
+                VarFloat.decodeFloat(data)
+            ),
+            new Vector3f(VarFloat.decodeFloat(data), VarFloat.decodeFloat(data), VarFloat.decodeFloat(data))
         );
     }
 
@@ -56,15 +62,15 @@ public class TransformSerializer extends DynamicSerializer {
         Vector3f translation = transform.getTranslation();
         Quaternion rotation = transform.getRotation();
         Vector3f scale = transform.getScale();
-        buffer.putFloat(translation.getX());
-        buffer.putFloat(translation.getY());
-        buffer.putFloat(translation.getZ());
-        buffer.putFloat(rotation.getX());
-        buffer.putFloat(rotation.getY());
-        buffer.putFloat(rotation.getZ());
-        buffer.putFloat(rotation.getW());
-        buffer.putFloat(scale.getX());
-        buffer.putFloat(scale.getY());
-        buffer.putFloat(scale.getZ());
+        VarFloat.encodeFloat(translation.getX(), buffer);
+        VarFloat.encodeFloat(translation.getY(), buffer);
+        VarFloat.encodeFloat(translation.getZ(), buffer);
+        VarFloat.encodeFloat(rotation.getX(), buffer);
+        VarFloat.encodeFloat(rotation.getY(), buffer);
+        VarFloat.encodeFloat(rotation.getZ(), buffer);
+        VarFloat.encodeFloat(rotation.getW(), buffer);
+        VarFloat.encodeFloat(scale.getX(), buffer);
+        VarFloat.encodeFloat(scale.getY(), buffer);
+        VarFloat.encodeFloat(scale.getZ(), buffer);
     }
 }

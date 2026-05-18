@@ -36,7 +36,6 @@ import com.jme3.network.serializing.SerializerException;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -44,6 +43,7 @@ import java.util.function.BiFunction;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.ngengine.network.protocol.GrowableByteBuffer;
+import org.ngengine.network.protocol.ReflectionFieldSchema;
 
 /**
  * The field serializer is the default serializer used for custom class.
@@ -74,55 +74,11 @@ public class GenericMessageSerializer extends DynamicSerializer {
 
     @SuppressWarnings("unchecked")
     protected <T> Constructor<T> getConstructor(Class<?> clazz) {
-        // See if the class has a public no-arg constructor
-        try {
-            return (Constructor<T>) clazz.getConstructor();
-        } catch (NoSuchMethodException e) {
-            //throw new RuntimeException( "Registration error: no-argument constructor not found on:" + clazz );
-        }
-
-        // See if it has a non-public no-arg constructor
-        try {
-            Constructor<?> ctor = clazz.getDeclaredConstructor();
-
-            // Make sure we can call it later.
-            ctor.setAccessible(true);
-            return (Constructor<T>) ctor;
-        } catch (NoSuchMethodException e) {}
-
-        throw new RuntimeException("no-argument constructor not found on:" + clazz);
+        return (Constructor<T>) ReflectionFieldSchema.getSchema(clazz).constructor();
     }
 
     protected Collection<Field> getFields(Class<?> clazz) {
-        List<Field> fields = new ArrayList<>();
-
-        Class<?> processingClass = clazz;
-        while (processingClass != Object.class) {
-            Collections.addAll(fields, processingClass.getDeclaredFields());
-            processingClass = processingClass.getSuperclass();
-        }
-
-        List<Field> cachedFields = new ArrayList<>(fields.size());
-        for (Field field : fields) {
-            int modifiers = field.getModifiers();
-            if (Modifier.isTransient(modifiers)) continue;
-            if (Modifier.isStatic(modifiers)) continue;
-            if (field.isSynthetic()) continue;
-            field.setAccessible(true);
-
-            cachedFields.add(field);
-        }
-
-        Collections.sort(
-            cachedFields,
-            new Comparator<Field>() {
-                @Override
-                public int compare(Field o1, Field o2) {
-                    return o1.getName().compareTo(o2.getName());
-                }
-            }
-        );
-        return cachedFields;
+        return ReflectionFieldSchema.getSchema(clazz).fields();
     }
 
     @SuppressWarnings("unchecked")

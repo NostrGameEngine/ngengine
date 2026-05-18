@@ -36,6 +36,7 @@ import com.jme3.network.serializing.SerializerException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import org.ngengine.network.protocol.GrowableByteBuffer;
+import org.ngengine.network.protocol.VarInt;
 
 /**
  * Enum serializer.
@@ -47,7 +48,11 @@ public class EnumSerializer extends DynamicSerializer {
     @Override
     public <T> T readObject(ByteBuffer data, Class<T> c) throws IOException {
         try {
-            int ordinal = data.getInt();
+            long ord = VarInt.decodeSigned(data);
+            if (ord > Integer.MAX_VALUE || ord < Integer.MIN_VALUE) {
+                throw new SerializerException("Enum ordinal out of range for " + c + ": " + ord);
+            }
+            int ordinal = (int) ord;
 
             if (ordinal == -1) return null;
             T[] enumConstants = c.getEnumConstants();
@@ -63,9 +68,9 @@ public class EnumSerializer extends DynamicSerializer {
     @Override
     public void writeObject(GrowableByteBuffer buffer, Object object) throws IOException {
         if (object == null) {
-            buffer.putInt(-1);
+            VarInt.encodeSigned(-1, buffer);
         } else {
-            buffer.putInt(((Enum) object).ordinal());
+            VarInt.encodeSigned(((Enum) object).ordinal(), buffer);
         }
     }
 }

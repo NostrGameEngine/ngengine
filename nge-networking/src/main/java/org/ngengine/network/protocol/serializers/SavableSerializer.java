@@ -40,13 +40,21 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import org.ngengine.network.protocol.GrowableByteBuffer;
+import org.ngengine.network.protocol.VarInt;
 
 public class SavableSerializer extends DynamicSerializer {
 
     @Override
     @SuppressWarnings("unchecked")
     public <T> T readObject(ByteBuffer data, Class<T> c) throws IOException {
-        int length = data.getInt();
+        long len = VarInt.decodeUnsigned(data);
+        if (len > Integer.MAX_VALUE) {
+            throw new IOException("Savable payload too large: " + len);
+        }
+        int length = (int) len;
+        if (length > data.remaining()) {
+            throw new IOException("Invalid Savable payload length: " + length);
+        }
         byte[] bytes = new byte[length];
         data.get(bytes);
         ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
@@ -69,7 +77,7 @@ public class SavableSerializer extends DynamicSerializer {
         byte[] data = baos.toByteArray();
         baos.close();
 
-        buffer.putInt(data.length);
+        VarInt.encodeUnsigned(data.length, buffer);
         buffer.put(data);
     }
 }

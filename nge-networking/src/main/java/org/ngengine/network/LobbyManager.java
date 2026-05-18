@@ -78,7 +78,6 @@ public class LobbyManager implements Closeable {
     private final ArrayList<WeakReference<Lobby>> trackedLobbies = new ArrayList<>();
     private final Runner dispatcher;
     private volatile boolean closed = false;
-    private boolean forceTurn = false;
     private String turnServer = null;
 
     private transient Boolean isSearchSupported;
@@ -461,7 +460,7 @@ public class LobbyManager implements Closeable {
         );
     }
 
-    public P2PChannel connectToLobby(Lobby lobby, String passphrase) throws Exception {
+    public P2PConnection connectToLobby(Lobby lobby, String passphrase) throws Exception {
         NostrPrivateKey privKey = lobby.getKey(passphrase);
         synchronized (trackedLobbies) {
             if (!trackedLobbies.stream().anyMatch(ref -> ref.get() == lobby)) {
@@ -469,7 +468,7 @@ public class LobbyManager implements Closeable {
             }
         }
 
-        P2PChannel conn = new P2PChannel(
+        P2PConnection conn = new P2PConnection(
             this.localSigner,
             this.gameName,
             this.gameVersion,
@@ -478,13 +477,11 @@ public class LobbyManager implements Closeable {
             this.masterServersPool,
             dispatcher
         );
-        conn.setForceTurn(forceTurn);
         conn.start();
         return conn;
     }
 
-    public void setTurnServer(String turnServer, boolean force) {
+    public void setTurnServer(String turnServer) {
         this.turnServer = turnServer;
-        this.forceTurn = force;
     }
 }

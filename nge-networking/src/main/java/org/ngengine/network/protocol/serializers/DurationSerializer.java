@@ -32,15 +32,20 @@
 
 package org.ngengine.network.protocol.serializers;
 
+import org.ngengine.network.protocol.VarInt;
+
 public class DurationSerializer extends DynamicSerializer {
 
     @Override
     public java.time.Duration readObject(java.nio.ByteBuffer data, Class c) throws java.io.IOException {
-        return java.time.Duration.ofNanos(data.getLong());
+        long duration = VarInt.decodeUnsigned(data);
+        return java.time.Duration.ofNanos(duration);
     }
 
     @Override
     public void writeObject(org.ngengine.network.protocol.GrowableByteBuffer buffer, Object object) throws java.io.IOException {
-        buffer.putLong(((java.time.Duration) object).toNanos());
+        long duration = ((java.time.Duration) object).toNanos();
+        VarInt.encodeUnsigned(duration, buffer);
+        
     }
 }

@@ -36,6 +36,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import org.ngengine.network.protocol.GrowableByteBuffer;
+import org.ngengine.network.protocol.VarInt;
 
 /**
  * Boolean serializer.
@@ -47,7 +48,14 @@ public class StringSerializer extends DynamicSerializer {
 
     @Override
     public String readObject(ByteBuffer data, Class c) throws IOException {
-        int length = data.getInt();
+        long len = VarInt.decodeUnsigned(data);
+        if (len > Integer.MAX_VALUE) {
+            throw new IOException("String length too large: " + len);
+        }
+        int length = (int) len;
+        if (length > data.remaining()) {
+            throw new IOException("Invalid string length: " + length);
+        }
         byte[] bytes = new byte[length];
         data.get(bytes);
         String str = new String(bytes, StandardCharsets.UTF_8);
@@ -59,7 +67,7 @@ public class StringSerializer extends DynamicSerializer {
         String str = (String) object;
         if (str == null) throw new IOException("The string is null");
         byte[] bytes = str.getBytes(StandardCharsets.UTF_8);
-        buffer.putInt(bytes.length);
+        VarInt.encodeUnsigned(bytes.length, buffer);
         buffer.put(bytes);
     }
 }
