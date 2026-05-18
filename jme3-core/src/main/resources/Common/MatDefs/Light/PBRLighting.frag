@@ -85,7 +85,7 @@ void main(){
                 vec3 c = texture2D(m_MatCapMap, uv).rgb;
                 c*=surface.albedo.rgb;
                 #if defined(MATCAP_METAL_MAP)
-                    c*=surface.roughness; // mask only non-metal areas
+                    c*=(1.0 - surface.metallic); // mask non-metal areas
                 #endif
                 matCapColor += c;
             #endif
@@ -94,7 +94,7 @@ void main(){
                 vec3 cMetal = texture2D(m_MatCapMetalMap, uv).rgb;
                 cMetal*=surface.albedo.rgb;
                 #if defined(MATCAP_MAP)
-                    cMetal*=(1.0 - surface.roughness); // mask only metal areas
+                    cMetal*=surface.metallic; // mask metal areas
                 #endif
                 matCapColor += cMetal;
             #endif
