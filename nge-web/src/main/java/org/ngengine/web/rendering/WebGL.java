@@ -44,7 +44,9 @@ import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 import java.util.EnumSet;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
@@ -91,6 +93,20 @@ public class WebGL implements GL, GL2, GLES_30, GLExt, GLFbo {
                 webgl2glextMap.put(webGlName, glName);
             }
         }
+    }
+
+    private List<String> getExtensionNames() {
+        List<String> extensions = new ArrayList<>();
+        JSArrayReader<JSString> supportedExtensions = gl.getSupportedExtensions();
+        for (int i = 0; i < supportedExtensions.getLength(); i++) {
+            String extension = supportedExtensions.get(i).stringValue();
+            extensions.add(extension);
+            String mappedExtension = webgl2glextMap.get(extension);
+            if (mappedExtension != null) {
+                extensions.add(mappedExtension);
+            }
+        }
+        return extensions;
     }
 
     public WebGL(WebGLWrapper ctx) {
@@ -658,6 +674,10 @@ public class WebGL implements GL, GL2, GLES_30, GLExt, GLFbo {
     @Override
     public void glGetInteger(int pname, IntBuffer params) {
         checkLimit(params);
+        if (pname == GL_NUM_EXTENSIONS) {
+            params.put(0, getExtensionNames().size());
+            return;
+        }
         int v = gl.getParameteri(pname);
         params.put(0, v);
     }
@@ -717,22 +737,19 @@ public class WebGL implements GL, GL2, GLES_30, GLExt, GLFbo {
     @Override
     public String glGetString(int name) {
         if (name == GL_EXTENSIONS) {
-            StringBuilder sb = new StringBuilder();
-            JSArrayReader<JSString> exts = gl.getSupportedExtensions();
-            for (int i = 0; i < exts.getLength(); i++) {
-                String ext = exts.get(i).stringValue();
-                sb.append(ext);
-                sb.append(" ");
-                String ext2 = webgl2glextMap.get(ext);
-                if (ext2 != null) {
-                    sb.append(ext2);
-                    sb.append(" ");
-                }
-            }
-            return sb.toString().trim();
+            return String.join(" ", getExtensionNames());
 
         }
         return gl.getParameterString(name);
+    }
+
+    @Override
+    public String glGetString(int name, int index) {
+        if (name == GL_EXTENSIONS) {
+            List<String> extensions = getExtensionNames();
+            return index >= 0 && index < extensions.size() ? extensions.get(index) : "";
+        }
+        return glGetString(name);
     }
 
     @Override

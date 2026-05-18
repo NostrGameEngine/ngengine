@@ -37,7 +37,6 @@ import com.jme3.input.KeyInput;
 import com.jme3.input.MouseInput;
 import com.jme3.input.TouchInput;
 import com.jme3.material.Material;
-import com.jme3.opencl.Context;
 import com.jme3.renderer.RenderManager;
 import com.jme3.renderer.Renderer;
 import com.jme3.renderer.opengl.GLRenderer;
@@ -540,11 +539,6 @@ public class WebContext implements JmeContext, Runnable {
     @Override
     public boolean isRenderable() {
         return true;  
-    }
-
-    @Override
-    public Context getOpenCLContext() {
-        return null;
     }
 
     /**
