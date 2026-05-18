@@ -126,7 +126,8 @@ public class WebSystem extends JmeSystemDelegate {
         assetManager.registerLoader(com.jme3.material.plugins.ShaderNodeDefinitionLoader.class, "j3sn");
         assetManager.registerLoader(com.jme3.font.plugins.BitmapFontLoader.class, "fnt");
         assetManager.registerLoader(com.jme3.texture.plugins.DDSLoader.class, "dds");
-        assetManager.registerLoader(com.jme3.texture.plugins.TGALoader.class, "tga");
+        assetManager.registerLoader(com.jme3.texture.plugins.PFMLoader.class, "pfm");
+        assetManager.registerLoader(com.jme3.texture.plugins.StbImageLoader.class, "jpg", "bmp", "gif", "png", "jpeg", "tga", "psd", "hdr");
         assetManager.registerLoader(com.jme3.export.binary.BinaryLoader.class, "j3o", "j3f");
         assetManager.registerLoader(com.jme3.scene.plugins.OBJLoader.class, "obj");
         assetManager.registerLoader(com.jme3.scene.plugins.MTLLoader.class, "mtl");
@@ -134,7 +135,8 @@ public class WebSystem extends JmeSystemDelegate {
         assetManager.registerLoader(com.jme3.scene.plugins.gltf.GltfLoader.class, "gltf");
         assetManager.registerLoader(com.jme3.scene.plugins.gltf.BinLoader.class, "bin");
         assetManager.registerLoader(com.jme3.scene.plugins.gltf.GlbLoader.class, "glb");
-        assetManager.registerLoader(org.ngengine.web.filesystem.WebImageLoader.class, "png", "jpg", "jpeg", "webp", "svg", "hdr");
+        assetManager.registerLoader(com.jme3.texture.plugins.WebpImageLoader.class, "webp");
+        assetManager.registerLoader(org.ngengine.web.filesystem.WebImageLoader.class, "svg");
         assetManager.registerLoader(com.jme3.audio.plugins.OGGLoader.class, "ogg");
     }
 
