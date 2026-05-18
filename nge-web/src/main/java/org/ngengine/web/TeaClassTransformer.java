@@ -144,7 +144,7 @@ public class TeaClassTransformer implements ClassHolderTransformer {
         } catch (ClassNotFoundException e) {
         }
 
-        if (hasAnnotation(context, cls, "com.simsilica.lemur.style.StyleAttribute")) {
+        if (hasAnnotation(context, cls, "org.ngengine.gui.style.StyleAttribute")) {
             try {
                 String attributeMapJson = extractLemurStyleAttributeAnnotationsMeta(context, cls);
                 if (attributeMapJson != null) {
@@ -216,7 +216,7 @@ public class TeaClassTransformer implements ClassHolderTransformer {
         for (MethodHolder m : cls.getMethods()) {
             AnnotationContainer annos = m.getAnnotations();
             for (AnnotationHolder anno : annos.all()) {
-                if (anno.getType().equals("com.simsilica.lemur.style.StyleAttribute")) {
+                if (anno.getType().equals("org.ngengine.gui.style.StyleAttribute")) {
                     Map<String, Object> data = new HashMap<>();
                     AnnotationValue valueA = anno.getValue("value");
                     AnnotationValue lookupDefaultA = anno.getValue("lookupDefault");
