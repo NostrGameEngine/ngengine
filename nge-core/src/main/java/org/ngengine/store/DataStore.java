@@ -109,6 +109,7 @@ public class DataStore {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private <T extends Savable> T readFromStream(InputStream is) throws IOException {
         BinaryImporter importer = BinaryImporter.getInstance();
         importer.setAssetManager(assetManager);

@@ -653,7 +653,8 @@ public abstract class AbstractComponentManager  implements ComponentManager, Sav
         if( obj ==null && Component.class.isAssignableFrom(type)){
             ComponentManager cm = this;
             while(cm!=null){
-                obj = (T) cm.getComponent(type.asSubclass(Component.class));
+                Component component = cm.getComponent(type.asSubclass(Component.class));
+                if(component != null) obj = type.cast(component);
                 if(obj!=null) break;
                 cm = cm.getParent();
             }

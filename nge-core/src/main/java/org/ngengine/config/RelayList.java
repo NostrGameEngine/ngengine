@@ -54,14 +54,22 @@ public class RelayList {
         this.defaultFallback = defaultFallback;
     }
 
+    @SuppressWarnings("unchecked")
+    private static Map<Object,Object> asObjectMap(Object value) {
+        if (value instanceof Map<?,?>) {
+            return (Map<Object,Object>) value;
+        }
+        return null;
+    }
+
  
     public void set(String group, List<String> relays){
-        Map<Object,Object> raw = (Map<Object,Object>) settings.get("relays");
+        Map<Object,Object> raw = asObjectMap(settings.get("relays"));
         if(raw==null){
             raw = new HashMap<>();
             settings.put("relays", raw);
         }
-        Map<Object,Object> unitMap = (Map<Object,Object>) raw.get(this.unit);
+        Map<Object,Object> unitMap = asObjectMap(raw.get(this.unit));
         if(unitMap==null){
             unitMap = new HashMap<>();
             raw.put(this.unit, unitMap);
@@ -75,12 +83,12 @@ public class RelayList {
         try{
             Map<Object,Object> raw = settings.get("relays");
             if(raw==null) return Map.of();
-            raw = (Map<Object,Object>) raw.get(this.unit);               
+            raw = asObjectMap(raw.get(this.unit));
             if(raw==null) return Map.of();
             Map<String,List<String>> parsed = new HashMap<>();
-            for(Object e : raw.entrySet()){
-                String key = NGEUtils.safeString(((Entry)e).getKey());
-                List<String> vals = NGEUtils.safeStringList(((Entry)e).getValue());
+            for(Entry<Object,Object> e : raw.entrySet()){
+                String key = NGEUtils.safeString(e.getKey());
+                List<String> vals = NGEUtils.safeStringList(e.getValue());
                 parsed.put(key, vals); 
             }
             return Collections.unmodifiableMap(parsed);        

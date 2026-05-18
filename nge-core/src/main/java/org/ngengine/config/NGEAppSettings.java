@@ -146,6 +146,7 @@ public class NGEAppSettings {
         hasUnsavedChanges=false;
     }
 
+    @SuppressWarnings("unchecked")
     public void load(DataStore store) throws IOException{
         StringSavableWrapper wrapper = (StringSavableWrapper) store.read("ngeapp-custom.config");
         if(wrapper != null && wrapper.get() != null && !wrapper.get().isBlank()){
@@ -199,6 +200,7 @@ public class NGEAppSettings {
         hasUnsavedChanges=true;
     }
 
+    @SuppressWarnings("unchecked")
     public <T> T get(String key){
         return (T)this.getJmeAppSettings().get(key);
     }

@@ -290,7 +290,7 @@ public interface ComponentManager {
         } else if (d instanceof String) {
             return getComponentById((String) d);
         } else if (d instanceof Class<?>) {
-            return getComponent((Class<? extends Component>) d);
+            return getComponent(((Class<?>) d).asSubclass(Component.class));
         } else if (d instanceof ComponentDependency) {
             ComponentDependency cd = (ComponentDependency) d;
             return resolveLocalDepencency(cd.dep);
@@ -359,4 +359,3 @@ public interface ComponentManager {
 
     List<Component> getAllComponents();
 }
-
