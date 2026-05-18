@@ -41,9 +41,12 @@ apply plugin: 'org.jmonkeyengine.nativeimage'
 
 tasks.withType(JavaCompile) { // compile-time options:
     //options.compilerArgs << '-Xlint:deprecation' // to show deprecation warnings
-    options.compilerArgs.addAll(['-Xlint:unchecked', '-Xlint:-options', '-Werror'])
+    options.compilerArgs.addAll(['-Xlint:unchecked', '-Xlint:-options'])
+    if (!project.name.startsWith("nge-")) {
+        options.compilerArgs.add('-Werror')
+    }
     options.encoding = 'UTF-8'
-    options.release = name.startsWith("nge-") ? 21 : 11
+    options.release = project.name.startsWith("nge-") ? 21 : 11
 }
 
 repositories {

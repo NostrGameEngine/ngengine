@@ -131,8 +131,12 @@ def loadClassSafely = { ClassLoader loader, String className ->
 }
 
 def isConstructible = { Class<?> clazz ->
-    int modifiers = clazz.modifiers
-    return !clazz.isInterface() && !clazz.isAnnotation() && !clazz.isAnonymousClass() && !clazz.isLocalClass() && !java.lang.reflect.Modifier.isAbstract(modifiers)
+    try {
+        int modifiers = clazz.modifiers
+        return !clazz.isInterface() && !clazz.isAnnotation() && !clazz.isAnonymousClass() && !clazz.isLocalClass() && !java.lang.reflect.Modifier.isAbstract(modifiers)
+    } catch (Throwable ignored) {
+        return false
+    }
 }
 
 def safeAssignableFrom = { Class<?> target, Class<?> clazz ->
@@ -617,28 +621,32 @@ project.afterEvaluate {
                 }
 
                 candidateClassNames.each { className ->
-                    Class<?> clazz = loadClassSafely(scanLoader, className)
-                    if (clazz == null) {
-                        return
-                    }
-
-                    boolean regularMatch =
-                            targetTypeClasses.any { safeAssignableFrom(it, clazz) } ||
-                            targetAnnotationClasses.any { safeAnnotationPresent(clazz, it) }
-                    if (regularMatch) {
-                        Class<?> current = clazz
-                        while (current != null && current != Object.class) {
-                            if (current == clazz || candidateClassNames.contains(current.name) || !isJdkClassName(current.name)) {
-                                updateClassEntry(current.name, isConstructible(current), true, true)
-                            }
-                            current = safeSuperclass(current)
+                    try {
+                        Class<?> clazz = loadClassSafely(scanLoader, className)
+                        if (clazz == null) {
+                            return
                         }
-                    }
 
-                    if (targetTypeClasses.any { it == Cloneable.class || it.name == 'java.lang.Cloneable' }
-                            && safeAssignableFrom(Cloneable.class, clazz)
-                            && hasPublicNoArgCloneMethod(clazz)) {
-                        addMethodEntry(className, 'clone', [])
+                        boolean regularMatch =
+                                targetTypeClasses.any { safeAssignableFrom(it, clazz) } ||
+                                targetAnnotationClasses.any { safeAnnotationPresent(clazz, it) }
+                        if (regularMatch) {
+                            Class<?> current = clazz
+                            while (current != null && current != Object.class) {
+                                if (current == clazz || candidateClassNames.contains(current.name) || !isJdkClassName(current.name)) {
+                                    updateClassEntry(current.name, isConstructible(current), true, true)
+                                }
+                                current = safeSuperclass(current)
+                            }
+                        }
+
+                        if (targetTypeClasses.any { it == Cloneable.class || it.name == 'java.lang.Cloneable' }
+                                && safeAssignableFrom(Cloneable.class, clazz)
+                                && hasPublicNoArgCloneMethod(clazz)) {
+                            addMethodEntry(className, 'clone', [])
+                        }
+                    } catch (Throwable ignored) {
+                        return
                     }
                 }
 

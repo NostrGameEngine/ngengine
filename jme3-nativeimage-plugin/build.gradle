@@ -15,6 +15,7 @@ ext {
     jmeVersionName = findProperty('jmeVersionName') ?: rootProperties.getProperty('jmeVersionName', '')
     useCommitHashAsVersionName = findProperty('useCommitHashAsVersionName') ?: rootProperties.getProperty('useCommitHashAsVersionName', 'false')
     includeBranchInVersion = findProperty('includeBranchInVersion') ?: rootProperties.getProperty('includeBranchInVersion', 'false')
+    includeTimestampInVersion = findProperty('includeTimestampInVersion') ?: rootProperties.getProperty('includeTimestampInVersion', 'false')
 }
 
 apply from: file('../version.gradle')
