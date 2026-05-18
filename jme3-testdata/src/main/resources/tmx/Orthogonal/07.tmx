@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.0" orientation="orthogonal" renderorder="right-down" width="30" height="20" tilewidth="32" tileheight="32" backgroundcolor="#517b93" nextobjectid="1">
+ <tileset firstgid="1" name="07_Grassland_32x32" tilewidth="32" tileheight="32">
+  <image source="07_Grassland_32x32.png" width="1632" height="1024"/>
+ </tileset>
+ <tileset firstgid="1633" name="07_Extras_32x32" tilewidth="32" tileheight="32">
+  <image source="07_Extras_32x32.png" width="1632" height="1024"/>
+ </tileset>
+ <layer name="Water" width="30" height="20">
+  <data encoding="base64" compression="zlib">
+   eJzlld0OwiAMhXdnn3lGn8jhftTXmUYfxBIlEtJTymbkwouTbCunHwxo3aZpjqyeNbBG1sRyb0mxE+vMughj/PuOsPb08qO8Fq4U9986whpWcHOxHHdawLX8g29zrftdi4s8OW4YG3s0JlxbJW7L2tLHd+fnxw+4Xo5kn8btwRxKuB3gojNVwvVn6qCtWfD+Oxfdvxx35vxXQTfA1c5hev/W1o3Yo3HTelyLG/JofCtX2xeUa4z4LpmLlWup99Z+WNI3l+yZpQ8jXxjzBAu8rpQ=
+  </data>
+ </layer>
+ <layer name="GrasslandGround" width="30" height="20">
+  <data encoding="base64" compression="zlib">
+   eJy1lUtOwzAQhscFUoW7AItQWFm5CnRR0tyItsCi5ymvE/FHxJIzmkcSqb/0b2KPP88jcgxE0XFNRA3zkeyYFn5hbuAkjzmH2/aMHfP+zNxVz1hfk6q5XOsOj/AiqMhR3I7pcaU7dOyQmd/DYo5lJUen9mO4U8+W5ndr1H5yThPmd8PYK4eb51Qr36X55XplbIsrnW3l6s1vx64MblSYdbYu9TD1kc9NLokbSWfmuWo9TH1sHG7L9ljMnKv1MNVSWyN8fxBmQKsbn6m8RoeC6A1+hz8KnRd6pvT/anXbhmHf87gvsL7hH/hX4VZhWDer/0n5DEpxiyXRBXwJXy3lMzZBfwMtzY3bIf998X937Q1MuimJbuG7cpizFyfpBOan1nOmJ/Ce4XXp73WFugel9udUBeb9CO4fxQSKKg==
+  </data>
+ </layer>
+ <layer name="GrasslandObjects" width="30" height="20">
+  <data encoding="base64" compression="zlib">
+   eJztlLszA0Ecx+9EzGBC7a1B6Q9gJhKV96uj0zMjwag8E5U21N5DizxaFVqERLTIo6TCjM9O7iZ3mbtxmdDlO/OZ3f3db3/fvb3du5clKQoPIHSvGUfL9GMhEeuEKpukkxiLuHhuRX12Seq3Z9vfGLBn50wrtQOsZRt2ZH3ciirJfVTmVdPfoO8Dv6xf+yzvs6z4BohvwxU513Aj6+NW5CSvB2aoe8H8IIQgDBE566futep7Rf41fBL7gm9ZH7ciD3le5bu8MT8JKUhDBnaJ78F+Wc7XSEesz1kuScc28xytYtSrg3pogEZogmZogVbogm6Nr/DIrx9jfIhvPC/uZtxrspZBag7BMIzAKIzBOExo9k31naP+gYG3kRbIWTTIE/u7AquwBuvibIEP/LBp4uspwFvIZZJ3Rv1zuIAghCAMEQNfsadRW9bbW27Ndz7PV70rL7Sv4mxBElKQhozGt6Ei1zf7nmaKG5zzW+beKfPbqbVVwP23Kkfe+trwaIcOjdelch/jtE+QkP9+Heo+T9JOwTseH4qPg3EN1P7D+5tJ/Y+5wF2E7wn7e2rxDAip/7FitIRfAp4L8C2ppGL0A6aoaQ4=
+  </data>
+ </layer>
+</map>
