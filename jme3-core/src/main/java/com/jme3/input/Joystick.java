@@ -38,9 +38,12 @@ import java.util.List;
  *
  * @author Paul Speed, Kirill Vainer
  */
-public interface Joystick extends InputDevice {
+public interface Joystick extends InputDevice, HapticDevice {
 
- 
+    @Override
+    default void rumble(float amount) {
+        HapticDevice.super.rumble(amount);
+    }
 
     /**
      * Assign the mapping name to receive events from the given button index
