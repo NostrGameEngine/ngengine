@@ -330,12 +330,7 @@ task mergedJavadoc(type: Javadoc, description: 'Creates Javadoc from all the pro
     destinationDir = mkdir("dist/javadoc")
 
     options.encoding = 'UTF-8'
-
-
-    // Allows Javadoc to be generated on Java 8 despite doclint errors.
-    if (JavaVersion.current().isJava8Compatible()) {
-        options.addStringOption('Xdoclint:none', '-quiet')
-    }
+    options.addStringOption('Xdoclint:none', '-quiet')
 
     options.overview = file("javadocfiles/javadoc-overview.html")
     options.stylesheetFile = file("javadocfiles/javadoc-style.css")
