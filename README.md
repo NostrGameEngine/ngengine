@@ -65,12 +65,12 @@ You can use the `-Pexample` property to start an example directly:
 You can run the Android examples on a local android emulator with:
 
 ```bash
-./gradlew -PbuildAndroidExamples=true -PbuildNativeProjects=true runAndroidExamples
+./gradlew runAndroidExamples
 # or for a specific example:
-# ./gradlew -PbuildAndroidExamples=true -PbuildNativeProjects=true runAndroidExamples -Pexample=jme3test.post.TestBloom
+# ./gradlew runAndroidExamples -Pexample=jme3test.post.TestBloom
 ```
 
-*Make sure to have the SDK and NDK installed and configured properly, and the emulator running before executing the command.*
+*Make sure to have the SDK installed and configured properly, and the emulator running before executing the command.*
 
 
 ## Running Tests
