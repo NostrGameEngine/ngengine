@@ -60,7 +60,6 @@ include 'jme3-saferallocator'
 
 //native builds
 include 'jme3-android-native' //cpp
-include 'jme3-ios-native' //cpp
 
 // Test Data project
 include 'jme3-testdata'
@@ -72,6 +71,7 @@ include 'jme3-awt-dialogs'
 if(buildAndroidExamples == "true"){
     include 'jme3-android-examples'
 }
+include 'jme3-ios-examples'
 include 'jme3-screenshot-tests'
 
 // nge
