@@ -62,10 +62,10 @@ jar.doFirst{
     }
 }
 
-task dist (dependsOn: ['build', ':jme3-android:jar', ':jme3-android-native:jar', ':nge-android:jar']) {
+task dist (dependsOn: ['build', ':jme3-android:jar', ':nge-android:jar']) {
     doLast {
         // Copy all dependencies to ../dist/lib, remove versions from jar files
-        configurations.compileClasspath.resolvedConfiguration.resolvedArtifacts.each { artifact ->
+        configurations.runtimeClasspath.resolvedConfiguration.resolvedArtifacts.each { artifact ->
             copy {
                 from artifact.file
                 into '../dist/lib'
@@ -80,6 +80,19 @@ task dist (dependsOn: ['build', ':jme3-android:jar', ':jme3-android-native:jar',
             from jar.archivePath
             into '../dist'
             rename { "NostrGameEngine.jar" }
+        }
+
+        def androidNativeDependency = libs.jme3.android.natives.get()
+        def androidNativeArtifact = project(':jme3-android').configurations.runtimeClasspath.resolvedConfiguration.resolvedArtifacts.find {
+            it.moduleVersion.id.group == androidNativeDependency.module.group && it.name == androidNativeDependency.module.name
+        }
+        if (androidNativeArtifact == null) {
+            throw new GradleException("Unable to resolve ${androidNativeDependency.module} for the distribution")
+        }
+        copy {
+            from androidNativeArtifact.file
+            into '../dist/opt/android'
+            rename { androidNativeArtifact.name + ".${androidNativeArtifact.extension}" }
         }
     }
 }
