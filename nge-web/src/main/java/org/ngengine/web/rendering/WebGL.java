@@ -116,8 +116,11 @@ public class WebGL implements GL, GL2, GLES_30, GLExt, GLFbo {
         enableExtension("WEBGL_compressed_texture_s3tc_srgb",null);
         enableExtension("WEBGL_compressed_texture_etc","GL_ARB_ES3_compatibility");
         enableExtension("WEBGL_compressed_texture_rgtc","GL_EXT_texture_compression_rgtc");
-        enableExtension("EXT_color_buffer_half_float",null);
-        enableExtension("EXT_color_buffer_float",null);
+        enableExtension("EXT_color_buffer_half_float","GL_EXT_color_buffer_half_float");
+        enableExtension("EXT_color_buffer_float","GL_EXT_color_buffer_float");
+        enableExtension("OES_texture_float_linear","GL_OES_texture_float_linear");
+        enableExtension("OES_texture_half_float_linear","GL_OES_texture_half_float_linear");
+        enableExtension("EXT_texture_filter_anisotropic","GL_EXT_texture_filter_anisotropic");
         enableExtension("WEBGL_depth_texture",null);
         enableExtension("WEBGL_texture_non_power_of_two",null);
 

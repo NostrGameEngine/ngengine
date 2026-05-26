@@ -45,6 +45,9 @@ public interface Joystick extends InputDevice, HapticDevice {
         HapticDevice.super.rumble(amount);
     }
 
+    @Override
+    void rumble(float amountHigh, float amountLow, float duration);
+
     /**
      * Assign the mapping name to receive events from the given button index
      * on the joystick.

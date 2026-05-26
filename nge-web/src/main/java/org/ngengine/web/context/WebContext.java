@@ -53,6 +53,7 @@ import com.jme3.ui.Picture;
 import org.ngengine.web.WebBinds;
 import org.ngengine.web.WebBindsAsync;
 import org.ngengine.web.input.WebKeyInput;
+import org.ngengine.web.input.WebJoyInput;
 import org.ngengine.web.input.WebMouseInput;
 import org.ngengine.web.input.WebTouchInput;
 import org.ngengine.web.rendering.WebGL;
@@ -82,6 +83,7 @@ public class WebContext implements JmeContext, Runnable {
     protected Timer timer;
     protected SystemListener listener;
     protected Renderer renderer;
+    protected WebJoyInput joyInput;
     protected WebCanvasElement canvasTarget;
     protected RenderManager renderManager;
     protected AssetManager assetManager;
@@ -469,7 +471,7 @@ public class WebContext implements JmeContext, Runnable {
 
     @Override
     public MouseInput getMouseInput() {
-        return new WebMouseInput();
+        return new WebMouseInput(getOrCreateJoyInput());
     }
 
     @Override
@@ -479,12 +481,19 @@ public class WebContext implements JmeContext, Runnable {
 
     @Override
     public JoyInput getJoyInput() {
-        return null;
+        return getOrCreateJoyInput();
     }
 
     @Override
     public TouchInput getTouchInput() {
-        return new WebTouchInput(()->canvasTarget, settings);
+        return new WebTouchInput(()->canvasTarget, settings, getOrCreateJoyInput());
+    }
+
+    private WebJoyInput getOrCreateJoyInput() {
+        if (joyInput == null) {
+            joyInput = new WebJoyInput(settings);
+        }
+        return joyInput;
     }
 
     @Override

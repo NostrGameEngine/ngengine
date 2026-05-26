@@ -53,8 +53,10 @@ import org.ngengine.web.WebBinds;
 import org.ngengine.web.context.WebCanvasElement;
 
 public class WebMouseInput implements MouseInput {
+    private static final int MOUSE_POINTER_ID = -1;
     private boolean cursorVisible = true;
     private RawInputListener listener;
+    private final WebJoyInput joyInput;
     private int xPos = 0, yPos = 0, wheelPos;
     private boolean undefinedPos = true;
     private boolean initialized = false;
@@ -67,8 +69,8 @@ public class WebMouseInput implements MouseInput {
             handleWebEvent(evt);
         }
     };
-    public WebMouseInput() {
-        // this.canvas = canvas;
+    public WebMouseInput(WebJoyInput joyInput) {
+        this.joyInput = joyInput;
     }
 
     @Override
@@ -125,6 +127,9 @@ public class WebMouseInput implements MouseInput {
             // if (!(xPos >= 0 && yPos >= 0 && xPos <= canvas.getWidth() && yPos <= canvas.getHeight())) return;
             MouseMotionEvent mme = new MouseMotionEvent((int) xPos, (int) yPos, (int) dX, (int) dY, 0, 0);
             mme.setTime(getInputTimeNanos());
+            if (joyInput != null && joyInput.onPointerMove(MOUSE_POINTER_ID, xPos, yPos, mme.getTime())) {
+                return;
+            }
             mouseMotionEvents.add(mme);
 
         } else if (evt.getType().equals("wheel")) {
@@ -150,8 +155,12 @@ public class WebMouseInput implements MouseInput {
             boolean isPressed = true;
             int jmeButton = KeyMapper.jsMouseButtonToJme(button);
             if (jmeButton != -1) {
+                long time = getInputTimeNanos();
+                if (joyInput != null && joyInput.onPointerDown(MOUSE_POINTER_ID, xPos, yPos, time)) {
+                    return;
+                }
                 MouseButtonEvent mbe = new MouseButtonEvent(jmeButton, isPressed, (int) xPos, (int) yPos);
-                mbe.setTime(getInputTimeNanos());
+                mbe.setTime(time);
 
                 mouseButtonEvents.add(mbe);
 
@@ -164,8 +173,12 @@ public class WebMouseInput implements MouseInput {
             boolean isPressed = false;
             int jmeButton = KeyMapper.jsMouseButtonToJme(button);
             if (jmeButton != -1) {
+                long time = getInputTimeNanos();
+                if (joyInput != null && joyInput.onPointerUp(MOUSE_POINTER_ID, xPos, yPos, time)) {
+                    return;
+                }
                 MouseButtonEvent mbe = new MouseButtonEvent(jmeButton, isPressed, (int) xPos, (int) yPos);
-                mbe.setTime(getInputTimeNanos());
+                mbe.setTime(time);
 
                 mouseButtonEvents.add(mbe);
             }

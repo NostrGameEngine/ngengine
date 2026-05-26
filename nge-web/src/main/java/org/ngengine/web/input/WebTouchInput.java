@@ -55,6 +55,7 @@ import org.ngengine.web.context.WebCanvasElement;
 public class WebTouchInput implements TouchInput{
     private Supplier<WebCanvasElement> canvasSupplier;
     private RawInputListener listener;
+    private final WebJoyInput joyInput;
     private boolean initialized = false;
     private boolean simulateMouse;
     private boolean simulateKeyboard;
@@ -76,8 +77,9 @@ public class WebTouchInput implements TouchInput{
     private final List<MouseButtonEvent> mouseButtonEvents = new ArrayList<>();
     
     private final List<TouchEvent> touchEvents = new ArrayList<>();
-    public WebTouchInput(Supplier<WebCanvasElement> canvasSupplier, AppSettings settings) {
+    public WebTouchInput(Supplier<WebCanvasElement> canvasSupplier, AppSettings settings, WebJoyInput joyInput) {
         this.canvasSupplier = canvasSupplier;
+        this.joyInput = joyInput;
         this.setSimulateMouse(settings.isEmulateMouse());
         this.setSimulateKeyboard(settings.isEmulateKeyboard());
         flipX = settings.isEmulateMouseFlipX();
@@ -190,6 +192,20 @@ public class WebTouchInput implements TouchInput{
             s.undefinedPos = false;
 
             long time = getInputTimeNanos();
+            int pointerId = (int) touch.getIdentifier();
+            boolean consumed = false;
+            if (joyInput != null) {
+                if (t == TouchEvent.Type.DOWN) {
+                    consumed = joyInput.onPointerDown(pointerId, x, y, time);
+                } else if (t == TouchEvent.Type.MOVE) {
+                    consumed = joyInput.onPointerMove(pointerId, x, y, time);
+                } else if (t == TouchEvent.Type.UP) {
+                    consumed = joyInput.onPointerUp(pointerId, x, y, time);
+                }
+            }
+            if (consumed) {
+                continue;
+            }
             TouchEvent te = new TouchEvent(t, x, y, dX, dY);
             te.setTime(time);
             te.setPressure(touch.getForce());
@@ -229,6 +245,9 @@ public class WebTouchInput implements TouchInput{
         if (evt.getType().equals("touchstart")) {
             scheduleEvent(TouchEvent.Type.DOWN, (JSTouchEvent) evt,this.isSimulateMouse());
         } else if (evt.getType().equals("touchcancel")) {
+            if (joyInput != null && joyInput.onPointerCancel(getInputTimeNanos())) {
+                return;
+            }
             scheduleEvent(TouchEvent.Type.UP, (JSTouchEvent) evt,this.isSimulateMouse());
         } else if( evt.getType().equals("touchend")) {
             scheduleEvent(TouchEvent.Type.UP, (JSTouchEvent) evt,this.isSimulateMouse());
