@@ -422,6 +422,8 @@ public interface WebGLWrapper extends JSObject {
 
         void bindBuffer(int target, WebGLBuffer buffer);
 
+        void bindBufferBase(int target, int index, WebGLBuffer buffer);
+
         void bindFramebuffer(int target, WebGLFramebuffer framebuffer);
 
         void bindRenderbuffer(int target, WebGLRenderbuffer renderbuffer);
@@ -604,6 +606,8 @@ public interface WebGLWrapper extends JSObject {
 
         WebGLUniformLocation getUniformLocation(WebGLProgram program, String name);
 
+        int getUniformBlockIndex(WebGLProgram program, String uniformBlockName);
+
         JSObject getVertexAttrib(int index, int pname);
 
         int getVertexAttribOffset(int index, int pname);
@@ -771,6 +775,8 @@ public interface WebGLWrapper extends JSObject {
                         JSArrayReader<JSNumber> value);
 
         void uniformMatrix4fv(WebGLUniformLocation location, boolean transpose, @JSByRef float[] value);
+
+        void uniformBlockBinding(WebGLProgram program, int uniformBlockIndex, int uniformBlockBinding);
 
         void useProgram(WebGLProgram program);
 

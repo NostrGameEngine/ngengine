@@ -55,6 +55,7 @@ import com.jme3.system.NanoTimer;
 import com.jme3.system.NativeLibraries.LibraryInfo;
 import com.jme3.system.NativeLibraryLoader;
 import com.jme3.system.Platform;
+import com.jme3.system.SystemListenerAggregator;
 import com.jme3.texture.FrameBuffer;
 import com.jme3.texture.FrameBuffer.FrameBufferTarget;
 import com.jme3.texture.Image;
@@ -717,7 +718,7 @@ public abstract class LwjglWindow extends LwjglContext implements Runnable {
     }
 
     private boolean canUseBlitFramebuffer() {
-        return (type == Type.Display || type == Type.Canvas) && listener instanceof Application;
+        return (type == Type.Display || type == Type.Canvas) && getApplicationListener() != null;
     }
 
     protected boolean useBlitFramebuffer() {
@@ -758,6 +759,9 @@ public abstract class LwjglWindow extends LwjglContext implements Runnable {
     private Application getApplicationListener() {
         if (listener instanceof Application) {
             return (Application) listener;
+        }
+        if (listener instanceof SystemListenerAggregator) {
+            return ((SystemListenerAggregator) listener).getListener(Application.class);
         }
         return null;
     }
@@ -895,7 +899,11 @@ public abstract class LwjglWindow extends LwjglContext implements Runnable {
         }
 
         GLRenderer glRenderer = (GLRenderer) renderer;
-        RenderManager renderManager = getApplicationListener().getRenderManager();
+        Application application = getApplicationListener();
+        if (application == null) {
+            return false;
+        }
+        RenderManager renderManager = application.getRenderManager();
         FrameBuffer restoreMainFramebuffer = previousMainFramebuffer;
 
         glRenderer.setMainFrameBufferOverride(blitFramebuffer);

@@ -419,6 +419,12 @@ public class WebGL implements GL, GL2, GLES_30, GLExt, GLFbo {
     }
 
     @Override
+    public void glBindBufferBase(int target, int index, int buffer) {
+        WebGLBuffer b = _pG(buffer);
+        gl.bindBufferBase(target, index, b);
+    }
+
+    @Override
     public void glBindTexture(int target, int texture) {
         WebGLTexture t = _pG(texture);
         gl.bindTexture(target, t);
@@ -654,6 +660,12 @@ public class WebGL implements GL, GL2, GLES_30, GLExt, GLFbo {
     @Override
     public int glGetAttribLocation(int program, String name) {
         return gl.getAttribLocation(_pG(program), name);
+    }
+
+    @Override
+    public int glGetUniformBlockIndex(int program, String uniformBlockName) {
+        WebGLProgram p = _pG(program);
+        return gl.getUniformBlockIndex(p, uniformBlockName);
     }
 
     @Override
@@ -932,6 +944,12 @@ public class WebGL implements GL, GL2, GLES_30, GLExt, GLFbo {
     @Override
     public void glUniformMatrix4(int location, boolean transpose, FloatBuffer value) {
         gl.uniformMatrix4fv(_pG(location), transpose, _a(value));
+    }
+
+    @Override
+    public void glUniformBlockBinding(int program, int uniformBlockIndex, int uniformBlockBinding) {
+        WebGLProgram p = _pG(program);
+        gl.uniformBlockBinding(p, uniformBlockIndex, uniformBlockBinding);
     }
 
     @Override

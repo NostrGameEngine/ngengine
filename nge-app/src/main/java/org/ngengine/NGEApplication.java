@@ -113,7 +113,6 @@ public class NGEApplication implements ComponentManagerProvider{
         this.ngeSettings= settings;
 
         AppSettings baseSettings = new AppSettings(true);
-        baseSettings.setRenderer(AppSettings.LWJGL_OPENGL32);
         baseSettings.copyFrom(settings.getJmeAppSettings());
         
 

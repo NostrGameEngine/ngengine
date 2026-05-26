@@ -17,6 +17,15 @@ public class SystemListenerAggregator implements SystemListener{
         }
     }
 
+    public <T> T getListener(Class<T> type) {
+        for (SystemListener listener : listeners) {
+            if (type.isInstance(listener)) {
+                return type.cast(listener);
+            }
+        }
+        return null;
+    }
+
     @Override
     public void initialize() {
         for (SystemListener listener : listeners) {

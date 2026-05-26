@@ -394,9 +394,7 @@ public class OGLESContext implements JmeContext, GLSurfaceView.Renderer, SoftTex
     @Override
     public void setSystemListener(SystemListener listener) {
         this.listener = listener;
-        if (listener instanceof Application) {
-            application = (Application) listener;
-        }
+        application = getApplicationListener();
     }
 
     @Override
@@ -604,6 +602,16 @@ public class OGLESContext implements JmeContext, GLSurfaceView.Renderer, SoftTex
 
     private boolean useBlitSrgbConversion() {
         return settings.isGammaCorrection() && application != null;
+    }
+
+    private Application getApplicationListener() {
+        if (listener instanceof Application) {
+            return (Application) listener;
+        }
+        if (listener instanceof SystemListenerAggregator) {
+            return ((SystemListenerAggregator) listener).getListener(Application.class);
+        }
+        return null;
     }
 
     private boolean useBlitFrameBuffer() {

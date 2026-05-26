@@ -44,8 +44,6 @@ import com.jme3.renderer.Caps;
 import com.jme3.renderer.RenderManager;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.shape.Box;
-import com.jme3.system.JmeSystem;
-import com.jme3.system.Platform;
 import com.jme3.texture.FrameBuffer;
 import com.jme3.texture.Image;
 import com.jme3.texture.Texture2D;
@@ -211,8 +209,7 @@ public class IBLGLEnvBakerLight extends IBLHybridEnvBakerLight {
                 break;
             }
             case AUTO: {
-                Platform.Os os = JmeSystem.getPlatform().getOs();
-                mat.setBoolean("UseFastSphericalHarmonics",  os == Platform.Os.Android || os == Platform.Os.iOS);
+                mat.setBoolean("UseFastSphericalHarmonics", isFastSphericalHarmonicsRequired());
                 break;
             }
         }
@@ -273,5 +270,10 @@ public class IBLGLEnvBakerLight extends IBLHybridEnvBakerLight {
         EnvMapUtils.prepareShCoefs(shCoef);
         img.dispose();
 
+    }
+
+    private boolean isFastSphericalHarmonicsRequired() {
+        return renderManager.getRenderer().getCaps().contains(Caps.OpenGLES20)
+                || renderManager.getRenderer().getCaps().contains(Caps.WebGL);
     }
 }

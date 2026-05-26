@@ -212,9 +212,7 @@ public class IGLESContext implements JmeContext {
         if (!LibJGLIOSEglBridge.makeCurrent()) {
             throw new IllegalStateException("Unable to make iOS EGL context current: " + LibJGLIOSEglBridge.lastError());
         }
-        if (listener instanceof Application) {
-            application = (Application) listener;
-        }
+        application = getApplicationListener();
         IosGL gl = new IosGL();
 
         if (settings.getBoolean("GraphicsDebug")) {
@@ -409,6 +407,16 @@ public class IGLESContext implements JmeContext {
 
     private boolean useBlitSrgbConversion() {
         return settings.isGammaCorrection() && application != null;
+    }
+
+    private Application getApplicationListener() {
+        if (listener instanceof Application) {
+            return (Application) listener;
+        }
+        if (listener instanceof SystemListenerAggregator) {
+            return ((SystemListenerAggregator) listener).getListener(Application.class);
+        }
+        return null;
     }
 
     private boolean useBlitFrameBuffer() {
