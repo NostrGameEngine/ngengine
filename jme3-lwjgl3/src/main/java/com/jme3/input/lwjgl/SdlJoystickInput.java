@@ -273,6 +273,7 @@ public class SdlJoystickInput implements JoyInput {
                 && AppSettings.VIRTUAL_JOYSTICK_ENABLED.equals(settings.getVirtualJoystickMode())) {
             virtualJoystick = new VirtualJoystick(inputManager, this, nextVirtualJoyId());
             virtualJoystick.setLayout(VirtualJoystick.createLayout(settings.getVirtualJoystickDefaultLayout()));
+            virtualJoystick.setEnabled(false);
         } else {
             virtualJoystick = null;
         }

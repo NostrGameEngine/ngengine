@@ -56,7 +56,6 @@ public class WebJoyInput implements JoyInput {
 
     @Override
     public void update() {
-        updateVirtualJoystickAutoVisibility();
         if (virtualJoystick != null) {
             virtualJoystick.dispatchEvents(listener);
         }
@@ -101,7 +100,6 @@ public class WebJoyInput implements JoyInput {
             virtualJoystick = new VirtualJoystick(inputManager, this, 0);
             virtualJoystick.setLayout(VirtualJoystick.createLayout(settings.getVirtualJoystickDefaultLayout()));
             virtualJoystick.setEnabled(false);
-            updateVirtualJoystickAutoVisibility();
             return new Joystick[]{virtualJoystick};
         }
 
@@ -110,7 +108,6 @@ public class WebJoyInput implements JoyInput {
     }
 
     public boolean onPointerDown(int pointerId, float x, float y, long time) {
-        updateVirtualJoystickAutoVisibility();
         return virtualJoystick != null && virtualJoystick.onPointerDown(pointerId, x, y, time);
     }
 
@@ -128,18 +125,6 @@ public class WebJoyInput implements JoyInput {
 
     private boolean shouldCreateVirtualJoystick() {
         return settings.useJoysticks()
-                && !AppSettings.VIRTUAL_JOYSTICK_DISABLED.equals(settings.getVirtualJoystickMode());
-    }
-
-    private void updateVirtualJoystickAutoVisibility() {
-        if (virtualJoystick == null) {
-            return;
-        }
-        String mode = settings.getVirtualJoystickMode();
-        boolean active = AppSettings.VIRTUAL_JOYSTICK_ENABLED.equals(mode)
-                || (AppSettings.VIRTUAL_JOYSTICK_AUTO.equals(mode) && virtualJoystick.hasInputBindings());
-        if (virtualJoystick.isEnabled() != active) {
-            virtualJoystick.setEnabled(active);
-        }
+                && AppSettings.VIRTUAL_JOYSTICK_ENABLED.equals(settings.getVirtualJoystickMode());
     }
 }

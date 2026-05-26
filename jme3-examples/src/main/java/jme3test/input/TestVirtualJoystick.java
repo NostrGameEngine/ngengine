@@ -46,8 +46,6 @@ import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 import com.jme3.scene.Spatial;
 import com.jme3.system.AppSettings;
-import com.jme3.system.JmeSystem;
-import com.jme3.system.Platform;
 import com.jme3.util.SkyFactory;
 
 /**
@@ -74,10 +72,6 @@ public class TestVirtualJoystick extends SimpleApplication {
     }
 
     private static String defaultVirtualJoystickMode() {
-        Platform.Os os = JmeSystem.getPlatform().getOs();
-        if (os == Platform.Os.Android || os == Platform.Os.iOS) {
-            return AppSettings.VIRTUAL_JOYSTICK_AUTO;
-        }
         return AppSettings.VIRTUAL_JOYSTICK_ENABLED;
     }
 

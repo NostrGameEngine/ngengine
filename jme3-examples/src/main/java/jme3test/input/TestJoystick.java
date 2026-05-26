@@ -68,7 +68,7 @@ public class TestJoystick extends SimpleApplication {
         if (os == Platform.Os.Android || os == Platform.Os.iOS) {
             return AppSettings.VIRTUAL_JOYSTICK_ENABLED;
         }
-        return AppSettings.VIRTUAL_JOYSTICK_AUTO;
+        return AppSettings.VIRTUAL_JOYSTICK_DISABLED;
     }
     
     @Override

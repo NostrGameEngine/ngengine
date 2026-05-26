@@ -43,8 +43,6 @@ import android.view.ViewGroup;
 import androidx.fragment.app.Fragment;
 
 import com.jme3.audio.AudioRenderer;
-import com.jme3.input.JoyInput;
-import com.jme3.input.android.AndroidSensorJoyInput;
 
 import com.jme3.system.AppSettings;
 import com.jme3.system.SystemListener;
@@ -305,13 +303,6 @@ public class AndroidLauncherFragment extends Fragment implements
             if (audioRenderer != null) {
                 audioRenderer.resumeAll();
             }
-            // resume the sensors (aka joysticks)
-            if (app.getJme3App().getContext() != null) {
-                JoyInput joyInput = app.getJme3App().getContext().getJoyInput();
-                if (joyInput instanceof AndroidSensorJoyInput) {
-                    ((AndroidSensorJoyInput) joyInput).resumeSensors();
-                }
-            }
             app.getJme3App().gainFocus();
         }
     }
@@ -332,13 +323,6 @@ public class AndroidLauncherFragment extends Fragment implements
             AudioRenderer audioRenderer = app.getJme3App().getAudioRenderer();
             if (audioRenderer != null) {
                 audioRenderer.pauseAll();
-            }
-            // pause the sensors (aka joysticks)
-            if (app.getJme3App().getContext() != null) {
-                JoyInput joyInput = app.getJme3App().getContext().getJoyInput();
-                if (joyInput instanceof AndroidSensorJoyInput) {
-                    ((AndroidSensorJoyInput) joyInput).pauseSensors();
-                }
             }
         }
     }

@@ -90,12 +90,12 @@ public class AndroidJoyInput14 extends AndroidJoyInput {
 
     @Override
     public Joystick[] loadJoysticks(InputManager inputManager) {
-        // load virtual joystick if enabled
-        super.loadJoysticks(inputManager);
+        // load sensor joystick first
+        loadBaseJoysticks(inputManager);
         // load physical gamepads/joysticks
-        int beforePhysicalJoysticks = joystickList.size();
         joystickList.addAll(joystickJoyInput.loadJoysticks(joystickList.size(), inputManager));
-        setPhysicalJoystickAvailable(joystickList.size() > beforePhysicalJoysticks);
+        // load virtual joystick last if enabled
+        addVirtualJoystick(inputManager);
         // return the list of joysticks back to InputManager
         return joystickList.toArray( new Joystick[joystickList.size()] );
     }

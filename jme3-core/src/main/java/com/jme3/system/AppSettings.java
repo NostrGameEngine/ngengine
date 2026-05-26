@@ -258,14 +258,6 @@ public final class AppSettings extends HashMap<String, Object> {
     public static final String VIRTUAL_JOYSTICK_ENABLED = "VirtualJoystickEnabled";
 
     /**
-     * Display the full virtual gamepad automatically on mobile when no
-     * hardware gamepad is detected.
-     *
-     * @see #setVirtualJoystick(String)
-     */
-    public static final String VIRTUAL_JOYSTICK_AUTO = "VirtualJoystickAuto";
-
-    /**
      * Use the fixed Xbox-like virtual joystick layout.
      *
      * @see #setVirtualJoystickDefaultLayout(String)
@@ -396,8 +388,7 @@ public final class AppSettings extends HashMap<String, Object> {
         defaults.put("JoysticksAxisJitterThreshold", 0.0001f);
         defaults.put("SDLGameControllerDBResourcePath", "");
         defaults.put("OnDeviceJoystickRumble", false);
-        defaults.put("UseAndroidSensorJoystick", false);
-        defaults.put("VirtualJoystick", VIRTUAL_JOYSTICK_AUTO);
+        defaults.put("VirtualJoystick", VIRTUAL_JOYSTICK_DISABLED);
         defaults.put("VirtualJoystickDefaultLayout", VIRTUAL_JOYSTICK_LAYOUT_DYNAMIC);
         //  defaults.put("Icons", null);
     }
@@ -772,39 +763,22 @@ public final class AppSettings extends HashMap<String, Object> {
     }
 
     /**
-     * @param use If true, Android exposes device orientation sensors as a
-     * joystick. This is disabled by default because the sensor joystick reports
-     * movement from device rotation and can conflict with gamepad or virtual
-     * joystick mappings.
-     * (Default: false)
-     */
-    public void setUseAndroidSensorJoystick(boolean use) {
-        putBoolean("UseAndroidSensorJoystick", use);
-    }
-
-    /**
      * Sets the on-screen virtual joystick mode.
      * <p>
-     * The default mode is {@link #VIRTUAL_JOYSTICK_AUTO}, which displays the
-     * virtual joystick on mobile only when joystick mappings exist and no
-     * hardware gamepad is connected.
+     * The default mode is {@link #VIRTUAL_JOYSTICK_DISABLED}.
      * <ul>
      * <li>{@link #VIRTUAL_JOYSTICK_DISABLED}: disable the virtual gamepad
      * entirely.</li>
-     * <li>{@link #VIRTUAL_JOYSTICK_ENABLED}: always display the virtual
-     * joystick, even on desktop and even when a hardware gamepad is detected.</li>
-     * <li>{@link #VIRTUAL_JOYSTICK_AUTO}: display the full virtual gamepad
-     * automatically on mobile when joystick mappings exist and no hardware
-     * gamepad is detected.</li>
+     * <li>{@link #VIRTUAL_JOYSTICK_ENABLED}: expose the virtual gamepad to the
+     * input system. Higher-level application code decides whether to show it.</li>
      * </ul>
      *
      * @param mode one of {@link #VIRTUAL_JOYSTICK_DISABLED},
-     * {@link #VIRTUAL_JOYSTICK_ENABLED}, or {@link #VIRTUAL_JOYSTICK_AUTO}
+     * {@link #VIRTUAL_JOYSTICK_ENABLED}
      */
     public void setVirtualJoystick(String mode) {
         if (!VIRTUAL_JOYSTICK_DISABLED.equals(mode)
-                && !VIRTUAL_JOYSTICK_ENABLED.equals(mode)
-                && !VIRTUAL_JOYSTICK_AUTO.equals(mode)) {
+                && !VIRTUAL_JOYSTICK_ENABLED.equals(mode)) {
             throw new IllegalArgumentException("Unsupported virtual joystick mode: " + mode);
         }
         putString("VirtualJoystick", mode);
@@ -1307,16 +1281,6 @@ public final class AppSettings extends HashMap<String, Object> {
     }
 
     /**
-     * Get the Android sensor joystick state.
-     *
-     * @return true to expose Android device orientation sensors as a joystick
-     * @see #setUseAndroidSensorJoystick(boolean)
-     */
-    public boolean useAndroidSensorJoystick() {
-        return getBoolean("UseAndroidSensorJoystick");
-    }
-
-    /**
      * Get whether supporting backends should expose an on-screen virtual joystick.
      *
      * @return true to expose the on-screen virtual joystick
@@ -1340,7 +1304,7 @@ public final class AppSettings extends HashMap<String, Object> {
      * Gets the on-screen virtual joystick mode.
      *
      * @return one of {@link #VIRTUAL_JOYSTICK_DISABLED},
-     * {@link #VIRTUAL_JOYSTICK_ENABLED}, or {@link #VIRTUAL_JOYSTICK_AUTO}
+     * {@link #VIRTUAL_JOYSTICK_ENABLED}
      */
     public String getVirtualJoystickMode() {
         Object value = get("VirtualJoystick");
@@ -1353,11 +1317,9 @@ public final class AppSettings extends HashMap<String, Object> {
                 return VIRTUAL_JOYSTICK_DISABLED;
             } else if (VIRTUAL_JOYSTICK_ENABLED.equalsIgnoreCase(mode)) {
                 return VIRTUAL_JOYSTICK_ENABLED;
-            } else if (VIRTUAL_JOYSTICK_AUTO.equalsIgnoreCase(mode)) {
-                return VIRTUAL_JOYSTICK_AUTO;
             } 
         }
-        return VIRTUAL_JOYSTICK_AUTO;
+        return VIRTUAL_JOYSTICK_DISABLED;
     }
 
     /**

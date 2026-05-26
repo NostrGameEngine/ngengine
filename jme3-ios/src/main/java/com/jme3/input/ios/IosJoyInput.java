@@ -75,10 +75,9 @@ public final class IosJoyInput implements JoyInput {
     private InputManager inputManager;
     private boolean initialized;
     private boolean onDeviceJoystickRumble;
-    private String virtualJoystickMode = AppSettings.VIRTUAL_JOYSTICK_AUTO;
+    private String virtualJoystickMode = AppSettings.VIRTUAL_JOYSTICK_DISABLED;
     private String virtualJoystickDefaultLayout = AppSettings.VIRTUAL_JOYSTICK_LAYOUT_DYNAMIC;
     private boolean useJoysticks = true;
-    private boolean keyboardSuppressedAutoJoystick;
     private volatile VirtualJoystick virtualJoystick;
 
     public static void dispatchNativeEvent(int[] intData, float[] floatData) {
@@ -122,7 +121,6 @@ public final class IosJoyInput implements JoyInput {
     public void update() {
         VirtualJoystick joystick = virtualJoystick;
         if (joystick != null) {
-            updateVirtualJoystickAutoVisibility();
             joystick.dispatchEvents(listener);
         }
     }
@@ -192,7 +190,6 @@ public final class IosJoyInput implements JoyInput {
             virtualJoystick = new VirtualJoystick(inputManager, this, nextVirtualJoyId());
             virtualJoystick.setLayout(VirtualJoystick.createLayout(virtualJoystickDefaultLayout));
             virtualJoystick.setEnabled(false);
-            updateVirtualJoystickAutoVisibility();
         } else {
             virtualJoystick = null;
         }
@@ -216,10 +213,6 @@ public final class IosJoyInput implements JoyInput {
     }
 
     private void onKeyboardInput() {
-        if (AppSettings.VIRTUAL_JOYSTICK_AUTO.equals(virtualJoystickMode)) {
-            keyboardSuppressedAutoJoystick = true;
-            updateVirtualJoystickAutoVisibility();
-        }
     }
 
     private void drainPendingEvents() {
@@ -334,7 +327,6 @@ public final class IosJoyInput implements JoyInput {
         joysticks.put(joystick.getJoyId(), joystick);
         try {
             if (inputManager != null) {
-                updateVirtualJoystickAutoVisibility();
                 inputManager.setJoysticks(currentJoysticks());
                 if (fireConnectionEvent) {
                     inputManager.fireJoystickConnectedEvent(joystick);
@@ -352,7 +344,6 @@ public final class IosJoyInput implements JoyInput {
         if (joystick != null) {
             joystick.close();
             if (inputManager != null) {
-                updateVirtualJoystickAutoVisibility();
                 inputManager.setJoysticks(currentJoysticks());
                 inputManager.fireJoystickDisconnectedEvent(joystick);
             }
@@ -361,22 +352,7 @@ public final class IosJoyInput implements JoyInput {
 
     private boolean shouldCreateVirtualJoystick() {
         return useJoysticks
-                && !AppSettings.VIRTUAL_JOYSTICK_DISABLED.equals(virtualJoystickMode);
-    }
-
-    private void updateVirtualJoystickAutoVisibility() {
-        if (virtualJoystick == null) {
-            return;
-        }
-        boolean wasEnabled = virtualJoystick.isEnabled();
-        boolean active = AppSettings.VIRTUAL_JOYSTICK_ENABLED.equals(virtualJoystickMode)
-                || (AppSettings.VIRTUAL_JOYSTICK_AUTO.equals(virtualJoystickMode)
-                && joysticks.isEmpty()
-                && !keyboardSuppressedAutoJoystick
-                && virtualJoystick.hasInputBindings());
-        if (wasEnabled != active) {
-            virtualJoystick.setEnabled(active);
-        }
+                && AppSettings.VIRTUAL_JOYSTICK_ENABLED.equals(virtualJoystickMode);
     }
 
     private Joystick[] currentJoysticks() {

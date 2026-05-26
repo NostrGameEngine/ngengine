@@ -37,6 +37,7 @@ import com.jme3.input.InputManager;
 import com.jme3.input.Joystick;
 import com.jme3.input.JoystickConnectionListener;
 import com.jme3.input.RawInputListener;
+import com.jme3.input.virtual.VirtualJoystick;
 
 import com.jme3.input.controls.Trigger;
 import com.jme3.input.controls.UnifiedInputListener;
@@ -47,6 +48,8 @@ import com.jme3.input.event.KeyInputEvent;
 import com.jme3.input.event.MouseButtonEvent;
 import com.jme3.input.event.MouseMotionEvent;
 import com.jme3.input.event.TouchEvent;
+import com.jme3.system.JmeSystem;
+import com.jme3.system.Platform;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -80,17 +83,68 @@ public interface InputHandlerFragment extends Fragment {
             this.binder.setListener(this);
         }
 
+        private boolean isFragmentEnabled() {
+            return !(fragment instanceof Component) || mng.isComponentEnabled((Component) fragment);
+        }
+
         @Override
         public void beginInput() {
-            if (!(fragment instanceof Component) || mng.isComponentEnabled((Component) fragment)) {
+            if (isFragmentEnabled()) {
+                syncVirtualJoystick();
                 fragment.beginInput(mng);
             }
         }
 
         private void deviceConnect(InputEvent<?> evt) {
-            InputDevice device = evt.getDevice();
+            deviceConnect(evt.getDevice());
+        }
+
+        private void deviceConnect(InputDevice device) {
             if (seenDevices.add(device)) {                
                 fragment.onInputDeviceConnected(mng, mng.getInstanceOf(InputManager.class), binder, device);
+            }
+        }
+
+        private void syncVirtualJoystick() {
+            InputManager inputManager = mng.getInstanceOf(InputManager.class);
+            Joystick[] joysticks = inputManager.getJoysticks();
+            if (joysticks == null) {
+                return;
+            }
+            for (Joystick joystick : joysticks) {
+                if (joystick instanceof VirtualJoystick) {
+                    updateVirtualJoystick((VirtualJoystick) joystick);
+                    return;
+                }
+            }
+        }
+
+        private boolean hasPhysicalJoystick() {
+            InputManager inputManager = mng.getInstanceOf(InputManager.class);
+            Joystick[] joysticks = inputManager.getJoysticks();
+            if (joysticks == null) {
+                return false;
+            }
+            for (Joystick joystick : joysticks) {
+                if (!(joystick instanceof VirtualJoystick)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private boolean isMobilePlatform() {
+            Platform.Os os = JmeSystem.getPlatform().getOs();
+            return os == Platform.Os.Android || os == Platform.Os.iOS;
+        }
+
+        private void updateVirtualJoystick(VirtualJoystick joystick) {
+            boolean visible = isMobilePlatform() && !hasPhysicalJoystick();
+            joystick.setEnabled(visible);
+            if (visible) {
+                deviceConnect(joystick);
+            } else {
+                deviceDisconnect(joystick);
             }
         }
 
@@ -104,30 +158,34 @@ public interface InputHandlerFragment extends Fragment {
 
         @Override
         public void endInput() {
-            if (!(fragment instanceof Component) || mng.isComponentEnabled((Component) fragment)) {
+            if (isFragmentEnabled()) {
                 fragment.endInput(mng);
             }
         }
 
         @Override
         public void onJoyAxisEvent(JoyAxisEvent evt) {
-            if (!(fragment instanceof Component) || mng.isComponentEnabled((Component) fragment)) {
-                deviceConnect(evt);
+            if (isFragmentEnabled()) {
+                if (evt.getDevice() instanceof VirtualJoystick) {
+                    deviceConnect(evt);
+                }
                 fragment.onJoyAxisEvent(mng, evt);
             }
         }
 
         @Override
         public void onJoyButtonEvent(JoyButtonEvent evt) {
-            if (!(fragment instanceof Component) || mng.isComponentEnabled((Component) fragment)) {
-                deviceConnect(evt);
+            if (isFragmentEnabled()) {
+                if (evt.getDevice() instanceof VirtualJoystick || evt.isPressed()) {
+                    deviceConnect(evt);
+                }
                 fragment.onJoyButtonEvent(mng, evt);
             }
         }
 
         @Override
         public void onMouseMotionEvent(MouseMotionEvent evt) {
-            if (!(fragment instanceof Component) || mng.isComponentEnabled((Component) fragment)) {
+            if (isFragmentEnabled()) {
                 deviceConnect(evt);
                 fragment.onMouseMotionEvent(mng, evt);
             }
@@ -135,7 +193,7 @@ public interface InputHandlerFragment extends Fragment {
 
         @Override
         public void onMouseButtonEvent(MouseButtonEvent evt) {
-            if (!(fragment instanceof Component) || mng.isComponentEnabled((Component) fragment)) {
+            if (isFragmentEnabled()) {
                 deviceConnect(evt);
                 fragment.onMouseButtonEvent(mng, evt);
             }
@@ -143,7 +201,7 @@ public interface InputHandlerFragment extends Fragment {
 
         @Override
         public void onKeyEvent(KeyInputEvent evt) {
-            if (!(fragment instanceof Component) || mng.isComponentEnabled((Component) fragment)) {
+            if (isFragmentEnabled()) {
                 deviceConnect(evt);
                 fragment.onKeyEvent(mng, evt);
             }
@@ -151,7 +209,7 @@ public interface InputHandlerFragment extends Fragment {
 
         @Override
         public void onTouchEvent(TouchEvent evt) {
-            if (!(fragment instanceof Component) || mng.isComponentEnabled((Component) fragment)) {
+            if (isFragmentEnabled()) {
                 deviceConnect(evt);
                 fragment.onTouchEvent(mng, evt);
             }
@@ -160,20 +218,27 @@ public interface InputHandlerFragment extends Fragment {
 
         @Override
         public void onUnifiedInput(String name, boolean toggled, float value, InputEvent<?>  event, float tpf) {
-            if (!(fragment instanceof Component) || mng.isComponentEnabled((Component) fragment)) {
+            if (isFragmentEnabled()) {
                 fragment.onInputAction(mng, name, toggled, value, event, tpf);
             }
         }
 
         @Override
         public void onConnected(Joystick joystick) {
-           
+            if (isFragmentEnabled()) {
+                if (joystick instanceof VirtualJoystick) {
+                    updateVirtualJoystick((VirtualJoystick) joystick);
+                } else {
+                    syncVirtualJoystick();
+                }
+            }
         }
 
         @Override
         public void onDisconnected(Joystick joystick) {
-             if (!(fragment instanceof Component) || mng.isComponentEnabled((Component) fragment)) {
+             if (isFragmentEnabled()) {
                 deviceDisconnect(joystick);
+                syncVirtualJoystick();
             }
         }
 
