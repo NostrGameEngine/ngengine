@@ -78,6 +78,7 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
     private final ArrayList<NWindowManager> windowManagers = new ArrayList<>();
     private Class<? extends NavigatorInputHandler> defaultInputHandlerClass = DefaultNavigatorInputHandler.class;
     private boolean enabled = false;
+    private boolean interactionEnabled = false;
 
     public NWindowManager getManager(ViewPort vp){
         return getManager(vp, defaultInputHandlerClass);
@@ -144,9 +145,21 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
         return new NWindowManagerComponent();
     }
 
+    /**
+     * @deprecated use {@link #setInteractionEnabled(boolean)} to enable UI input and cursor together.
+     */
+    @Deprecated
     public void showCursor(boolean v) {
-        // NGE GUI owns cursor visualization through Navigator/UI, keep OS cursor hidden.
-        enforcePhysicalCursorHidden();
+        setInteractionEnabled(v);
+    }
+
+    public void setInteractionEnabled(boolean enabled) {
+        interactionEnabled = enabled;
+        applyInteractionState();
+    }
+
+    public boolean isInteractionEnabled() {
+        return interactionEnabled;
     }
 
 
@@ -239,6 +252,7 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
 
     public void closeAllWindows() {
         getManager(null).closeAllWindows();
+        applyInteractionState();
     }
 
     public void closeAllToasts() {
@@ -247,6 +261,7 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
 
     public void closeAll() {
         getManager(null).closeAll();
+        applyInteractionState();
     }
 
     @Override
@@ -264,6 +279,7 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
     @Override
     public void onDisable(ComponentManager mng) {
         enabled = false;
+        interactionEnabled = false;
         for(NWindowManager manager : windowManagers) {
             manager.closeAll();
             manager.setInputHandler(null);
@@ -272,7 +288,13 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
     }
 
     public void setInputDevice(InputDevice device) {
-        getManager(null).setInputDevice(device);
+        for (NWindowManager manager : windowManagers) {
+            if (canInteractWith(manager)) {
+                manager.setInputDevice(device);
+            } else {
+                manager.setInputDevice(null);
+            }
+        }
     }
 
     
@@ -288,6 +310,7 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
 
     public void back() {
         getManager(null).back();
+        applyInteractionState();
     }
 
     public void action(int id) {
@@ -347,5 +370,23 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
         if (inputManager != null && inputManager.isCursorVisible()) {
             inputManager.setCursorVisible(false);
         }
+    }
+
+    private boolean canInteractWith(NWindowManager manager) {
+        return interactionEnabled && manager != null && manager.hasOpenWindows();
+    }
+
+    void onWindowStackChanged() {
+        applyInteractionState();
+    }
+
+    private void applyInteractionState() {
+        for (NWindowManager manager : windowManagers) {
+            manager.getContext().getNavigator().setCursor(canInteractWith(manager));
+            if (!canInteractWith(manager)) {
+                manager.setInputDevice(null);
+            }
+        }
+        enforcePhysicalCursorHidden();
     }
 }

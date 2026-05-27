@@ -19,7 +19,7 @@
     "GammaCorrection": true,
     "Resizable": true,
     "X11PlatformPreferred": false,
-    "TouchEmulateMouse": true,
+    "TouchEmulateMouse": false,
     "ScreenOrientation": "landscape",
     "relays":{
         "blossom":{

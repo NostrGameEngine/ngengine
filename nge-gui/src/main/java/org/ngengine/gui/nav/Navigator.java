@@ -71,7 +71,10 @@ public class Navigator implements GuiContextHandler, NavigatorListenerProvider {
     private boolean autofocus = true;
     private double cursorX, cursorY;
     private Spatial cursorPointer = null;
-    private boolean cursorVisible = false;
+    private boolean cursorEnabled = false;
+    private boolean cursorActive = false;
+    private float cursorIdleTime = 0f;
+    private float cursorAutoHideDelay = 60f;
     private boolean enabled = true;
 
     public Navigator(GuiContext ctx) {
@@ -110,7 +113,15 @@ public class Navigator implements GuiContextHandler, NavigatorListenerProvider {
     }
 
     public boolean isCursorVisible() {
-        return cursorVisible;
+        return cursorEnabled;
+    }
+
+    public boolean isCursorActive() {
+        return cursorActive;
+    }
+
+    public void setCursorAutoHideDelay(float seconds) {
+        cursorAutoHideDelay = Math.max(0f, seconds);
     }
 
     public void setCursor(boolean visible) {
@@ -127,9 +138,12 @@ public class Navigator implements GuiContextHandler, NavigatorListenerProvider {
 
     public void setCursor(Spatial cursor) {
         if (cursor == null) {
-            cursorVisible = false;
+            cursorEnabled = false;
+            cursorActive = false;
         } else {
-            cursorVisible = true;
+            cursorEnabled = true;
+            cursorActive = false;
+            cursorIdleTime = 0f;
             this.cursorPointer = cursor;
         }
     }
@@ -144,6 +158,8 @@ public class Navigator implements GuiContextHandler, NavigatorListenerProvider {
         autofocus = false;
         this.cursorX = x;
         this.cursorY = y;
+        cursorActive = true;
+        cursorIdleTime = 0f;
         return true;
     }
 
@@ -280,8 +296,14 @@ public class Navigator implements GuiContextHandler, NavigatorListenerProvider {
     }
 
     public void update(float tpf) {
+        if (cursorActive && cursorAutoHideDelay >= 0f) {
+            cursorIdleTime += Math.max(tpf, 0f);
+            if (cursorIdleTime >= cursorAutoHideDelay) {
+                cursorActive = false;
+            }
+        }
 
-        boolean cursorVisible = enabled && this.cursorVisible && this.cursorPointer != null;
+        boolean cursorVisible = enabled && cursorEnabled && cursorActive && this.cursorPointer != null;
         if (cursorVisible) {
             Node guiNode = ctx.getGuiNode();
             if (cursorPointer.getParent() != guiNode) {

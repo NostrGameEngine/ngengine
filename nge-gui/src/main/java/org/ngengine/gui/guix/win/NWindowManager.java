@@ -146,6 +146,10 @@ public class NWindowManager {
         }
     }
 
+    public boolean hasOpenWindows() {
+        return !windows.isEmpty();
+    }
+
     public NavigatorInputHandler getInputHandler(){
         return inputHandler;
     }
@@ -302,6 +306,7 @@ public class NWindowManager {
             windows.add(window);
 
             ctx.getNavigator().pushLayer(window);
+            mng.onWindowStackChanged();
             return window;
 
         } catch (Exception e) {
@@ -368,6 +373,7 @@ public class NWindowManager {
             NWindow<?> lastWindow = windows.get(windows.size() - 1);
             showWindow(lastWindow);
         }
+        mng.onWindowStackChanged();
     }
 
     public NToast showToast(Throwable exc) {
