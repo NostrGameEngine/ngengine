@@ -15,7 +15,6 @@ dependencies {
     api project(':jme3-core')
     implementation libs.jme3.android.natives
     compileOnly files(rootProject.file('lib/android.jar'))
-    implementation 'com.caverock:androidsvg:1.4'
 }
 
 tasks.withType(Jar).configureEach {
