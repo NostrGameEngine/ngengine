@@ -51,12 +51,12 @@ try {
 
         // This code will find an exact-match tag if the current
         // commit is the same as the tag commit.
-        jmeGitTag = gitOutput(['describe', '--tags', '--exact-match', 'HEAD'])
+        jmeGitTag = gitOutput(['describe', '--tags', '--exact-match', '--match', '[0-9]*', 'HEAD'])
         def latestTag;
         if( jmeGitTag ) {
             latestTag = jmeGitTag;
         } else {
-            latestTag = gitOutput(['describe', '--tags', '--abbrev=0', 'HEAD'])
+            latestTag = gitOutput(['describe', '--tags', '--abbrev=0', '--match', '[0-9]*', 'HEAD'])
             println "Latest tag:" + latestTag
         }
 
