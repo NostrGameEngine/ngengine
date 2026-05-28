@@ -71,11 +71,6 @@ public class IBLGLEnvBakerLight extends IBLHybridEnvBakerLight {
      */
     public enum SphericalHarmonicsMode {
         /**
-         * Use full cubemap integration on desktop and the Hammersley fast path on
-         * Android and iOS.
-         */
-        AUTO,
-        /**
          * Use Hammersley sampling.
          */
         FAST,
@@ -85,7 +80,7 @@ public class IBLGLEnvBakerLight extends IBLHybridEnvBakerLight {
         QUALITY
     }
 
-    private SphericalHarmonicsMode sphericalHarmonicsMode = SphericalHarmonicsMode.AUTO;
+    private SphericalHarmonicsMode sphericalHarmonicsMode = SphericalHarmonicsMode.FAST;
     private int sphericalHarmonicsFastPathSampleCount = DEFAULT_FAST_SH_SAMPLE_COUNT;
     private Texture2D shCoefTexture;
     private FrameBuffer shBaker;
@@ -208,10 +203,6 @@ public class IBLGLEnvBakerLight extends IBLHybridEnvBakerLight {
                 mat.setBoolean("UseFastSphericalHarmonics", false);
                 break;
             }
-            case AUTO: {
-                mat.setBoolean("UseFastSphericalHarmonics", isFastSphericalHarmonicsRequired());
-                break;
-            }
         }
 
         float remapMaxValue = 0;
@@ -270,10 +261,5 @@ public class IBLGLEnvBakerLight extends IBLHybridEnvBakerLight {
         EnvMapUtils.prepareShCoefs(shCoef);
         img.dispose();
 
-    }
-
-    private boolean isFastSphericalHarmonicsRequired() {
-        return renderManager.getRenderer().getCaps().contains(Caps.OpenGLES20)
-                || renderManager.getRenderer().getCaps().contains(Caps.WebGL);
     }
 }

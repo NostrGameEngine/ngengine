@@ -1,6 +1,5 @@
 buildscript {
     repositories {
-        mavenLocal()
         gradlePluginPortal()
         mavenCentral()
     }
@@ -281,11 +280,13 @@ def generateIosNativeImageMetadata = tasks.register('generateIosNativeImageMetad
     }
 }
 
-libJGLIOS {
+iOS {
     mainClass = iosChooserLauncherClass
     bundleId = 'org.jmonkeyengine.jme3iosexamples'
     appName = 'JmeIosExamples'
     simulatorDevice = (findProperty('iosSimulatorDevice') ?: 'iPhone 16').toString()
+    appIcon = file('../jme3-android-examples/src/main/res/mipmap-xxxhdpi/mipmap_monkey.png')
+    assets.from '../jme3-testdata/src/main/resources', '../jme3-examples/src/main/resources'
 }
 
 sourceSets {
@@ -295,8 +296,6 @@ sourceSets {
         resources {
             srcDir iosNativeImageMetadataDir
             srcDir generatedExamplesTestChooserResourcesDir
-            srcDir '../jme3-testdata/src/main/resources'
-            srcDir '../jme3-examples/src/main/resources'
         }
     }
 }
@@ -328,6 +327,10 @@ tasks.named('compileJava') {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
     options.release = 11
+}
+
+tasks.named('javadoc') {
+    exclude('org/ngengine/libjglios/generated/**')
 }
 
 tasks.named('processResources') {

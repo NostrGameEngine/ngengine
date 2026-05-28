@@ -385,7 +385,7 @@ public class FilterPostProcessor implements SceneProcessor, Savable {
                 if (msDepth && filter.isRequiresDepthTexture()) {
                     mat.setInt("NumSamplesDepth", depthTexture.getImage().getMultiSamples());
                 }
-
+                
                 if (filter.isRequiresSceneTexture()) {
                     mat.setTexture("Texture", tex);
                     if (tex.getImage().getMultiSamples() > 1) {

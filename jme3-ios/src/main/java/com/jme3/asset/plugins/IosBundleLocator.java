@@ -36,12 +36,13 @@ import com.jme3.asset.AssetKey;
 import com.jme3.asset.AssetLoadException;
 import com.jme3.asset.AssetLocator;
 import com.jme3.asset.AssetManager;
+import org.ngengine.libjglios.core.LibJGLIOSBundleBridge;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import org.ngengine.libjglios.core.LibJGLIOSBundleBridge;
 
 /**
  * Locates assets inside the iOS application bundle resource directory.
