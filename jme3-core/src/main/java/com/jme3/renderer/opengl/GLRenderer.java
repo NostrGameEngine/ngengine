@@ -98,6 +98,7 @@ public final class GLRenderer implements Renderer {
     private final NativeObjectManager objManager = new NativeObjectManager();
     private final EnumSet<Caps> caps = EnumSet.noneOf(Caps.class);
     private final EnumMap<Limits, Integer> limits = new EnumMap<>(Limits.class);
+    private GpuInfo gpuInfo = null;
 
     private FrameBuffer mainFbOverride = null;
     private int defaultFBO = 0;
@@ -176,6 +177,11 @@ public final class GLRenderer implements Renderer {
     @Override
     public EnumMap<Limits, Integer> getLimits() {
         return limits;
+    }
+
+    @Override
+    public GpuInfo getGpuInfo() {
+        return gpuInfo;
     }
 
     private HashSet<String> loadExtensions() {
@@ -630,6 +636,16 @@ public final class GLRenderer implements Renderer {
             caps.add(Caps.GLDebug);
         }
 
+        // Gather GPU information
+        String vendor = gl.glGetString(GL.GL_VENDOR);
+        String renderer = gl.glGetString(GL.GL_RENDERER);
+        String version = gl.glGetString(GL.GL_VERSION);
+        String glslVersion = gl.glGetString(GL.GL_SHADING_LANGUAGE_VERSION);
+        String profile = caps.contains(Caps.CoreProfile) ? "Core" : "Compatibility";
+
+        // Store GPU info for API access
+        gpuInfo = new GpuInfo(vendor, renderer, version, glslVersion, profile);
+
         // Print context information
         logger.log(Level.INFO, "OpenGL Renderer Information\n" +
                         " * Vendor: {0}\n" +
@@ -637,13 +653,7 @@ public final class GLRenderer implements Renderer {
                         " * OpenGL Version: {2}\n" +
                         " * GLSL Version: {3}\n" +
                         " * Profile: {4}",
-                new Object[]{
-                        gl.glGetString(GL.GL_VENDOR),
-                        gl.glGetString(GL.GL_RENDERER),
-                        gl.glGetString(GL.GL_VERSION),
-                        gl.glGetString(GL.GL_SHADING_LANGUAGE_VERSION),
-                        caps.contains(Caps.CoreProfile) ? "Core" : "Compatibility"
-                });
+                new Object[]{vendor, renderer, version, glslVersion, profile});
 
         // Print capabilities (if fine logging is enabled)
         if (logger.isLoggable(Level.FINE)) {

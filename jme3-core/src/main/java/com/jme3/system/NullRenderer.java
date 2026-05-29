@@ -36,6 +36,7 @@ import com.jme3.material.RenderState;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Matrix4f;
 import com.jme3.renderer.Caps;
+import com.jme3.renderer.GpuInfo;
 import com.jme3.renderer.Limits;
 import com.jme3.renderer.Renderer;
 import com.jme3.renderer.Statistics;
@@ -77,6 +78,11 @@ public class NullRenderer implements Renderer {
     @Override
     public EnumSet<Caps> getCaps() {
         return caps;
+    }
+
+    @Override
+    public GpuInfo getGpuInfo() {
+        return null; // No GPU info available for null renderer
     }
 
     @Override
