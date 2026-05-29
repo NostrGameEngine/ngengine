@@ -440,3 +440,21 @@ if (skipPrebuildLibraries != "true" && buildNativeProjects != "true") {
 dokkaGfmMultiModule {
     outputDirectory.set(file("build/dokka"))
 }
+
+tasks.register('refreshCatalog') {
+    group = 'build setup'
+    description = 'Downloads the central NostrGameEngine Gradle version catalog.'
+
+    def catalogUrl = providers.gradleProperty('centralCatalogUrl')
+        .orElse('https://raw.githubusercontent.com/NostrGameEngine/libs.catalog/main/libs.versions.toml')
+    def outputFile = layout.projectDirectory.file('gradle/libs.versions.toml')
+
+    outputs.file(outputFile)
+
+    doLast {
+        def target = outputFile.asFile
+        target.parentFile.mkdirs()
+        target.text = new URI(catalogUrl.get()).toURL().getText('UTF-8')
+        println "Refreshed ${target}"
+    }
+}

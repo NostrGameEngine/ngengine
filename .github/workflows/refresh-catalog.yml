@@ -1,0 +1,39 @@
+name: Refresh Catalog
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh-catalog:
+    name: Refresh central catalog copy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Refresh catalog
+        run: ./gradlew --no-daemon refreshCatalog
+
+      - name: Open pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: automation/refresh-central-catalog
+          delete-branch: true
+          commit-message: Refresh central Gradle version catalog
+          title: Refresh central Gradle version catalog
+          body: |
+            Updates the local Gradle version catalog from NostrGameEngine/libs.catalog.
+
+            If the downloaded catalog is identical to the current file, this workflow exits without opening a pull request.
