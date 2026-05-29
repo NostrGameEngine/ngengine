@@ -1,19 +1,21 @@
 [versions]
 
 # Snapshot versions for NostrGameEngine libraries
-bech32Snapshot = "1.0.0-SNAPSHOT"
-bolt11Snapshot = "0.0.0-SNAPSHOT"
-imagewebpSnapshot = "0.1.0-SNAPSHOT"
-libdatachannelJavaSnapshot = "0.24.1.0-SNAPSHOT"
-libjgliosSnapshot = "0.3-SNAPSHOT"
+angleSnapshot = "2026-05-09"
+bech32Snapshot = "1.2.1"
+bolt11Snapshot = "0.0.1"
+chicorySnapshot = "1.7.5-nge2"
+imagewebpSnapshot = "1.3.0"
+libdatachannelJavaSnapshot = "0.24.1.nge6"
+libjgliosSnapshot = "0.6"
 lnurlSnapshot = "0.3.0-SNAPSHOT"
-nanosvgChicoryJavaSnapshot = "0.1.0-SNAPSHOT"
+nanosvgChicoryJavaSnapshot = "0.1"
 ngengineSnapshot = "0.3.0-SNAPSHOT"
 ngePlatformSnapshot = "0.3.0-SNAPSHOT"
 nostr4jSnapshot = "0.3.0-SNAPSHOT"
 nostradsSnapshot = "0.2.0-SNAPSHOT"
-saferallocSnapshot = "0.1.0-SNAPSHOT"
-stbImageSnapshot = "1.0.0-SNAPSHOT"
+saferallocSnapshot = "0.0.10"
+stbImageSnapshot = "2.30.5"
 
 # Release versions for NostrGameEngine libraries
 angle = "2026-05-09"
@@ -21,7 +23,7 @@ bech32 = "1.2.1"
 bolt11 = "0.0.1"
 chicory = "1.7.5-nge2"
 imagewebp = "1.3.0"
-libdatachannelJava = "0.24.1.nge5"
+libdatachannelJava = "0.24.1.nge6"
 libjglios = "0.6"
 lnurl = "0.0.4"
 lnurl4j = "0.0.4"
@@ -68,8 +70,11 @@ teavm = "0.13.0"
 [libraries]
 
 # Snapshot artifacts for NostrGameEngine libraries
+angle-snapshot = { module = "org.ngengine:angle-natives", version.ref = "angleSnapshot" }
 bech32-snapshot = { module = "org.ngengine:bech32", version.ref = "bech32Snapshot" }
 bolt11-snapshot = { module = "org.ngengine:bolt11", version.ref = "bolt11Snapshot" }
+chicory-runtime-snapshot = { module = "org.ngengine.chicory:runtime", version.ref = "chicorySnapshot" }
+chicory-wasm-snapshot = { module = "org.ngengine.chicory:wasm", version.ref = "chicorySnapshot" }
 imagewebp-snapshot = { module = "org.ngengine:image-webp-decoder", version.ref = "imagewebpSnapshot" }
 jme3-core-snapshot = { module = "org.ngengine:jme3-core", version.ref = "ngengineSnapshot" }
 jme3-desktop-snapshot = { module = "org.ngengine:jme3-desktop", version.ref = "ngengineSnapshot" }
@@ -85,12 +90,12 @@ libdatachannel-java-snapshot = { module = "org.ngengine:libdatachannel-java", ve
 libdatachannel-java-android-snapshot = { module = "org.ngengine:libdatachannel-java-android", version.ref = "libdatachannelJavaSnapshot" }
 libdatachannel-java-arch-detect-snapshot = { module = "org.ngengine:libdatachannel-java-arch-detect", version.ref = "libdatachannelJavaSnapshot" }
 libdatachannel-java-ios-snapshot = { module = "org.ngengine:libdatachannel-java-ios", version.ref = "libdatachannelJavaSnapshot" }
-libjglios-angle-ios-snapshot = { module = "org.ngengine:libjglios-angle-ios", version.ref = "libjgliosSnapshot" }
-libjglios-core-ios-snapshot = { module = "org.ngengine:libjglios-core-ios", version.ref = "libjgliosSnapshot" }
-libjglios-gles-ios-snapshot = { module = "org.ngengine:libjglios-gles-ios", version.ref = "libjgliosSnapshot" }
-libjglios-gradle-plugin-snapshot = { module = "org.ngengine:libjglios-gradle-plugin", version.ref = "libjgliosSnapshot" }
-libjglios-openal-ios-snapshot = { module = "org.ngengine:libjglios-openal-ios", version.ref = "libjgliosSnapshot" }
-libjglios-sdl3-ios-snapshot = { module = "org.ngengine:libjglios-sdl3-ios", version.ref = "libjgliosSnapshot" }
+libjgliosAngleIosSnapshot = { module = "org.ngengine:libjglios-angle-ios", version.ref = "libjgliosSnapshot" }
+libjgliosCoreIosSnapshot = { module = "org.ngengine:libjglios-core-ios", version.ref = "libjgliosSnapshot" }
+libjgliosGlesIosSnapshot = { module = "org.ngengine:libjglios-gles-ios", version.ref = "libjgliosSnapshot" }
+libjgliosGradlePluginSnapshot = { module = "org.ngengine:libjglios-gradle-plugin", version.ref = "libjgliosSnapshot" }
+libjgliosOpenalIosSnapshot = { module = "org.ngengine:libjglios-openal-ios", version.ref = "libjgliosSnapshot" }
+libjgliosSdl3IosSnapshot = { module = "org.ngengine:libjglios-sdl3-ios", version.ref = "libjgliosSnapshot" }
 lnurl4j-snapshot = { module = "org.ngengine:lnurl4j", version.ref = "lnurlSnapshot" }
 nanosvg-chicory-java-snapshot = { module = "org.ngengine:nanosvg-chicory-java", version.ref = "nanosvgChicoryJavaSnapshot" }
 nge-auth-snapshot = { module = "org.ngengine:nge-auth", version.ref = "ngengineSnapshot" }
@@ -136,12 +141,12 @@ libdatachannelJava = { module = "org.ngengine:libdatachannel-java", version.ref 
 libdatachannelJavaAndroid = { module = "org.ngengine:libdatachannel-java-android", version.ref = "libdatachannelJava" }
 libdatachannelJavaArchDetect = { module = "org.ngengine:libdatachannel-java-arch-detect", version.ref = "libdatachannelJava" }
 libdatachannelJavaIos = { module = "org.ngengine:libdatachannel-java-ios", version.ref = "libdatachannelJava" }
-libjglios-angle-ios = { module = "org.ngengine:libjglios-angle-ios", version.ref = "libjglios" }
-libjglios-core-ios = { module = "org.ngengine:libjglios-core-ios", version.ref = "libjglios" }
-libjglios-gles-ios = { module = "org.ngengine:libjglios-gles-ios", version.ref = "libjglios" }
-libjglios-gradle-plugin = { module = "org.ngengine:libjglios-gradle-plugin", version.ref = "libjglios" }
-libjglios-openal-ios = { module = "org.ngengine:libjglios-openal-ios", version.ref = "libjglios" }
-libjglios-sdl3-ios = { module = "org.ngengine:libjglios-sdl3-ios", version.ref = "libjglios" }
+libjgliosAngleIos = { module = "org.ngengine:libjglios-angle-ios", version.ref = "libjglios" }
+libjgliosCoreIos = { module = "org.ngengine:libjglios-core-ios", version.ref = "libjglios" }
+libjgliosGlesIos = { module = "org.ngengine:libjglios-gles-ios", version.ref = "libjglios" }
+libjgliosGradlePlugin = { module = "org.ngengine:libjglios-gradle-plugin", version.ref = "libjglios" }
+libjgliosOpenalIos = { module = "org.ngengine:libjglios-openal-ios", version.ref = "libjglios" }
+libjgliosSdl3Ios = { module = "org.ngengine:libjglios-sdl3-ios", version.ref = "libjglios" }
 lnurl4j = { module = "org.ngengine:lnurl4j", version.ref = "lnurl" }
 nanosvg-chicory-java = { module = "org.ngengine:nanosvg-chicory-java", version.ref = "nanosvgChicoryJava" }
 nge-auth = { module = "org.ngengine:nge-auth", version.ref = "ngengine" }
