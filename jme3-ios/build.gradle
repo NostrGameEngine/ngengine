@@ -1,8 +1,8 @@
 dependencies {
     api project(':jme3-core')
     api project(':jme3-plugins')
-    api libs.libjglios.core.ios
-    api libs.libjglios.gles.ios
-    api libs.libjglios.sdl3.ios
-    api libs.libjglios.openal.ios
+    api libs.libjgliosCoreIos
+    api libs.libjgliosGlesIos
+    api libs.libjgliosSdl3Ios
+    api libs.libjgliosOpenalIos
 }

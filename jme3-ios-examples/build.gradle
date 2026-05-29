@@ -4,7 +4,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath libs.libjglios.gradle.plugin
+        classpath libs.libjgliosGradlePlugin
     }
 }
 
@@ -303,11 +303,11 @@ sourceSets {
 dependencies {
     implementation project(':jme3-core')
     implementation project(':jme3-ios')
-    implementation libs.libjglios.core.ios
-    implementation libs.libjglios.gles.ios
-    implementation libs.libjglios.sdl3.ios
-    implementation libs.libjglios.openal.ios
-    implementation libs.libjglios.angle.ios
+    implementation libs.libjgliosCoreIos
+    implementation libs.libjgliosGlesIos
+    implementation libs.libjgliosSdl3Ios
+    implementation libs.libjgliosOpenalIos
+    implementation libs.libjgliosAngleIos
     implementation project(':jme3-effects')
     implementation project(':jme3-jbullet')
     implementation project(':jme3-jogg')
