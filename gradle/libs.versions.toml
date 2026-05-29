@@ -1,19 +1,19 @@
 [versions]
 
 # Snapshot versions for NostrGameEngine libraries
-bech32-snapshot = "1.0.0-SNAPSHOT"
-bolt11-snapshot = "0.0.0-SNAPSHOT"
-imagewebp-snapshot = "0.1.0-SNAPSHOT"
-libdatachannelJava-snapshot = "0.24.1.0-SNAPSHOT"
-libjglios-snapshot = "0.3-SNAPSHOT"
-lnurl4j-snapshot = "0.3.0-SNAPSHOT"
-nanosvgChicoryJava-snapshot = "0.1.0-SNAPSHOT"
-ngengine-snapshot = "0.3.0-SNAPSHOT"
-ngePlatform-snapshot = "0.3.0-SNAPSHOT"
-nostr4j-snapshot = "0.3.0-SNAPSHOT"
-nostrads-snapshot = "0.2.0-SNAPSHOT"
-saferalloc-snapshot = "0.1.0-SNAPSHOT"
-stbImage-snapshot = "1.0.0-SNAPSHOT"
+bech32Snapshot = "1.0.0-SNAPSHOT"
+bolt11Snapshot = "0.0.0-SNAPSHOT"
+imagewebpSnapshot = "0.1.0-SNAPSHOT"
+libdatachannelJavaSnapshot = "0.24.1.0-SNAPSHOT"
+libjgliosSnapshot = "0.3-SNAPSHOT"
+lnurlSnapshot = "0.3.0-SNAPSHOT"
+nanosvgChicoryJavaSnapshot = "0.1.0-SNAPSHOT"
+ngengineSnapshot = "0.3.0-SNAPSHOT"
+ngePlatformSnapshot = "0.3.0-SNAPSHOT"
+nostr4jSnapshot = "0.3.0-SNAPSHOT"
+nostradsSnapshot = "0.2.0-SNAPSHOT"
+saferallocSnapshot = "0.1.0-SNAPSHOT"
+stbImageSnapshot = "1.0.0-SNAPSHOT"
 
 # Release versions for NostrGameEngine libraries
 angle = "2026-05-09"
@@ -23,6 +23,7 @@ chicory = "1.7.5-nge2"
 imagewebp = "1.3.0"
 libdatachannelJava = "0.24.1.nge5"
 libjglios = "0.6"
+lnurl = "0.0.4"
 lnurl4j = "0.0.4"
 nanosvgChicoryJava = "0.1"
 ngengine = "0.2.0"
@@ -51,6 +52,7 @@ jackson = "2.17.2"
 jakartaAnnotation = "2.1.1"
 jacoco = "0.8.12"
 jmeAndroidNatives = "3.10.0-xt16kb-alloc"
+jetty = "12.0.14"
 junit4Version = "4.13.2"
 lwjgl3 = "3.4.1"
 nifty = "1.4.3"
@@ -66,52 +68,52 @@ teavm = "0.13.0"
 [libraries]
 
 # Snapshot artifacts for NostrGameEngine libraries
-bech32-snapshot = { module = "org.ngengine:bech32", version.ref = "bech32-snapshot" }
-bolt11-snapshot = { module = "org.ngengine:bolt11", version.ref = "bolt11-snapshot" }
-imagewebp-snapshot = { module = "org.ngengine:image-webp-decoder", version.ref = "imagewebp-snapshot" }
-jme3-core-snapshot = { module = "org.ngengine:jme3-core", version.ref = "ngengine-snapshot" }
-jme3-desktop-snapshot = { module = "org.ngengine:jme3-desktop", version.ref = "ngengine-snapshot" }
-jme3-effects-snapshot = { module = "org.ngengine:jme3-effects", version.ref = "ngengine-snapshot" }
-jme3-ios-snapshot = { module = "org.ngengine:jme3-ios", version.ref = "ngengine-snapshot" }
-jme3-lwjgl3-snapshot = { module = "org.ngengine:jme3-lwjgl3", version.ref = "ngengine-snapshot" }
-jme3-networking-snapshot = { module = "org.ngengine:jme3-networking", version.ref = "ngengine-snapshot" }
-jme3-plugins-snapshot = { module = "org.ngengine:jme3-plugins", version.ref = "ngengine-snapshot" }
-jme3-plugins-json-snapshot = { module = "org.ngengine:jme3-plugins-json", version.ref = "ngengine-snapshot" }
-jme3-plugins-json-gson-snapshot = { module = "org.ngengine:jme3-plugins-json-gson", version.ref = "ngengine-snapshot" }
-jme3-terrain-snapshot = { module = "org.ngengine:jme3-terrain", version.ref = "ngengine-snapshot" }
-libdatachannel-java-snapshot = { module = "org.ngengine:libdatachannel-java", version.ref = "libdatachannelJava-snapshot" }
-libdatachannel-java-android-snapshot = { module = "org.ngengine:libdatachannel-java-android", version.ref = "libdatachannelJava-snapshot" }
-libdatachannel-java-arch-detect-snapshot = { module = "org.ngengine:libdatachannel-java-arch-detect", version.ref = "libdatachannelJava-snapshot" }
-libdatachannel-java-ios-snapshot = { module = "org.ngengine:libdatachannel-java-ios", version.ref = "libdatachannelJava-snapshot" }
-libjglios-angle-ios-snapshot = { module = "org.ngengine:libjglios-angle-ios", version.ref = "libjglios-snapshot" }
-libjglios-core-ios-snapshot = { module = "org.ngengine:libjglios-core-ios", version.ref = "libjglios-snapshot" }
-libjglios-gles-ios-snapshot = { module = "org.ngengine:libjglios-gles-ios", version.ref = "libjglios-snapshot" }
-libjglios-gradle-plugin-snapshot = { module = "org.ngengine:libjglios-gradle-plugin", version.ref = "libjglios-snapshot" }
-libjglios-openal-ios-snapshot = { module = "org.ngengine:libjglios-openal-ios", version.ref = "libjglios-snapshot" }
-libjglios-sdl3-ios-snapshot = { module = "org.ngengine:libjglios-sdl3-ios", version.ref = "libjglios-snapshot" }
-lnurl4j-snapshot = { module = "org.ngengine:lnurl4j", version.ref = "lnurl4j-snapshot" }
-nanosvg-chicory-java-snapshot = { module = "org.ngengine:nanosvg-chicory-java", version.ref = "nanosvgChicoryJava-snapshot" }
-nge-auth-snapshot = { module = "org.ngengine:nge-auth", version.ref = "ngengine-snapshot" }
-nge-core-snapshot = { module = "org.ngengine:nge-core", version.ref = "ngengine-snapshot" }
-nge-gui-snapshot = { module = "org.ngengine:nge-gui", version.ref = "ngengine-snapshot" }
-nge-networking-snapshot = { module = "org.ngengine:nge-networking", version.ref = "ngengine-snapshot" }
-nge-platform-android-snapshot = { module = "org.ngengine:nge-platform-android", version.ref = "ngePlatform-snapshot" }
-nge-platform-common-snapshot = { module = "org.ngengine:nge-platform-common", version.ref = "ngePlatform-snapshot" }
-nge-platform-jvm-snapshot = { module = "org.ngengine:nge-platform-jvm", version.ref = "ngePlatform-snapshot" }
-nge-platform-teavm-snapshot = { module = "org.ngengine:nge-platform-teavm", version.ref = "ngePlatform-snapshot" }
-nostr4j-snapshot = { module = "org.ngengine:nostr4j", version.ref = "nostr4j-snapshot" }
-nostr4j-turn-server-snapshot = { module = "org.ngengine:nostr4j-turn-server", version.ref = "nostr4j-snapshot" }
-nostrads-snapshot = { module = "org.ngengine:nostrads", version.ref = "nostrads-snapshot" }
-saferalloc-snapshot = { module = "org.ngengine:saferalloc", version.ref = "saferalloc-snapshot" }
-saferalloc-natives-linux-x8664-snapshot = { module = "org.ngengine:saferalloc-natives-linux-x86_64", version.ref = "saferalloc-snapshot" }
-saferalloc-natives-linux-aarch64-snapshot = { module = "org.ngengine:saferalloc-natives-linux-aarch64", version.ref = "saferalloc-snapshot" }
-saferalloc-natives-windows-x8664-snapshot = { module = "org.ngengine:saferalloc-natives-windows-x86_64", version.ref = "saferalloc-snapshot" }
-saferalloc-natives-windows-aarch64-snapshot = { module = "org.ngengine:saferalloc-natives-windows-aarch64", version.ref = "saferalloc-snapshot" }
-saferalloc-natives-macos-x8664-snapshot = { module = "org.ngengine:saferalloc-natives-macos-x86_64", version.ref = "saferalloc-snapshot" }
-saferalloc-natives-macos-aarch64-snapshot = { module = "org.ngengine:saferalloc-natives-macos-aarch64", version.ref = "saferalloc-snapshot" }
-saferalloc-natives-android-snapshot = { module = "org.ngengine:saferalloc-natives-android", version.ref = "saferalloc-snapshot" }
-saferalloc-natives-ios-snapshot = { module = "org.ngengine:saferalloc-natives-ios", version.ref = "saferalloc-snapshot" }
-stb-image-snapshot = { module = "org.ngengine:stb-image", version.ref = "stbImage-snapshot" }
+bech32-snapshot = { module = "org.ngengine:bech32", version.ref = "bech32Snapshot" }
+bolt11-snapshot = { module = "org.ngengine:bolt11", version.ref = "bolt11Snapshot" }
+imagewebp-snapshot = { module = "org.ngengine:image-webp-decoder", version.ref = "imagewebpSnapshot" }
+jme3-core-snapshot = { module = "org.ngengine:jme3-core", version.ref = "ngengineSnapshot" }
+jme3-desktop-snapshot = { module = "org.ngengine:jme3-desktop", version.ref = "ngengineSnapshot" }
+jme3-effects-snapshot = { module = "org.ngengine:jme3-effects", version.ref = "ngengineSnapshot" }
+jme3-ios-snapshot = { module = "org.ngengine:jme3-ios", version.ref = "ngengineSnapshot" }
+jme3-lwjgl3-snapshot = { module = "org.ngengine:jme3-lwjgl3", version.ref = "ngengineSnapshot" }
+jme3-networking-snapshot = { module = "org.ngengine:jme3-networking", version.ref = "ngengineSnapshot" }
+jme3-plugins-snapshot = { module = "org.ngengine:jme3-plugins", version.ref = "ngengineSnapshot" }
+jme3-plugins-json-snapshot = { module = "org.ngengine:jme3-plugins-json", version.ref = "ngengineSnapshot" }
+jme3-plugins-json-gson-snapshot = { module = "org.ngengine:jme3-plugins-json-gson", version.ref = "ngengineSnapshot" }
+jme3-terrain-snapshot = { module = "org.ngengine:jme3-terrain", version.ref = "ngengineSnapshot" }
+libdatachannel-java-snapshot = { module = "org.ngengine:libdatachannel-java", version.ref = "libdatachannelJavaSnapshot" }
+libdatachannel-java-android-snapshot = { module = "org.ngengine:libdatachannel-java-android", version.ref = "libdatachannelJavaSnapshot" }
+libdatachannel-java-arch-detect-snapshot = { module = "org.ngengine:libdatachannel-java-arch-detect", version.ref = "libdatachannelJavaSnapshot" }
+libdatachannel-java-ios-snapshot = { module = "org.ngengine:libdatachannel-java-ios", version.ref = "libdatachannelJavaSnapshot" }
+libjglios-angle-ios-snapshot = { module = "org.ngengine:libjglios-angle-ios", version.ref = "libjgliosSnapshot" }
+libjglios-core-ios-snapshot = { module = "org.ngengine:libjglios-core-ios", version.ref = "libjgliosSnapshot" }
+libjglios-gles-ios-snapshot = { module = "org.ngengine:libjglios-gles-ios", version.ref = "libjgliosSnapshot" }
+libjglios-gradle-plugin-snapshot = { module = "org.ngengine:libjglios-gradle-plugin", version.ref = "libjgliosSnapshot" }
+libjglios-openal-ios-snapshot = { module = "org.ngengine:libjglios-openal-ios", version.ref = "libjgliosSnapshot" }
+libjglios-sdl3-ios-snapshot = { module = "org.ngengine:libjglios-sdl3-ios", version.ref = "libjgliosSnapshot" }
+lnurl4j-snapshot = { module = "org.ngengine:lnurl4j", version.ref = "lnurlSnapshot" }
+nanosvg-chicory-java-snapshot = { module = "org.ngengine:nanosvg-chicory-java", version.ref = "nanosvgChicoryJavaSnapshot" }
+nge-auth-snapshot = { module = "org.ngengine:nge-auth", version.ref = "ngengineSnapshot" }
+nge-core-snapshot = { module = "org.ngengine:nge-core", version.ref = "ngengineSnapshot" }
+nge-gui-snapshot = { module = "org.ngengine:nge-gui", version.ref = "ngengineSnapshot" }
+nge-networking-snapshot = { module = "org.ngengine:nge-networking", version.ref = "ngengineSnapshot" }
+nge-platform-android-snapshot = { module = "org.ngengine:nge-platform-android", version.ref = "ngePlatformSnapshot" }
+nge-platform-common-snapshot = { module = "org.ngengine:nge-platform-common", version.ref = "ngePlatformSnapshot" }
+nge-platform-jvm-snapshot = { module = "org.ngengine:nge-platform-jvm", version.ref = "ngePlatformSnapshot" }
+nge-platform-teavm-snapshot = { module = "org.ngengine:nge-platform-teavm", version.ref = "ngePlatformSnapshot" }
+nostr4j-snapshot = { module = "org.ngengine:nostr4j", version.ref = "nostr4jSnapshot" }
+nostr4j-turn-server-snapshot = { module = "org.ngengine:nostr4j-turn-server", version.ref = "nostr4jSnapshot" }
+nostrads-snapshot = { module = "org.ngengine:nostrads", version.ref = "nostradsSnapshot" }
+saferalloc-snapshot = { module = "org.ngengine:saferalloc", version.ref = "saferallocSnapshot" }
+saferalloc-natives-linux-x8664-snapshot = { module = "org.ngengine:saferalloc-natives-linux-x86_64", version.ref = "saferallocSnapshot" }
+saferalloc-natives-linux-aarch64-snapshot = { module = "org.ngengine:saferalloc-natives-linux-aarch64", version.ref = "saferallocSnapshot" }
+saferalloc-natives-windows-x8664-snapshot = { module = "org.ngengine:saferalloc-natives-windows-x86_64", version.ref = "saferallocSnapshot" }
+saferalloc-natives-windows-aarch64-snapshot = { module = "org.ngengine:saferalloc-natives-windows-aarch64", version.ref = "saferallocSnapshot" }
+saferalloc-natives-macos-x8664-snapshot = { module = "org.ngengine:saferalloc-natives-macos-x86_64", version.ref = "saferallocSnapshot" }
+saferalloc-natives-macos-aarch64-snapshot = { module = "org.ngengine:saferalloc-natives-macos-aarch64", version.ref = "saferallocSnapshot" }
+saferalloc-natives-android-snapshot = { module = "org.ngengine:saferalloc-natives-android", version.ref = "saferallocSnapshot" }
+saferalloc-natives-ios-snapshot = { module = "org.ngengine:saferalloc-natives-ios", version.ref = "saferallocSnapshot" }
+stb-image-snapshot = { module = "org.ngengine:stb-image", version.ref = "stbImageSnapshot" }
 
 # Release artifacts for NostrGameEngine libraries
 angle = { module = "org.ngengine:angle-natives", version.ref = "angle" }
@@ -130,17 +132,17 @@ jme3-plugins = { module = "org.ngengine:jme3-plugins", version.ref = "ngengine" 
 jme3-plugins-json = { module = "org.ngengine:jme3-plugins-json", version.ref = "ngengine" }
 jme3-plugins-json-gson = { module = "org.ngengine:jme3-plugins-json-gson", version.ref = "ngengine" }
 jme3-terrain = { module = "org.ngengine:jme3-terrain", version.ref = "ngengine" }
-libdatachannel-java = { module = "org.ngengine:libdatachannel-java", version.ref = "libdatachannelJava" }
-libdatachannel-java-android = { module = "org.ngengine:libdatachannel-java-android", version.ref = "libdatachannelJava" }
-libdatachannel-java-arch-detect = { module = "org.ngengine:libdatachannel-java-arch-detect", version.ref = "libdatachannelJava" }
-libdatachannel-java-ios = { module = "org.ngengine:libdatachannel-java-ios", version.ref = "libdatachannelJava" }
+libdatachannelJava = { module = "org.ngengine:libdatachannel-java", version.ref = "libdatachannelJava" }
+libdatachannelJavaAndroid = { module = "org.ngengine:libdatachannel-java-android", version.ref = "libdatachannelJava" }
+libdatachannelJavaArchDetect = { module = "org.ngengine:libdatachannel-java-arch-detect", version.ref = "libdatachannelJava" }
+libdatachannelJavaIos = { module = "org.ngengine:libdatachannel-java-ios", version.ref = "libdatachannelJava" }
 libjglios-angle-ios = { module = "org.ngengine:libjglios-angle-ios", version.ref = "libjglios" }
 libjglios-core-ios = { module = "org.ngengine:libjglios-core-ios", version.ref = "libjglios" }
 libjglios-gles-ios = { module = "org.ngengine:libjglios-gles-ios", version.ref = "libjglios" }
 libjglios-gradle-plugin = { module = "org.ngengine:libjglios-gradle-plugin", version.ref = "libjglios" }
 libjglios-openal-ios = { module = "org.ngengine:libjglios-openal-ios", version.ref = "libjglios" }
 libjglios-sdl3-ios = { module = "org.ngengine:libjglios-sdl3-ios", version.ref = "libjglios" }
-lnurl4j = { module = "org.ngengine:lnurl4j", version.ref = "lnurl4j" }
+lnurl4j = { module = "org.ngengine:lnurl4j", version.ref = "lnurl" }
 nanosvg-chicory-java = { module = "org.ngengine:nanosvg-chicory-java", version.ref = "nanosvgChicoryJava" }
 nge-auth = { module = "org.ngengine:nge-auth", version.ref = "ngengine" }
 nge-core = { module = "org.ngengine:nge-core", version.ref = "ngengine" }
@@ -154,18 +156,19 @@ nostr4j = { module = "org.ngengine:nostr4j", version.ref = "nostr4j" }
 nostr4j-turn-server = { module = "org.ngengine:nostr4j-turn-server", version.ref = "nostr4j" }
 nostrads = { module = "org.ngengine:nostrads", version.ref = "nostrads" }
 saferalloc = { module = "org.ngengine:saferalloc", version.ref = "saferalloc" }
-saferalloc-natives-linux-x8664 = { module = "org.ngengine:saferalloc-natives-linux-x86_64", version.ref = "saferalloc" }
-saferalloc-natives-linux-aarch64 = { module = "org.ngengine:saferalloc-natives-linux-aarch64", version.ref = "saferalloc" }
-saferalloc-natives-windows-x8664 = { module = "org.ngengine:saferalloc-natives-windows-x86_64", version.ref = "saferalloc" }
-saferalloc-natives-windows-aarch64 = { module = "org.ngengine:saferalloc-natives-windows-aarch64", version.ref = "saferalloc" }
-saferalloc-natives-macos-x8664 = { module = "org.ngengine:saferalloc-natives-macos-x86_64", version.ref = "saferalloc" }
-saferalloc-natives-macos-aarch64 = { module = "org.ngengine:saferalloc-natives-macos-aarch64", version.ref = "saferalloc" }
-saferalloc-natives-android = { module = "org.ngengine:saferalloc-natives-android", version.ref = "saferalloc" }
-saferalloc-natives-ios = { module = "org.ngengine:saferalloc-natives-ios", version.ref = "saferalloc" }
+saferallocNativesLinuxX64 = { module = "org.ngengine:saferalloc-natives-linux-x86_64", version.ref = "saferalloc" }
+saferallocNativesLinuxArm64 = { module = "org.ngengine:saferalloc-natives-linux-aarch64", version.ref = "saferalloc" }
+saferallocNativesWindowsX64 = { module = "org.ngengine:saferalloc-natives-windows-x86_64", version.ref = "saferalloc" }
+saferallocNativesWindowsArm64 = { module = "org.ngengine:saferalloc-natives-windows-aarch64", version.ref = "saferalloc" }
+saferallocNativesMacosX64 = { module = "org.ngengine:saferalloc-natives-macos-x86_64", version.ref = "saferalloc" }
+saferallocNativesMacosArm64 = { module = "org.ngengine:saferalloc-natives-macos-aarch64", version.ref = "saferalloc" }
+saferallocNativesAndroid = { module = "org.ngengine:saferalloc-natives-android", version.ref = "saferalloc" }
+saferallocNativesIos = { module = "org.ngengine:saferalloc-natives-ios", version.ref = "saferalloc" }
 stb-image = { module = "org.ngengine:stb-image", version.ref = "stbImage" }
 
 # Transitive dependencies
 androidx-annotation = "androidx.annotation:annotation:1.10.0"
+androidx-appcompat = "androidx.appcompat:appcompat:1.7.1"
 androidx-fragment = "androidx.fragment:fragment:1.8.9"
 androidx-lifecycle-common = "androidx.lifecycle:lifecycle-common:2.7.0"
 android-build-gradle = { module = "com.android.tools.build:gradle", version.ref = "androidGradlePlugin" }
@@ -178,6 +181,7 @@ asm-tree = { module = "org.ow2.asm:asm-tree", version.ref = "asm" }
 bcprov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bcprov" }
 commons-math3 = { module = "org.apache.commons:commons-math3", version.ref = "commons-math3" }
 findsecbugs-plugin = { module = "com.h3xstream.findsecbugs:findsecbugs-plugin", version.ref = "findsecbugs" }
+gradle-git = "org.ajoberstar:gradle-git:1.2.0"
 groovy-test = "org.apache.groovy:groovy-test:4.0.31"
 gson = "com.google.code.gson:gson:2.14.0"
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
@@ -189,6 +193,9 @@ jbullet = "com.github.stephengold:jbullet:1.0.3"
 jinput = "net.java.jinput:jinput:2.0.9"
 jna = "net.java.dev.jna:jna:5.18.1"
 jnaerator-runtime = "com.nativelibs4java:jnaerator-runtime:0.12"
+jetty-server = { module = "org.eclipse.jetty:jetty-server", version.ref = "jetty" }
+jetty-ee10-servlet = { module = "org.eclipse.jetty.ee10:jetty-ee10-servlet", version.ref = "jetty" }
+jetty-ee10-websocket-server = { module = "org.eclipse.jetty.ee10.websocket:jetty-ee10-websocket-jetty-server", version.ref = "jetty" }
 junit-bom = "org.junit:junit-bom:5.13.4"
 junit = { module = "junit:junit", version.ref = "junit4Version" }
 junit4 = "junit:junit:4.13.2"
@@ -202,6 +209,7 @@ lwjgl3-glfw = { module = "org.lwjgl:lwjgl-glfw", version.ref = "lwjgl3" }
 lwjgl3-jawt = { module = "org.lwjgl:lwjgl-jawt", version.ref = "lwjgl3" }
 lwjgl3-jemalloc = { module = "org.lwjgl:lwjgl-jemalloc", version.ref = "lwjgl3" }
 lwjgl3-openal = { module = "org.lwjgl:lwjgl-openal", version.ref = "lwjgl3" }
+lwjgl3-opencl = { module = "org.lwjgl:lwjgl-opencl", version.ref = "lwjgl3" }
 lwjgl3-opengl = { module = "org.lwjgl:lwjgl-opengl", version.ref = "lwjgl3" }
 lwjgl3-stb = { module = "org.lwjgl:lwjgl-stb", version.ref = "lwjgl3" }
 lwjgl3-nanovg = { module = "org.lwjgl:lwjgl-nanovg", version.ref = "lwjgl3" }
@@ -222,7 +230,7 @@ vecmath = "javax.vecmath:vecmath:1.5.2"
 [bundles]
 
 # Bundles for NostrGameEngine libraries
-saferalloc = ["saferalloc", "saferalloc-natives-linux-x8664", "saferalloc-natives-linux-aarch64", "saferalloc-natives-windows-x8664", "saferalloc-natives-windows-aarch64", "saferalloc-natives-macos-x8664", "saferalloc-natives-macos-aarch64", "saferalloc-natives-android"]
+saferalloc = ["saferalloc", "saferallocNativesLinuxX64", "saferallocNativesLinuxArm64", "saferallocNativesWindowsX64", "saferallocNativesWindowsArm64", "saferallocNativesMacosX64", "saferallocNativesMacosArm64", "saferallocNativesAndroid"]
 
 [plugins]
 
