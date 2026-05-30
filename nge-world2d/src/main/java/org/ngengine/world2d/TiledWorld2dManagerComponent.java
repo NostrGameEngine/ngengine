@@ -51,6 +51,7 @@ import org.jbox2d.common.Vec2;
 import org.jbox2d.dynamics.Fixture;
 import org.jbox2d.dynamics.World;
 import org.jbox2d.dynamics.contacts.Contact;
+import org.jbox2d.pooling.normal.DefaultWorldPool;
 import org.ngengine.AsyncAssetManager;
 import org.ngengine.components.AbstractComponent;
 import org.ngengine.components.Component;
@@ -208,7 +209,7 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
         MapRenderer mapRenderer = MapRenderer.create(map, ppm, rootNode);
         mapRenderer.setSpriteFactory(spriteFactory);
 
-        World phy = new World(new Vec2(0, 0));
+        World phy = new World(new Vec2(0, 0), createWorldPool(map));
         TiledWorld2d l = new TiledWorld2d(name, map, phy, ppm, mapRenderer, rootNode,overLayNode, worldGuiNode);
         TiledWorld2dManagerComponent world = this;
         l.listener = new MapRenderer.Listener() {
@@ -394,6 +395,14 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
             listener.accept(l);
         }
         return l;
+    }
+
+    private DefaultWorldPool createWorldPool(TiledMap map) {
+        int poolSize = NGEUtils.safeInt(map.getPropertyOrDefault("physics.poolSize", "512"));
+        int poolContainerSize = NGEUtils.safeInt(map.getPropertyOrDefault("physics.poolContainerSize", "64"));
+        poolSize = Math.max(poolSize, World.WORLD_POOL_SIZE);
+        poolContainerSize = Math.max(poolContainerSize, World.WORLD_POOL_CONTAINER_SIZE);
+        return new DefaultWorldPool(poolSize, poolContainerSize);
     }
 
     public void unloadWorld(String name) {
