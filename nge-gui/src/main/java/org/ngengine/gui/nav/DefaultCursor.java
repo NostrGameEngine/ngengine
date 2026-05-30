@@ -92,9 +92,9 @@ public class DefaultCursor extends Node {
         Material m = new Material(assets, "Common/MatDefs/Misc/Unshaded.j3md");
         m.getAdditionalRenderState().setBlendMode(BlendMode.Off);
         m.getAdditionalRenderState().setDepthTest(false);
-        m.getAdditionalRenderState().setDepthWrite(true);
+        m.getAdditionalRenderState().setDepthWrite(false);
         m.getAdditionalRenderState().setFaceCullMode(FaceCullMode.Off);
-        setQueueBucket(Bucket.Translucent);
+        setQueueBucket(Bucket.Gui);
         this.matAlpha = m;
 
         rebuild();

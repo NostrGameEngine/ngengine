@@ -137,6 +137,10 @@ public class Navigator implements GuiContextHandler, NavigatorListenerProvider {
     }
 
     public void setCursor(Spatial cursor) {
+        if (this.cursorPointer != null && this.cursorPointer != cursor && this.cursorPointer.getParent() != null) {
+            this.cursorPointer.removeFromParent();
+        }
+        this.cursorPointer = cursor;
         if (cursor == null) {
             cursorEnabled = false;
             cursorActive = false;
@@ -144,7 +148,6 @@ public class Navigator implements GuiContextHandler, NavigatorListenerProvider {
             cursorEnabled = true;
             cursorActive = false;
             cursorIdleTime = 0f;
-            this.cursorPointer = cursor;
         }
     }
 
@@ -309,7 +312,7 @@ public class Navigator implements GuiContextHandler, NavigatorListenerProvider {
             if (cursorPointer.getParent() != guiNode) {
                 guiNode.attachChild(cursorPointer);
             }
-            cursorPointer.setLocalTranslation((float) cursorX, (float) cursorY, 1000);
+            cursorPointer.setLocalTranslation((float) cursorX, (float) cursorY, 10_000);
         } else if (this.cursorPointer != null && this.cursorPointer.getParent() != null) {
             this.cursorPointer.removeFromParent();
         }
