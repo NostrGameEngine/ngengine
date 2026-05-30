@@ -132,6 +132,10 @@ public class Panel extends Node {
 
     protected void applyStyles(Class<? extends Panel> clazz) {
         if(getClass() != clazz) return;
+        applyElementStyles();
+    }
+
+    protected void applyElementStyles() {
         Styles styles = NGEGui.getStyles();
         styles.applyStyles(this, elementId, null);
     }

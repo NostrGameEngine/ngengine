@@ -83,12 +83,12 @@ public abstract class NWindow<T> extends Container implements GuiUpdateListener,
 
     protected NWindow() {
         super( new BorderLayout(), new ElementId(ELEMENT_ID));
-        applyStyles(NWindow.class);
+        applyElementStyles();
     }
 
     protected NWindow(GuiLayout layout, ElementId id) {
         super( layout, id);
-        applyStyles(NWindow.class);
+        applyElementStyles();
     }
 
     public void setFullscreen(boolean fullscreen) {
@@ -116,6 +116,7 @@ public abstract class NWindow<T> extends Container implements GuiUpdateListener,
 
     protected NWindow(ElementId id) {
         super( new BorderLayout(), id);
+        applyElementStyles();
     }
 
     final void initialize(NWindowManager appState, Consumer<NWindow<T>> backAction) {

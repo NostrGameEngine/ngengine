@@ -64,7 +64,6 @@ import com.jme3.input.controls.KeyTrigger;
 import com.jme3.input.controls.MouseAxisTrigger;
 import com.jme3.input.controls.MouseButtonTrigger;
 import com.jme3.input.event.InputEvent;
-import com.jme3.input.event.MouseButtonEvent;
 import com.jme3.input.event.MouseMotionEvent;
 import com.jme3.input.event.TouchEvent;
 import com.jme3.renderer.ViewPort;
@@ -301,11 +300,6 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
                     TouchEvent te = (TouchEvent) event;
                     Spatial picked = state.pick((int) te.getX(), (int) te.getY());
                     navigator.focus(picked);
-                } else if (event instanceof MouseButtonEvent) {
-                    MouseButtonEvent mbe = (MouseButtonEvent) event;
-                    cursorX = mbe.getX();
-                    cursorY = mbe.getY();
-                    navigator.updateCursorPosition(cursorX, cursorY);
                 }
                 navigator.action(isPressed);
                 if (consume) event.setConsumed();
