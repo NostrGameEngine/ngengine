@@ -343,8 +343,8 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
         } else if (_p("navigateByCursor").equals(name)) {
             if (event instanceof MouseMotionEvent) {
                 MouseMotionEvent mme = (MouseMotionEvent) event;
-                cursorX += mme.getDX();
-                cursorY += mme.getDY();
+                cursorX = mme.getX();
+                cursorY = mme.getY();
                 if(cursorX < 0) cursorX = 0;
                 if(cursorY < 0) cursorY = 0;
                 if(cursorX > vp.getCamera().getWidth()) cursorX = vp.getCamera().getWidth();
