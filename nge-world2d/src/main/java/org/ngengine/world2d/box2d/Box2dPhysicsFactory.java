@@ -305,6 +305,9 @@ public class Box2dPhysicsFactory {
         final float w = ((float) obj.getWidth()) * wScale;
         final float h = ((float) obj.getHeight()) * hScale;
 
+        if (isDegenerateCollisionObject(obj, w, h)) {
+            return;
+        }
 
         final float containerW;
         final float containerH;
@@ -541,6 +544,14 @@ public class Box2dPhysicsFactory {
         }
 
         def.getFixtureDefs().add(fixtureDef);
+    }
+
+    private static boolean isDegenerateCollisionObject(TiledObjectEntity obj, float w, float h) {
+        if (obj.getShape() == ObjectShape.POLYGON) {
+            List<Vector2f> points = obj.getPoints();
+            return points == null || points.size() < 3;
+        }
+        return Math.abs(w) < 1e-6f || Math.abs(h) < 1e-6f;
     }
 
 }
