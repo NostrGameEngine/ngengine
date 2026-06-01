@@ -235,7 +235,7 @@ vecmath = "javax.vecmath:vecmath:1.5.2"
 [bundles]
 
 # Bundles for NostrGameEngine libraries
-saferalloc = ["saferalloc", "saferallocNativesLinuxX64", "saferallocNativesLinuxArm64", "saferallocNativesWindowsX64", "saferallocNativesWindowsArm64", "saferallocNativesMacosX64", "saferallocNativesMacosArm64", "saferallocNativesAndroid"]
+saferalloc = ["saferalloc", "saferallocNativesLinuxX64", "saferallocNativesLinuxArm64", "saferallocNativesWindowsX64", "saferallocNativesWindowsArm64", "saferallocNativesMacosX64", "saferallocNativesMacosArm64", "saferallocNativesAndroid", "saferallocNativesIos"]
 
 [plugins]
 

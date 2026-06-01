@@ -230,7 +230,6 @@ public abstract class LwjglWindow extends LwjglContext implements Runnable {
     private int oldFramebufferHeight;
     private int oldLogicalWidth;
     private int oldLogicalHeight;
-    private final Vector2f oldScale = new Vector2f(1, 1);
     private final Vector2f displayScale = new Vector2f(1, 1);
     private Material blitMaterial;
     private Picture blitGeometry;
@@ -239,6 +238,8 @@ public abstract class LwjglWindow extends LwjglContext implements Runnable {
     private Texture2D blitColorTexture;
     private boolean blitFramebufferDirty;
     private boolean blitFramebufferTextureMultisampleWarningIssued;
+    private boolean windowStateChangedSinceLastSwap;
+    private boolean windowSizeUpdatePending;
 
     public LwjglWindow(final JmeContext.Type type) {
         if (!SUPPORTED_TYPES.contains(type)) {
@@ -615,10 +616,6 @@ public abstract class LwjglWindow extends LwjglContext implements Runnable {
                 oldFramebufferHeight = framebufferHeight;
             }
 
-            if (oldScale.x != displayScale.x || oldScale.y != displayScale.y) {
-                listener.rescale(displayScale.x, displayScale.y);
-                oldScale.set(displayScale);
-            }
         }
     }
 
@@ -710,7 +707,6 @@ public abstract class LwjglWindow extends LwjglContext implements Runnable {
             oldFramebufferHeight = 0;
             oldLogicalWidth = 0;
             oldLogicalHeight = 0;
-            oldScale.set(1, 1);
         } catch (Exception ex) {
             if (failure == null) {
                 failure = ex;
@@ -1020,6 +1016,11 @@ public abstract class LwjglWindow extends LwjglContext implements Runnable {
             throw new IllegalStateException();
         }
 
+        pollEvents(true);
+        if (needClose.get() || windowCloseRequested.get()) {
+            return;
+        }
+
         if (!renderFrameWithBlitFramebuffer()) {
             listener.update();
         }
@@ -1028,7 +1029,14 @@ public abstract class LwjglWindow extends LwjglContext implements Runnable {
             try {
                 if ((type != Type.Canvas) && allowSwapBuffers && autoFlush) {
                     if (!SDL_GL_SwapWindow(window)) {
-                        throw new IllegalStateException("SDL_GL_SwapWindow failed: " + SDL_GetError());
+                        String error = SDL_GetError();
+                        pollEvents(true);
+                        if (!isTransientSwapFailure()) {
+                            throw new IllegalStateException("SDL_GL_SwapWindow failed: " + error);
+                        }
+                        LOGGER.log(Level.FINE, "Skipping transient SDL_GL_SwapWindow failure: {0}", error);
+                    } else {
+                        windowStateChangedSinceLastSwap = false;
                     }
                 }
             } catch (Throwable ex) {
@@ -1055,6 +1063,14 @@ public abstract class LwjglWindow extends LwjglContext implements Runnable {
         pollEvents(true);
     }
 
+    private boolean isTransientSwapFailure() {
+        if (needClose.get() || windowCloseRequested.get() || windowStateChangedSinceLastSwap) {
+            return true;
+        }
+        long flags = window == NULL ? 0 : SDL_GetWindowFlags(window);
+        return (flags & (SDL_WINDOW_HIDDEN | SDL_WINDOW_MINIMIZED | SDL_WINDOW_OCCLUDED)) != 0;
+    }
+
     private void pollEvents(boolean dispatchToInputs) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             SDL_Event event = SDL_Event.malloc(stack);
@@ -1064,6 +1080,10 @@ public abstract class LwjglWindow extends LwjglContext implements Runnable {
                     dispatchSDLEvent(event);
                 }
             }
+        }
+        if (windowSizeUpdatePending) {
+            windowSizeUpdatePending = false;
+            updateSizes(created.get() && dispatchToInputs);
         }
     }
 
@@ -1109,11 +1129,19 @@ public abstract class LwjglWindow extends LwjglContext implements Runnable {
             case SDL_EVENT_WINDOW_RESIZED:
             case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
             case SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED:
-                if (created.get()) {
-                    updateSizes();
-                } else {
-                    updateSizes(false);
-                }
+                windowStateChangedSinceLastSwap = true;
+                windowSizeUpdatePending = true;
+                break;
+            case SDL_EVENT_WINDOW_SHOWN:
+            case SDL_EVENT_WINDOW_HIDDEN:
+            case SDL_EVENT_WINDOW_EXPOSED:
+            case SDL_EVENT_WINDOW_MINIMIZED:
+            case SDL_EVENT_WINDOW_RESTORED:
+            case SDL_EVENT_WINDOW_DISPLAY_CHANGED:
+            case SDL_EVENT_WINDOW_OCCLUDED:
+            case SDL_EVENT_WINDOW_ENTER_FULLSCREEN:
+            case SDL_EVENT_WINDOW_LEAVE_FULLSCREEN:
+                windowStateChangedSinceLastSwap = true;
                 break;
             default:
                 break;

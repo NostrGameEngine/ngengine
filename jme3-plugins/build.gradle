@@ -16,7 +16,9 @@ dependencies {
     implementation project(':jme3-plugins-json-gson')
     implementation libs.stb.image
     implementation libs.imagewebp
-    implementation "org.ngengine:nanosvg-chicory-java:0.1"
+    implementation(libs.nanosvg.chicory.java) {
+        exclude group: 'com.dylibso.chicory'
+    }
 
     testRuntimeOnly project(':jme3-desktop')
     testRuntimeOnly project(':jme3-lwjgl3')

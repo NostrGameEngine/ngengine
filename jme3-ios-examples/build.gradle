@@ -303,6 +303,7 @@ sourceSets {
 dependencies {
     implementation project(':jme3-core')
     implementation project(':jme3-ios')
+    implementation project(':jme3-saferallocator')
     implementation libs.libjgliosCoreIos
     implementation libs.libjgliosGlesIos
     implementation libs.libjgliosSdl3Ios
