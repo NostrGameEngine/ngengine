@@ -47,6 +47,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.function.Predicate;
 
+import org.ngengine.gui.LayerComparator;
 import org.ngengine.gui.GuiContext;
 import org.ngengine.gui.GuiContext.GuiContextHandler;
 
@@ -64,6 +65,7 @@ import org.ngengine.gui.core.GuiControl;
  * @author Riccardo Balbo
  */
 public class Navigator implements GuiContextHandler, NavigatorListenerProvider {
+    private static final int CURSOR_LAYER = 1000;
     private final GuiContext ctx;
     private final List<NavigatorLayer> layers = new ArrayList<>();
     private final SafeArrayList<NavigatorListener> navigatorListeners = new SafeArrayList<>(
@@ -145,6 +147,7 @@ public class Navigator implements GuiContextHandler, NavigatorListenerProvider {
             cursorEnabled = false;
             cursorActive = false;
         } else {
+            LayerComparator.resetLayer(cursor, CURSOR_LAYER);
             cursorEnabled = true;
             cursorActive = false;
             cursorIdleTime = 0f;

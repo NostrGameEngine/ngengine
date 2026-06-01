@@ -66,6 +66,7 @@ import com.jme3.input.controls.MouseButtonTrigger;
 import com.jme3.input.event.InputEvent;
 import com.jme3.input.event.MouseMotionEvent;
 import com.jme3.input.event.TouchEvent;
+import com.jme3.math.Vector2f;
 import com.jme3.renderer.ViewPort;
 import com.jme3.scene.Spatial;
 
@@ -209,6 +210,13 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
 
             inputManager.addMapping(_ps("secondaryAction"), new KeyTrigger(KeyInput.KEY_P));
             inputManager.addMapping(_ps("back"), new KeyTrigger(KeyInput.KEY_BACK));
+
+            if (device instanceof Mouse) {
+                Vector2f pos = inputManager.getCursorPosition();
+                cursorX = pos.x;
+                cursorY = pos.y;
+                clampCursorToViewPort();
+            }
         } else if (device instanceof TouchScreen) {
             // TODO
         } else if (device instanceof Joystick) {
@@ -246,6 +254,15 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
                     new JoyButtonTrigger(joy, JoystickButton.BUTTON_XBOX_BACK));
 
         }
+    }
+
+    private void clampCursorToViewPort() {
+        ViewPort vp = getViewPort();
+        if (vp == null) return;
+        if (cursorX < 0) cursorX = 0;
+        if (cursorY < 0) cursorY = 0;
+        if (cursorX > vp.getCamera().getWidth()) cursorX = vp.getCamera().getWidth();
+        if (cursorY > vp.getCamera().getHeight()) cursorY = vp.getCamera().getHeight();
     }
 
     @Override
@@ -337,12 +354,14 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
         } else if (_p("navigateByCursor").equals(name)) {
             if (event instanceof MouseMotionEvent) {
                 MouseMotionEvent mme = (MouseMotionEvent) event;
-                cursorX = mme.getX();
-                cursorY = mme.getY();
-                if(cursorX < 0) cursorX = 0;
-                if(cursorY < 0) cursorY = 0;
-                if(cursorX > vp.getCamera().getWidth()) cursorX = vp.getCamera().getWidth();
-                if(cursorY > vp.getCamera().getHeight()) cursorY = vp.getCamera().getHeight();
+                if (inputManager != null && !inputManager.isCursorVisible()) {
+                    cursorX += mme.getDX();
+                    cursorY += mme.getDY();
+                } else {
+                    cursorX = mme.getX();
+                    cursorY = mme.getY();
+                }
+                clampCursorToViewPort();
                 if(navigator.updateCursorPosition(cursorX, cursorY)){
                     Spatial picked = state.pick(cursorX, cursorY);
                     navigator.focus(picked);
