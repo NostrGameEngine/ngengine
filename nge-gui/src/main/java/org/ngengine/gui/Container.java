@@ -68,8 +68,13 @@ public class Container extends Panel {
 
     public Container( GuiLayout layout, ElementId elementId) {
         super(elementId);
-        setLayout(layout!=null?layout:new SpringGridLayout());
-        applyStyles(Container.class);
+        if (layout == null) {
+            setLayout(new SpringGridLayout());
+            applyStyles(Container.class);
+        } else {
+            applyStyles(Container.class);
+            setLayout(layout);
+        }
     }
 
     public <T extends Node> T addChild( T child, Object... constraints ) {
