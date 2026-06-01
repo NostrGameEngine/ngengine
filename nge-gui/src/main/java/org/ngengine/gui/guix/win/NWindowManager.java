@@ -443,7 +443,12 @@ public class NWindowManager {
         }
         toastsStack.remove(toast);
         if(toastsStack.size() == 0){
-            containerToast.removeFromParent();
+            Container toastParent = containerToast != null ? (Container) containerToast.getParent() : null;
+            if (toastParent != null) {
+                toastParent.removeFromParent();
+            } else if (containerToast != null) {
+                containerToast.removeFromParent();
+            }
             containerToast = null;
         }
     }
