@@ -1,4 +1,6 @@
  
+def useSnapshotDeps = (jmeVersionTag == 'SNAPSHOT')
+
 dependencies {
     api project(':nge-core')
     api project(':nge-app')
@@ -16,7 +18,7 @@ dependencies {
     testImplementation project(':jme3-lwjgl3')
     testImplementation project(':jme3-testdata')
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
-    testImplementation "org.ngengine:nge-platform-jvm:${ngePlatformVersion}"
+    testImplementation(useSnapshotDeps ? libs.nge.platform.jvm.snapshot : libs.nge.platform.jvm)
 
 }
 

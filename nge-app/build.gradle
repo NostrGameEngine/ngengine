@@ -1,10 +1,12 @@
 
 
+def useSnapshotDeps = (jmeVersionTag == 'SNAPSHOT')
+
 dependencies {
     api project(':jme3-core')
-    api "org.ngengine:nostr4j:${nostr4jVersion}"
-    implementation "org.ngengine:nge-platform-common:${ngePlatformVersion}"
-    api "org.ngengine:nge-platform-common:${ngePlatformVersion}"
+    api(useSnapshotDeps ? libs.nostr4j.snapshot : libs.nostr4j)
+    implementation(useSnapshotDeps ? libs.nge.platform.common.snapshot : libs.nge.platform.common)
+    api(useSnapshotDeps ? libs.nge.platform.common.snapshot : libs.nge.platform.common)
     api project(':nge-core')
     api project(':nge-networking')
     api project(':nge-gui')

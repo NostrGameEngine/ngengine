@@ -1,8 +1,10 @@
  
+def useSnapshotDeps = (jmeVersionTag == 'SNAPSHOT')
+
 dependencies {
     api project(':nge-core')
     api project(':jme3-networking')
-    testRuntimeOnly "org.ngengine:nge-platform-jvm:${ngePlatformVersion}"
+    testRuntimeOnly(useSnapshotDeps ? libs.nge.platform.jvm.snapshot : libs.nge.platform.jvm)
 
 }
 

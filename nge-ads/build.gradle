@@ -1,9 +1,11 @@
 
 
+def useSnapshotDeps = (jmeVersionTag == 'SNAPSHOT')
+
 dependencies {
     api project(':nge-core')
     api project(':nge-gui')
-    implementation "org.ngengine:nostrads:${nostrAdsVersion}"
+    implementation(useSnapshotDeps ? libs.nostrads.snapshot : libs.nostrads)
     implementation project(':nge-networking')
 }
 

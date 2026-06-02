@@ -9,6 +9,9 @@ sourceSets {
         }
     }
 }
+
+def useSnapshotDeps = (jmeVersionTag == 'SNAPSHOT')
+
 dependencies {
     compileOnly libs.androidx.annotation
     compileOnly libs.androidx.lifecycle.common
@@ -16,7 +19,7 @@ dependencies {
 
     api project(':jme3-android')
     api project(':nge-app')
-    api "org.ngengine:nge-platform-common:${ngePlatformVersion}"
+    api(useSnapshotDeps ? libs.nge.platform.common.snapshot : libs.nge.platform.common)
 }
 
 

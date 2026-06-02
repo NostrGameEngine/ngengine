@@ -62,11 +62,7 @@ try {
 
         // We could enhance this with some more regex if we wanted to sanity
         // check that it was formatted like our versions.
-        def tagVersion = latestTag ? latestTag.replaceFirst(/^v/, "") : jmeVersion;
-        // If the branch is not master then use the tag.
-        if( jmeBranchName != "master" && latestTag ) {
-            jmeVersion = tagVersion
-        }
+        def tagVersion = jmeGitTag ? jmeGitTag.replaceFirst(/^v/, "") : jmeVersion;
 
         // Parse out just the base version part.  -SNAPSHOT versions
         // shouldn't really include our release suffixes

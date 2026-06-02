@@ -1,10 +1,13 @@
 
 
+def useSnapshotDeps = (jmeVersionTag == 'SNAPSHOT')
+
 dependencies {
     api project(':jme3-core')
-    api "org.ngengine:nostr4j:${nostr4jVersion}"
-    api "org.ngengine:nge-platform-common:${ngePlatformVersion}"
-    api "jakarta.annotation:jakarta.annotation-api:2.1.1"
+    api(useSnapshotDeps ? libs.nostr4j.snapshot : libs.nostr4j)
+    api(useSnapshotDeps ? libs.nge.platform.common.snapshot : libs.nge.platform.common)
+    api libs.jakarta.annotation.api
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
 
 }
 

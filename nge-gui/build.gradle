@@ -1,10 +1,14 @@
 
 
+def useSnapshotDeps = (jmeVersionTag == 'SNAPSHOT')
+
 dependencies {
     api project(':nge-core')
     implementation project(':nge-networking')
     implementation project(':jme3-core')
-    implementation "org.ngengine:nge-platform-common:${ngePlatformVersion}"
+    implementation(useSnapshotDeps ? libs.nge.platform.common.snapshot : libs.nge.platform.common)
+    testRuntimeOnly project(':jme3-plugins')
+    testRuntimeOnly(useSnapshotDeps ? libs.nge.platform.jvm.snapshot : libs.nge.platform.jvm)
 }
 
 javadoc {

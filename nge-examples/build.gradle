@@ -1,5 +1,7 @@
 ext.mainClassName = 'ngetest.TestChooser'
 
+def useSnapshotDeps = (jmeVersionTag == 'SNAPSHOT')
+
 task run(dependsOn: 'build', type:JavaExec) {
     mainClass = mainClassName
     classpath = sourceSets.main.runtimeClasspath
@@ -34,7 +36,7 @@ dependencies {
     implementation project(':nge-gui')
     implementation project(':nge-networking')
 
-    implementation "org.ngengine:nge-platform-jvm:${ngePlatformVersion}"
+    implementation(useSnapshotDeps ? libs.nge.platform.jvm.snapshot : libs.nge.platform.jvm)
 
 
     runtimeOnly project(':jme3-testdata')
