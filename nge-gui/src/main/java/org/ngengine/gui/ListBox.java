@@ -473,6 +473,7 @@ public class ListBox<T> extends Panel  {
     }
     private class Listener implements FocusListener, NavigatorListener {
         private Spatial lastTarget = null;
+        private Spatial focusOverride = null;
         @Override
         public void focusGained(Spatial target) {
             entered = true;
@@ -483,6 +484,14 @@ public class ListBox<T> extends Panel  {
                 }
             }
             lastTarget = target;
+            int cell = findCell(target);
+            if (cell == -1 && target == ListBox.this && grid.getVisibleRows() > 0 && getModel().size() > 0) {
+                cell = grid.getRow();
+            }
+            if (cell != -1) {
+                selection.setSelection(cell);
+                refreshSelector();
+            }
 
         }
 
@@ -491,19 +500,39 @@ public class ListBox<T> extends Panel  {
             int base = grid.getRow();
             for( int i = 0; i < grid.getVisibleRows(); i++ ) {
                 Panel cell = grid.getCell( base + i, 0 );
-                if( cell == target ) {
+                if( cell == target || isDescendantOf(target, cell) ) {
                     return base + i;                
                 }
             }
             return -1;            
         }
 
+        private boolean isDescendantOf(Spatial target, Spatial ancestor) {
+            if (target == null || ancestor == null) {
+                return false;
+            }
+            for (Spatial current = target; current != null; current = current.getParent()) {
+                if (current == ancestor) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         @Override
         public void focusAction(Spatial target, boolean pressed) {
-            int cell = findCell(target);
-            if (cell != -1){
-                selection.add(cell);
+            if (pressed) {
+                return;
             }
+            int cell = findCell(target);
+            if (cell == -1) {
+                Integer selected = selection.getSelection();
+                cell = selected != null ? selected : -1;
+            }
+            if (cell == -1) {
+                return;
+            }
+            selection.add(cell);
             commandMap.runCommands(ListAction.Click);
             runEffect(EFFECT_CLICK);
         }
@@ -513,25 +542,55 @@ public class ListBox<T> extends Panel  {
             if(lastTarget==null) return true;
 
             int cell = findCell(lastTarget);
-            int visibleCells = grid.getRow() + grid.getVisibleRows() -1;
+            if (cell < 0) return true;
+            int visibleCells = Math.min(model.size() - 1, grid.getRow() + grid.getVisibleRows() -1);
             
             boolean isLastVisible = visibleCells == cell;
             boolean isFirstVisible = grid.getRow() == cell;
             
             
-            if(isLastVisible&&dir==TraversalDirection.Down){
-                scroll(-1);
-                refreshSelector();
+            if(isLastVisible&&dir==TraversalDirection.Down && cell < model.size() - 1){
+                selectVisibleCell(cell + 1);
                 return false;
             }
 
-            if(isFirstVisible&&dir==TraversalDirection.Up){
-                scroll(1);
-                refreshSelector();
+            if(isFirstVisible&&dir==TraversalDirection.Up && cell > 0){
+                selectVisibleCell(cell - 1);
                 return false;
             }
 
             return true;
+        }
+
+        private void selectVisibleCell(int cell) {
+            if (model == null || model.isEmpty()) {
+                return;
+            }
+            int selected = Math.max(0, Math.min(model.size() - 1, cell));
+            int firstVisible = grid.getRow();
+            int visibleRows = Math.max(1, grid.getVisibleRows());
+            if (selected < firstVisible) {
+                firstVisible = selected;
+            } else if (selected >= firstVisible + visibleRows) {
+                firstVisible = selected - visibleRows + 1;
+            }
+            firstVisible = Math.max(0, Math.min(maxIndex, firstVisible));
+            baseIndex.setValue(maxIndex - firstVisible);
+            grid.setRow(firstVisible);
+            selection.setSelection(selected);
+            Panel selectedCell = grid.getCell(selected, 0);
+            if (selectedCell != null) {
+                lastTarget = selectedCell;
+                focusOverride = selectedCell;
+            }
+            refreshSelector();
+        }
+
+        @Override
+        public Spatial getNavigatorFocusOverride() {
+            Spatial result = focusOverride;
+            focusOverride = null;
+            return result;
         }
 
         @Override

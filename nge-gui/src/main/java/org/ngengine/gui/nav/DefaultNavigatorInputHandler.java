@@ -81,6 +81,7 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
     private Runnable secondaryAction = () -> {};
     private Runnable backAction = () -> {};
     private double cursorX, cursorY;
+    private boolean navigatorActionPressed = false;
     
 
     public DefaultNavigatorInputHandler(ViewPort guiViewPort) {
@@ -113,6 +114,12 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
         return consume;
     }
 
+    private void consume(InputEvent<?> event) {
+        if (consume && event != null) {
+            event.setConsumed();
+        }
+    }
+
     /**
      * Returns the ViewPort this input handler is affecting, or null if not registered to any or
      * the ViewPort has been garbage collected.
@@ -128,13 +135,19 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
      */
     @Override
     public void setViewPort(ViewPort vp) {
-        this.guiViewPort = new WeakReference<>(vp);
-        this.bindId = String.valueOf(vp.hashCode());
         if (this.inputManager != null) {
+            InputDevice currentDevice = this.inputDevice;
+            clearActiveMappings(this.inputManager);
+            this.inputDevice = null;
+            this.guiViewPort = new WeakReference<>(vp);
+            this.bindId = String.valueOf(vp.hashCode());
             registerListener(this.inputManager);
-            if (this.inputDevice != null) {
-                setInputDevice(this.inputManager, this.inputDevice);
+            if (currentDevice != null) {
+                setInputDevice(this.inputManager, currentDevice);
             }
+        } else {
+            this.guiViewPort = new WeakReference<>(vp);
+            this.bindId = String.valueOf(vp.hashCode());
         }
         cursorX = vp.getCamera().getWidth() / 2;
         cursorY = vp.getCamera().getHeight() / 2;
@@ -155,32 +168,34 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
     public void registerListener(InputManager inputManager) {
         this.inputManager = inputManager;
         inputManager.removeListener(this);
-        inputManager.addListener(this, _p("navigateUp"), _p("navigateDown"), _p("navigateLeft"),
-                _p("navigateRight"), _p("navigateNext"), _p("navigatePrevious"), _p("scrollUp"),
-                _p("scrollDown"), _p("confirm"), _p("navigateByCursor"),
-        _p("primaryAction"), _p("secondaryAction"), _p("back")
-            );
+        bindActiveMappings();
     }
 
     @Override
     public void unregisterListener(InputManager inputManager) {
         if (inputManager != null) {
             inputManager.removeListener(this);
+            clearActiveMappings(inputManager);
         }
+        this.inputManager = null;
+        this.inputDevice = null;
+        navigatorActionPressed = false;
     }
 
     @Override
     public void setInputDevice(InputManager inputManager, @Nullable InputDevice device) {
-        if(this.inputDevice == device) return;
-        if(this.inputManager!=null){
-            try{
-                for (String mapping : mappings) {
-                    inputManager.deleteMapping(mapping);
-                }
-            } catch (Exception e) {
+        if (this.inputDevice == device) {
+            this.inputManager = inputManager;
+            if (device == null) {
+                navigatorActionPressed = false;
+                clearActiveMappings(inputManager);
+                return;
+            } else if (!mappings.isEmpty()) {
+                return;
             }
         }
-        mappings.clear();
+        navigatorActionPressed = false;
+        clearActiveMappings(inputManager);
         
         this.inputManager = inputManager;
         this.inputDevice = device;
@@ -209,14 +224,19 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
             inputManager.addMapping(_ps("primaryAction"), new KeyTrigger(KeyInput.KEY_RETURN));
 
             inputManager.addMapping(_ps("secondaryAction"), new KeyTrigger(KeyInput.KEY_P));
-            inputManager.addMapping(_ps("back"), new KeyTrigger(KeyInput.KEY_BACK));
+            inputManager.addMapping(_ps("back"),
+                    new KeyTrigger(KeyInput.KEY_ESCAPE),
+                    new KeyTrigger(KeyInput.KEY_BACK));
 
             if (device instanceof Mouse) {
                 Vector2f pos = inputManager.getCursorPosition();
                 cursorX = pos.x;
                 cursorY = pos.y;
                 clampCursorToViewPort();
+            } else {
+                autofocus();
             }
+            bindActiveMappings();
         } else if (device instanceof TouchScreen) {
             // TODO
         } else if (device instanceof Joystick) {
@@ -243,17 +263,52 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
             inputManager.addMapping(_ps("scrollDown"),
                     new JoyAxisTrigger(joy, JoystickAxis.AXIS_XBOX_RIGHT_THUMB_STICK_Y, false));
 
-            inputManager.addMapping(_ps("confirm"), new JoyButtonTrigger(joy, JoystickButton.BUTTON_XBOX_A));
+            inputManager.addMapping(_ps("confirm"),
+                    new JoyButtonTrigger(joy, JoystickButton.BUTTON_XBOX_A),
+                    new JoyButtonTrigger(joy, JoystickButton.BUTTON_XBOX_RT));
 
             inputManager.addMapping(_ps("primaryAction"),
-                    new JoyButtonTrigger(joy, JoystickButton.BUTTON_XBOX_A));
+                    new JoyButtonTrigger(joy, JoystickButton.BUTTON_XBOX_A),
+                    new JoyButtonTrigger(joy, JoystickButton.BUTTON_XBOX_RT));
 
             inputManager.addMapping(_ps("back"), new JoyButtonTrigger(joy, JoystickButton.BUTTON_XBOX_B));
 
             inputManager.addMapping(_ps("secondaryAction"),
                     new JoyButtonTrigger(joy, JoystickButton.BUTTON_XBOX_BACK));
 
+            autofocus();
+            bindActiveMappings();
         }
+    }
+
+    private void bindActiveMappings() {
+        if (inputManager == null || mappings.isEmpty()) {
+            return;
+        }
+        inputManager.addListener(this, mappings.toArray(new String[mappings.size()]));
+    }
+
+    private void clearActiveMappings(InputManager inputManager) {
+        if (inputManager == null || mappings.isEmpty()) {
+            return;
+        }
+        for (String mapping : new HashSet<>(mappings)) {
+            try {
+                if (inputManager.hasMapping(mapping)) {
+                    inputManager.deleteMapping(mapping);
+                }
+            } catch (Exception e) {
+            }
+        }
+        mappings.clear();
+    }
+
+    private void autofocus() {
+        ViewPort vp = getViewPort();
+        if (vp == null) return;
+        GuiContext state = NGEGui.get(vp);
+        if (state == null || state.getNavigator() == null) return;
+        state.getNavigator().autofocus();
     }
 
     private void clampCursorToViewPort() {
@@ -280,21 +335,30 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
         if (navigator == null) return;
         
         if (navigator.getFocus() == null && !name.equals(_p("navigateByCursor"))) {
+            navigator.autofocus();
+        }
+
+        if(_p("back").equals(name)){
+            if(toggled && isPressed){
+                backAction.run();
+                consume(event);
+            }
+            return;
+        }
+
+        if (navigator.getFocus() == null && !name.equals(_p("navigateByCursor"))) {
             if(_p("primaryAction").equals(name)){
                 if(toggled && isPressed){
                     primaryAction.run();
-                    if(consume)event.setConsumed();
+                    consume(event);
                 }
             } else if(_p("secondaryAction").equals(name)){
                 if(toggled && isPressed){
                     secondaryAction.run();
-                    if(consume)event.setConsumed();
+                    consume(event);
                 }
-            } else if(_p("back").equals(name)){
-                if(toggled && isPressed){
-                    backAction.run();
-                    if(consume)event.setConsumed();
-                }
+            } else {
+                consume(event);
             }
             return;
         }
@@ -302,15 +366,14 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
         if (_p("scrollUp").equals(name)) {
             if (toggled && isPressed) {
                 navigator.scroll(ScrollDirection.Up, 1);
-                if (consume) event.setConsumed();
+                consume(event);
             }
         } else if (_p("scrollDown").equals(name)) {
             if (toggled && isPressed) {
                 navigator.scroll(ScrollDirection.Down, 1);
-                if (consume) event.setConsumed();
+                consume(event);
             }
         } else if (_p("confirm").equals(name)) {
-
             if (toggled) {
                 if (event instanceof TouchEvent) {
                     // if touch event we do a pick before action
@@ -318,38 +381,44 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
                     Spatial picked = state.pick((int) te.getX(), (int) te.getY());
                     navigator.focus(picked);
                 }
-                navigator.action(isPressed);
-                if (consume) event.setConsumed();
+                if (isPressed) {
+                    navigatorActionPressed = true;
+                    navigator.action(true);
+                } else if (navigatorActionPressed) {
+                    navigatorActionPressed = false;
+                    navigator.action(false);
+                }
+                consume(event);
             }
         } else if (_p("navigateUp").equals(name)) {
             if (toggled && isPressed) {
                 navigator.navigate(TraversalDirection.Up);
-                if (consume) event.setConsumed();
+                consume(event);
             }
         } else if (_p("navigateDown").equals(name)) {
             if (toggled && isPressed) {
                 navigator.navigate(TraversalDirection.Down);
-                if (consume) event.setConsumed();
+                consume(event);
             }
         } else if (_p("navigateLeft").equals(name)) {
             if (toggled && isPressed) {
                 navigator.navigate(TraversalDirection.Left);
-                if (consume) event.setConsumed();
+                consume(event);
             }
         } else if (_p("navigateRight").equals(name)) {
             if (toggled && isPressed) {
                 navigator.navigate(TraversalDirection.Right);
-                if (consume) event.setConsumed();
+                consume(event);
             }
         } else if (_p("navigateNext").equals(name)) {
             if (toggled && isPressed) {
                 navigator.navigate(TraversalDirection.Next);
-                if (consume) event.setConsumed();
+                consume(event);
             }
         } else if (_p("navigatePrevious").equals(name)) {
             if (toggled && isPressed) {
                 navigator.navigate(TraversalDirection.Previous);
-                if (consume) event.setConsumed();
+                consume(event);
             }
         } else if (_p("navigateByCursor").equals(name)) {
             if (event instanceof MouseMotionEvent) {
@@ -366,7 +435,7 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
                     Spatial picked = state.pick(cursorX, cursorY);
                     navigator.focus(picked);
                     if (picked != null) {
-                        if (consume) event.setConsumed();
+                        consume(event);
                     }
                 }
             }

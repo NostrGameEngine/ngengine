@@ -141,8 +141,8 @@ final class NavigatorLayer implements Closeable {
             return;
         }
 
-        // If focus is no longer under this layer root, drop it.
-        if (focus != null && !isDescendantOf(focus, root)) {
+        // If focus is no longer valid for this layer, drop it.
+        if (focus != null && !isValidFocus(focus)) {
             clearFocus(true);
         }
 
@@ -162,6 +162,10 @@ final class NavigatorLayer implements Closeable {
         if (!enabled) {
             return;
         }
+        updateFocus(true);
+        if (focus == null) {
+            return;
+        }
 
         if (!before(l -> l.beforeNavigatorAction(pressed))) {
             return;
@@ -179,8 +183,13 @@ final class NavigatorLayer implements Closeable {
         if (!enabled) {
             return focus;
         }
+        updateFocus(true);
 
         if (!before(l -> l.beforeNavigatorNavigate(dir))) {
+            Spatial override = getFocusOverride();
+            if (override != null) {
+                focus(override);
+            }
             return focus;
         }
 
@@ -196,7 +205,11 @@ final class NavigatorLayer implements Closeable {
     }
 
     void scroll(final ScrollDirection dir, final double delta) {
-        if (!enabled || focus == null) {
+        if (!enabled) {
+            return;
+        }
+        updateFocus(true);
+        if (focus == null) {
             return;
         }
 
@@ -261,6 +274,21 @@ final class NavigatorLayer implements Closeable {
 
     private boolean allowNavigateTo(TraversalDirection dir, Spatial from, Spatial candidate) {
         return before(l -> l.beforeNavigatorNavigateTo(dir, from, candidate));
+    }
+
+    private Spatial getFocusOverride() {
+        final Spatial[] result = new Spatial[1];
+        if (foreachListener == null) {
+            return null;
+        }
+        foreachListener.apply(l -> {
+            Spatial candidate = l.getNavigatorFocusOverride();
+            if (candidate != null && result[0] == null) {
+                result[0] = candidate;
+            }
+            return true;
+        });
+        return result[0];
     }
 
 
@@ -556,6 +584,10 @@ final class NavigatorLayer implements Closeable {
         // avoid focusing the layer root itself 
         if (s == root) return false;
         return NGEGui.isFocusable(s);
+    }
+
+    private boolean isValidFocus(Spatial s) {
+        return s != null && isDescendantOf(s, root) && NGEGui.isFocusable(s);
     }
 
 

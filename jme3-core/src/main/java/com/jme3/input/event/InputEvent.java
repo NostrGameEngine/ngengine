@@ -80,6 +80,10 @@ public abstract class InputEvent<T extends InputDevice> {
     public void setConsumed() {
         this.consumed = true;
     }
+
+    public void clearConsumed() {
+        this.consumed = false;
+    }
     
     public abstract T getDevice();
 }

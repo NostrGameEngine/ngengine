@@ -141,6 +141,11 @@ public class NHud extends NWindow<Void> {
     @Override
     protected void compose(Vector3f size, Void args) throws Throwable {}
 
+    @Override
+    protected boolean capturesInput() {
+        return false;
+    }
+
     public NRow getTop() {
         return topCenter;
     }

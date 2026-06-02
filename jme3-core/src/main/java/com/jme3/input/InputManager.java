@@ -110,6 +110,7 @@ public class InputManager implements RawInputListener {
         private final String name;
         private final ArrayList<Integer> triggers = new ArrayList<>();
         private final ArrayList<InputListener> listeners = new ArrayList<>();
+        private final ArrayList<Integer> activeTriggers = new ArrayList<>();
 
         public Mapping(String name) {
             this.name = name;
@@ -158,42 +159,91 @@ public class InputManager implements RawInputListener {
             int hash = entry.getKey();
             InputEvent<?> event = entry.getValue();
             double v = lastValues.get(hash) + frameTPF;
-            invokeAnalogsAndActions(hash, v, event, false, false);
+            if (event != null) {
+                event.clearConsumed();
+            }
+            invokeAnalogsAndActions(hash, v, event, false, false, false);
             lastValues.put(hash, v);
         }
 
     }
 
+    public void releaseActiveMappings() {
+        ArrayList<Integer> activeHashes = new ArrayList<>();
+        for (Entry<Double> entry : lastValues) {
+            if (Math.abs(entry.getValue()) > 0.0) {
+                activeHashes.add(entry.getKey());
+            }
+        }
+
+        for (Integer hash : activeHashes) {
+            invokeAnalogsAndActions(hash, 0.0, emulatedAnalogs.get(hash), false, true, false);
+        }
+    }
+
     private void invokeAnalogsAndActions(int hash, double value, InputEvent<?> event, boolean emulateAnalog, boolean forceValueChangeFlag) {
-  
+        invokeAnalogsAndActions(hash, value, event, emulateAnalog, forceValueChangeFlag, true);
+    }
+
+    private void invokeAnalogsAndActions(int hash, double value, InputEvent<?> event, boolean emulateAnalog, boolean forceValueChangeFlag, boolean respectConsumed) {
+
         ArrayList<Mapping> maps = bindings.get(hash);
-        if (maps == null)  return;
+        if (maps == null) {
+            if (value == 0.0) {
+                lastValues.remove(hash);
+                emulatedAnalogs.remove(hash);
+            }
+            return;
+        }
+
+        if (respectConsumed && event != null && event.isConsumed()) {
+            return;
+        }
  
         double lastValue = lastValues.getOrDefault(hash, 0.0);
         boolean isPressed = Math.abs(value) > 0;
         boolean wasPressed = Math.abs(lastValue) > 0;
         boolean valueChanged = forceValueChangeFlag || isPressed != wasPressed;
 
-   
+        boolean consumedBeforeDispatch = event != null && event.isConsumed();
+        boolean consumedDuringDispatch = false;
+        boolean stopDispatch = false;
         int size = maps.size();
-        for (int i = size - 1; i >= 0; i--) {
+        for (int i = size - 1; i >= 0 && !stopDispatch; i--) {
             Mapping mapping = maps.get(i);
+            if (value == 0.0 && !mapping.activeTriggers.contains(hash)) {
+                continue;
+            }
             ArrayList<InputListener> listeners = mapping.listeners;
             int listenerSize = listeners.size();
-            for (int j = listenerSize - 1; j >= 0; j--) {
+            boolean mappingDispatched = false;
+            for (int j = listenerSize - 1; j >= 0 && !stopDispatch; j--) {
                 InputListener listener = listeners.get(j);
 
                 if (listener instanceof ActionListener && valueChanged) {
                     ((ActionListener) listener).onAction(mapping.name, isPressed, frameTPF);
+                    mappingDispatched = true;
                 }
         
                 if (listener instanceof AnalogListener) {
                     ((AnalogListener) listener).onAnalog(mapping.name, (float)value, frameTPF);
+                    mappingDispatched = true;
                 } 
 
                 if (listener instanceof UnifiedInputListener){
                     ((UnifiedInputListener) listener).onUnifiedInput(mapping.name, valueChanged, (float)value, event, frameTPF);
+                    mappingDispatched = true;
                 }
+
+                if (respectConsumed && event != null && event.isConsumed()) {
+                    stopDispatch = true;
+                    if (!consumedBeforeDispatch) {
+                        consumedDuringDispatch = true;
+                    }
+                }
+            }
+            if (mappingDispatched) {
+                setMappingActive(mapping, hash, value != 0.0);
             }
         }
 
@@ -202,9 +252,19 @@ public class InputManager implements RawInputListener {
             emulatedAnalogs.remove(hash);
         } else {
             lastValues.put(hash, value);
-            if(emulateAnalog) {
+            if(emulateAnalog && !consumedDuringDispatch) {
                 emulatedAnalogs.put(hash, event);
             }
+        }
+    }
+
+    private void setMappingActive(Mapping mapping, int hash, boolean active) {
+        if (active) {
+            if (!mapping.activeTriggers.contains(hash)) {
+                mapping.activeTriggers.add(hash);
+            }
+        } else {
+            mapping.activeTriggers.remove((Integer) hash);
         }
     }
 
@@ -583,7 +643,7 @@ public class InputManager implements RawInputListener {
      * @see InputManager#addMapping(java.lang.String, com.jme3.input.controls.Trigger[])
      */
     public void deleteMapping(String mappingName) {
-        Mapping mapping = mappings.get(mappingName);
+        Mapping mapping = mappings.remove(mappingName);
         if (mapping == null) {
             throw new IllegalArgumentException("Cannot find mapping: " + mappingName);
         }
@@ -594,10 +654,15 @@ public class InputManager implements RawInputListener {
             ArrayList<Mapping> maps = bindings.get(hash);
             if (maps != null) {
                 maps.remove(mapping);
-                if (maps.isEmpty()) bindings.remove(hash);
+                if (maps.isEmpty()) {
+                    bindings.remove(hash);
+                    lastValues.remove(hash);
+                    emulatedAnalogs.remove(hash);
+                }
             }
         }
         mapping.triggers.clear();
+        mapping.activeTriggers.clear();
     }
 
     
@@ -623,9 +688,14 @@ public class InputManager implements RawInputListener {
         ArrayList<Mapping> maps = bindings.get(hash);
         if (maps != null) {
             maps.remove(mapping);
-            if (maps.isEmpty()) bindings.remove(hash);
+            if (maps.isEmpty()) {
+                bindings.remove(hash);
+                lastValues.remove(hash);
+                emulatedAnalogs.remove(hash);
+            }
         }
         mapping.triggers.remove((Integer) hash);
+        mapping.activeTriggers.remove((Integer) hash);
 
     }
 

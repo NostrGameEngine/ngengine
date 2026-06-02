@@ -86,4 +86,8 @@ public interface NavigatorListener {
         return true;
     }
 
+    default Spatial getNavigatorFocusOverride() {
+        return null;
+    }
+
 }

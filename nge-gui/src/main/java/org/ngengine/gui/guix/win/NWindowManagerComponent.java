@@ -79,6 +79,8 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
     private Class<? extends NavigatorInputHandler> defaultInputHandlerClass = DefaultNavigatorInputHandler.class;
     private boolean enabled = false;
     private boolean interactionEnabled = false;
+    private boolean interactionActive = false;
+    private InputDevice lastInputDevice;
 
     public NWindowManager getManager(ViewPort vp){
         return getManager(vp, defaultInputHandlerClass);
@@ -154,12 +156,41 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
     }
 
     public void setInteractionEnabled(boolean enabled) {
+        boolean wasActive = interactionActive;
         interactionEnabled = enabled;
+        if (!enabled) {
+            interactionActive = false;
+        }
         applyInteractionState();
+        if (!wasActive && interactionActive) {
+            releaseActiveInputMappings();
+        }
     }
 
     public boolean isInteractionEnabled() {
         return interactionEnabled;
+    }
+
+    public boolean isInteractionActive() {
+        return interactionActive;
+    }
+
+    public boolean hasOpenWindows() {
+        for (NWindowManager manager : windowManagers) {
+            if (manager.hasOpenWindows()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean hasInteractiveWindows() {
+        for (NWindowManager manager : windowManagers) {
+            if (manager.hasInteractiveWindows()) {
+                return true;
+            }
+        }
+        return false;
     }
 
 
@@ -272,7 +303,7 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
         int height = getHeight();
         NGEStyle.installAndUse(width,height);
 
-        enforcePhysicalCursorHidden();
+        setPhysicalCursorVisible(false);
         NWindowManager m = getManager(null);
     }
 
@@ -280,6 +311,9 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
     public void onDisable(ComponentManager mng) {
         enabled = false;
         interactionEnabled = false;
+        interactionActive = false;
+        lastInputDevice = null;
+        setPhysicalCursorVisible(false);
         for(NWindowManager manager : windowManagers) {
             manager.closeAll();
             manager.setInputHandler(null);
@@ -288,9 +322,14 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
     }
 
     public void setInputDevice(InputDevice device) {
+        lastInputDevice = device;
+        applyInputDeviceToManagers();
+    }
+
+    private void applyInputDeviceToManagers() {
         for (NWindowManager manager : windowManagers) {
-            if (canInteractWith(manager)) {
-                manager.setInputDevice(device);
+            if (interactionActive && canInteractWith(manager)) {
+                manager.setInputDevice(lastInputDevice);
             } else {
                 manager.setInputDevice(null);
             }
@@ -301,7 +340,12 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
     @Override
     public void updateAppLogic(ComponentManager mng, float tpf){
         if (enabled) {
-            enforcePhysicalCursorHidden();
+            setPhysicalCursorVisible(false);
+            boolean wasActive = interactionActive;
+            applyInteractionState();
+            if (!wasActive && interactionActive) {
+                releaseActiveInputMappings();
+            }
         }
         for(NWindowManager manager : windowManagers){
             manager.update(tpf);
@@ -324,69 +368,92 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
  
     @Override
     public void onInputDeviceConnected(ComponentManager mng, InputManager inputManager, InputActions actions, InputDevice device) {
-        enforcePhysicalCursorHidden();
+        if (!interactionActive) setPhysicalCursorVisible(false);
     }
 
     @Override
     public void onInputDeviceDisconnected(ComponentManager mng, InputManager inputManager, InputActions actions, InputDevice device) {
-        enforcePhysicalCursorHidden();
+        if (lastInputDevice == device) {
+            lastInputDevice = null;
+            applyInputDeviceToManagers();
+        }
+        if (!interactionActive) setPhysicalCursorVisible(false);
     }
 
     @Override
     public void onInputAction(ComponentManager mng, String action, boolean toggled,  float value, InputEvent<?> event,
             float tpf) {
-        enforcePhysicalCursorHidden();
+        if (!interactionActive) setPhysicalCursorVisible(false);
     }
 
     // any input action will set the input device as 
     // current for the main window manager
     public void onJoyAxisEvent(ComponentManager mng, JoyAxisEvent evt) {
+        if (!interactionActive) setPhysicalCursorVisible(false);
         setInputDevice(evt.getDevice());
     }
 
     public void onJoyButtonEvent(ComponentManager mng, JoyButtonEvent evt) {
+        if (!interactionActive) setPhysicalCursorVisible(false);
         setInputDevice(evt.getDevice());
     }
 
     public void onMouseMotionEvent(ComponentManager mng, MouseMotionEvent evt) {
+        if (!interactionActive) setPhysicalCursorVisible(false);
         setInputDevice(evt.getDevice());
     }
 
     public void onMouseButtonEvent(ComponentManager mng, MouseButtonEvent evt) {
+        if (!interactionActive) setPhysicalCursorVisible(false);
         setInputDevice(evt.getDevice());
     }
 
     public void onKeyEvent(ComponentManager mng, KeyInputEvent evt) {
+        if (!interactionActive) setPhysicalCursorVisible(false);
         setInputDevice(evt.getDevice());
         
     }
 
     public void onTouchEvent(ComponentManager mng, TouchEvent evt) {
+        if (!interactionActive) setPhysicalCursorVisible(false);
         setInputDevice(evt.getDevice());
     }
 
-    private void enforcePhysicalCursorHidden() {
+    protected void setPhysicalCursorVisible(boolean visible) {
         InputManager inputManager = getInstanceOf(InputManager.class);
-        if (inputManager != null && inputManager.isCursorVisible()) {
-            inputManager.setCursorVisible(false);
+        if (inputManager != null && inputManager.isCursorVisible() != visible) {
+            inputManager.setCursorVisible(visible);
         }
     }
 
     private boolean canInteractWith(NWindowManager manager) {
-        return interactionEnabled && manager != null && manager.hasOpenWindows();
+        return interactionEnabled && manager != null && manager.hasInteractiveWindows();
     }
 
     void onWindowStackChanged() {
+        boolean wasActive = interactionActive;
         applyInteractionState();
+        if (!wasActive && interactionActive) {
+            releaseActiveInputMappings();
+        }
     }
 
     private void applyInteractionState() {
+        interactionActive = false;
         for (NWindowManager manager : windowManagers) {
-            manager.getContext().getNavigator().setCursor(canInteractWith(manager));
-            if (!canInteractWith(manager)) {
-                manager.setInputDevice(null);
+            boolean managerCanInteract = canInteractWith(manager);
+            interactionActive |= managerCanInteract;
+            if (manager.getContext().getNavigator().isCursorVisible() != managerCanInteract) {
+                manager.getContext().getNavigator().setCursor(managerCanInteract);
             }
         }
-        enforcePhysicalCursorHidden();
+        applyInputDeviceToManagers();
+    }
+
+    protected void releaseActiveInputMappings() {
+        InputManager inputManager = getInstanceOf(InputManager.class);
+        if (inputManager != null) {
+            inputManager.releaseActiveMappings();
+        }
     }
 }

@@ -332,6 +332,14 @@ public class Navigator implements GuiContextHandler, NavigatorListenerProvider {
         return layer.getFocus();
     }
 
+    public Spatial autofocus() {
+        if (!enabled) return null;
+        NavigatorLayer layer = getCurrentLayer();
+        if (layer == null) return null;
+        layer.updateFocus(true);
+        return layer.getFocus();
+    }
+
     public void scroll(ScrollDirection dir, final double delta) {
         NavigatorLayer layer = getCurrentLayer();
         if (layer == null) return;

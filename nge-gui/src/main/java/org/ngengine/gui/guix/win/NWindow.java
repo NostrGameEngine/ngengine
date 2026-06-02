@@ -66,11 +66,14 @@ public abstract class NWindow<T> extends Container implements GuiUpdateListener,
     private static final Logger log = Logger.getLogger(NWindow.class.getName());
     public static final String ELEMENT_ID = "window";
     private Container titleBar;
+    private Container backGroup;
     private NIconButton backButton;
     private NIconButton placeHolderButton;
+    private Label backHint;
     private Label title;
     private NWindowManager appState;
     private NPanel windowContent;
+    private Consumer<NWindow<T>> backAction;
 
     private boolean center = true;
 
@@ -123,12 +126,20 @@ public abstract class NWindow<T> extends Container implements GuiUpdateListener,
         this.appState = appState;
         titleBar = new Container( new BorderLayout(), new ElementId("window.titleBar"));
 
+        backGroup = new Container(new BorderLayout(), new ElementId("window.backGroup"));
         backButton = new NIconButton("org/ngengine/gui/icons/outline/chevron-left.svg");
+        backButton.getControl(GuiControl.class).setFocusable(false);
         backButton.addClickCommands(src -> {
-            if (backAction != null) {
-                backAction.accept(this);
+            if (this.backAction != null) {
+                this.backAction.accept(this);
             }
         });
+        backGroup.addChild(backButton, BorderLayout.Position.West);
+        backHint = new Label("B", new ElementId("window.backHint"));
+        backHint.setTextHAlignment(HAlignment.Center);
+        backHint.setTextVAlignment(VAlignment.Center);
+        backGroup.addChild(backHint, BorderLayout.Position.East);
+
         placeHolderButton = new NIconButton("org/ngengine/gui/icons/outline/chevron-left.svg");
         placeHolderButton.setCullHint(CullHint.Always);
 
@@ -206,13 +217,24 @@ public abstract class NWindow<T> extends Container implements GuiUpdateListener,
     }
 
     public final void setBackAction(Consumer<NWindow<T>> backAction) {
+        this.backAction = backAction;
         if (backAction == null && backButton != null) {
-            backButton.removeFromParent();
+            backGroup.removeFromParent();
             placeHolderButton.removeFromParent();
         } else {
-            titleBar.addChild(backButton, BorderLayout.Position.West);
+            titleBar.addChild(backGroup, BorderLayout.Position.West);
             titleBar.addChild(placeHolderButton, BorderLayout.Position.East);
         }
+    }
+
+    final void back() {
+        if (backAction != null) {
+            backAction.accept(this);
+        }
+    }
+
+    protected boolean capturesInput() {
+        return true;
     }
 
     final void recenter(Vector3f size) {

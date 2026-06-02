@@ -126,6 +126,9 @@ public class NWindowManager {
         }
         if( this.inputHandler!=null){
             this.inputHandler.registerListener(inputManager);
+            if (this.inputDevice != null) {
+                this.inputHandler.setInputDevice(inputManager, this.inputDevice);
+            }
         }
     }
 
@@ -148,6 +151,15 @@ public class NWindowManager {
 
     public boolean hasOpenWindows() {
         return !windows.isEmpty();
+    }
+
+    public boolean hasInteractiveWindows() {
+        for (NWindow<?> window : windows) {
+            if (window.capturesInput()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public NavigatorInputHandler getInputHandler(){
@@ -269,21 +281,13 @@ public class NWindowManager {
         });
 
         try {
-            for (NWindow<?> window : windows) {
-                window.removeFromParent();
-            }
-
             log.finer("Opening window: " + windowClass.getSimpleName());
 
-            Consumer<NWindow<A>> backAction = null;
-
-            if ( windows.size() > 0) {
-                backAction = win -> {
-                    closeWindow( windows.get(windows.size() - 1), true);
-                };
-            }
-
             T window = (T) windowClass.getDeclaredConstructor().newInstance();
+            if (window.capturesInput()) {
+                hideInteractiveWindows();
+            }
+            Consumer<NWindow<A>> backAction = window.capturesInput() ? win -> closeWindow(win, true) : null;
             window.addWindowListener(new NWindowListener() {
                 @Override
                 public void onShow(NWindow<?> window) {
@@ -305,7 +309,12 @@ public class NWindowManager {
             showWindow(window);
             windows.add(window);
 
-            ctx.getNavigator().pushLayer(window);
+            if (window.capturesInput()) {
+                ctx.getNavigator().pushLayer(window);
+                if (shouldAutofocusForInputDevice()) {
+                    ctx.getNavigator().autofocus();
+                }
+            }
             mng.onWindowStackChanged();
             return window;
 
@@ -316,6 +325,10 @@ public class NWindowManager {
 
     }
 
+    private boolean shouldAutofocusForInputDevice() {
+        return inputDevice instanceof Keyboard || inputDevice instanceof Joystick;
+    }
+
     private void showWindow(NWindow<?> window) {
         checkThread();
         if (window.getParent() != null) {
@@ -324,6 +337,24 @@ public class NWindowManager {
         window.invalidate();
         ctx.getGuiNode().attachChild(window);
         window.onShow();
+    }
+
+    private void hideInteractiveWindows() {
+        for (NWindow<?> window : windows) {
+            if (window.capturesInput() && window.getParent() != null) {
+                window.removeFromParent();
+            }
+        }
+    }
+
+    private NWindow<?> getLastInteractiveWindow() {
+        for (int i = windows.size() - 1; i >= 0; i--) {
+            NWindow<?> candidate = windows.get(i);
+            if (candidate.capturesInput()) {
+                return candidate;
+            }
+        }
+        return null;
     }
 
 
@@ -362,16 +393,24 @@ public class NWindowManager {
 
     void closeWindow(NWindow<?> window, boolean showPrevious) {
         checkThread();
-        ctx.getNavigator().popLayer(window);
+        boolean wasInteractive = window.capturesInput();
+        if (wasInteractive) {
+            ctx.getNavigator().popLayer(window);
+        }
         if (window.getParent() != null) {
             window.removeFromParent();
         }
         window.onHide();
         windows.remove(window);
         
-        if (windows.size() > 0) {
-            NWindow<?> lastWindow = windows.get(windows.size() - 1);
-            showWindow(lastWindow);
+        if (showPrevious && wasInteractive) {
+            NWindow<?> lastWindow = getLastInteractiveWindow();
+            if (lastWindow != null && lastWindow.getParent() == null) {
+                showWindow(lastWindow);
+                if (shouldAutofocusForInputDevice()) {
+                    ctx.getNavigator().autofocus();
+                }
+            }
         }
         mng.onWindowStackChanged();
     }
@@ -460,16 +499,23 @@ public class NWindowManager {
     }
     public void back() {
         checkThread();
-        if (windows.size() > 0) {
-            closeWindow(windows.get(windows.size() - 1), true);
+        for (int i = windows.size() - 1; i >= 0; i--) {
+            NWindow<?> window = windows.get(i);
+            if (window.capturesInput()) {
+                window.back();
+                return;
+            }
         }
     }
 
     public void action(int id) {
         checkThread();
-        if (windows.size() > 0) {
-            NWindow<?> window = windows.get(windows.size() - 1);
-            window.onAction(id);
+        for (int i = windows.size() - 1; i >= 0; i--) {
+            NWindow<?> window = windows.get(i);
+            if (window.capturesInput()) {
+                window.onAction(id);
+                return;
+            }
         }
     }
 

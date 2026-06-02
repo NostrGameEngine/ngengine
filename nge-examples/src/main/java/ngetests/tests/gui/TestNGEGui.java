@@ -31,6 +31,7 @@
  */
 
 package ngetests.tests.gui;
+import org.ngengine.ComponentRef;
 import org.ngengine.Components;
 import org.ngengine.NGEApplication;
 import org.ngengine.NGEApplication.NGEAppRunner;
@@ -43,7 +44,10 @@ public class TestNGEGui {
     public static void main(String arg[]) {
         NGEPlatform.set(new JVMAsyncPlatform());
         NGEAppRunner appBuilder = NGEApplication.createApp(app -> {
-            Components.mount(app, new NWindowManagerComponent()).enable();
+            NWindowManagerComponent win = new NWindowManagerComponent();
+            Components.mount(app, win).enable();
+            win.setInteractionEnabled(true);
+            
             Components.mount(app, new MainComponent()).enable();
             
         });

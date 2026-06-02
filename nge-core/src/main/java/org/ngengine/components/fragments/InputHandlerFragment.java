@@ -39,7 +39,6 @@ import com.jme3.input.JoystickConnectionListener;
 import com.jme3.input.RawInputListener;
 import com.jme3.input.virtual.VirtualJoystick;
 
-import com.jme3.input.controls.Trigger;
 import com.jme3.input.controls.UnifiedInputListener;
 import com.jme3.input.event.InputEvent;
 import com.jme3.input.event.JoyAxisEvent;
@@ -166,10 +165,14 @@ public interface InputHandlerFragment extends Fragment {
         @Override
         public void onJoyAxisEvent(JoyAxisEvent evt) {
             if (isFragmentEnabled()) {
-                if (evt.getDevice() instanceof VirtualJoystick) {
-                    deviceConnect(evt);
+                // axis drift caused by normal wear can cause this event to be fired unintentionally.
+                // as a failsafe measure we avoid triggering deviceConnect events in this case
+                // if (evt.getDevice() instanceof VirtualJoystick) {
+                //     deviceConnect(evt);
+                // }
+                if(seenDevices.contains(evt.getDevice())) {
+                    fragment.onJoyAxisEvent(mng, evt);
                 }
-                fragment.onJoyAxisEvent(mng, evt);
             }
         }
 

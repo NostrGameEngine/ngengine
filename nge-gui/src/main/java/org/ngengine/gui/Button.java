@@ -226,11 +226,18 @@ public class Button extends Label implements FocusListener {
     public void setEnabled(boolean b) {
         if (this.enabled == b) return;
         this.enabled = b;
+        getControl(GuiControl.class).setFocusable(b);
 
         if (isEnabled()) {
             commandMap.runCommands(ButtonAction.Enabled);
             runEffect(EFFECT_ENABLE);
         } else {
+            if (isPressed()) {
+                setPressed(false);
+            }
+            if (isFocusHighlightOn()) {
+                showFocus(false);
+            }
             commandMap.runCommands(ButtonAction.Disabled);
             runEffect(EFFECT_DISABLE);
         }
