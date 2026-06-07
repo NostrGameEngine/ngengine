@@ -70,7 +70,7 @@ public class NSVGIcon extends IconComponent {
     ) {
         super(
             NGEGui
-                .loadTexture(new SVGTextureKey(imagePath, width < 2 ? 2 : width, height < 2 ? 2 : height), false),
+                .loadTexture(new SVGTextureKey(imagePath, true, width < 2 ? 2 : width, height < 2 ? 2 : height), false),
             iconScale,
             xMargin,
             yMargin,

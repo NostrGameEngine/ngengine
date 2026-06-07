@@ -104,7 +104,7 @@ public class NLoadingSpinner extends Panel implements GuiUpdateListener, GuiCont
         float min = Math.min(w, h);
         w = min;
         h = min;
-        Texture tx = NGEGui.loadTexture(new SVGTextureKey(spinnerPath, (int) w, (int) h), false);
+        Texture tx = NGEGui.loadTexture(new SVGTextureKey(spinnerPath, true, (int) w, (int) h), false);
         tx.setMinFilter(MinFilter.BilinearNoMipMaps);
         tx.setMagFilter(MagFilter.Bilinear);
         material.setTexture(tx);

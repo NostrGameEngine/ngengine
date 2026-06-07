@@ -7,6 +7,7 @@ import com.jme3.texture.Image;
 import com.jme3.texture.Image.Format;
 import com.jme3.texture.image.ColorSpace;
 import com.jme3.util.BufferUtils;
+import org.ngengine.nanosvg.NanoSvgFitMode;
 import org.ngengine.nanosvg.NanoSvgRenderResult;
 import org.ngengine.nanosvg.NanoSvgRenderer;
 
@@ -23,9 +24,10 @@ public class SVGLoader implements AssetLoader {
         int width = 256;
         int height = 256;
         boolean flipY = false;
+        SVGTextureKey svgKey = null;
 
         if (key instanceof SVGTextureKey) {
-            SVGTextureKey svgKey = (SVGTextureKey) key;
+            svgKey = (SVGTextureKey) key;
             width = svgKey.getWidth();
             height = svgKey.getHeight();
             flipY = svgKey.isFlipY();
@@ -37,7 +39,20 @@ public class SVGLoader implements AssetLoader {
             ByteBuffer input = ByteBuffer.wrap(svgData.getBytes(StandardCharsets.UTF_8));
 
             NanoSvgRenderer renderer = new NanoSvgRenderer(BufferUtils::createByteBuffer);
-            NanoSvgRenderResult result = renderer.render(input, width, height);
+            NanoSvgRenderResult result;
+            if (svgKey != null && svgKey.hasViewBoxClip()) {
+                result = renderer.renderViewBox(
+                        input,
+                        width,
+                        height,
+                        Math.round(svgKey.getViewBoxX()),
+                        Math.round(svgKey.getViewBoxY()),
+                        Math.round(svgKey.getViewBoxWidth()),
+                        Math.round(svgKey.getViewBoxHeight()),
+                        NanoSvgFitMode.CONTAIN);
+            } else {
+                result = renderer.render(input, width, height);
+            }
             ByteBuffer pixels = imageData(result, flipY);
 
             return new Image(Format.RGBA8, result.width(), result.height(), pixels, ColorSpace.sRGB);
