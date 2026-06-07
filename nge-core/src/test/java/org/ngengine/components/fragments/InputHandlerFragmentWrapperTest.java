@@ -6,12 +6,16 @@ package org.ngengine.components.fragments;
 
 import com.jme3.input.InputManager;
 import com.jme3.input.JoyInput;
+import com.jme3.input.Joystick;
+import com.jme3.input.JoystickAxis;
+import com.jme3.input.JoystickButton;
 import com.jme3.input.KeyInput;
 import com.jme3.input.RawInputListener;
 import com.jme3.input.controls.KeyTrigger;
 import com.jme3.input.dummy.DummyKeyInput;
 import com.jme3.input.dummy.DummyMouseInput;
 import com.jme3.input.event.InputEvent;
+import com.jme3.input.event.JoyAxisEvent;
 import com.jme3.input.event.KeyInputEvent;
 import java.lang.reflect.Proxy;
 import java.util.ArrayDeque;
@@ -74,6 +78,34 @@ public class InputHandlerFragmentWrapperTest {
         assertFalse(inputManager.hasMapping("walk_right"));
     }
 
+    @Test
+    public void joystickAxisOnlyConnectsDeviceWhenMovedPastIntentThreshold() {
+        TestKeyInput keys = new TestKeyInput();
+        InputManager inputManager = newInputManager(keys, null);
+        RecordingInputComponent component = new RecordingInputComponent();
+        ComponentManager manager = componentManager(inputManager, component, true);
+        InputHandlerFragment.Wrapper wrapper = new InputHandlerFragment.Wrapper(
+                manager,
+                component,
+                new InputActions(inputManager));
+        TestJoystick joystick = new TestJoystick();
+
+        wrapper.onJoyAxisEvent(new JoyAxisEvent(joystick.getXAxis(), 0.4f));
+
+        assertEquals(0, component.connectedDevices);
+        assertEquals(0, component.rawAxisEvents);
+
+        wrapper.onJoyAxisEvent(new JoyAxisEvent(joystick.getXAxis(), 0.91f));
+
+        assertEquals(1, component.connectedDevices);
+        assertEquals(1, component.rawAxisEvents);
+
+        wrapper.onJoyAxisEvent(new JoyAxisEvent(joystick.getXAxis(), 0.2f));
+
+        assertEquals(1, component.connectedDevices);
+        assertEquals(2, component.rawAxisEvents);
+    }
+
     private static ComponentManager componentManager(InputManager inputManager, Component component, boolean enabled) {
         return (ComponentManager) Proxy.newProxyInstance(
                 InputHandlerFragmentWrapperTest.class.getClassLoader(),
@@ -133,6 +165,7 @@ public class InputHandlerFragmentWrapperTest {
         private final ArrayList<String> actions = new ArrayList<>();
         private int connectedDevices;
         private int rawKeyEvents;
+        private int rawAxisEvents;
 
         @Override
         public void onInputDeviceConnected(ComponentManager mng, InputManager inputManager,
@@ -149,6 +182,11 @@ public class InputHandlerFragmentWrapperTest {
         @Override
         public void onKeyEvent(ComponentManager mng, KeyInputEvent evt) {
             rawKeyEvents++;
+        }
+
+        @Override
+        public void onJoyAxisEvent(ComponentManager mng, JoyAxisEvent evt) {
+            rawAxisEvents++;
         }
 
         @Override
@@ -200,6 +238,139 @@ public class InputHandlerFragmentWrapperTest {
                 assertFalse(event.isConsumed());
                 listener.onKeyEvent((KeyInputEvent) event);
             }
+        }
+    }
+
+    private static final class TestJoystick implements Joystick {
+        private final TestJoystickAxis xAxis = new TestJoystickAxis(this);
+
+        @Override
+        public int getJoyId() {
+            return 0;
+        }
+
+        @Override
+        public String getName() {
+            return "test";
+        }
+
+        @Override
+        public JoystickAxis getXAxis() {
+            return xAxis;
+        }
+
+        @Override
+        public JoystickAxis getYAxis() {
+            return xAxis;
+        }
+
+        @Override
+        public JoystickAxis getPovXAxis() {
+            return xAxis;
+        }
+
+        @Override
+        public JoystickAxis getPovYAxis() {
+            return xAxis;
+        }
+
+        @Override
+        public JoystickAxis getAxis(String logicalId) {
+            return xAxis;
+        }
+
+        @Override
+        public List<JoystickAxis> getAxes() {
+            return List.of(xAxis);
+        }
+
+        @Override
+        public JoystickButton getButton(String logicalId) {
+            return null;
+        }
+
+        @Override
+        public List<JoystickButton> getButtons() {
+            return List.of();
+        }
+
+        @Override
+        public int getXAxisIndex() {
+            return 0;
+        }
+
+        @Override
+        public int getYAxisIndex() {
+            return 0;
+        }
+
+        @Override
+        public int getAxisCount() {
+            return 1;
+        }
+
+        @Override
+        public int getButtonCount() {
+            return 0;
+        }
+
+        @Override
+        public void assignButton(String mappingName, int buttonId) {
+        }
+
+        @Override
+        public void assignAxis(String positiveMapping, String negativeMapping, int axisId) {
+        }
+
+        @Override
+        public void rumble(float amountHigh, float amountLow, float duration) {
+        }
+    }
+
+    private static final class TestJoystickAxis implements JoystickAxis {
+        private final Joystick joystick;
+
+        private TestJoystickAxis(Joystick joystick) {
+            this.joystick = joystick;
+        }
+
+        @Override
+        public void assignAxis(String positiveMapping, String negativeMapping) {
+        }
+
+        @Override
+        public Joystick getJoystick() {
+            return joystick;
+        }
+
+        @Override
+        public String getName() {
+            return "x";
+        }
+
+        @Override
+        public String getLogicalId() {
+            return JoystickAxis.AXIS_XBOX_LEFT_THUMB_STICK_X;
+        }
+
+        @Override
+        public int getAxisId() {
+            return 0;
+        }
+
+        @Override
+        public boolean isAnalog() {
+            return true;
+        }
+
+        @Override
+        public boolean isRelative() {
+            return false;
+        }
+
+        @Override
+        public float getDeadZone() {
+            return 0f;
         }
     }
 }

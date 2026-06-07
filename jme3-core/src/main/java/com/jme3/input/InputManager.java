@@ -101,7 +101,7 @@ public class InputManager implements RawInputListener {
     private final SafeArrayList<RawInputListener> rawListeners = new SafeArrayList<>(RawInputListener.class);
     private final ArrayList<InputEvent<?>> inputQueue = new ArrayList<>();
     private final List<JoystickConnectionListener> joystickConnectionListeners = new ArrayList<>();
-    private float globalAxisDeadZone = 0.05f;
+    private float globalAxisDeadZone = 0.1f;
     private final IntMap<Double> lastValues = new IntMap<>();
     private final IntMap<InputEvent<?>> emulatedAnalogs = new IntMap<>();
 

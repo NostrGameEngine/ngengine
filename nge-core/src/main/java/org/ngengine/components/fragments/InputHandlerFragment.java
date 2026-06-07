@@ -68,6 +68,7 @@ import org.ngengine.components.jme3.AppComponentInitializer.InputActions;
  * {@link InputManager} instance and register additional input listeners.
  */
 public interface InputHandlerFragment extends Fragment {
+    static final float JOYSTICK_AXIS_DEVICE_SWITCH_THRESHOLD = 0.9f;
     class Wrapper implements RawInputListener, UnifiedInputListener, JoystickConnectionListener{
 
         private final InputHandlerFragment fragment;
@@ -167,9 +168,9 @@ public interface InputHandlerFragment extends Fragment {
             if (isFragmentEnabled()) {
                 // axis drift caused by normal wear can cause this event to be fired unintentionally.
                 // as a failsafe measure we avoid triggering deviceConnect events in this case
-                // if (evt.getDevice() instanceof VirtualJoystick) {
-                //     deviceConnect(evt);
-                // }
+                if (Math.abs(evt.getValue()) >= JOYSTICK_AXIS_DEVICE_SWITCH_THRESHOLD) {
+                    deviceConnect(evt);
+                }
                 if(seenDevices.contains(evt.getDevice())) {
                     fragment.onJoyAxisEvent(mng, evt);
                 }
