@@ -31,6 +31,10 @@
  */
 package com.jme3.input;
 
+import com.jme3.asset.AssetManager;
+import com.jme3.input.icons.JoystickAxisIcons;
+import com.jme3.texture.Texture;
+
 /**
  *  Represents a single axis of a Joystick.
  *
@@ -84,6 +88,27 @@ public interface JoystickAxis {
      *  @return the logical identifier of this joystick.
      */
     public String getLogicalId(); 
+
+    /**
+     * Returns the icon asset path for this axis, or null if no matching icon
+     * is known for this controller family.
+     *
+     * @return an asset path suitable for AssetManager.loadTexture(), or null
+     */
+    public default String getIconPath() {
+        return JoystickAxisIcons.getIconPath(this);
+    }
+
+    /**
+     * Returns the cached icon texture for this axis, or null if no matching
+     * icon exists on the current classpath.
+     *
+     * @param assetManager the asset manager used to load the texture
+     * @return a cached texture, or null
+     */
+    public default Texture getIcon(AssetManager assetManager) {
+        return JoystickAxisIcons.getIcon(assetManager, this);
+    }
 
     /**
      *  Returns the unique axisId of this joystick axis within a given 
