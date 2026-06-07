@@ -151,6 +151,7 @@ public class CheckboxModelGroup {
         if( activeEntry == null ) {
             return;
         }
+        activeEntry.model.setChecked(true);
         for( ModelEntry entry : models.values() ) {
             if( entry != activeEntry ) {
                 // Turn all but the active one off
