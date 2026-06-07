@@ -40,6 +40,7 @@
 
 package org.ngengine.gui;
 
+import java.nio.ByteBuffer;
 import java.util.WeakHashMap;
 
 import com.jme3.bounding.BoundingBox;
@@ -50,6 +51,11 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.shape.Quad;
+import com.jme3.texture.Image;
+import com.jme3.texture.Texture;
+import com.jme3.texture.Texture2D;
+import com.jme3.texture.image.ColorSpace;
+import com.jme3.util.BufferUtils;
 import com.jme3.util.TempVars;
 import org.ngengine.gui.anim.Animation;
 import org.ngengine.gui.effect.AbstractEffect;
@@ -58,6 +64,7 @@ import org.ngengine.gui.effect.EffectInfo;
 public class FocusEffect extends AbstractEffect<Panel> {
     private final boolean onFocus;
     private final static ThreadLocal<WeakHashMap<Panel,State>> states = ThreadLocal.withInitial(WeakHashMap::new);
+    private static Texture2D glowTexture;
     private final Material highlightMat;
     private final static class State{
         Geometry overlay;
@@ -127,7 +134,9 @@ public class FocusEffect extends AbstractEffect<Panel> {
         if(state.overlay == null){
             Quad quad = new Quad(1,1);
             Geometry geo = new Geometry("focusOverlay", quad);
-            geo.setMaterial(highlightMat);
+            Material mat = highlightMat.clone();
+            mat.setTexture("ColorMap", getGlowTexture());
+            geo.setMaterial(mat);
             overlayScene.attachChild(geo);
             state.overlay = geo;            
         }           
@@ -137,9 +146,12 @@ public class FocusEffect extends AbstractEffect<Panel> {
             try(TempVars vars = TempVars.get()){
                 Vector3f scale = vars.vect1;
                 Vector3f translation = vars.vect2;
+                float spread = 26f;
+                float width = Math.max(1f, box.getXExtent() * 2f + spread);
+                float height = Math.max(1f, box.getYExtent() * 2f + spread);
 
-                scale.set(box.getXExtent()*2, box.getYExtent()*2, 1);
-                translation.set( box.getCenter().x - box.getXExtent(), box.getCenter().y - box.getYExtent(), box.getCenter().z + 0.1f);
+                scale.set(width, height, 1);
+                translation.set(box.getCenter().x - width * 0.5f, box.getCenter().y - height * 0.5f, box.getCenter().z + 0.1f);
                 
                 overlayScene.worldToLocal(translation, translation);
                 scale.divideLocal(overlayScene.getWorldScale());
@@ -149,6 +161,38 @@ public class FocusEffect extends AbstractEffect<Panel> {
             }
         }
         
+    }
+
+    private static Texture2D getGlowTexture() {
+        if (glowTexture != null) return glowTexture;
+
+        int size = 64;
+        ByteBuffer data = BufferUtils.createByteBuffer(size * size * 4);
+        for (int y = 0; y < size; y++) {
+            for (int x = 0; x < size; x++) {
+                float nx = Math.abs(((x + 0.5f) / size) * 2f - 1f);
+                float ny = Math.abs(((y + 0.5f) / size) * 2f - 1f);
+                float dist = (float) Math.sqrt(nx * nx + ny * ny) * 0.70710677f;
+                float alpha = 1f - smoothstep(0f, 1f, dist);
+                alpha *= alpha * 0.65f;
+                int a = Math.round(alpha * 255f);
+                data.put((byte) 255);
+                data.put((byte) 255);
+                data.put((byte) 255);
+                data.put((byte) a);
+            }
+        }
+        data.flip();
+
+        glowTexture = new Texture2D(new Image(Image.Format.RGBA8, size, size, data, ColorSpace.Linear));
+        glowTexture.setMinFilter(Texture.MinFilter.BilinearNoMipMaps);
+        glowTexture.setMagFilter(Texture.MagFilter.Bilinear);
+        return glowTexture;
+    }
+
+    private static float smoothstep(float edge0, float edge1, float x) {
+        float t = Math.max(0f, Math.min(1f, (x - edge0) / (edge1 - edge0)));
+        return t * t * (3f - 2f * t);
     }
 
 

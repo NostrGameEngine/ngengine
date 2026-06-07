@@ -125,37 +125,25 @@ public class NGEStyle {
         System.out.println("Installing NGEStyle");
         Styles styles = NGEGui.getStyles();
 
-        // --dark-purple: #1f0f33;
-        // --medium-purple: #3E1E68;
-        // --light-purple:#9681b6;
-        // --accent-purple: #E75AFF;
-        // --glow-purple: #C47AFF;
-        // --glow-purpleA: rgba(195, 122, 255, 0.5);
-        // --text-color: #E0D5FF;
-        // --neon-blue: #00F0FF;
-        // --neon-blueA:#062d5a;
-        // --neontoshi:#c59d6c;
-
-        ColorRGBA darkPurple = fromHex("#1f0f33");
-        ColorRGBA mediumPurple = fromHex("#3E1E68");
-        ColorRGBA lightPurple = fromHex("#9681b6");
-        ColorRGBA accentPurple = fromHex("#E75AFF");
-        ColorRGBA glowPurple = fromHex("#C47AFF");
-        ColorRGBA glowPurpleA = fromHex("#C47AFF");
-        // ColorRGBA textColor = fromHex("#E0D5FF");
-        ColorRGBA neonBlue = fromHex("#00F0FF");
-        ColorRGBA neonBlueA = fromHex("#00eeff65");
-        ColorRGBA neontoshi = fromHex("#c59d6c");
+        ColorRGBA darkPurple = fromHex("#050609cc");
+        ColorRGBA mediumPurple = fromHex("#151922d9");
+        ColorRGBA lightPurple = fromHex("#d7d9df");
+        ColorRGBA accentPurple = fromHex("#f1b84b");
+        ColorRGBA glowPurple = fromHex("#79b7ff");
+        ColorRGBA glowPurpleA = fromHex("#79b7ff88");
+        ColorRGBA neonBlue = fromHex("#79b7ff");
+        ColorRGBA neonBlueA = fromHex("#79b7ff65");
+        ColorRGBA neontoshi = fromHex("#f1b84b");
         ColorRGBA transparent = new ColorRGBA(0, 0, 0, 0);
 
-        ColorRGBA errorColor = fromHex("#5a062d");
-        ColorRGBA warningColor = fromHex("#545a06");
-        ColorRGBA infoColor = fromHex("#062d5a");
+        ColorRGBA errorColor = fromHex("#4a1116e6");
+        ColorRGBA warningColor = fromHex("#4a3511e6");
+        ColorRGBA infoColor = fromHex("#102a40e6");
 
-        darkPurple.a = 0.95f;
+        darkPurple.a = 0.82f;
         ColorRGBA backgroundColor = darkPurple;
         ColorRGBA seconBackground = mediumPurple;
-        mediumPurple.a = 0.7f;
+        mediumPurple.a = 0.72f;
 
         Attributes glob = styles.getSelector(NAME);
         glob.set("fontSize", vmin(2.1f));
@@ -165,8 +153,8 @@ public class NGEStyle {
                 NGEGui.getAssetManager(),
                 "Common/MatDefs/Misc/Unshaded.j3md"
             );
-            highlightMat.getAdditionalRenderState().setBlendMode(BlendMode.Additive);
-            ColorRGBA colorRGBA = neonBlue.clone().multLocal(0.1f);
+            highlightMat.getAdditionalRenderState().setBlendMode(BlendMode.AlphaAdditive);
+            ColorRGBA colorRGBA = neonBlue.clone().multLocal(0.38f);
             highlightMat.setColor("Color", colorRGBA);
 
             glob.set("effects", Map.of(
@@ -179,7 +167,7 @@ public class NGEStyle {
 
         {
             Attributes attrs = styles.getSelector(TextField.ELEMENT_ID, NAME);
-            attrs.set("background", new QuadBackgroundComponent(new ColorRGBA(0,0,0,1)), false);
+            attrs.set("background", new QuadBackgroundComponent(new ColorRGBA(0,0,0,0.82f)), false);
             attrs.set("singleLine", true);
         }
 
@@ -224,13 +212,12 @@ public class NGEStyle {
 
         {        
             Attributes attrs = styles.getSelector(Panel.ELEMENT_ID, NAME);
-            ColorRGBA gray = NGEGui.srgbaColor(ColorRGBA.Gray, true);        
-            attrs.set( "background", new QuadBackgroundComponent(gray) , false );
+            attrs.set( "background", new QuadBackgroundComponent(mediumPurple) , false );
         }
 
         {
             ElementId parent = new ElementId(ListBox.ELEMENT_ID);
-            QuadBackgroundComponent quad = new QuadBackgroundComponent(new ColorRGBA(0.8f, 0.9f, 0.1f, 1));
+            QuadBackgroundComponent quad = new QuadBackgroundComponent(accentPurple);
             quad.getMaterial().getMaterial().getAdditionalRenderState().setBlendMode(BlendMode.Exclusion);
             styles.getSelector(parent.child(ListBox.SELECTOR_ID), NAME).set("background", quad, false);        
         }
@@ -280,25 +267,24 @@ public class NGEStyle {
 
         {
             Attributes container = styles.getSelector("window", NAME);
-            // int x1 = 100;
-            // int x2 = 100;
-            // int y1 = 100;
-            // int y2 = 100;
-            // float scale = 0.24f;
+            int x1 = 15;
+            int x2 = 48-15;
+            int y1 = 15;
+            int y2 = 48-15;
+            float scale = 1f;
 
-            // TbtQuadBackgroundComponent background = TbtQuadBackgroundComponent.create(
-            //     "ui/frame.png",
-            //     scale,
-            //     x1,
-            //     y1,
-            //     x2,
-            //     y2,
-            //     1f,
-            //     false
-            // );
+            TbtQuadBackgroundComponent background = TbtQuadBackgroundComponent.create(
+                "org/ngengine/gui/border/bg.png",
+                scale,
+                x1,
+                y1,
+                x2,
+                y2,
+                1f,
+                false
+            );
             ColorRGBA c = mediumPurple.clone();
             c.a=0.8f;
-            QuadBackgroundComponent background = new QuadBackgroundComponent(c);
             background.setMargin(new Vector2f(10, 10));
             background.setColor(darkPurple);
             container.set("background", background);
@@ -306,6 +292,7 @@ public class NGEStyle {
         }
 
         {
+
             Attributes title = styles.getSelector("window.title", NAME);
             title.set("fontSize", vmin(4));
             title.set("background", new QuadBackgroundComponent(transparent));
@@ -369,8 +356,24 @@ public class NGEStyle {
 
         {
             Attributes button = styles.getSelector("button", NAME);
-            QuadBackgroundComponent bg = new QuadBackgroundComponent(mediumPurple);
-            bg.setMargin(vmin(1.2f), vmin(1.2f));
+            int x1 = 23;
+            int x2 = 48-23;
+            int y1 = 23;
+            int y2 = 48-23;
+            float scale = 1f;
+            TbtQuadBackgroundComponent bg = TbtQuadBackgroundComponent.create(
+                "org/ngengine/gui/border/btn0.png",
+                scale,
+                x1,
+                y1,
+                x2,
+                y2,
+                1f,
+                false
+            );
+            bg.setColor(mediumPurple);
+            // QuadBackgroundComponent bg = new QuadBackgroundComponent(mediumPurple);
+            bg.setMargin(vmin(2.2f), vmin(2.2f));
 
             button.set("background", bg);
             button.set("color", lightPurple);
@@ -443,10 +446,14 @@ public class NGEStyle {
 
         {
             Attributes slider = styles.getSelector("slider", NAME);
-            QuadBackgroundComponent bg = new QuadBackgroundComponent(darkPurple);
-            QuadBackgroundComponent bg2 = bg.clone();
-            bg2.setColor(mediumPurple);
-            bg2.setMargin(vmin(0.8f), 0);
+            ColorRGBA sliderBgColor = fromHex("#202733aa");
+            ColorRGBA sliderButtonColor = fromHex("#303846cc");
+            ColorRGBA sliderThumbColor = fromHex("#b9c3d6cc");
+            QuadBackgroundComponent bg = new QuadBackgroundComponent(sliderBgColor);
+            QuadBackgroundComponent buttonBg = new QuadBackgroundComponent(sliderButtonColor);
+            buttonBg.setMargin(vmin(0.8f), 0);
+            QuadBackgroundComponent thumbBg = new QuadBackgroundComponent(sliderThumbColor);
+            thumbBg.setMargin(vmin(0.8f), 0);
 
             slider.set("background", bg);
             slider.set("insets", new Insets3f(0, vmin(0.6f), 0, 0));
@@ -456,15 +463,15 @@ public class NGEStyle {
                 sliderButtonAttr.set("color", lightPurple);
                 sliderButtonAttr.set("insets", new Insets3f(0, 0, 0, 0));
                 sliderButtonAttr.set("text", "");
-                sliderButtonAttr.set("background", bg2);
+                sliderButtonAttr.set("background", buttonBg.clone());
             }
 
             Attributes sliderThumb = styles.getSelector("slider.thumb.button", NAME);
             sliderThumb.set("text", "");
-            sliderThumb.set("background", bg2);
+            sliderThumb.set("background", thumbBg);
 
             Attributes sliderButton = styles.getSelector("sliderButton", NAME);
-            sliderButton.set("background", bg2);
+            sliderButton.set("background", buttonBg);
             sliderButton.set("insets", new Insets3f(0, 0, 0, 0));
         }
 

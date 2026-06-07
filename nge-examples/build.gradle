@@ -15,6 +15,15 @@ task run(dependsOn: 'build', type:JavaExec) {
     }
 }
 
+task runGuiShowcase(dependsOn: 'build', type:JavaExec) {
+    mainClass = 'ngetests.tests.gui.showcase.TestNGEGuiShowcase'
+    classpath = sourceSets.main.runtimeClasspath
+
+    if (System.properties['java.util.logging.config.file'] != null) {
+        systemProperty "java.util.logging.config.file", System.properties['java.util.logging.config.file']
+    }
+}
+
 dependencies {
     implementation project(':jme3-core')
     implementation project(':jme3-desktop')

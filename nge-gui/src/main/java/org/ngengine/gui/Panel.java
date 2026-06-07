@@ -96,7 +96,6 @@ public class Panel extends Node {
     public static final String EFFECT_CLOSE = "close";
 
     private ElementId elementId;
-
     public Panel() {
         this(new ElementId(ELEMENT_ID));
     }
