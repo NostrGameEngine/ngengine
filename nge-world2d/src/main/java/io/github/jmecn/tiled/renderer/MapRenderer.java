@@ -469,8 +469,8 @@ public abstract class MapRenderer implements CoordinateSystem {
 
             if (visual != null) {
                 Vector3f loc = visual.getLocalTranslation();
-                float y = getLayerYIndex(i);
-                 visual.setLocalTranslation(loc.x, y, loc.z);                
+                float y = getLayerYIndex(layer);
+                visual.setLocalTranslation(loc.x, y, loc.z);
                 if (layer.isVisible()) {
                     if(visual.getParent()!=rootNode){
                         rootNode.attachChild(visual);
@@ -735,7 +735,7 @@ public abstract class MapRenderer implements CoordinateSystem {
         tmpSortedObjects.sort(layer.getDrawOrder());
         try(TempVars vars = TempVars.get()){         
             for (int i = 0; i < len; i++) {
-                TiledObjectEntity obj = objects.get(i);
+                TiledObjectEntity obj = tmpSortedObjects.get(i);
                 
                 listener.beforeEntityRender(tpf,tiledMap, layer, obj);
 
@@ -832,7 +832,26 @@ public abstract class MapRenderer implements CoordinateSystem {
     }
 
     public float getLayerYIndex(int index) {
-        return  (float) (index *(layerDistance + layerGap));
+        return (float) (index * (layerDistance + layerGap));
+    }
+
+    public float getLayerYIndex(TiledLayer layer) {
+        if (layer == null) {
+            return 0f;
+        }
+        int index = tiledMap.getLayersFlat().indexOf(layer);
+        return index >= 0 ? getLayerYIndex(index) : 0f;
+    }
+
+    public float getWorldYIndex(TiledLayer layer, float layerLocalYIndex) {
+        return getLayerYIndex(layer) + layerLocalYIndex;
+    }
+
+    public float getWorldYIndex(TiledObjectEntity object) {
+        if (object == null) {
+            return 0f;
+        }
+        return getWorldYIndex(object.getObjectGroup(), getTopDownYIndex(object));
     }
 
     /**
