@@ -64,4 +64,6 @@ public interface NavigatorInputHandler extends UnifiedInputListener {
     public void setPrimaryAction(Runnable action);
     public void setSecondaryAction(Runnable action);
     public void setBackAction(Runnable action);
+
+    default void update(float tpf) {}
 }

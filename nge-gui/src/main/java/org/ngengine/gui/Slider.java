@@ -38,6 +38,7 @@ import org.ngengine.gui.style.ElementId;
 import org.ngengine.gui.style.Styles;
 import org.ngengine.gui.core.VersionedReference;
 import org.ngengine.gui.nav.FocusListener;
+import org.ngengine.gui.nav.FocusTarget;
 import org.ngengine.gui.nav.ScrollDirection;
 import org.ngengine.gui.core.GuiControl;
 import com.jme3.math.Vector3f;
@@ -55,7 +56,7 @@ import org.ngengine.gui.core.AbstractGuiControlListener;
  *
  *  @author    Paul Speed
  */
-public class Slider extends Panel {
+public class Slider extends Panel implements FocusListener {
 
     public static final String ELEMENT_ID = "slider";
     /*public static final String UP_ID = "slider.up.button";
@@ -121,6 +122,8 @@ public class Slider extends Panel {
         this.layout = new BorderLayout();
         getControl(GuiControl.class).setLayout(layout);
         getControl(GuiControl.class).addListener(new ReshapeListener());
+        getControl(GuiControl.class).addFocusChangeListener(this);
+        getControl(GuiControl.class).setFocusable(FocusTarget.FOCUS_NAVIGATION);
 
         this.model = model;
 
@@ -142,10 +145,12 @@ public class Slider extends Panel {
             case Z:
                 throw new IllegalArgumentException("Z axis not yet supported.");
         }
+        increment.getControl(GuiControl.class).setFocusable(FocusTarget.FOCUS_POINTER);
+        decrement.getControl(GuiControl.class).setFocusable(FocusTarget.FOCUS_POINTER);
         setupCommands();
 
         thumb = new Button(elementId.child(THUMB_ID));
-        thumb.getControl(GuiControl.class).setFocusable(false);
+        thumb.getControl(GuiControl.class).setFocusable(FocusTarget.FOCUS_POINTER);
         // ButtonDragger dragger = new ButtonDragger();
         // CursorEventControl.addListenersToSpatial(thumb, dragger);
         attachChild(thumb);
@@ -163,8 +168,9 @@ public class Slider extends Panel {
     }
     @SuppressWarnings("unchecked") // because Java doesn't like var-arg generics
     protected final void setupCommands() {
-        increment.addClickCommands(new ChangeValueCommand(1));
-        decrement.addClickCommands(new ChangeValueCommand(-1));
+        double sign = axis == Axis.Y ? -1 : 1;
+        increment.addClickCommands(new ChangeValueCommand(sign));
+        decrement.addClickCommands(new ChangeValueCommand(-sign));
     }
 
     public void setModel( RangedValueModel model ) {
@@ -184,6 +190,10 @@ public class Slider extends Panel {
 
     public double getDelta() {
         return delta;
+    }
+
+    public Axis getAxis() {
+        return axis;
     }
 
     public Button getIncrementButton() {
@@ -304,6 +314,28 @@ public class Slider extends Panel {
         public void execute( Button source ) {
             model.setValue(model.getValue() + delta * scale);
         }
+    }
+
+    @Override
+    public void focusGained(Spatial target) {
+        runEffect(Button.EFFECT_FOCUS);
+    }
+
+    @Override
+    public void focusLost(Spatial target) {
+        runEffect(Button.EFFECT_UNFOCUS);
+    }
+
+    @Override
+    public void focusAction(Spatial target, boolean pressed) {
+    }
+
+    @Override
+    public void focusScrollUpdate(Spatial target, ScrollDirection dir, double v) {
+        int dvalue = (int)(dir==ScrollDirection.Up||dir==ScrollDirection.Right?v:-v);
+        double delta = getDelta();
+        double value = getModel().getValue();
+        getModel().setValue(value + delta * dvalue);
     }
 
     private class ReshapeListener extends AbstractGuiControlListener {

@@ -104,9 +104,13 @@ public class NGEGui {
     }
     
     public static boolean isFocusable(Spatial s) {
+        return isFocusable(s, FocusTarget.FOCUS_ALL);
+    }
+
+    public static boolean isFocusable(Spatial s, int focusMask) {
         if (s.getCullHint() == Spatial.CullHint.Always) return false;
         FocusTarget tg = findFocusTarget(s);
-        return tg != null && tg.isFocusable();
+        return tg != null && tg.isFocusable(focusMask);
     }
 
     public static FocusTarget findFocusTarget(Spatial s) {

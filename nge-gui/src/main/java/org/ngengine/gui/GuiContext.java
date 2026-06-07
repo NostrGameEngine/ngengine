@@ -58,6 +58,7 @@ import com.jme3.bounding.BoundingSphere;
 import com.jme3.bounding.BoundingVolume;
 import com.jme3.collision.CollisionResult;
 import com.jme3.collision.CollisionResults;
+import com.jme3.input.InputDevice;
 import com.jme3.math.Ray;
 import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
@@ -72,6 +73,7 @@ import org.ngengine.gui.anim.AnimationHandler;
 import org.ngengine.gui.ime.DummyImeComposer;
 import org.ngengine.gui.ime.ImeComposer;
 import org.ngengine.gui.ime.ImeCompositionEvent;
+import org.ngengine.gui.nav.FocusTarget;
 import org.ngengine.gui.nav.Navigator;
 import org.ngengine.gui.nav.PopupHandler;
 
@@ -86,6 +88,7 @@ public class GuiContext {
     private final OptionPanelState optionPanelHandler;
     private boolean gammaEnabled;
     private ImeComposer imeComposer = new DummyImeComposer();
+    private InputDevice inputDevice;
 
     public static interface GuiContextHandler extends Closeable{
         public void update( float tpf );
@@ -280,6 +283,14 @@ public class GuiContext {
         return !inputOwners.isEmpty();
     }
 
+    public InputDevice getInputDevice() {
+        return inputDevice;
+    }
+
+    public void setInputDevice(InputDevice inputDevice) {
+        this.inputDevice = inputDevice;
+    }
+
     public void onEnabled() {
     }
 
@@ -315,7 +326,7 @@ public class GuiContext {
             for (CollisionResult cr : pickResults) {
                 Spatial hit = cr.getGeometry();
 
-                while (hit != null && !NGEGui.isFocusable(hit)) {
+                while (hit != null && !NGEGui.isFocusable(hit, FocusTarget.FOCUS_POINTER)) {
                     hit = hit.getParent();
                 }
 

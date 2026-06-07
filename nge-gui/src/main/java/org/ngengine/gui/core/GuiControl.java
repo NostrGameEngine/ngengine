@@ -76,7 +76,7 @@ public class GuiControl extends AbstractNodeControl<GuiControl>
     private Vector3f preferredSizeOverride = null;
     private Vector3f lastSize = new Vector3f();
     private boolean focused = false;
-    private Boolean focusable = null;
+    private Integer focusMask = null;
     private GuiContext ctx;
 
     public GuiControl( GuiComponent... components ) {
@@ -183,7 +183,11 @@ public class GuiControl extends AbstractNodeControl<GuiControl>
      *  if none of the child components are focusable.
      */
     public void setFocusable( Boolean b ) {
-        this.focusable = b;
+        this.focusMask = b == null ? null : b ? FocusTarget.FOCUS_ALL : 0;
+    }
+
+    public void setFocusable( int focusMask ) {
+        this.focusMask = focusMask;
     }
 
     /**
@@ -193,17 +197,22 @@ public class GuiControl extends AbstractNodeControl<GuiControl>
      */
     @Override
     public boolean isFocusable() {
-        if( focusable != null ) {
-            return focusable;
+        return isFocusable(FocusTarget.FOCUS_ALL);
+    }
+
+    @Override
+    public boolean isFocusable(int requestedFocusMask) {
+        if( focusMask != null ) {
+            return (focusMask & requestedFocusMask) != 0;
         }
         if( layout instanceof FocusTarget ) {
-            if( ((FocusTarget)layout).isFocusable() ) {
+            if( ((FocusTarget)layout).isFocusable(requestedFocusMask) ) {
                 return true;
             }
         }
         for( GuiComponent c : componentStack.getArray() ) {
             if( c instanceof FocusTarget ) {
-                if( ((FocusTarget)c).isFocusable() ) {
+                if( ((FocusTarget)c).isFocusable(requestedFocusMask) ) {
                     return true;
                 }
             }
@@ -285,6 +294,26 @@ public class GuiControl extends AbstractNodeControl<GuiControl>
         }
         if( layout instanceof FocusTarget ) {
             ((FocusTarget)layout).focusAction(target, pressed);
+        }
+        if( focusListeners != null ) {
+            for( FocusListener l : focusListeners.getArray() ) {
+                l.focusAction(target, pressed);
+            }
+        }
+    }
+
+    @Override
+    public void focusAction(Spatial target, boolean pressed, float x, float y) {
+        if (log.isLoggable(Level.FINEST)) {
+            log.finest(getSpatial() + " activate()");
+        }
+        for( GuiComponent c : componentStack.getArray() ) {
+            if( c instanceof FocusTarget ) {
+                ((FocusTarget)c).focusAction(target, pressed, x, y);
+            }
+        }
+        if( layout instanceof FocusTarget ) {
+            ((FocusTarget)layout).focusAction(target, pressed, x, y);
         }
         if( focusListeners != null ) {
             for( FocusListener l : focusListeners.getArray() ) {

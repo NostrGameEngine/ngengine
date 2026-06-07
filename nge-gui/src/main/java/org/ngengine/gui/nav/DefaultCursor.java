@@ -57,7 +57,7 @@ import com.jme3.scene.VertexBuffer.Type;
 import com.jme3.util.BufferUtils;
 
 /**
- * Simple symmetric "dart" cursor (border + fill only).
+ * Simple dark pointer cursor (border + fill only).
  *
  * @author Riccardo Balbo, GPT-5.2
  */
@@ -70,11 +70,11 @@ public class DefaultCursor extends Node {
                 hex.length() > 7 ? Integer.valueOf(hex.substring(7, 9), 16) / 255f : 1f, true);
     }
 
-    private final ColorRGBA fillColor = fromHex("#3E1E68");
-    private final ColorRGBA borderColor = fromHex("#9681b6");
+    private final ColorRGBA fillColor = fromHex("#0B1218");
+    private final ColorRGBA borderColor = fromHex("#5CC9D6");
 
-    public float borderScale = 1.12f;
-    public float fillScale = 0.90f;
+    public float borderScale = 1.08f;
+    public float fillScale = 0.82f;
 
     private float sizePx;
 
@@ -121,9 +121,9 @@ public class DefaultCursor extends Node {
 
         // Symmetric dart (convex quad), CCW:
         // tip -> left shoulder -> tail -> right shoulder
-        float L1 = sizePx * 0.78f; // shoulder distance
-        float L2 = sizePx * 1.32f; // tail distance
-        float B = sizePx * 0.34f; // half width at shoulders
+        float L1 = sizePx * 0.72f; // shoulder distance
+        float L2 = sizePx * 1.12f; // tail distance
+        float B = sizePx * 0.25f; // half width at shoulders
 
         float tipX = 0f, tipY = 0f;
 

@@ -39,9 +39,12 @@ import java.util.function.Function;
 
 import com.jme3.font.BitmapFont;
 import com.jme3.math.ColorRGBA;
+import com.jme3.scene.Spatial;
 
 import org.ngengine.gui.component.TextEntryComponent;
 import org.ngengine.gui.core.GuiControl;
+import org.ngengine.gui.nav.FocusListener;
+import org.ngengine.gui.nav.ScrollDirection;
 
 import org.ngengine.gui.style.ElementId;
 import org.ngengine.gui.style.StyleAttribute;
@@ -54,7 +57,7 @@ import org.ngengine.gui.style.Styles;
  *
  *  @author  Riccardo Balbo
  */
-public class TextField extends Panel {
+public class TextField extends Panel implements FocusListener {
 
     public static final String ELEMENT_ID = "textField";
 
@@ -87,6 +90,7 @@ public class TextField extends Panel {
         BitmapFont font = styles.getAttributes(getElementId().getId()).get("font", BitmapFont.class);
         text = new TextEntryComponent( font);
         getControl(GuiControl.class).setComponent(LAYER_TEXT, text);
+        getControl(GuiControl.class).addFocusChangeListener(this);
 
         setText(tx);
         
@@ -208,6 +212,23 @@ public class TextField extends Panel {
     @Override
     public String toString() {
         return getClass().getName() + "[text=" + getText() + ", color=" + getColor() + ", elementId=" + getElementId() + "]";
-    }    
-}
+    }
 
+    @Override
+    public void focusGained(Spatial target) {
+        runEffect(Button.EFFECT_FOCUS);
+    }
+
+    @Override
+    public void focusLost(Spatial target) {
+        runEffect(Button.EFFECT_UNFOCUS);
+    }
+
+    @Override
+    public void focusAction(Spatial target, boolean pressed) {
+    }
+
+    @Override
+    public void focusScrollUpdate(Spatial target, ScrollDirection dir, double value) {
+    }
+}

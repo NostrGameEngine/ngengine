@@ -1,20 +1,20 @@
 /**
  * Copyright (c) 2026, Nostr Game Engine
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of the copyright holder nor the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -25,16 +25,16 @@
  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
- * the BSD 3-Clause License. 
- * 
+ * the BSD 3-Clause License.
+ *
  * #########################################
- * 
+ *
  * nge-gui is built and based on Lemur, which is licensed under the BSD 3-Clause License.
- * - Copyright (c) 2012-2026 jMonkeyEngine All rights reserved. 
+ * - Copyright (c) 2012-2026 jMonkeyEngine All rights reserved.
  * - Copyright (c) 2016-2026, Simsilica, LLC All rights reserved.
- * 
+ *
  * https://github.com/jMonkeyEngine-Contributions/Lemur
  */
 
@@ -61,7 +61,7 @@ import org.ngengine.gui.core.GuiControl;
 
 /**
  * Handles and abstracts focus navigation for a specific ViewPort.
- * 
+ *
  * @author Riccardo Balbo
  */
 public class Navigator implements GuiContextHandler, NavigatorListenerProvider {
@@ -75,8 +75,14 @@ public class Navigator implements GuiContextHandler, NavigatorListenerProvider {
     private Spatial cursorPointer = null;
     private boolean cursorEnabled = false;
     private boolean cursorActive = false;
+    private boolean cursorHardware = false;
+    private boolean simulateCursor = true;
+    private boolean simulatedCursorActive = false;
     private float cursorIdleTime = 0f;
-    private float cursorAutoHideDelay = 60f;
+    private float cursorAutoHideDelay = 5f;
+    private float cursorActivityThreshold = 0.75f;
+    private float simulatedCursorDeadZone = 0.25f;
+    private float simulatedCursorSpeed = 480f;
     private boolean enabled = true;
 
     public Navigator(GuiContext ctx) {
@@ -122,29 +128,98 @@ public class Navigator implements GuiContextHandler, NavigatorListenerProvider {
         return cursorActive;
     }
 
+    public boolean isHardwareCursor() {
+        return cursorHardware;
+    }
+
+    public void setHardwareCursor(boolean hardware) {
+        if (cursorHardware == hardware) return;
+        cursorHardware = hardware;
+        if (cursorEnabled) {
+            setCursor(cursorEnabled);
+        }
+    }
+
+    public boolean isSimulateCursor() {
+        return simulateCursor;
+    }
+
+    public void setSimulateCursor(boolean simulate) {
+        this.simulateCursor = simulate;
+        if (!simulate) {
+            simulatedCursorActive = false;
+            if (cursorHardware && cursorPointer != null && cursorPointer.getParent() != null) {
+                cursorPointer.removeFromParent();
+            }
+        }
+    }
+
     public void setCursorAutoHideDelay(float seconds) {
         cursorAutoHideDelay = Math.max(0f, seconds);
     }
 
+    public float getCursorAutoHideDelay() {
+        return cursorAutoHideDelay;
+    }
+
+    public float getCursorActivityThreshold() {
+        return cursorActivityThreshold;
+    }
+
+    public void setCursorActivityThreshold(float pixels) {
+        cursorActivityThreshold = Math.max(0f, pixels);
+    }
+
+    public float getSimulatedCursorDeadZone() {
+        return simulatedCursorDeadZone;
+    }
+
+    public void setSimulatedCursorDeadZone(float deadZone) {
+        simulatedCursorDeadZone = FastMath.clamp(deadZone, 0f, 0.999f);
+    }
+
+    public float getSimulatedCursorSpeed() {
+        return simulatedCursorSpeed;
+    }
+
+    public void setSimulatedCursorSpeed(float pixelsPerSecond) {
+        simulatedCursorSpeed = Math.max(0f, pixelsPerSecond);
+    }
+
     public void setCursor(boolean visible) {
         if (visible) {
-            float size = Math.max(ctx.getViewPort().getCamera().getWidth(),
-                    ctx.getViewPort().getCamera().getHeight());
-            size *= 0.02f;
-            size = FastMath.clamp(size, 12, 50);
-            setCursor(new DefaultCursor(ctx.getAssetManager(), size));
+            cursorEnabled = true;
+            cursorActive = false;
+            simulatedCursorActive = false;
+            cursorIdleTime = 0f;
+            if (cursorHardware) {
+                setCursorSpatial(null);
+            } else {
+                setCursorSpatial(createDefaultCursor());
+            }
         } else {
-            setCursor(null);
+            cursorEnabled = false;
+            cursorActive = false;
+            simulatedCursorActive = false;
+            setCursorSpatial(null);
         }
     }
 
     public void setCursor(Spatial cursor) {
+        cursorHardware = false;
+        simulatedCursorActive = false;
+        if (cursor == null) {
+            cursorEnabled = false;
+        }
+        setCursorSpatial(cursor);
+    }
+
+    private void setCursorSpatial(Spatial cursor) {
         if (this.cursorPointer != null && this.cursorPointer != cursor && this.cursorPointer.getParent() != null) {
             this.cursorPointer.removeFromParent();
         }
         this.cursorPointer = cursor;
         if (cursor == null) {
-            cursorEnabled = false;
             cursorActive = false;
         } else {
             LayerComparator.resetLayer(cursor, CURSOR_LAYER);
@@ -152,6 +227,14 @@ public class Navigator implements GuiContextHandler, NavigatorListenerProvider {
             cursorActive = false;
             cursorIdleTime = 0f;
         }
+    }
+
+    private Spatial createDefaultCursor() {
+        float size = Math.max(ctx.getViewPort().getCamera().getWidth(),
+                ctx.getViewPort().getCamera().getHeight());
+        size *= 0.016f;
+        size = FastMath.clamp(size, 10, 38);
+        return new DefaultCursor(ctx.getAssetManager(), size);
     }
 
     @Override
@@ -162,11 +245,26 @@ public class Navigator implements GuiContextHandler, NavigatorListenerProvider {
     public boolean updateCursorPosition(double x, double y) {
         if (!isCursorVisible()) return false;
         autofocus = false;
+        double dx = x - cursorX;
+        double dy = y - cursorY;
+        double threshold = cursorActivityThreshold;
+        if (dx * dx + dy * dy < threshold * threshold) {
+            return true;
+        }
         this.cursorX = x;
         this.cursorY = y;
         cursorActive = true;
         cursorIdleTime = 0f;
         return true;
+    }
+
+    public boolean updateSimulatedCursorPosition(double x, double y) {
+        if (!cursorEnabled || !simulateCursor) return false;
+        if (cursorPointer == null) {
+            setCursorSpatial(createDefaultCursor());
+        }
+        simulatedCursorActive = true;
+        return updateCursorPosition(x, y);
     }
 
     private ViewPort getViewPort() {
@@ -293,6 +391,26 @@ public class Navigator implements GuiContextHandler, NavigatorListenerProvider {
         layer.focus(newFocus);
     }
 
+    public void clearPointerFocus() {
+        if (!enabled) return;
+        NavigatorLayer layer = getCurrentLayer();
+        if (layer == null) return;
+        autofocus = false;
+        layer.clearPointerFocus();
+    }
+
+    public void focusPointer(Spatial newFocus) {
+        if (!enabled) return;
+        NavigatorLayer layer = getCurrentLayer();
+        if (layer == null) return;
+        if (newFocus != null) {
+            layer.focusPointer(newFocus);
+        } else {
+            autofocus = false;
+            layer.clearPointerFocus();
+        }
+    }
+
     public boolean unfocus(Spatial s) {
         if (!enabled) return false;
         NavigatorLayer layer = getCurrentLayer();
@@ -306,10 +424,12 @@ public class Navigator implements GuiContextHandler, NavigatorListenerProvider {
             cursorIdleTime += Math.max(tpf, 0f);
             if (cursorIdleTime >= cursorAutoHideDelay) {
                 cursorActive = false;
+                simulatedCursorActive = false;
             }
         }
 
-        boolean cursorVisible = enabled && cursorEnabled && cursorActive && this.cursorPointer != null;
+        boolean cursorVisible = enabled && cursorEnabled && cursorActive && this.cursorPointer != null
+                && (!cursorHardware || simulatedCursorActive);
         if (cursorVisible) {
             Node guiNode = ctx.getGuiNode();
             if (cursorPointer.getParent() != guiNode) {
@@ -330,6 +450,17 @@ public class Navigator implements GuiContextHandler, NavigatorListenerProvider {
         NavigatorLayer layer = getCurrentLayer();
         if (layer == null) return null;
         return layer.getFocus();
+    }
+
+    Spatial peekFocus() {
+        if (layers.isEmpty()) return null;
+        for (int i = layers.size() - 1; i >= 0; i--) {
+            NavigatorLayer layer = layers.get(i);
+            if (layer.isInViewPort(getViewPort())) {
+                return layer.getFocus();
+            }
+        }
+        return null;
     }
 
     public Spatial autofocus() {

@@ -75,6 +75,7 @@ final class NavigatorLayer implements Closeable {
 
     private boolean enabled;
     private Spatial focus;
+    private int focusMask = FocusTarget.FOCUS_NAVIGATION;
     private List<Spatial> focusHierarchy = Collections.emptyList();
 
     NavigatorLayer(Spatial root,
@@ -142,7 +143,7 @@ final class NavigatorLayer implements Closeable {
         }
 
         // If focus is no longer valid for this layer, drop it.
-        if (focus != null && !isValidFocus(focus)) {
+        if (focus != null && !isValidFocus(focus, focusMask)) {
             clearFocus(true);
         }
 
@@ -182,6 +183,9 @@ final class NavigatorLayer implements Closeable {
     Spatial navigate(final TraversalDirection dir) {
         if (!enabled) {
             return focus;
+        }
+        if (focus != null && !isValidFocus(focus, FocusTarget.FOCUS_NAVIGATION)) {
+            clearFocus(false);
         }
         updateFocus(true);
 
@@ -226,10 +230,22 @@ final class NavigatorLayer implements Closeable {
     }
 
     void focus(Spatial requested) {
+        focus(requested, FocusTarget.FOCUS_NAVIGATION);
+    }
+
+    void focusPointer(Spatial requested) {
+        focus(requested, FocusTarget.FOCUS_POINTER);
+    }
+
+    private void focus(Spatial requested, int requestedFocusMask) {
         if (!enabled) {
             return;
         }
-        if (requested == null || requested == focus) {
+        if (requested == null) {
+            return;
+        }
+        if (requested == focus) {
+            focusMask = requestedFocusMask;
             return;
         }
         if (!isDescendantOf(requested, root)) {
@@ -241,6 +257,7 @@ final class NavigatorLayer implements Closeable {
 
         rememberCurrentFocus();
         focus = requested;
+        focusMask = requestedFocusMask;
         updateFocusHierarchy();
 
         after(l -> l.afterNavigatorFocus(requested));
@@ -252,6 +269,10 @@ final class NavigatorLayer implements Closeable {
         }
         clearFocus(true);
         updateFocus(true);
+    }
+
+    void clearPointerFocus() {
+        clearFocus(false);
     }
 
    
@@ -331,6 +352,7 @@ final class NavigatorLayer implements Closeable {
 
         Spatial old = focus;
         focus = null;
+        focusMask = FocusTarget.FOCUS_NAVIGATION;
 
         if (popHistory) {
             WeakReference<Spatial> last = history.peekLast();
@@ -453,9 +475,14 @@ final class NavigatorLayer implements Closeable {
 
             float perp = perpendicularDistance(dir, dx, dy);
 
-            boolean better =
-                    (perp < bestPerp - POS_TIE_EPS) ||
-                    (Math.abs(perp - bestPerp) <= POS_TIE_EPS && forward < bestForward - POS_TIE_EPS);
+            boolean better;
+            if (dir == TraversalDirection.Up || dir == TraversalDirection.Down) {
+                better = (forward < bestForward - POS_TIE_EPS) ||
+                        (Math.abs(forward - bestForward) <= POS_TIE_EPS && perp < bestPerp - POS_TIE_EPS);
+            } else {
+                better = (perp < bestPerp - POS_TIE_EPS) ||
+                        (Math.abs(perp - bestPerp) <= POS_TIE_EPS && forward < bestForward - POS_TIE_EPS);
+            }
 
             if (better && allowNavigateTo(dir, from, s)) {
                 best = s;
@@ -583,11 +610,11 @@ final class NavigatorLayer implements Closeable {
         if (s == null) return false;
         // avoid focusing the layer root itself 
         if (s == root) return false;
-        return NGEGui.isFocusable(s);
+        return NGEGui.isFocusable(s, FocusTarget.FOCUS_NAVIGATION);
     }
 
-    private boolean isValidFocus(Spatial s) {
-        return s != null && isDescendantOf(s, root) && NGEGui.isFocusable(s);
+    private boolean isValidFocus(Spatial s, int requestedFocusMask) {
+        return s != null && isDescendantOf(s, root) && NGEGui.isFocusable(s, requestedFocusMask);
     }
 
 

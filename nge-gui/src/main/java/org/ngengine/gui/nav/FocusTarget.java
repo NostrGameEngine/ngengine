@@ -34,12 +34,17 @@
 
 package org.ngengine.gui.nav;
 
+import com.jme3.scene.Spatial;
+
 /**
  * Implemented by classes that can receive GUI focus.
  *
  * @author Paul Speed, Riccardo Balbo
  */
 public interface FocusTarget extends FocusListener {
+    public static final int FOCUS_POINTER = 1;
+    public static final int FOCUS_NAVIGATION = 1 << 1;
+    public static final int FOCUS_ALL = FOCUS_POINTER | FOCUS_NAVIGATION;
 
     /**
      * Returns true if this focus target currently has the focus.
@@ -52,6 +57,10 @@ public interface FocusTarget extends FocusListener {
      */
     public boolean isFocusable();
 
+    public default boolean isFocusable(int focusMask) {
+        return isFocusable();
+    }
+
     /**
      * Notifies this focus target that is has gained focus.
      */
@@ -63,6 +72,10 @@ public interface FocusTarget extends FocusListener {
     public void focusLost();
 
     public void focusAction(boolean pressed);
+
+    public default void focusAction(Spatial target, boolean pressed, float x, float y) {
+        focusAction(target, pressed);
+    }
 
     public void focusScrollUpdate(ScrollDirection dir, double value);
 }

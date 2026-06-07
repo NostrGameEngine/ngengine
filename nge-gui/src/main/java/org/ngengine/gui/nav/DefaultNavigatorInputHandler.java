@@ -45,8 +45,10 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.jetbrains.annotations.Nullable;
+import org.ngengine.gui.Axis;
 import org.ngengine.gui.GuiContext;
 import org.ngengine.gui.NGEGui;
+import org.ngengine.gui.Slider;
 
 import com.jme3.input.InputDevice;
 import com.jme3.input.InputManager;
@@ -64,6 +66,9 @@ import com.jme3.input.controls.KeyTrigger;
 import com.jme3.input.controls.MouseAxisTrigger;
 import com.jme3.input.controls.MouseButtonTrigger;
 import com.jme3.input.event.InputEvent;
+import com.jme3.input.event.JoyAxisEvent;
+import com.jme3.input.event.JoyButtonEvent;
+import com.jme3.input.event.MouseButtonEvent;
 import com.jme3.input.event.MouseMotionEvent;
 import com.jme3.input.event.TouchEvent;
 import com.jme3.math.Vector2f;
@@ -81,7 +86,20 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
     private Runnable secondaryAction = () -> {};
     private Runnable backAction = () -> {};
     private double cursorX, cursorY;
+    private double lastMotionX = Double.NaN, lastMotionY = Double.NaN;
+    private MouseMotionEvent lastCursorMotionEvent;
+    private Spatial pointerActionTarget;
+    private boolean pointerActionPressed;
     private boolean navigatorActionPressed = false;
+    private boolean consumeNextJoystickPress = false;
+    private final Set<String> activeAxisActions = new HashSet<>();
+    private static final float AXIS_ACTION_PRESS = 0.45f;
+    private static final float AXIS_ACTION_RELEASE = 0.20f;
+    private static final float AXIS_DOMINANCE_MARGIN = 0.08f;
+    private float leftStickX;
+    private float leftStickY;
+    private float simulatedCursorX;
+    private float simulatedCursorY;
     
 
     public DefaultNavigatorInputHandler(ViewPort guiViewPort) {
@@ -118,6 +136,16 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
         if (consume && event != null) {
             event.setConsumed();
         }
+    }
+
+    private boolean closeOpenIme(InputEvent<?> event) {
+        GuiContext ctx = NGEGui.get(getViewPort());
+        if (ctx == null || !ctx.getImeComposer().isOpen()) {
+            return false;
+        }
+        ctx.getImeComposer().close();
+        consume(event);
+        return true;
     }
 
     /**
@@ -180,25 +208,59 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
         this.inputManager = null;
         this.inputDevice = null;
         navigatorActionPressed = false;
+        consumeNextJoystickPress = false;
+        activeAxisActions.clear();
+        lastCursorMotionEvent = null;
+        pointerActionTarget = null;
+        pointerActionPressed = false;
+        leftStickX = 0f;
+        leftStickY = 0f;
+        simulatedCursorX = 0f;
+        simulatedCursorY = 0f;
     }
 
     @Override
     public void setInputDevice(InputManager inputManager, @Nullable InputDevice device) {
+        ViewPort vp = getViewPort();
+        GuiContext state = vp == null ? null : NGEGui.get(vp);
+        if (state != null) {
+            state.setInputDevice(device);
+        }
         if (this.inputDevice == device) {
             this.inputManager = inputManager;
             if (device == null) {
                 navigatorActionPressed = false;
+                consumeNextJoystickPress = false;
+                activeAxisActions.clear();
+                lastCursorMotionEvent = null;
+                pointerActionTarget = null;
+                pointerActionPressed = false;
+                leftStickX = 0f;
+                leftStickY = 0f;
+                simulatedCursorX = 0f;
+                simulatedCursorY = 0f;
                 clearActiveMappings(inputManager);
                 return;
             } else if (!mappings.isEmpty()) {
                 return;
             }
         }
+        InputDevice previousDevice = this.inputDevice;
         navigatorActionPressed = false;
+        activeAxisActions.clear();
+        lastCursorMotionEvent = null;
+        pointerActionTarget = null;
+        pointerActionPressed = false;
+        leftStickX = 0f;
+        leftStickY = 0f;
+        simulatedCursorX = 0f;
+        simulatedCursorY = 0f;
         clearActiveMappings(inputManager);
         
         this.inputManager = inputManager;
         this.inputDevice = device;
+        boolean hasFocus = state != null && state.getNavigator() != null && state.getNavigator().peekFocus() != null;
+        consumeNextJoystickPress = previousDevice != null && previousDevice != device && device instanceof Joystick && !hasFocus;
 
         if (device == null) {
             return;
@@ -229,9 +291,11 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
                     new KeyTrigger(KeyInput.KEY_BACK));
 
             if (device instanceof Mouse) {
-                Vector2f pos = inputManager.getCursorPosition();
-                cursorX = pos.x;
-                cursorY = pos.y;
+                if (inputManager.isCursorVisible()) {
+                    Vector2f pos = inputManager.getCursorPosition();
+                    cursorX = pos.x;
+                    cursorY = pos.y;
+                }
                 clampCursorToViewPort();
             } else {
                 autofocus();
@@ -254,9 +318,13 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
                     new JoyButtonTrigger(joy, JoystickButton.BUTTON_XBOX_DPAD_RIGHT),
                     new JoyAxisTrigger(joy, JoystickAxis.AXIS_XBOX_LEFT_THUMB_STICK_X, false));
             inputManager.addMapping(_ps("navigateNext"),
-                    new JoyButtonTrigger(joy, JoystickButton.BUTTON_XBOX_RB));
+                    new JoyButtonTrigger(joy, JoystickButton.BUTTON_XBOX_R3));
             inputManager.addMapping(_ps("navigatePrevious"),
+                    new JoyButtonTrigger(joy, JoystickButton.BUTTON_XBOX_L3));
+            inputManager.addMapping(_ps("scrollLeft"),
                     new JoyButtonTrigger(joy, JoystickButton.BUTTON_XBOX_LB));
+            inputManager.addMapping(_ps("scrollRight"),
+                    new JoyButtonTrigger(joy, JoystickButton.BUTTON_XBOX_RB));
 
             inputManager.addMapping(_ps("scrollUp"),
                     new JoyAxisTrigger(joy, JoystickAxis.AXIS_XBOX_RIGHT_THUMB_STICK_Y, true));
@@ -274,9 +342,12 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
             inputManager.addMapping(_ps("back"), new JoyButtonTrigger(joy, JoystickButton.BUTTON_XBOX_B));
 
             inputManager.addMapping(_ps("secondaryAction"),
-                    new JoyButtonTrigger(joy, JoystickButton.BUTTON_XBOX_BACK));
+                    new JoyButtonTrigger(joy, JoystickButton.BUTTON_XBOX_BACK),
+                    new JoyButtonTrigger(joy, JoystickButton.BUTTON_XBOX_LT));
 
-            autofocus();
+            if (!consumeNextJoystickPress) {
+                autofocus();
+            }
             bindActiveMappings();
         }
     }
@@ -301,6 +372,34 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
             }
         }
         mappings.clear();
+    }
+
+    @Override
+    public void update(float tpf) {
+        ViewPort vp = getViewPort();
+        if (vp == null) return;
+        GuiContext state = NGEGui.get(vp);
+        if (state == null) return;
+        Navigator navigator = state.getNavigator();
+        if (navigator == null || !navigator.isSimulateCursor()) return;
+        float deadZone = navigator.getSimulatedCursorDeadZone();
+        if (Math.abs(simulatedCursorX) < deadZone && Math.abs(simulatedCursorY) < deadZone) {
+            return;
+        }
+
+        double step = navigator.getSimulatedCursorSpeed() * Math.max(tpf, 0f);
+        double dx = simulatedCursorX * step;
+        double dy = simulatedCursorY * step;
+        double threshold = navigator.getCursorActivityThreshold();
+        if (dx * dx + dy * dy < threshold * threshold) {
+            return;
+        }
+        cursorX += dx;
+        cursorY += dy;
+        clampCursorToViewPort();
+        if (navigator.updateSimulatedCursorPosition(cursorX, cursorY)) {
+            updatePointerFocusAt(state, navigator, cursorX, cursorY);
+        }
     }
 
     private void autofocus() {
@@ -333,6 +432,80 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
         
         Navigator navigator = state.getNavigator();
         if (navigator == null) return;
+
+        if (handleSimulatedCursorAxis(state, navigator, name, value, event, tpf)) {
+            return;
+        }
+
+        if (event instanceof JoyAxisEvent && isAxisAction(name)) {
+            updateStickAxisState(name, value);
+            if (value < AXIS_ACTION_RELEASE) {
+                activeAxisActions.remove(name);
+                return;
+            }
+            if (value < AXIS_ACTION_PRESS || !isDominantAxisAction(name) || !activeAxisActions.add(name)) {
+                consume(event);
+                return;
+            }
+            toggled = true;
+            isPressed = true;
+        }
+
+        if (_p("back").equals(name) && toggled && isPressed && closeOpenIme(event)) {
+            return;
+        }
+
+        if (_p("back").equals(name) && toggled && isPressed && event instanceof JoyButtonEvent
+                && navigator.getFocus() instanceof Slider) {
+            navigator.clearPointerFocus();
+            consume(event);
+            return;
+        }
+
+        if (consumeNextJoystickPress && event != null && event.getDevice() == inputDevice && toggled && isPressed) {
+            consumeNextJoystickPress = false;
+            navigator.autofocus();
+            consume(event);
+            return;
+        }
+
+        if (_p("confirm").equals(name) && toggled && (event instanceof MouseButtonEvent || event instanceof TouchEvent)) {
+            if (isPressed) {
+                if (event instanceof MouseButtonEvent) {
+                    MouseButtonEvent me = (MouseButtonEvent) event;
+                    double x = inputManager != null && !inputManager.isCursorVisible() ? cursorX : me.getX();
+                    double y = inputManager != null && !inputManager.isCursorVisible() ? cursorY : me.getY();
+                    pointerPressed(state, navigator, x, y);
+                } else {
+                    TouchEvent te = (TouchEvent) event;
+                    pointerPressed(state, navigator, te.getX(), te.getY());
+                }
+            } else {
+                if (event instanceof MouseButtonEvent) {
+                    MouseButtonEvent me = (MouseButtonEvent) event;
+                    double x = inputManager != null && !inputManager.isCursorVisible() ? cursorX : me.getX();
+                    double y = inputManager != null && !inputManager.isCursorVisible() ? cursorY : me.getY();
+                    pointerReleased(state, navigator, x, y);
+                } else {
+                    TouchEvent te = (TouchEvent) event;
+                    pointerReleased(state, navigator, te.getX(), te.getY());
+                }
+            }
+            consume(event);
+            return;
+        }
+
+        if (_p("confirm").equals(name) && toggled && event instanceof JoyButtonEvent
+                && navigator.isSimulateCursor()
+                && isJoystickButton((JoyButtonEvent) event, JoystickButton.BUTTON_XBOX_RT)) {
+            if (isPressed) {
+                pointerPressed(state, navigator, cursorX, cursorY);
+            } else {
+                pointerReleased(state, navigator, cursorX, cursorY);
+            }
+            consume(event);
+            return;
+        }
         
         if (navigator.getFocus() == null && !name.equals(_p("navigateByCursor"))) {
             navigator.autofocus();
@@ -341,6 +514,14 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
         if(_p("back").equals(name)){
             if(toggled && isPressed){
                 backAction.run();
+                consume(event);
+            }
+            return;
+        }
+
+        if (_p("secondaryAction").equals(name) && navigator.isSimulateCursor()) {
+            if (toggled && isPressed) {
+                secondaryAction.run();
                 consume(event);
             }
             return;
@@ -373,14 +554,18 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
                 navigator.scroll(ScrollDirection.Down, 1);
                 consume(event);
             }
+        } else if (_p("scrollLeft").equals(name)) {
+            if (toggled && isPressed) {
+                navigator.scroll(ScrollDirection.Left, 1);
+                consume(event);
+            }
+        } else if (_p("scrollRight").equals(name)) {
+            if (toggled && isPressed) {
+                navigator.scroll(ScrollDirection.Right, 1);
+                consume(event);
+            }
         } else if (_p("confirm").equals(name)) {
             if (toggled) {
-                if (event instanceof TouchEvent) {
-                    // if touch event we do a pick before action
-                    TouchEvent te = (TouchEvent) event;
-                    Spatial picked = state.pick((int) te.getX(), (int) te.getY());
-                    navigator.focus(picked);
-                }
                 if (isPressed) {
                     navigatorActionPressed = true;
                     navigator.action(true);
@@ -392,23 +577,19 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
             }
         } else if (_p("navigateUp").equals(name)) {
             if (toggled && isPressed) {
-                navigator.navigate(TraversalDirection.Up);
-                consume(event);
+                navigateOrAdjustSlider(navigator, TraversalDirection.Up, event);
             }
         } else if (_p("navigateDown").equals(name)) {
             if (toggled && isPressed) {
-                navigator.navigate(TraversalDirection.Down);
-                consume(event);
+                navigateOrAdjustSlider(navigator, TraversalDirection.Down, event);
             }
         } else if (_p("navigateLeft").equals(name)) {
             if (toggled && isPressed) {
-                navigator.navigate(TraversalDirection.Left);
-                consume(event);
+                navigateOrAdjustSlider(navigator, TraversalDirection.Left, event);
             }
         } else if (_p("navigateRight").equals(name)) {
             if (toggled && isPressed) {
-                navigator.navigate(TraversalDirection.Right);
-                consume(event);
+                navigateOrAdjustSlider(navigator, TraversalDirection.Right, event);
             }
         } else if (_p("navigateNext").equals(name)) {
             if (toggled && isPressed) {
@@ -423,22 +604,161 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
         } else if (_p("navigateByCursor").equals(name)) {
             if (event instanceof MouseMotionEvent) {
                 MouseMotionEvent mme = (MouseMotionEvent) event;
-                if (inputManager != null && !inputManager.isCursorVisible()) {
+                if (mme == lastCursorMotionEvent) {
+                    consume(event);
+                    return;
+                }
+                lastCursorMotionEvent = mme;
+                double eventX = mme.getX();
+                double eventY = mme.getY();
+                boolean fixedAbsolute = eventX == lastMotionX && eventY == lastMotionY
+                        || (Double.isNaN(lastMotionX) && eventX == cursorX && eventY == cursorY);
+                if (inputManager != null && !inputManager.isCursorVisible()
+                        && fixedAbsolute
+                        && (mme.getDX() != 0 || mme.getDY() != 0)) {
                     cursorX += mme.getDX();
                     cursorY += mme.getDY();
                 } else {
-                    cursorX = mme.getX();
-                    cursorY = mme.getY();
+                    cursorX = eventX;
+                    cursorY = eventY;
                 }
+                lastMotionX = eventX;
+                lastMotionY = eventY;
                 clampCursorToViewPort();
                 if(navigator.updateCursorPosition(cursorX, cursorY)){
                     Spatial picked = state.pick(cursorX, cursorY);
-                    navigator.focus(picked);
+                    if (picked != null) {
+                        navigator.focusPointer(picked);
+                    } else {
+                        navigator.clearPointerFocus();
+                    }
                     if (picked != null) {
                         consume(event);
                     }
                 }
             }
         }   
+    }
+
+    private void navigateOrAdjustSlider(Navigator navigator, TraversalDirection dir, InputEvent<?> event) {
+        Spatial focus = navigator.getFocus();
+        if (focus instanceof Slider) {
+            Slider slider = (Slider) focus;
+            ScrollDirection scroll = null;
+            if (slider.getAxis() == Axis.X) {
+                if (dir == TraversalDirection.Left) scroll = ScrollDirection.Left;
+                else if (dir == TraversalDirection.Right) scroll = ScrollDirection.Right;
+            } else if (slider.getAxis() == Axis.Y) {
+                if (dir == TraversalDirection.Up) scroll = ScrollDirection.Up;
+                else if (dir == TraversalDirection.Down) scroll = ScrollDirection.Down;
+            }
+            if (scroll != null) {
+                navigator.scroll(scroll, 1);
+                consume(event);
+                return;
+            }
+        }
+        navigator.navigate(dir);
+        consume(event);
+    }
+
+    private boolean handleSimulatedCursorAxis(GuiContext state, Navigator navigator, String name, float value,
+            InputEvent<?> event, float tpf) {
+        if (!(event instanceof JoyAxisEvent) || !navigator.isSimulateCursor()) {
+            return false;
+        }
+        JoyAxisEvent axisEvent = (JoyAxisEvent) event;
+        String axis = axisEvent.getAxis().getLogicalId();
+        if (!JoystickAxis.AXIS_XBOX_LEFT_THUMB_STICK_X.equals(axis)
+                && !JoystickAxis.AXIS_XBOX_LEFT_THUMB_STICK_Y.equals(axis)) {
+            return false;
+        }
+
+        float axisValue = Math.abs(value) < navigator.getSimulatedCursorDeadZone() ? 0f : value;
+        if (_p("navigateLeft").equals(name)) simulatedCursorX = -axisValue;
+        else if (_p("navigateRight").equals(name)) simulatedCursorX = axisValue;
+        else if (_p("navigateUp").equals(name)) simulatedCursorY = axisValue;
+        else if (_p("navigateDown").equals(name)) simulatedCursorY = -axisValue;
+
+        update(tpf);
+        consume(event);
+        return true;
+    }
+
+    private boolean isJoystickButton(JoyButtonEvent event, String logicalId) {
+        return event.getButton() != null && logicalId.equals(event.getButton().getLogicalId());
+    }
+
+    private void updatePointerFocusAt(GuiContext state, Navigator navigator, double x, double y) {
+        Spatial picked = state.pick(x, y);
+        if (picked != null) {
+            navigator.focusPointer(picked);
+        } else {
+            navigator.clearPointerFocus();
+        }
+    }
+
+    private void pointerPressed(GuiContext state, Navigator navigator, double x, double y) {
+        pointerActionTarget = state.pick(x, y);
+        if (pointerActionTarget != null) {
+            navigator.focusPointer(pointerActionTarget);
+            FocusTarget target = NGEGui.findFocusTarget(pointerActionTarget);
+            if (target != null) {
+                target.focusAction(pointerActionTarget, true, (float) x, (float) y);
+                pointerActionPressed = true;
+            }
+        } else {
+            navigator.clearPointerFocus();
+            pointerActionPressed = false;
+        }
+    }
+
+    private void pointerReleased(GuiContext state, Navigator navigator, double x, double y) {
+        Spatial pressedTarget = pointerActionTarget;
+        Spatial releaseTarget = state.pick(x, y);
+        pointerActionTarget = null;
+        if (pressedTarget != null && pressedTarget == releaseTarget && pointerActionPressed) {
+            navigator.focusPointer(pressedTarget);
+            FocusTarget target = NGEGui.findFocusTarget(pressedTarget);
+            if (target != null) {
+                target.focusAction(pressedTarget, false, (float) x, (float) y);
+            }
+        }
+        pointerActionPressed = false;
+        if (releaseTarget != null) {
+            navigator.focusPointer(releaseTarget);
+        } else {
+            navigator.clearPointerFocus();
+        }
+    }
+
+    private boolean isAxisAction(String name) {
+        return _p("navigateUp").equals(name)
+                || _p("navigateDown").equals(name)
+                || _p("navigateLeft").equals(name)
+                || _p("navigateRight").equals(name)
+                || _p("scrollUp").equals(name)
+                || _p("scrollDown").equals(name);
+    }
+
+    private void updateStickAxisState(String name, float value) {
+        if (_p("navigateLeft").equals(name)) {
+            leftStickX = -value;
+        } else if (_p("navigateRight").equals(name)) {
+            leftStickX = value;
+        } else if (_p("navigateUp").equals(name)) {
+            leftStickY = -value;
+        } else if (_p("navigateDown").equals(name)) {
+            leftStickY = value;
+        }
+    }
+
+    private boolean isDominantAxisAction(String name) {
+        if (_p("navigateLeft").equals(name) || _p("navigateRight").equals(name)) {
+            return Math.abs(leftStickX) >= Math.abs(leftStickY) + AXIS_DOMINANCE_MARGIN;
+        } else if (_p("navigateUp").equals(name) || _p("navigateDown").equals(name)) {
+            return Math.abs(leftStickY) >= Math.abs(leftStickX) + AXIS_DOMINANCE_MARGIN;
+        }
+        return true;
     }
 }

@@ -48,6 +48,7 @@ import org.ngengine.gui.core.*;
 import org.ngengine.gui.grid.GridModel;
 import org.ngengine.gui.list.*;
 import org.ngengine.gui.nav.FocusListener;
+import org.ngengine.gui.nav.FocusTarget;
 import org.ngengine.gui.nav.NavigatorListener;
 import org.ngengine.gui.nav.ScrollDirection;
 import org.ngengine.gui.nav.TraversalDirection;
@@ -149,6 +150,7 @@ public class ListBox<T> extends Panel  {
         baseIndex = new DefaultRangedValueModel();
         indexRef = baseIndex.createReference();
         slider = new Slider(baseIndex, Axis.Y, elementId.child(SLIDER_ID));
+        slider.getControl(GuiControl.class).setFocusable(FocusTarget.FOCUS_POINTER);
         layout.addChild(slider, BorderLayout.Position.East);
  
         // Listen to our own mouse events that don't hit something else
