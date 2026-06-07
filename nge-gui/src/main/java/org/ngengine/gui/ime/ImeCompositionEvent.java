@@ -65,10 +65,10 @@ public class ImeCompositionEvent {
     }
 
     public ImeCompositionEvent(String text, boolean multiline){
-        this.text = text;
+        this.text = text == null ? "" : text;
         this.multiline = multiline;
-        this.cursor = text.length();
-        this.cursorEnd = text.length();
+        this.cursor = this.text.length();
+        this.cursorEnd = this.text.length();
     }
 
     public void end(){
@@ -101,28 +101,31 @@ public class ImeCompositionEvent {
      * @param str
      */
     public void insertAtCursor(String str){
+        if (str == null) str = "";
+        int from = Math.min(clamp(cursor), clamp(cursorEnd));
+        int to = Math.max(clamp(cursor), clamp(cursorEnd));
         StringBuilder sb = new StringBuilder(text);
-        sb.replace(cursor, cursorEnd, str);
+        sb.replace(from, to, str);
         text = sb.toString();
-        cursor += str.length();
+        cursor = from + str.length();
         cursorEnd = cursor;
 
     }
 
     public void setSelection(int from, int to){
-        this.cursor = from;
-        this.cursorEnd = to;
+        this.cursor = clamp(from);
+        this.cursorEnd = clamp(to);
     }
 
     public void setCursor(int pos){
-        this.cursor = pos;
-        this.cursorEnd = pos;
+        this.cursor = clamp(pos);
+        this.cursorEnd = this.cursor;
     }
 
     public void setText(String text){
-        this.text = text;
-        this.cursor = text.length();
-        this.cursorEnd = text.length();
+        this.text = text == null ? "" : text;
+        this.cursor = this.text.length();
+        this.cursorEnd = this.text.length();
     }
 
     public void setMultiline(boolean multiline){
@@ -135,6 +138,10 @@ public class ImeCompositionEvent {
 
     public void setFinished(boolean finished){
         this.finished = finished;
+    }
+
+    private int clamp(int pos) {
+        return Math.max(0, Math.min(pos, text.length()));
     }
 
 }

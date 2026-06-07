@@ -45,6 +45,7 @@ import org.ngengine.gui.component.DynamicInsetsComponent;
 import org.ngengine.gui.component.SpringGridLayout;
 import org.ngengine.gui.core.GuiControl;
 import org.ngengine.gui.core.GuiUpdateListener;
+import org.ngengine.gui.nav.FocusTarget;
 import org.ngengine.gui.style.ElementId;
 import org.ngengine.gui.style.StyleAttribute;
 import java.util.function.Consumer;
@@ -53,11 +54,14 @@ import java.util.function.Supplier;
 import org.ngengine.gui.Axis;
 import org.ngengine.gui.Container;
 import org.ngengine.gui.FillMode;
+import org.ngengine.gui.GuiContext;
 import org.ngengine.gui.HAlignment;
 import org.ngengine.gui.Label;
+import org.ngengine.gui.NGEGui;
 import org.ngengine.gui.PasswordField;
 import org.ngengine.gui.TextField;
 import org.ngengine.gui.VAlignment;
+import org.ngengine.gui.ime.ImeComposer;
 import org.ngengine.platform.AsyncTask;
 import org.ngengine.platform.NGEPlatform;
 
@@ -71,6 +75,8 @@ public class NTextInput extends Container implements GuiUpdateListener {
     protected NIconButton copyBtn;
     protected NIconButton pasteBtn;
     protected NIconButton generateBtn;
+    protected boolean copyActionVisible = true;
+    protected boolean pasteActionVisible = true;
     protected boolean secret = false;
 
     protected VAlignment textVAlignment = VAlignment.Center;
@@ -210,8 +216,20 @@ public class NTextInput extends Container implements GuiUpdateListener {
         }
         copyBtn = new NIconButton("org/ngengine/gui/icons/outline/copy.svg");
         copyBtn.addClickCommands(src -> {
-            action.accept(getText());
+            ImeComposer ime = getOpenImeComposer();
+            if (ime != null) {
+                ime.copyAll();
+            } else {
+                action.accept(getText());
+            }
         });
+        repaint();
+    }
+
+    public void setCopyActionVisible(boolean visible) {
+        if (copyActionVisible == visible) return;
+        copyActionVisible = visible;
+        if (!visible && copyBtn != null) copyBtn.removeFromParent();
         repaint();
     }
 
@@ -225,12 +243,31 @@ public class NTextInput extends Container implements GuiUpdateListener {
         }
         pasteBtn = new NIconButton("org/ngengine/gui/icons/outline/clipboard.svg");
         pasteBtn.addClickCommands(src -> {
-            action.get().then(text->{
-                setText(text);
-                return null;
-            });            
+            ImeComposer ime = getOpenImeComposer();
+            if (ime != null) {
+                ime.pasteReplace();
+            } else {
+                action.get().then(text->{
+                    setText(text);
+                    return null;
+                });
+            }
         });
         repaint();
+    }
+
+    public void setPasteActionVisible(boolean visible) {
+        if (pasteActionVisible == visible) return;
+        pasteActionVisible = visible;
+        if (!visible && pasteBtn != null) pasteBtn.removeFromParent();
+        repaint();
+    }
+
+    private ImeComposer getOpenImeComposer() {
+        GuiContext ctx = NGEGui.get(this);
+        if (ctx == null) return null;
+        ImeComposer ime = ctx.getImeComposer();
+        return ime != null && ime.isOpen() ? ime : null;
     }
 
     public void setGenerateAction(Supplier<AsyncTask<String>> action) {
@@ -242,6 +279,7 @@ public class NTextInput extends Container implements GuiUpdateListener {
             return;
         }
         generateBtn = new NIconButton("icons/outline/dice.svg");
+        generateBtn.getControl(GuiControl.class).setFocusable(FocusTarget.FOCUS_POINTER);
         generateBtn.addClickCommands(src -> {
             action.get().then(text->{
                 setText(text);
@@ -283,6 +321,7 @@ public class NTextInput extends Container implements GuiUpdateListener {
                 showBtn.removeFromParent();
             }
             showBtn = new NIconButton(!show ? "org/ngengine/gui/icons/outline/eye.svg" : "org/ngengine/gui/icons/outline/eye-off.svg");
+            showBtn.getControl(GuiControl.class).setFocusable(FocusTarget.FOCUS_POINTER);
             showBtn.addClickCommands(src -> {
                 show = !show;
                 getText();
@@ -295,11 +334,11 @@ public class NTextInput extends Container implements GuiUpdateListener {
             rightIconContainer.addChild(generateBtn);
         }
 
-        if (pasteBtn != null) {
+        if (pasteBtn != null && pasteActionVisible) {
             rightIconContainer.addChild(pasteBtn);
         }
 
-        if (copyBtn != null) {
+        if (copyBtn != null && copyActionVisible) {
             rightIconContainer.addChild(copyBtn);
         }
     }

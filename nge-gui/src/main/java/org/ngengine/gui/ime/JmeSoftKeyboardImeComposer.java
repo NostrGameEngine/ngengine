@@ -21,10 +21,10 @@
  * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * SERVICES; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
  * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
  * the BSD 3-Clause License. 
@@ -42,58 +42,59 @@ package org.ngengine.gui.ime;
 
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.ngengine.gui.GuiContext;
-import org.ngengine.platform.NGEPlatform;
+
+import com.jme3.input.Joystick;
+import com.jme3.input.InputManager;
+import com.jme3.system.JmeSystem;
 
 /**
- * Does nothing.
- * 
- * @author Riccardo Balbo
+ * IME composer that asks the active JmeSystem backend to show the native software keyboard.
  */
-public class DummyImeComposer implements ImeComposer {
-    private boolean open = false;
-    private Consumer<ImeCompositionEvent> listener;
-    private ImeCompositionEvent event;
+public class JmeSoftKeyboardImeComposer extends PhysicalKeyboardImeComposer {
+
+    private static final Logger log = Logger.getLogger(JmeSoftKeyboardImeComposer.class.getName());
+    private boolean softKeyboardVisible;
+
+    public JmeSoftKeyboardImeComposer(InputManager inputManager) {
+        super(inputManager);
+    }
 
     @Override
     public void open(GuiContext ctx, Consumer<ImeCompositionEvent> listener, ImeCompositionEvent event,
             Function<Character, Character> inputFilter, Function<String, Float> getLineWidth) {
-        open = true;
-        this.listener = listener;
-        this.event = event;
+        super.open(ctx, listener, event, inputFilter, getLineWidth);
+        if (ctx.getInputDevice() instanceof Joystick) {
+            setSoftKeyboardVisible(true);
+            softKeyboardVisible = true;
+        }
     }
 
     @Override
     public void close() {
-        open = false;
-        listener = null;
-        event = null;
+        boolean wasOpen = isOpen();
+        super.close();
+        if (wasOpen && softKeyboardVisible) {
+            setSoftKeyboardVisible(false);
+            softKeyboardVisible = false;
+        }
     }
 
     @Override
     public boolean isOpen() {
-        return open;
+        return super.isOpen();
     }
 
-    @Override
-    public void copyAll() {
-        if (!isOpen() || event == null) return;
-        NGEPlatform.get().setClipboardContent(event.getText());
-    }
-
-    @Override
-    public void pasteReplace() {
-        if (!isOpen() || event == null) return;
-        NGEPlatform.get().getClipboardContent().then(text -> {
-            if (isOpen() && event != null) {
-                event.setText(text);
-                if (listener != null) {
-                    listener.accept(event);
-                }
+    private void setSoftKeyboardVisible(boolean visible) {
+        try {
+            JmeSystem.showSoftKeyboard(visible);
+        } catch (RuntimeException | LinkageError e) {
+            if (log.isLoggable(Level.FINE)) {
+                log.log(Level.FINE, "Unable to change software keyboard visibility", e);
             }
-            return null;
-        });
+        }
     }
-
 }

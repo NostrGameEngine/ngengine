@@ -57,4 +57,8 @@ public interface ImeComposer extends Closeable {
 
     boolean isOpen();
 
+    void copyAll();
+
+    void pasteReplace();
+
 }

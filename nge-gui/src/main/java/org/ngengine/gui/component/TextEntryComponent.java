@@ -54,6 +54,7 @@ import com.jme3.scene.Spatial.CullHint;
 import com.jme3.scene.shape.Quad;
 import org.ngengine.gui.core.GuiControl;
 import org.ngengine.gui.core.GuiMaterial;
+import org.ngengine.gui.ime.ImeCompositionEvent;
 import org.ngengine.gui.nav.FocusTarget;
 import org.ngengine.gui.nav.ScrollDirection;
 
@@ -212,10 +213,12 @@ public class TextEntryComponent extends AbstractGuiComponent implements FocusTar
     @Override
     public void focusLost() {
         this.focusLost(getNode());
-        if (this.focused) {
-            this.focused = false;
-            resetCursorState();
+        if (closeKeyboard != null) {
+            closeKeyboard.run();
+            closeKeyboard = null;
         }
+        this.focused = false;
+        resetCursorState();
     }
 
     @Override
@@ -225,22 +228,26 @@ public class TextEntryComponent extends AbstractGuiComponent implements FocusTar
 
     @Override
     public void focusAction(Spatial target, boolean pressed) {
-        if (pressed) {
-            if (!this.focused) {
-                this.focused = true;
-                resetCursorState();
-            } else {
-                this.focused = false;
-                resetCursorState();
-            }
+        if (!pressed) {
+            return;
+        }
+        if (!this.focused || closeKeyboard == null) {
+            this.focused = true;
+            resetCursorState();
+            openKeyboard();
+        }
+    }
 
-            if (closeKeyboard != null) {
-                closeKeyboard.run();
-                closeKeyboard = null;
-            } else {
-                openKeyboard();
+    @Override
+    public void focusAction(Spatial target, boolean pressed, float x, float y) {
+        if (pressed) {
+            setCursorFromWorld(x, y);
+            if (this.focused && closeKeyboard != null) {
+                openKeyboard(caretTo, caretTo);
+                return;
             }
         }
+        focusAction(target, pressed);
     }
 
     @Override
@@ -415,6 +422,8 @@ public class TextEntryComponent extends AbstractGuiComponent implements FocusTar
         // clamp offsets
         if (singleLine) {
             lineOffset = 0;
+        } else if (isAutoGrowingMultiline()) {
+            lineOffset = 0;
         } else {
             // keep lineOffset as-is but can't exceed lastline
             lineOffset = Math.max(0, lineOffset);
@@ -441,8 +450,62 @@ public class TextEntryComponent extends AbstractGuiComponent implements FocusTar
         caretFrom = clamp(from, 0, len);
         caretTo = clamp(to, 0, len);
 
-        if (singleLine) lineOffset = 0;
+        if (singleLine || isAutoGrowingMultiline()) lineOffset = 0;
         resetCursorPosition();
+    }
+
+    public void setCursorFromWorld(float x, float y) {
+        if (!isAttached()) {
+            return;
+        }
+
+        Vector3f local = getNode().worldToLocal(new Vector3f(x, y, 0), null);
+        Vector3f textPos = bitmapText.getLocalTranslation();
+        float textX = Math.max(0, local.x - textPos.x);
+        float textY = local.y - textPos.y;
+        int clickedLine = singleLine ? 0 : Math.max(0, (int) Math.floor(-textY / bitmapText.getLineHeight()));
+        int lineStart = findLineStart(lineOffset + clickedLine);
+        int lineEnd = findLineEnd(lineStart);
+        int lineLength = lineEnd - lineStart;
+        int visibleStart = Math.min(textOffset, lineLength);
+
+        int lo = visibleStart;
+        int hi = lineLength;
+        while (lo < hi) {
+            int mid = (lo + hi) >>> 1;
+            float width = getVisibleWidth(outputTransform.apply(text.substring(lineStart + visibleStart, lineStart + mid)));
+            if (width < textX) {
+                lo = mid + 1;
+            } else {
+                hi = mid;
+            }
+        }
+
+        int col = lo;
+        if (col > visibleStart && col < lineLength) {
+            float left = getVisibleWidth(outputTransform.apply(text.substring(lineStart + visibleStart, lineStart + col - 1)));
+            float right = getVisibleWidth(outputTransform.apply(text.substring(lineStart + visibleStart, lineStart + col)));
+            if ((textX - left) <= (right - textX)) {
+                col--;
+            }
+        }
+        setCursor(lineStart + col, lineStart + col);
+    }
+
+    private int findLineStart(int line) {
+        int start = 0;
+        int currentLine = 0;
+        while (start < text.length() && currentLine < line) {
+            if (text.charAt(start++) == '\n') {
+                currentLine++;
+            }
+        }
+        return start;
+    }
+
+    private int findLineEnd(int start) {
+        int end = text.indexOf('\n', start);
+        return end < 0 ? text.length() : end;
     }
 
     /**
@@ -548,7 +611,7 @@ public class TextEntryComponent extends AbstractGuiComponent implements FocusTar
      * Updates BitmapText if needed.
      */
     protected void resetText() {
-        if (singleLine) lineOffset = 0;
+        if (singleLine || isAutoGrowingMultiline()) lineOffset = 0;
 
         String visible = buildVisibleText();
 
@@ -621,28 +684,28 @@ public class TextEntryComponent extends AbstractGuiComponent implements FocusTar
 
     protected void resetCursorPosition() {
         if (cursor == null) return;
-        String text = getDisplayText();
+        String sourceText = getText();
 
         int caretPos = caretTo;
-        int len = text.length();
+        int len = sourceText.length();
         caretPos = clamp(caretPos, 0, len);
 
         for (int pass = 0; pass < 16; pass++) {
 
             boolean changedOffsets = false;
 
-            CaretInfo ci = locateCaret(text, caretPos);
+            CaretInfo ci = locateCaret(sourceText, caretPos);
             int caretLine = ci.line;
             int caretColumn = ci.column;
 
             // Single-line mode: no vertical scroll
-            if (singleLine && lineOffset != 0) {
+            if ((singleLine || isAutoGrowingMultiline()) && lineOffset != 0) {
                 lineOffset = 0;
                 changedOffsets = true;
             }
 
             // Vertical scroll (explicit lines only), if we have a box
-            if (!singleLine && textBox != null) {
+            if (!singleLine && !isAutoGrowingMultiline() && textBox != null) {
                 int visibleLines = Math.max(1, (int) Math.floor(textBox.height / bitmapText.getLineHeight()));
                 int visibleLineIndex = caretLine - lineOffset;
 
@@ -670,13 +733,13 @@ public class TextEntryComponent extends AbstractGuiComponent implements FocusTar
             int visibleLine = caretLine - lineOffset;
             if (visibleLine < 0) visibleLine = 0;
 
-            String lineText = extractLineText(text, ci.lineStart);
+            String lineText = extractLineText(sourceText, ci.lineStart);
 
             int start = Math.min(textOffset, lineText.length());
             int end = Math.min(caretColumn, lineText.length());
             if (end < start) end = start;
 
-            String prefix = lineText.substring(start, end);
+            String prefix = outputTransform.apply(lineText.substring(start, end));
 
             float x;
             if (font.isRightToLeft()) {
@@ -697,7 +760,7 @@ public class TextEntryComponent extends AbstractGuiComponent implements FocusTar
                     maxWidth = textBox.width;
                 } else {
                     // Fallback: measure the whole line (not the whole document)
-                    maxWidth = font.getLineWidth(lineText) * scale;
+                    maxWidth = font.getLineWidth(outputTransform.apply(lineText)) * scale;
                 }
                 x = maxWidth - x;
             }
@@ -801,22 +864,45 @@ public class TextEntryComponent extends AbstractGuiComponent implements FocusTar
             return;
         }
 
-        // Make sure that bitmapText reports a reliable preferred size
-        bitmapText.setBox(null);
-
         if (preferredWidth == 0) {
-            size.x = bitmapText.getLineWidth();
+            if (singleLine) {
+                bitmapText.setBox(null);
+                size.x = bitmapText.getLineWidth();
+                bitmapText.setBox(textBox);
+            } else {
+                String displayText = outputTransform.apply(normalizeNewlines(text));
+                float maxLineWidth = 0;
+                int lineStart = 0;
+                for (int i = 0; i < displayText.length(); i++) {
+                    if (displayText.charAt(i) == '\n') {
+                        maxLineWidth = Math.max(maxLineWidth, getVisibleWidth(displayText.substring(lineStart, i)));
+                        lineStart = i + 1;
+                    }
+                }
+                size.x = Math.max(maxLineWidth, getVisibleWidth(displayText.substring(lineStart)));
+            }
         } else {
             size.x = preferredWidth;
         }
         if (preferredLineCount == 0) {
-            size.y = bitmapText.getHeight();
+            if (singleLine) {
+                bitmapText.setBox(null);
+                size.y = bitmapText.getHeight();
+                bitmapText.setBox(textBox);
+            } else {
+                int lineCount = 1;
+                String normalized = normalizeNewlines(text);
+                for (int i = 0; i < normalized.length(); i++) {
+                    if (normalized.charAt(i) == '\n') {
+                        lineCount++;
+                    }
+                }
+                size.y = bitmapText.getLineHeight() * lineCount;
+            }
         } else {
             size.y = bitmapText.getLineHeight() * preferredLineCount;
         }
-
-        // Restore box (if any)
-        bitmapText.setBox(textBox);
+        size.x += 0.01f;
     }
 
     protected void resetAlignment() {
@@ -857,21 +943,35 @@ public class TextEntryComponent extends AbstractGuiComponent implements FocusTar
     }
 
     public void openKeyboard() {
+        openKeyboard(caretTo, caretTo);
+    }
+
+    private boolean isAutoGrowingMultiline() {
+        return !singleLine && preferredSize == null && preferredLineCount == 0;
+    }
+
+    private void openKeyboard(int cursorStart, int cursorEnd) {
         if (getGuiControl() == null) {
             return;
         }
         if (closeKeyboard != null) {
             closeKeyboard.run();
         }
+        ImeCompositionEvent event = new ImeCompositionEvent(getText(), !singleLine);
+        event.setSelection(cursorStart, cursorEnd);
         NGEGui.get(getNode()).openKeyboard((ev) -> {
             setText(ev.getText());
             setCursor(ev.getCursorStart(), ev.getCursorEnd());
             if (ev.isFinished()) {
                 closeKeyboard = null;
+                focused = false;
+                resetCursorState();
             } else {
                 closeKeyboard = ev::end;
+                focused = true;
+                resetCursorState();
             }
-        }, getText(), inputTransform, !singleLine, (s) -> bitmapText.getFont().getLineWidth(s));
+        }, event, inputTransform, (s) -> bitmapText.getFont().getLineWidth(s));
     }
 
     @Override

@@ -48,6 +48,8 @@ import java.util.function.Function;
 import org.ngengine.gui.GuiContext;
 
 import com.jme3.input.InputManager;
+import com.jme3.input.JoystickAxis;
+import com.jme3.input.JoystickButton;
 import com.jme3.input.KeyInput;
 import com.jme3.input.RawInputListener;
 import com.jme3.input.event.JoyAxisEvent;
@@ -60,6 +62,7 @@ import com.jme3.scene.Spatial;
 import org.ngengine.gui.nav.NavigatorListener;
 import org.ngengine.gui.nav.ScrollDirection;
 import org.ngengine.gui.nav.TraversalDirection;
+import org.ngengine.platform.NGEPlatform;
 
 /**
  *  A Text composer that binds to the physical keyboard using a RawInputListener.
@@ -79,8 +82,14 @@ public class PhysicalKeyboardImeComposer implements ImeComposer, RawInputListene
     private GuiContext ctx;
 
     private Float preferredCaretX = null;
+    private boolean joystickLeftActive;
+    private boolean joystickRightActive;
+    private boolean joystickUpActive;
+    private boolean joystickDownActive;
 
     private Function<String, Float> getLineWidth = null;
+    private static final float JOYSTICK_CARET_PRESS = 0.45f;
+    private static final float JOYSTICK_CARET_RELEASE = 0.20f;
 
     private final Map<Integer, Consumer<KeyInputEvent>> keyActions = new HashMap<>();
     private final Map<Integer, Consumer<KeyInputEvent>> ctrlKeyActions = new HashMap<>();
@@ -201,6 +210,8 @@ public class PhysicalKeyboardImeComposer implements ImeComposer, RawInputListene
             resetPreferredCaretX();
             currentEvent.setSelection(0, currentEvent.getText().length());
         });
+        ctrlKeyActions.put(KeyInput.KEY_C, evt -> copyAll());
+        ctrlKeyActions.put(KeyInput.KEY_V, evt -> pasteReplace());
         ctrlKeyActions.put(KeyInput.KEY_LEFT, evt -> {
             resetPreferredCaretX();
             moveCursorTo(prevWordStart(currentEvent.getText(), currentEvent.getCursorStart()));
@@ -232,6 +243,10 @@ public class PhysicalKeyboardImeComposer implements ImeComposer, RawInputListene
         ctrlDown = false;
         selectionAnchor = null;
         preferredCaretX = null;
+        joystickLeftActive = false;
+        joystickRightActive = false;
+        joystickUpActive = false;
+        joystickDownActive = false;
     }
 
     private void resetPreferredCaretX() {
@@ -297,10 +312,83 @@ public class PhysicalKeyboardImeComposer implements ImeComposer, RawInputListene
 
     @Override
     public void onJoyAxisEvent(JoyAxisEvent evt) {
+        if (!isOpen()) return;
+
+        float value = evt.getValue();
+        if (JoystickAxis.AXIS_XBOX_RIGHT_THUMB_STICK_X.equals(evt.getAxis().getLogicalId())) {
+            if (value <= -JOYSTICK_CARET_PRESS && !joystickLeftActive) {
+                joystickLeftActive = true;
+                joystickRightActive = false;
+                resetPreferredCaretX();
+                moveCursorTo(currentEvent.getCursorStart() != currentEvent.getCursorEnd()
+                        ? Math.min(currentEvent.getCursorStart(), currentEvent.getCursorEnd())
+                        : currentEvent.getCursorStart() - 1);
+                selectionAnchor = null;
+                evt.setConsumed();
+                update();
+            } else if (value >= JOYSTICK_CARET_PRESS && !joystickRightActive) {
+                joystickRightActive = true;
+                joystickLeftActive = false;
+                resetPreferredCaretX();
+                moveCursorTo(currentEvent.getCursorStart() != currentEvent.getCursorEnd()
+                        ? Math.max(currentEvent.getCursorStart(), currentEvent.getCursorEnd())
+                        : currentEvent.getCursorStart() + 1);
+                selectionAnchor = null;
+                evt.setConsumed();
+                update();
+            } else if (Math.abs(value) < JOYSTICK_CARET_RELEASE) {
+                joystickLeftActive = false;
+                joystickRightActive = false;
+            }
+        } else if (JoystickAxis.AXIS_XBOX_RIGHT_THUMB_STICK_Y.equals(evt.getAxis().getLogicalId())) {
+            if (value <= -JOYSTICK_CARET_PRESS && !joystickUpActive) {
+                joystickUpActive = true;
+                joystickDownActive = false;
+                moveCaretVertically(false);
+                selectionAnchor = null;
+                evt.setConsumed();
+                update();
+            } else if (value >= JOYSTICK_CARET_PRESS && !joystickDownActive) {
+                joystickDownActive = true;
+                joystickUpActive = false;
+                moveCaretVertically(true);
+                selectionAnchor = null;
+                evt.setConsumed();
+                update();
+            } else if (Math.abs(value) < JOYSTICK_CARET_RELEASE) {
+                joystickUpActive = false;
+                joystickDownActive = false;
+            }
+        }
     }
 
     @Override
     public void onJoyButtonEvent(JoyButtonEvent evt) {
+        if (!isOpen() || !evt.isPressed()) return;
+        String button = evt.getButton().getLogicalId();
+        if (JoystickButton.BUTTON_XBOX_DPAD_LEFT.equals(button)) {
+            resetPreferredCaretX();
+            moveCursorTo(currentEvent.getCursorStart() != currentEvent.getCursorEnd()
+                    ? Math.min(currentEvent.getCursorStart(), currentEvent.getCursorEnd())
+                    : currentEvent.getCursorStart() - 1);
+            selectionAnchor = null;
+            evt.setConsumed();
+            update();
+        } else if (JoystickButton.BUTTON_XBOX_DPAD_RIGHT.equals(button)) {
+            resetPreferredCaretX();
+            moveCursorTo(currentEvent.getCursorStart() != currentEvent.getCursorEnd()
+                    ? Math.max(currentEvent.getCursorStart(), currentEvent.getCursorEnd())
+                    : currentEvent.getCursorStart() + 1);
+            selectionAnchor = null;
+            evt.setConsumed();
+            update();
+        } else if (JoystickButton.BUTTON_XBOX_X.equals(button)) {
+            copyAll();
+            evt.setConsumed();
+        } else if (JoystickButton.BUTTON_XBOX_Y.equals(button)) {
+            pasteReplace();
+            evt.setConsumed();
+        }
     }
 
     @Override
@@ -557,6 +645,25 @@ public class PhysicalKeyboardImeComposer implements ImeComposer, RawInputListene
     private void moveCursorTo(int pos) {
         int clamped = clamp(pos, 0, currentEvent.getText().length());
         currentEvent.setCursor(clamped);
+    }
+
+    @Override
+    public void copyAll() {
+        if (!isOpen()) return;
+        NGEPlatform.get().setClipboardContent(currentEvent.getText());
+    }
+
+    @Override
+    public void pasteReplace() {
+        if (!isOpen()) return;
+        NGEPlatform.get().getClipboardContent().then(text -> {
+            resetPreferredCaretX();
+            if (isOpen() && text != null) {
+                currentEvent.setText(text);
+                update();
+            }
+            return null;
+        });
     }
 
     private void selectRange(int anchor, int caret) {
