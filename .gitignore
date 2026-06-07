@@ -46,6 +46,8 @@ javadoc_deploy.pub
 !.vscode/settings.json
 !.vscode/JME_style.xml
 !.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
 **/bin
 **/build
 hs_err_pid2027231.log

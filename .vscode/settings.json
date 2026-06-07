@@ -1,5 +1,7 @@
 {
-    "java.configuration.updateBuildConfiguration": "interactive",
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "java.autobuild.enabled": true,
+    "java.debug.settings.forceBuildBeforeLaunch": true,
     "java.compile.nullAnalysis.mode": "automatic",
     "java.format.settings.url": "${workspaceFolder}/.vscode/JME_style.xml",
     "java.format.settings.profile": "JmeCodeStyle",
@@ -7,5 +9,6 @@
     "editor.formatOnType": false,
     "editor.formatOnSave": false,
     "editor.formatOnSaveMode": "modifications",
-    "java.jdt.ls.vmargs": "-Xms512M -Xmx4G -XX:+UseG1GC -XX:+UseStringDeduplication -XX:AdaptiveSizePolicyWeight=90"
+    "java.jdt.ls.scalaSupport.enabled": false,
+    "java.jdt.ls.vmargs": "-Xms512M -Xmx16G"
 }
