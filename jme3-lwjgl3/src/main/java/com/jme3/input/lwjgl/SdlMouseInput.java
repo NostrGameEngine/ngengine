@@ -37,6 +37,7 @@ import com.jme3.input.MouseInput;
 import com.jme3.input.RawInputListener;
 import com.jme3.input.event.MouseButtonEvent;
 import com.jme3.input.event.MouseMotionEvent;
+import com.jme3.input.virtual.VirtualKeyboard;
 import com.jme3.math.Vector2f;
 import com.jme3.system.AppSettings;
 import com.jme3.system.lwjgl.LwjglWindow;
@@ -222,6 +223,15 @@ public class SdlMouseInput implements MouseInput {
     }
 
     private boolean onPointerButton(int pointerId, boolean pressed, float x, float y, long time) {
+        VirtualKeyboard keyboard = VirtualKeyboard.getInstance();
+        if (pressed) {
+            if (keyboard.onPointerDown(pointerId, x, y, time)) {
+                return true;
+            }
+        } else if (keyboard.onPointerUp(pointerId, x, y, time)) {
+            return true;
+        }
+
         JoyInput joyInput = context.getJoyInput();
         if (joyInput instanceof SdlJoystickInput) {
             if (pressed) {
@@ -233,6 +243,10 @@ public class SdlMouseInput implements MouseInput {
     }
 
     private boolean onPointerMove(int pointerId, float x, float y, long time) {
+        if (VirtualKeyboard.getInstance().onPointerMove(pointerId, x, y, time)) {
+            return true;
+        }
+
         JoyInput joyInput = context.getJoyInput();
         if (joyInput instanceof SdlJoystickInput) {
             return ((SdlJoystickInput) joyInput).onPointerMove(pointerId, x, y, time);

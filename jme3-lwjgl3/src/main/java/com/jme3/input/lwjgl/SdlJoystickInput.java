@@ -4,6 +4,7 @@ import com.jme3.input.*;
 import com.jme3.input.event.JoyAxisEvent;
 import com.jme3.input.event.JoyButtonEvent;
 import com.jme3.input.virtual.VirtualJoystick;
+import com.jme3.input.virtual.VirtualKeyboard;
 import com.jme3.math.FastMath;
 import com.jme3.system.AppSettings;
 import java.nio.ByteBuffer;
@@ -43,6 +44,18 @@ public class SdlJoystickInput implements JoyInput {
     private boolean loadGamepads;
     private boolean loadRaw;
     private volatile VirtualJoystick virtualJoystick;
+    private boolean virtualKeyboardLeft;
+    private boolean virtualKeyboardRight;
+    private boolean virtualKeyboardUp;
+    private boolean virtualKeyboardDown;
+    private boolean virtualKeyboardAction;
+    private boolean virtualKeyboardCancel;
+    private boolean virtualKeyboardCaretLeft;
+    private boolean virtualKeyboardCaretRight;
+    private boolean virtualKeyboardCaretUp;
+    private boolean virtualKeyboardCaretDown;
+    private boolean virtualKeyboardVisible;
+    private boolean virtualKeyboardIgnoreUntilNeutral;
 
     private RawInputListener listener;
 
@@ -336,6 +349,14 @@ public class SdlJoystickInput implements JoyInput {
             return;
         }
 
+        if (VirtualKeyboard.getInstance().isVisible()) {
+            handleVirtualKeyboardInput();
+            virtualKeyboardVisible = true;
+            return;
+        }
+        virtualKeyboardVisible = false;
+        virtualKeyboardIgnoreUntilNeutral = false;
+
         float rawValue, value;
         for (SdlJoystick js : joysticks.values()) {
             if (js.isGamepad()) {
@@ -411,6 +432,118 @@ public class SdlJoystickInput implements JoyInput {
                 }
             }
         }
+    }
+
+    private void handleVirtualKeyboardInput() {
+        boolean left = false;
+        boolean right = false;
+        boolean up = false;
+        boolean down = false;
+        boolean action = false;
+        boolean cancel = false;
+        boolean caretLeft = false;
+        boolean caretRight = false;
+        boolean caretUp = false;
+        boolean caretDown = false;
+
+        for (SdlJoystick js : joysticks.values()) {
+            if (js.isGamepad()) {
+                long gp = js.gamepad;
+                float rightX = remapAxisValueToJme(SDL_GAMEPAD_AXIS_RIGHTX, SDL_GetGamepadAxis(gp, SDL_GAMEPAD_AXIS_RIGHTX));
+                float rightY = remapAxisValueToJme(SDL_GAMEPAD_AXIS_RIGHTY, SDL_GetGamepadAxis(gp, SDL_GAMEPAD_AXIS_RIGHTY));
+                left |= SDL_GetGamepadButton(gp, SDL_GAMEPAD_BUTTON_DPAD_LEFT)
+                        || remapAxisValueToJme(SDL_GAMEPAD_AXIS_LEFTX, SDL_GetGamepadAxis(gp, SDL_GAMEPAD_AXIS_LEFTX)) < -0.55f;
+                right |= SDL_GetGamepadButton(gp, SDL_GAMEPAD_BUTTON_DPAD_RIGHT)
+                        || remapAxisValueToJme(SDL_GAMEPAD_AXIS_LEFTX, SDL_GetGamepadAxis(gp, SDL_GAMEPAD_AXIS_LEFTX)) > 0.55f;
+                up |= SDL_GetGamepadButton(gp, SDL_GAMEPAD_BUTTON_DPAD_UP)
+                        || remapAxisValueToJme(SDL_GAMEPAD_AXIS_LEFTY, SDL_GetGamepadAxis(gp, SDL_GAMEPAD_AXIS_LEFTY)) < -0.55f;
+                down |= SDL_GetGamepadButton(gp, SDL_GAMEPAD_BUTTON_DPAD_DOWN)
+                        || remapAxisValueToJme(SDL_GAMEPAD_AXIS_LEFTY, SDL_GetGamepadAxis(gp, SDL_GAMEPAD_AXIS_LEFTY)) > 0.55f;
+                action |= SDL_GetGamepadButton(gp, SDL_GAMEPAD_BUTTON_SOUTH);
+                cancel |= SDL_GetGamepadButton(gp, SDL_GAMEPAD_BUTTON_EAST);
+                caretLeft |= rightX < -0.55f;
+                caretRight |= rightX > 0.55f;
+                caretUp |= rightY < -0.55f;
+                caretDown |= rightY > 0.55f;
+                updateButton(js.getButton(JoystickButton.BUTTON_XBOX_X), SDL_GetGamepadButton(gp, SDL_GAMEPAD_BUTTON_WEST));
+                updateButton(js.getButton(JoystickButton.BUTTON_XBOX_Y), SDL_GetGamepadButton(gp, SDL_GAMEPAD_BUTTON_NORTH));
+            } else {
+                long joy = js.joystick;
+                left |= SDL_GetNumJoystickAxes(joy) > 0 && remapJoystickAxisValue(SDL_GetJoystickAxis(joy, 0)) < -0.55f;
+                right |= SDL_GetNumJoystickAxes(joy) > 0 && remapJoystickAxisValue(SDL_GetJoystickAxis(joy, 0)) > 0.55f;
+                up |= SDL_GetNumJoystickAxes(joy) > 1 && remapJoystickAxisValue(SDL_GetJoystickAxis(joy, 1)) < -0.55f;
+                down |= SDL_GetNumJoystickAxes(joy) > 1 && remapJoystickAxisValue(SDL_GetJoystickAxis(joy, 1)) > 0.55f;
+                action |= SDL_GetNumJoystickButtons(joy) > 0 && SDL_GetJoystickButton(joy, 0);
+                cancel |= SDL_GetNumJoystickButtons(joy) > 1 && SDL_GetJoystickButton(joy, 1);
+                caretLeft |= SDL_GetNumJoystickAxes(joy) > 2 && remapJoystickAxisValue(SDL_GetJoystickAxis(joy, 2)) < -0.55f;
+                caretRight |= SDL_GetNumJoystickAxes(joy) > 2 && remapJoystickAxisValue(SDL_GetJoystickAxis(joy, 2)) > 0.55f;
+                caretUp |= SDL_GetNumJoystickAxes(joy) > 3 && remapJoystickAxisValue(SDL_GetJoystickAxis(joy, 3)) < -0.55f;
+                caretDown |= SDL_GetNumJoystickAxes(joy) > 3 && remapJoystickAxisValue(SDL_GetJoystickAxis(joy, 3)) > 0.55f;
+            }
+        }
+
+        VirtualKeyboard keyboard = VirtualKeyboard.getInstance();
+        long time = SDL_GetTicksNS();
+        if (!virtualKeyboardVisible) {
+            virtualKeyboardLeft = left;
+            virtualKeyboardRight = right;
+            virtualKeyboardUp = up;
+            virtualKeyboardDown = down;
+            virtualKeyboardAction = action;
+            virtualKeyboardCancel = cancel;
+            virtualKeyboardCaretLeft = caretLeft;
+            virtualKeyboardCaretRight = caretRight;
+            virtualKeyboardCaretUp = caretUp;
+            virtualKeyboardCaretDown = caretDown;
+            virtualKeyboardIgnoreUntilNeutral = left || right || up || down || action || cancel
+                    || caretLeft || caretRight || caretUp || caretDown;
+            return;
+        }
+
+        if (virtualKeyboardIgnoreUntilNeutral) {
+            virtualKeyboardLeft = left;
+            virtualKeyboardRight = right;
+            virtualKeyboardUp = up;
+            virtualKeyboardDown = down;
+            virtualKeyboardAction = action;
+            virtualKeyboardCancel = cancel;
+            virtualKeyboardCaretLeft = caretLeft;
+            virtualKeyboardCaretRight = caretRight;
+            virtualKeyboardCaretUp = caretUp;
+            virtualKeyboardCaretDown = caretDown;
+            virtualKeyboardIgnoreUntilNeutral = left || right || up || down || action || cancel
+                    || caretLeft || caretRight || caretUp || caretDown;
+            return;
+        }
+
+        int navX = 0;
+        int navY = 0;
+        if (left && !virtualKeyboardLeft) navX = -1;
+        if (right && !virtualKeyboardRight) navX = 1;
+        if (up && !virtualKeyboardUp) navY = 1;
+        if (down && !virtualKeyboardDown) navY = -1;
+        if (navX != 0) {
+            keyboard.navigate(navX, 0, time);
+        } else if (navY != 0) {
+            keyboard.navigate(0, navY, time);
+        }
+        if (caretLeft && !virtualKeyboardCaretLeft) keyboard.key(KeyInput.KEY_LEFT, time);
+        if (caretRight && !virtualKeyboardCaretRight) keyboard.key(KeyInput.KEY_RIGHT, time);
+        if (caretUp && !virtualKeyboardCaretUp) keyboard.key(KeyInput.KEY_UP, time);
+        if (caretDown && !virtualKeyboardCaretDown) keyboard.key(KeyInput.KEY_DOWN, time);
+        if (action != virtualKeyboardAction) keyboard.action(action, time);
+        if (cancel != virtualKeyboardCancel) keyboard.cancel(cancel, time);
+
+        virtualKeyboardLeft = left;
+        virtualKeyboardRight = right;
+        virtualKeyboardUp = up;
+        virtualKeyboardDown = down;
+        virtualKeyboardAction = action;
+        virtualKeyboardCancel = cancel;
+        virtualKeyboardCaretLeft = caretLeft;
+        virtualKeyboardCaretRight = caretRight;
+        virtualKeyboardCaretUp = caretUp;
+        virtualKeyboardCaretDown = caretDown;
     }
 
     private Joystick[] currentJoysticks() {

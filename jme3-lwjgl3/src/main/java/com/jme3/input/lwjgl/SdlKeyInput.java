@@ -34,6 +34,7 @@ package com.jme3.input.lwjgl;
 import com.jme3.input.KeyInput;
 import com.jme3.input.RawInputListener;
 import com.jme3.input.event.KeyInputEvent;
+import com.jme3.input.virtual.VirtualKeyboard;
 import com.jme3.system.lwjgl.LwjglWindow;
 import java.util.ArrayDeque;
 import java.util.Queue;
@@ -139,6 +140,7 @@ public class SdlKeyInput implements KeyInput {
         if (!context.isRenderable() || listener == null) {
             return;
         }
+        VirtualKeyboard.getInstance().dispatchEvents(listener);
         while (!keyInputEvents.isEmpty()) {
             listener.onKeyEvent(keyInputEvents.poll());
         }

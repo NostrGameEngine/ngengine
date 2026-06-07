@@ -36,6 +36,7 @@ import com.jme3.audio.openal.AL;
 import com.jme3.audio.openal.ALAudioRenderer;
 import com.jme3.audio.openal.ALC;
 import com.jme3.audio.openal.EFX;
+import com.jme3.input.virtual.VirtualKeyboard;
 import com.jme3.system.JmeContext.Type;
 import com.jme3.texture.Image;
 import com.jme3.texture.image.ColorSpace;
@@ -298,5 +299,6 @@ public class JmeDesktopSystem extends JmeSystemDelegate {
 
     @Override
     public void showSoftKeyboard(boolean show) {
+        VirtualKeyboard.getInstance().setVisible(show);
     }
 }

@@ -42,6 +42,7 @@ import com.jme3.input.KeyInput;
 import com.jme3.input.controls.ActionListener;
 import com.jme3.input.controls.KeyTrigger;
 import com.jme3.input.virtual.VirtualJoystick;
+import com.jme3.input.virtual.VirtualKeyboard;
 import com.jme3.profile.AppStep;
 import com.jme3.renderer.Camera;
 import com.jme3.renderer.RenderManager;
@@ -424,16 +425,16 @@ public abstract class SimpleApplication extends LegacyApplication {
             return;
         }
         Joystick[] joysticks = inputManager.getJoysticks();
-        if (joysticks == null) {
-            return;
-        }
         Camera guiCamera = guiViewPort.getCamera();
         int width = guiCamera != null ? guiCamera.getWidth() : settings.getWidth();
         int height = guiCamera != null ? guiCamera.getHeight() : settings.getHeight();
-        for (Joystick joystick : joysticks) {
-            if (joystick instanceof VirtualJoystick) {
-                ((VirtualJoystick) joystick).updateVisuals(guiNode, assetManager, width, height, tpf);
+        if (joysticks != null) {
+            for (Joystick joystick : joysticks) {
+                if (joystick instanceof VirtualJoystick) {
+                    ((VirtualJoystick) joystick).updateVisuals(guiNode, assetManager, width, height, tpf);
+                }
             }
         }
+        VirtualKeyboard.getInstance().updateVisuals(guiNode, assetManager, width, height, tpf);
     }
 }
