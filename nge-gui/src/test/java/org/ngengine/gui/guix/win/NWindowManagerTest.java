@@ -6,6 +6,13 @@ package org.ngengine.gui.guix.win;
 
 import com.jme3.asset.AssetManager;
 import com.jme3.audio.AudioRenderer;
+import com.jme3.input.InputManager;
+import com.jme3.input.Joystick;
+import com.jme3.input.JoystickAxis;
+import com.jme3.input.JoystickButton;
+import com.jme3.input.Mouse;
+import com.jme3.input.dummy.DummyKeyInput;
+import com.jme3.input.dummy.DummyMouseInput;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
 import com.jme3.renderer.ViewPort;
@@ -20,11 +27,20 @@ import java.io.OutputStream;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.lang.reflect.Field;
+import java.lang.reflect.Proxy;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
+import org.ngengine.components.ComponentManager;
 import org.ngengine.gui.GuiContext;
 import org.ngengine.gui.NGEGui;
+import org.ngengine.gui.ime.ImeCompositionEvent;
+import org.ngengine.gui.ime.JmeSoftKeyboardImeComposer;
+import org.ngengine.gui.ime.PhysicalKeyboardImeComposer;
+import org.ngengine.gui.nav.DefaultNavigatorInputHandler;
+import org.ngengine.gui.nav.Navigator;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -135,6 +151,132 @@ public class NWindowManagerTest {
         assertEquals(2, component.releases.get());
     }
 
+    @Test
+    public void physicalCursorRequestBeforeMountIsAppliedWhenInputManagerIsAvailable() throws Exception {
+        initializeGui();
+
+        ViewPort vp = new ViewPort("gui-physical-cursor-pending", new Camera(800, 600));
+        Node guiNode = new Node("GuiNode");
+        guiNode.setQueueBucket(Bucket.Gui);
+        vp.attachScene(guiNode);
+        GuiContext context = NGEGui.register(vp, true);
+
+        TestInputComponent component = new TestInputComponent();
+        TestWindowManager manager = new TestWindowManager(component, context);
+        setWindowManagers(component, manager);
+
+        component.inputManager.setCursorVisible(true);
+        assertTrue(component.inputManager.isCursorVisible());
+
+        component.requestPhysicalCursorVisible(false);
+        assertTrue(component.inputManager.isCursorVisible());
+
+        component.onAttached(emptyComponentManager(), null, null);
+        setComponentEnabled(component, true);
+        component.updateAppLogic(null, 0);
+
+        assertFalse(component.inputManager.isCursorVisible());
+    }
+
+    @Test
+    public void hardwareCursorVisibilityFollowsNavigatorActivity() throws Exception {
+        initializeGui();
+
+        ViewPort vp = new ViewPort("gui-hardware-cursor-autohide", new Camera(800, 600));
+        Node guiNode = new Node("GuiNode");
+        guiNode.setQueueBucket(Bucket.Gui);
+        vp.attachScene(guiNode);
+        GuiContext context = NGEGui.register(vp, true);
+
+        TestInteractionComponent component = new TestInteractionComponent();
+        TestWindowManager manager = new TestWindowManager(component, context);
+        setWindowManagers(component, manager);
+        setComponentEnabled(component, true);
+
+        Navigator navigator = context.getNavigator();
+        navigator.setHardwareCursor(true);
+        component.setInteractionEnabled(true);
+        manager.showWindow(TestWindow.class);
+
+        assertFalse(component.physicalCursorVisible);
+
+        assertTrue(navigator.updateCursorPosition(10, 20));
+        component.updateAppLogic(null, 0);
+        assertTrue(component.physicalCursorVisible);
+
+        component.updateAppLogic(null, 15.1f);
+        assertFalse(component.physicalCursorVisible);
+
+        assertTrue(navigator.updateCursorPosition(30, 40));
+        component.updateAppLogic(null, 0);
+        assertTrue(component.physicalCursorVisible);
+    }
+
+    @Test
+    public void inputHandlerInstallsSoftKeyboardImeBeforeKeyboardDeviceIsSelected() {
+        initializeGui();
+
+        ViewPort vp = new ViewPort("gui-ime", new Camera(800, 600));
+        Node guiNode = new Node("GuiNode");
+        guiNode.setQueueBucket(Bucket.Gui);
+        vp.attachScene(guiNode);
+        GuiContext context = NGEGui.register(vp, true);
+
+        TestInputComponent component = new TestInputComponent();
+        TestWindowManager manager = new TestWindowManager(component, context);
+
+        manager.setInputHandler(new DefaultNavigatorInputHandler(vp));
+
+        assertTrue(context.getImeComposer() instanceof PhysicalKeyboardImeComposer);
+        assertTrue(context.getImeComposer() instanceof JmeSoftKeyboardImeComposer);
+    }
+
+    @Test
+    public void softKeyboardImeComposerDoesNotShowJmeSystemKeyboardForMouseInput() {
+        TestSystemDelegate system = initializeGui();
+
+        ViewPort vp = new ViewPort("gui-soft-keyboard-ime", new Camera(800, 600));
+        GuiContext context = NGEGui.register(vp, true);
+        context.setInputDevice(new Mouse());
+        InputManager inputManager = new InputManager(new DummyMouseInput(), new DummyKeyInput(), null, null);
+        JmeSoftKeyboardImeComposer composer = new JmeSoftKeyboardImeComposer(inputManager);
+
+        composer.open(context, ev -> {}, new ImeCompositionEvent("typing"), c -> c, s -> 0f);
+        assertEquals(0, system.showSoftKeyboardCalls.get());
+        assertEquals(0, system.hideSoftKeyboardCalls.get());
+
+        composer.close();
+        assertEquals(0, system.showSoftKeyboardCalls.get());
+        assertEquals(0, system.hideSoftKeyboardCalls.get());
+    }
+
+    @Test
+    public void softKeyboardImeComposerUsesJmeSystemHookForJoystickInput() {
+        TestSystemDelegate system = initializeGui();
+
+        ViewPort vp = new ViewPort("gui-joystick-keyboard-ime", new Camera(800, 600));
+        Node guiNode = new Node("GuiNode");
+        guiNode.setQueueBucket(Bucket.Gui);
+        vp.attachScene(guiNode);
+        GuiContext context = NGEGui.register(vp, true);
+        context.setInputDevice(new TestJoystick());
+        InputManager inputManager = new InputManager(new DummyMouseInput(), new DummyKeyInput(), null, null);
+        JmeSoftKeyboardImeComposer composer = new JmeSoftKeyboardImeComposer(inputManager);
+        ImeCompositionEvent event = new ImeCompositionEvent("");
+
+        composer.open(context, ev -> {}, event, c -> c, s -> 0f);
+
+        assertEquals("", event.getText());
+        assertEquals(1, system.showSoftKeyboardCalls.get());
+        assertEquals(0, system.hideSoftKeyboardCalls.get());
+        assertTrue(composer.isOpen());
+
+        composer.close();
+        assertFalse(composer.isOpen());
+        assertEquals(1, system.hideSoftKeyboardCalls.get());
+        assertEquals(0, guiNode.getQuantity());
+    }
+
     private static TestWindowManager newManager(String name) {
         initializeGui();
 
@@ -146,11 +288,13 @@ public class NWindowManagerTest {
         return new TestWindowManager(new TestWindowManagerComponent(), context);
     }
 
-    private static void initializeGui() {
-        JmeSystem.setSystemDelegate(new TestSystemDelegate());
+    private static TestSystemDelegate initializeGui() {
+        TestSystemDelegate system = new TestSystemDelegate();
+        JmeSystem.setSystemDelegate(system);
         AssetManager assets = JmeSystem.newAssetManager(
                 NWindowManagerTest.class.getResource("/com/jme3/asset/Desktop.cfg"));
         NGEGui.initialize(assets);
+        return system;
     }
 
     @SuppressWarnings("unchecked")
@@ -166,6 +310,17 @@ public class NWindowManagerTest {
         Field field = NWindowManagerComponent.class.getDeclaredField("enabled");
         field.setAccessible(true);
         field.set(component, enabled);
+    }
+
+    private static ComponentManager emptyComponentManager() {
+        return (ComponentManager) Proxy.newProxyInstance(
+                ComponentManager.class.getClassLoader(),
+                new Class<?>[] { ComponentManager.class },
+                (proxy, method, args) -> {
+                    if (method.getReturnType() == boolean.class) return false;
+                    if (method.getReturnType() == List.class) return Collections.emptyList();
+                    return null;
+                });
     }
 
     public static class TestWindow extends NWindow<Void> {
@@ -190,6 +345,29 @@ public class NWindowManagerTest {
         }
     }
 
+    private static class TestInputComponent extends TestWindowManagerComponent {
+        private final DummyMouseInput mouse = new DummyMouseInput();
+        private final DummyKeyInput keys = new DummyKeyInput();
+        private final InputManager inputManager = new InputManager(mouse, keys, null, null);
+
+        TestInputComponent() {
+            mouse.initialize();
+            keys.initialize();
+        }
+
+        void requestPhysicalCursorVisible(boolean visible) {
+            setPhysicalCursorVisible(visible);
+        }
+
+        @Override
+        public <T> T getInstanceOf(Class<T> type) {
+            if (type == InputManager.class) {
+                return type.cast(inputManager);
+            }
+            return null;
+        }
+    }
+
     private static class TestInteractionComponent extends NWindowManagerComponent {
         private final AtomicInteger releases = new AtomicInteger();
         private boolean physicalCursorVisible;
@@ -210,7 +388,94 @@ public class NWindowManagerTest {
         }
     }
 
+    private static final class TestJoystick implements Joystick {
+        @Override
+        public void assignButton(String mappingName, int buttonId) {
+        }
+
+        @Override
+        public void assignAxis(String positiveMapping, String negativeMapping, int axisId) {
+        }
+
+        @Override
+        public JoystickAxis getAxis(String logicalId) {
+            return null;
+        }
+
+        @Override
+        public List<JoystickAxis> getAxes() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public JoystickButton getButton(String logicalId) {
+            return null;
+        }
+
+        @Override
+        public List<JoystickButton> getButtons() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public JoystickAxis getXAxis() {
+            return null;
+        }
+
+        @Override
+        public JoystickAxis getYAxis() {
+            return null;
+        }
+
+        @Override
+        public JoystickAxis getPovXAxis() {
+            return null;
+        }
+
+        @Override
+        public JoystickAxis getPovYAxis() {
+            return null;
+        }
+
+        @Override
+        public int getXAxisIndex() {
+            return 0;
+        }
+
+        @Override
+        public int getYAxisIndex() {
+            return 1;
+        }
+
+        @Override
+        public int getAxisCount() {
+            return 0;
+        }
+
+        @Override
+        public int getButtonCount() {
+            return 0;
+        }
+
+        @Override
+        public String getName() {
+            return "test";
+        }
+
+        @Override
+        public int getJoyId() {
+            return 0;
+        }
+
+        @Override
+        public void rumble(float amountHigh, float amountLow, float duration) {
+        }
+    }
+
     private static final class TestSystemDelegate extends JmeSystemDelegate {
+        private final AtomicInteger showSoftKeyboardCalls = new AtomicInteger();
+        private final AtomicInteger hideSoftKeyboardCalls = new AtomicInteger();
+
         @Override
         public void writeImageFile(OutputStream outStream, String format, ByteBuffer imageData, int width, int height)
                 throws IOException {
@@ -237,6 +502,11 @@ public class NWindowManagerTest {
 
         @Override
         public void showSoftKeyboard(boolean show) {
+            if (show) {
+                showSoftKeyboardCalls.incrementAndGet();
+            } else {
+                hideSoftKeyboardCalls.incrementAndGet();
+            }
         }
     }
 }

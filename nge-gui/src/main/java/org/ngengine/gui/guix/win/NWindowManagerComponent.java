@@ -80,6 +80,9 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
     private boolean enabled = false;
     private boolean interactionEnabled = false;
     private boolean interactionActive = false;
+    private boolean physicalCursorVisible = false;
+    private boolean appliedPhysicalCursorVisible = false;
+    private boolean physicalCursorVisibleDirty = true;
     private InputDevice lastInputDevice;
 
     public NWindowManager getManager(ViewPort vp){
@@ -340,7 +343,6 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
     @Override
     public void updateAppLogic(ComponentManager mng, float tpf){
         if (enabled) {
-            setPhysicalCursorVisible(false);
             boolean wasActive = interactionActive;
             applyInteractionState();
             if (!wasActive && interactionActive) {
@@ -349,6 +351,9 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
         }
         for(NWindowManager manager : windowManagers){
             manager.update(tpf);
+        }
+        if (enabled) {
+            applyInteractionState();
         }
     }
 
@@ -420,9 +425,25 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
     }
 
     protected void setPhysicalCursorVisible(boolean visible) {
+        if (physicalCursorVisible != visible) {
+            physicalCursorVisibleDirty = true;
+            physicalCursorVisible = visible;
+        }
+        applyPhysicalCursorVisible();
+    }
+
+    private void applyPhysicalCursorVisible() {
+        if (getComponentManager() == null) {
+            return;
+        }
         InputManager inputManager = getInstanceOf(InputManager.class);
-        if (inputManager != null && inputManager.isCursorVisible() != visible) {
-            inputManager.setCursorVisible(visible);
+        if (inputManager != null
+                && (physicalCursorVisibleDirty
+                    || appliedPhysicalCursorVisible != physicalCursorVisible
+                    || inputManager.isCursorVisible() != physicalCursorVisible)) {
+            inputManager.setCursorVisible(physicalCursorVisible);
+            appliedPhysicalCursorVisible = physicalCursorVisible;
+            physicalCursorVisibleDirty = false;
         }
     }
 
@@ -440,13 +461,18 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
 
     private void applyInteractionState() {
         interactionActive = false;
+        boolean hardwareCursorVisible = false;
         for (NWindowManager manager : windowManagers) {
             boolean managerCanInteract = canInteractWith(manager);
             interactionActive |= managerCanInteract;
             if (manager.getContext().getNavigator().isCursorVisible() != managerCanInteract) {
                 manager.getContext().getNavigator().setCursor(managerCanInteract);
             }
+            hardwareCursorVisible |= managerCanInteract
+                    && manager.getContext().getNavigator().isHardwareCursor()
+                    && manager.getContext().getNavigator().isCursorActive();
         }
+        setPhysicalCursorVisible(hardwareCursorVisible);
         applyInputDeviceToManagers();
     }
 

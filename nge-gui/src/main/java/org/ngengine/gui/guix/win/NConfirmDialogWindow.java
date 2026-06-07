@@ -41,10 +41,10 @@
 package org.ngengine.gui.guix.win;
 
 import com.jme3.math.Vector3f;
-import org.ngengine.gui.component.BorderLayout;
 import org.ngengine.gui.guix.NButton;
 import org.ngengine.gui.guix.NLabel;
 import org.ngengine.gui.guix.containers.NPanel;
+import org.ngengine.gui.guix.containers.NRow;
 
 public class NConfirmDialogWindow extends NWindow<NConfirmDialogOptions> {
 
@@ -60,8 +60,9 @@ public class NConfirmDialogWindow extends NWindow<NConfirmDialogOptions> {
         });
 
         NPanel content = getContent();
-        content.addChild(new NLabel(args.getText()), BorderLayout.Position.North);
-        content.addChild(confirmButton, BorderLayout.Position.West);
-        content.addChild(cancelButton, BorderLayout.Position.East);
+        content.addChild(new NLabel(args.getText()));
+        NRow buttons = content.addRow();
+        buttons.addChild(confirmButton);
+        buttons.addChild(cancelButton);
     }
 }

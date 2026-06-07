@@ -48,6 +48,7 @@ import org.ngengine.gui.core.GuiLayout;
 import org.ngengine.gui.core.GuiUpdateListener;
 import org.ngengine.gui.guix.NIconButton;
 import org.ngengine.gui.guix.containers.NPanel;
+import org.ngengine.gui.nav.FocusTarget;
 import org.ngengine.gui.style.ElementId;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -69,7 +70,6 @@ public abstract class NWindow<T> extends Container implements GuiUpdateListener,
     private Container backGroup;
     private NIconButton backButton;
     private NIconButton placeHolderButton;
-    private Label backHint;
     private Label title;
     private NWindowManager appState;
     private NPanel windowContent;
@@ -128,17 +128,13 @@ public abstract class NWindow<T> extends Container implements GuiUpdateListener,
 
         backGroup = new Container(new BorderLayout(), new ElementId("window.backGroup"));
         backButton = new NIconButton("org/ngengine/gui/icons/outline/chevron-left.svg");
-        backButton.getControl(GuiControl.class).setFocusable(false);
+        backButton.getControl(GuiControl.class).setFocusable(FocusTarget.FOCUS_POINTER);
         backButton.addClickCommands(src -> {
             if (this.backAction != null) {
                 this.backAction.accept(this);
             }
         });
         backGroup.addChild(backButton, BorderLayout.Position.West);
-        backHint = new Label("B", new ElementId("window.backHint"));
-        backHint.setTextHAlignment(HAlignment.Center);
-        backHint.setTextVAlignment(VAlignment.Center);
-        backGroup.addChild(backHint, BorderLayout.Position.East);
 
         placeHolderButton = new NIconButton("org/ngengine/gui/icons/outline/chevron-left.svg");
         placeHolderButton.setCullHint(CullHint.Always);
@@ -233,6 +229,10 @@ public abstract class NWindow<T> extends Container implements GuiUpdateListener,
         }
     }
 
+    final boolean hasBackAction() {
+        return backAction != null;
+    }
+
     protected boolean capturesInput() {
         return true;
     }
@@ -324,6 +324,10 @@ public abstract class NWindow<T> extends Container implements GuiUpdateListener,
 
     public final void close() {
         getManager().closeWindow(this);
+    }
+
+    public final void closeAndShowPrevious() {
+        getManager().closeWindow(this, true);
     }
 
     public void onAction(int id) {}

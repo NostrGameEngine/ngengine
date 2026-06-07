@@ -55,36 +55,29 @@ import org.ngengine.gui.Axis;
 import org.ngengine.gui.Container;
 import org.ngengine.gui.FillMode;
 import org.ngengine.gui.GuiContext;
+import org.ngengine.gui.Insets3f;
+import org.ngengine.gui.Label;
 import org.ngengine.gui.NGEGui;
 import org.ngengine.gui.NGEStyle;
+import org.ngengine.gui.component.QuadBackgroundComponent;
 import org.ngengine.runner.MainThreadRunner;
 import org.ngengine.store.DataStoreProvider;
 
 import com.jme3.input.InputDevice;
 import com.jme3.input.InputManager;
 import com.jme3.input.Joystick;
-import com.jme3.input.JoystickAxis;
-import com.jme3.input.JoystickButton;
-import com.jme3.input.KeyInput;
 import com.jme3.input.Keyboard;
-import com.jme3.input.Mouse;
-import com.jme3.input.MouseInput;
-import com.jme3.input.TouchInput;
-import com.jme3.input.TouchScreen;
-import com.jme3.input.controls.JoyAxisTrigger;
-import com.jme3.input.controls.JoyButtonTrigger;
-import com.jme3.input.controls.KeyTrigger;
-import com.jme3.input.controls.MouseAxisTrigger;
-import com.jme3.input.controls.MouseButtonTrigger;
-import com.jme3.input.controls.TouchTrigger;
+import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
 import com.jme3.renderer.ViewPort;
+import com.jme3.scene.Spatial.CullHint;
 import org.ngengine.gui.component.BorderLayout;
 import org.ngengine.gui.component.DynamicInsetsComponent;
 import org.ngengine.gui.component.SpringGridLayout;
 import org.ngengine.gui.guix.win.NToast.ToastType;
 import org.ngengine.gui.ime.ImeComposer;
+import org.ngengine.gui.ime.JmeSoftKeyboardImeComposer;
 import org.ngengine.gui.ime.PhysicalKeyboardImeComposer;
 import org.ngengine.gui.nav.NavigatorInputHandler;
 
@@ -99,6 +92,7 @@ public class NWindowManager {
     private int oldWidth, oldHeight;
     private NavigatorInputHandler inputHandler;
     private InputDevice inputDevice;
+    private Label controllerBackHint;
 
 
     NWindowManager(
@@ -114,6 +108,7 @@ public class NWindowManager {
 
     public void setInputHandler(NavigatorInputHandler inputHandler){
         InputManager inputManager = mng.getInstanceOf(InputManager.class);
+        ensureKeyboardImeComposer(inputManager);
         if(this.inputHandler!=null){
             this.inputHandler.unregisterListener(inputManager);
             this.inputHandler = null;
@@ -135,17 +130,24 @@ public class NWindowManager {
     public void setInputDevice(InputDevice device){
         if(inputDevice == device)return;
         this.inputDevice = device;
+        ctx.setInputDevice(device);
         InputManager inputManager = mng.getInstanceOf(InputManager.class);
+        ensureKeyboardImeComposer(inputManager);
          
         if(inputHandler!=null){
             inputHandler.setInputDevice(inputManager, device);
         } 
+    }
 
-        if(device instanceof Keyboard){
-            ImeComposer ime = ctx.getImeComposer();
-            if(!(ime instanceof PhysicalKeyboardImeComposer)){
-                ctx.setImeComposer(new PhysicalKeyboardImeComposer(inputManager));
-            }
+    private void ensureKeyboardImeComposer(InputManager inputManager) {
+        if (inputManager == null) {
+            return;
+        }
+        ImeComposer ime = ctx.getImeComposer();
+        if(!(ime instanceof PhysicalKeyboardImeComposer)){
+            ctx.setImeComposer(new JmeSoftKeyboardImeComposer(inputManager));
+        } else if (ime.getClass() == PhysicalKeyboardImeComposer.class) {
+            ctx.setImeComposer(new JmeSoftKeyboardImeComposer(inputManager));
         }
     }
 
@@ -164,6 +166,10 @@ public class NWindowManager {
 
     public NavigatorInputHandler getInputHandler(){
         return inputHandler;
+    }
+
+    public InputDevice getInputDevice() {
+        return inputDevice;
     }
   
     public GuiContext getContext(){
@@ -210,7 +216,49 @@ public class NWindowManager {
             }
         }
 
+        updateControllerBackHint();
+        if (inputHandler != null) {
+            inputHandler.update(tpf);
+        }
         ctx.update(tpf);
+    }
+
+    private void updateControllerBackHint() {
+        boolean show = inputDevice instanceof Joystick && hasControllerBackAction();
+        if (!show) {
+            if (controllerBackHint != null) {
+                controllerBackHint.setCullHint(CullHint.Always);
+            }
+            return;
+        }
+
+        if (controllerBackHint == null) {
+            controllerBackHint = new Label("B Back");
+            controllerBackHint.setFontSize(NGEStyle.vmin(2.2f));
+            controllerBackHint.setColor(new ColorRGBA(1f, 1f, 1f, 0.72f));
+            controllerBackHint.setShadowColor(new ColorRGBA(0f, 0f, 0f, 0.85f));
+            controllerBackHint.setInsets(new Insets3f(5, 9, 5, 9));
+            controllerBackHint.setBackground(new QuadBackgroundComponent(new ColorRGBA(0f, 0f, 0f, 0.58f)));
+        }
+
+        if (controllerBackHint.getParent() != ctx.getGuiNode()) {
+            controllerBackHint.removeFromParent();
+            ctx.getGuiNode().attachChild(controllerBackHint);
+        }
+        controllerBackHint.setCullHint(CullHint.Inherit);
+        Vector3f size = controllerBackHint.getPreferredSize();
+        float margin = NGEStyle.vmin(1.3f);
+        controllerBackHint.setLocalTranslation(margin, size.y + margin, 100);
+    }
+
+    private boolean hasControllerBackAction() {
+        for (int i = windows.size() - 1; i >= 0; i--) {
+            NWindow<?> window = windows.get(i);
+            if (window.capturesInput()) {
+                return window.hasBackAction();
+            }
+        }
+        return false;
     }
  
 
