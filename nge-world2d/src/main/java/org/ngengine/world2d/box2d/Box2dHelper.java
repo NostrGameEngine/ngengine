@@ -37,15 +37,15 @@ import org.ngengine.ComponentRef;
 import org.ngengine.Components;
 import org.ngengine.world2d.TiledWorld2dManagerComponent;
 
-import io.github.jmecn.tiled.core.TiledLayer;
-import io.github.jmecn.tiled.core.TiledObjectLayer;
-import io.github.jmecn.tiled.core.TiledTileLayer;
-import io.github.jmecn.tiled.core.TiledBase;
-import io.github.jmecn.tiled.core.TiledEntity;
-import io.github.jmecn.tiled.core.TiledMap;
-import io.github.jmecn.tiled.core.entity.TiledObjectEntity;
-import io.github.jmecn.tiled.core.entity.TiledTileEntity;
-import io.github.jmecn.tiled.enums.ObjectShape;
+import org.ngengine.world2d.tiled.core.TiledLayer;
+import org.ngengine.world2d.tiled.core.TiledObjectLayer;
+import org.ngengine.world2d.tiled.core.TiledTileLayer;
+import org.ngengine.world2d.tiled.core.TiledBase;
+import org.ngengine.world2d.tiled.core.TiledEntity;
+import org.ngengine.world2d.tiled.core.TiledMap;
+import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
+import org.ngengine.world2d.tiled.core.entity.TiledTileEntity;
+import org.ngengine.world2d.tiled.enums.ObjectShape;
 
 public class Box2dHelper {
     public static void applyControl(TiledEntity entity,  World phy) {

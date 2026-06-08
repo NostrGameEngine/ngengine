@@ -63,9 +63,9 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.util.TempVars;
 
-import io.github.jmecn.tiled.renderer.shape.Polyline;
-import io.github.jmecn.tiled.renderer.shape.Rect;
-import io.github.jmecn.tiled.util.CoordinateSystem;
+import org.ngengine.world2d.tiled.renderer.shape.Polyline;
+import org.ngengine.world2d.tiled.renderer.shape.Rect;
+import org.ngengine.world2d.tiled.util.CoordinateSystem;
 
 public class Box2dDebugger {
 

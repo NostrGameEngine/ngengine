@@ -61,10 +61,10 @@ import com.jme3.scene.Node;
 import com.jme3.texture.Texture2D;
 import com.jme3.util.WeakCollection;
 
-import io.github.jmecn.tiled.components.TiledGuiUpdater.GuiFragmentContext;
-import io.github.jmecn.tiled.core.TiledMap;
-import io.github.jmecn.tiled.renderer.MapRenderer;
-import io.github.jmecn.tiled.util.CoordinateSystem;
+import org.ngengine.world2d.tiled.components.TiledGuiUpdater.GuiFragmentContext;
+import org.ngengine.world2d.tiled.core.TiledMap;
+import org.ngengine.world2d.tiled.renderer.MapRenderer;
+import org.ngengine.world2d.tiled.util.CoordinateSystem;
 import jakarta.annotation.Nullable;
 
 /**

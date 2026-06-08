@@ -32,9 +32,9 @@
 
 package org.ngengine.world2d.box2d;
 
-import io.github.jmecn.tiled.core.TiledBase;
-import io.github.jmecn.tiled.core.TiledEntity;
-import io.github.jmecn.tiled.core.entity.TiledObjectEntity;
+import org.ngengine.world2d.tiled.core.TiledBase;
+import org.ngengine.world2d.tiled.core.TiledEntity;
+import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
 
 public class Box2dUserData {
     public final TiledEntity entity;

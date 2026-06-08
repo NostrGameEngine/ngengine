@@ -59,19 +59,19 @@ import org.ngengine.world2d.box2d.Box2dPhysicsFactory.PhysicsDef;
 import com.jme3.math.Vector2f;
 import com.jme3.util.TempVars;
 
-import io.github.jmecn.tiled.components.TiledComponentManager;
-import io.github.jmecn.tiled.components.TiledObjectSyncComponent;
-import io.github.jmecn.tiled.components.fragments.TiledEntityLifecycleFragment;
-import io.github.jmecn.tiled.components.fragments.TiledEntityLogicFragment;
-import io.github.jmecn.tiled.core.TiledBase;
-import io.github.jmecn.tiled.core.TiledEntity;
-import io.github.jmecn.tiled.core.TiledMap;
-import io.github.jmecn.tiled.core.entity.TiledObjectEntity;
-import io.github.jmecn.tiled.core.entity.TiledTileEntity;
-import io.github.jmecn.tiled.core.tileset.Tile;
-import io.github.jmecn.tiled.enums.ObjectShape;
-import io.github.jmecn.tiled.enums.Orientation;
-import io.github.jmecn.tiled.util.CoordinateSystem;
+import org.ngengine.world2d.tiled.components.TiledComponentManager;
+import org.ngengine.world2d.tiled.components.TiledObjectSyncComponent;
+import org.ngengine.world2d.tiled.components.fragments.TiledEntityLifecycleFragment;
+import org.ngengine.world2d.tiled.components.fragments.TiledEntityLogicFragment;
+import org.ngengine.world2d.tiled.core.TiledBase;
+import org.ngengine.world2d.tiled.core.TiledEntity;
+import org.ngengine.world2d.tiled.core.TiledMap;
+import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
+import org.ngengine.world2d.tiled.core.entity.TiledTileEntity;
+import org.ngengine.world2d.tiled.core.tileset.Tile;
+import org.ngengine.world2d.tiled.enums.ObjectShape;
+import org.ngengine.world2d.tiled.enums.Orientation;
+import org.ngengine.world2d.tiled.util.CoordinateSystem;
 
 public class TiledPhysicsComponent extends AbstractComponent
         implements  LogicFragment, TiledEntityLogicFragment, TiledEntityLifecycleFragment {
