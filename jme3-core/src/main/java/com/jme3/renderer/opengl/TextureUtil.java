@@ -33,6 +33,7 @@ package com.jme3.renderer.opengl;
 
 import com.jme3.renderer.Caps;
 import com.jme3.renderer.RendererException;
+import com.jme3.renderer.Statistics;
 import com.jme3.texture.Image;
 import com.jme3.texture.Image.Format;
 import com.jme3.texture.image.ColorSpace;
@@ -53,13 +54,15 @@ public final class TextureUtil {
     private final GL gl;
     private final GL2 gl2;
     private final GLExt glext;
+    private final Statistics statistics;
     private GLImageFormat[][] formats;
     private boolean supportUnpackRowLength;
     
-    public TextureUtil(GL gl, GL2 gl2, GLExt glext) {
+    public TextureUtil(GL gl, GL2 gl2, GLExt glext, Statistics statistics) {
         this.gl = gl;
         this.gl2 = gl2;
         this.glext = glext;
+        this.statistics = statistics;
     }
     
     public void initialize(EnumSet<Caps> caps) {
@@ -313,6 +316,9 @@ public final class TextureUtil {
             }
 
             uploadTextureLevel(oglFormat, target, i, index, sliceCount, mipWidth, mipHeight, mipDepth, samples, data);
+            if (data != null) {
+                statistics.onTextureUpload(mipSizes[i]);
+            }
 
             pos += mipSizes[i];
         }
@@ -358,9 +364,11 @@ public final class TextureUtil {
 
         data.position(0);
         data.limit(data.capacity());
+        int uploadBytes = data.remaining();
         
         gl.glTexSubImage2D(target, 0, x, y, image.getWidth(), image.getHeight(), 
                            oglFormat.format, oglFormat.dataType, data);
+        statistics.onTextureSubUpload(uploadBytes);
     }
 
     public void uploadSubTexture(int target, Image src, int index, int targetX, int targetY, int areaX, int areaY, int areaWidth, int areaHeight, boolean linearizeSrgb) {
@@ -394,6 +402,7 @@ public final class TextureUtil {
         }
 
         int Bpp = src.getFormat().getBitsPerPixel() / 8;
+        long uploadBytes = (long) areaWidth * areaHeight * Bpp;
 
         int srcWidth = src.getWidth();
         int cpos = data.position();
@@ -417,6 +426,7 @@ public final class TextureUtil {
             if (needsStride)
                 gl.glPixelStorei(GL.GL_UNPACK_ROW_LENGTH, 0);
         }
+        statistics.onTextureSubUpload(uploadBytes);
         data.position(cpos);
 
     }

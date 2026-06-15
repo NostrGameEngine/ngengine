@@ -43,6 +43,9 @@ import com.jme3.scene.Spatial;
 import com.jme3.scene.control.Control;
 import com.jme3.util.clone.Cloner;
 import com.jme3.util.clone.JmeCloneable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * The <code>StatsView</code> provides a heads-up display (HUD) of various
@@ -65,10 +68,18 @@ public class StatsView extends Node implements Control, JmeCloneable {
 
     private final String[] statLabels;
     private final int[] statData;
+    private final List<Supplier<String>> customStatLines = new ArrayList<>();
 
     private boolean enabled = true;
+    private int lineCount;
 
     private final StringBuilder stringBuilder = new StringBuilder();
+    private final double[] uploadMbpsHistory = new double[5];
+    private long uploadSampleBytes;
+    private float uploadSampleTime;
+    private double smoothedUploadMbps;
+    private int uploadSampleCount;
+    private int uploadHistoryIndex;
 
     public StatsView(String name, AssetManager manager, Statistics stats) {
         super(name);
@@ -81,6 +92,7 @@ public class StatsView extends Node implements Control, JmeCloneable {
 
         statLabels = statistics.getLabels();
         statData = new int[statLabels.length];
+        lineCount = statLabels.length;
 
         BitmapFont font = manager.loadFont("Interface/Fonts/Console.j3o");
         statText = new BitmapText(font);
@@ -91,7 +103,28 @@ public class StatsView extends Node implements Control, JmeCloneable {
     }
 
     public float getHeight() {
-        return statText.getLineHeight() * statLabels.length;
+        return statText.getLineHeight() * lineCount;
+    }
+
+    public void addCustomStatLine(Supplier<String> supplier) {
+        if (supplier == null) {
+            throw new IllegalArgumentException("Custom stat supplier cannot be null.");
+        }
+        customStatLines.add(supplier);
+        lineCount = statLabels.length + customStatLines.size();
+    }
+
+    public boolean removeCustomStatLine(Supplier<String> supplier) {
+        boolean removed = customStatLines.remove(supplier);
+        if (removed) {
+            lineCount = statLabels.length + customStatLines.size();
+        }
+        return removed;
+    }
+
+    public void clearCustomStatLines() {
+        customStatLines.clear();
+        lineCount = statLabels.length;
     }
 
     @Override
@@ -103,17 +136,75 @@ public class StatsView extends Node implements Control, JmeCloneable {
         statistics.getData(statData);
         stringBuilder.setLength(0);
 
+        int lines = statLabels.length + customStatLines.size() + 1;
         // Need to walk through it backwards, as the first label
         // should appear at the bottom, not the top.
         for (int i = statLabels.length - 1; i >= 0; i--) {
-            stringBuilder.append(statLabels[i]).append(" = ").append(statData[i]).append('\n');
+            stringBuilder.append(statLabels[i]).append(" = ").append(statData[i]);
+            if ("Objects".equals(statLabels[i]) && statistics.getNumMeshInstances() > 0) {
+                stringBuilder.append(" \\#ddd9#+").append(statistics.getNumMeshInstances()).append("\\#ffff#");
+            }
+            stringBuilder.append('\n');
         }
+        stringBuilder.append("CPU Upload = ");
+        updateUploadBandwidth(tpf);
+        appendMbps(smoothedUploadMbps);
+        stringBuilder.append(" (^");
+        appendMbps(getUploadMbpsPeak());
+        stringBuilder.append(')');
+        stringBuilder.append('\n');
+        for (Supplier<String> supplier : customStatLines) {
+            String line = supplier.get();
+            if (line != null && !line.isEmpty()) {
+                stringBuilder.append(line).append('\n');
+            } else {
+                lines--;
+            }
+        }
+        lineCount = Math.max(1, lines);
+        statText.setLocalTranslation(0, statText.getLineHeight() * lineCount, 0);
         statText.setText(stringBuilder);
 
         // Moved to ResetStatsState to make sure it is
         // done even if there is no StatsView or the StatsView
         // is disabled.
         //statistics.clearFrame();
+    }
+
+    private void updateUploadBandwidth(float tpf) {
+        uploadSampleBytes += statistics.getCpuToGpuUploadBytes();
+        uploadSampleTime += tpf;
+        if (uploadSampleTime < 1f) {
+            return;
+        }
+
+        double mbps = uploadSampleBytes * 8.0 / uploadSampleTime / 1_000_000.0;
+        smoothedUploadMbps = uploadSampleCount == 0 ? mbps : smoothedUploadMbps * 0.65 + mbps * 0.35;
+        uploadMbpsHistory[uploadHistoryIndex] = mbps;
+        uploadHistoryIndex = (uploadHistoryIndex + 1) % uploadMbpsHistory.length;
+        if (uploadSampleCount < uploadMbpsHistory.length) {
+            uploadSampleCount++;
+        }
+        uploadSampleBytes = 0;
+        uploadSampleTime = 0f;
+    }
+
+    private double getUploadMbpsPeak() {
+        double peak = smoothedUploadMbps;
+        for (int i = 0; i < uploadSampleCount; i++) {
+            peak = Math.max(peak, uploadMbpsHistory[i]);
+        }
+        return peak;
+    }
+
+    private void appendMbps(double mbps) {
+        if (mbps >= 100.0) {
+            stringBuilder.append((long) mbps);
+        } else {
+            long tenths = Math.round(mbps * 10.0);
+            stringBuilder.append(tenths / 10).append('.').append(tenths % 10);
+        }
+        stringBuilder.append(" Mbps");
     }
 
     @Deprecated

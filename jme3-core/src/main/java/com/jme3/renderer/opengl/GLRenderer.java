@@ -130,7 +130,7 @@ public final class GLRenderer implements Renderer {
         this.gl4 = gl instanceof GL4 ? (GL4)gl : null;
         this.glfbo = glfbo;
         this.glext = glext;
-        this.texUtil = new TextureUtil(gl, gl2, glext);
+        this.texUtil = new TextureUtil(gl, gl2, glext, statistics);
     }
     
     /**
@@ -3567,6 +3567,7 @@ public final class GLRenderer implements Renderer {
 
     private void updateVertexBufferData(int target, VertexBuffer vb, Buffer data, int usage) {
         data.rewind();
+        statistics.onVertexBufferUpload(getVertexBufferSizeBytes(vb));
         switch (vb.getFormat()) {
             case Byte:
             case UnsignedByte:
@@ -3591,6 +3592,7 @@ public final class GLRenderer implements Renderer {
 
     private void updateVertexBufferSubData(int target, VertexBuffer vb, Buffer data, BufferRegion reg) {
         Buffer slice = sliceVertexBuffer(vb, data, reg.getStart(), reg.length());
+        statistics.onVertexBufferSubUpload(reg.length());
         switch (vb.getFormat()) {
             case Byte:
             case UnsignedByte:
@@ -3782,10 +3784,12 @@ public final class GLRenderer implements Renderer {
             if (reg.isFullBufferRegion()) {
                 ByteBuffer bbf = bo.getByteData().duplicate();
                 bbf.clear();
+                int uploadBytes = bbf.remaining();
                 if (logger.isLoggable(java.util.logging.Level.FINER)) {
                     logger.log(java.util.logging.Level.FINER, "Update full buffer {0} with {1} bytes", new Object[] { bo, bbf.remaining() });
                 }
                 gl.glBufferData(type, bbf, usage);
+                statistics.onBufferObjectUpload(uploadBytes);
                 gl.glBindBuffer(type, 0);
                 reg.clearDirty();
                 break;
@@ -3793,7 +3797,10 @@ public final class GLRenderer implements Renderer {
                 if (logger.isLoggable(java.util.logging.Level.FINER)) {
                     logger.log(java.util.logging.Level.FINER, "Update region {0} of {1}", new Object[] { reg, bo });
                 }
-                gl.glBufferSubData(type, reg.getStart(), reg.getData());
+                ByteBuffer data = reg.getData();
+                int uploadBytes = data.remaining();
+                gl.glBufferSubData(type, reg.getStart(), data);
+                statistics.onBufferObjectSubUpload(uploadBytes);
                 gl.glBindBuffer(type, 0);
                 reg.clearDirty();
             }
@@ -4139,10 +4146,6 @@ public final class GLRenderer implements Renderer {
     }
 
     private void renderMeshDefault(Mesh mesh, int lod, int count, VertexBuffer[] instanceData) {
-
-        // Here while count is still passed in.  Can be removed when/if
-        // the method is collapsed again.  -pspeed
-        count = Math.max(mesh.getInstanceCount(), count);
 
         VertexBuffer interleavedData = mesh.getBuffer(Type.InterleavedData);
         if (interleavedData != null && interleavedData.isUpdateNeeded()) {

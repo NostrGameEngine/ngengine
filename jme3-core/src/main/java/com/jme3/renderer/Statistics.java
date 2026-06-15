@@ -56,6 +56,10 @@ public class Statistics {
      */
     protected int numObjects;
     /**
+     * Number of extra mesh instances rendered during the current frame.
+     */
+    protected int numMeshInstances;
+    /**
      * Number of mesh primitives rendered during the current frame.
      */
     protected int numTriangles;
@@ -79,6 +83,34 @@ public class Statistics {
      * Number of uniforms set during the current frame.
      */
     protected int numUniformsSet;
+    /**
+     * Number of texture bytes uploaded from CPU memory during the current frame.
+     */
+    protected long textureUploadBytes;
+    /**
+     * Number of partial texture bytes uploaded from CPU memory during the current frame.
+     */
+    protected long textureSubUploadBytes;
+    /**
+     * Number of vertex-buffer bytes uploaded from CPU memory during the current frame.
+     */
+    protected long vertexBufferUploadBytes;
+    /**
+     * Number of partial vertex-buffer bytes uploaded from CPU memory during the current frame.
+     */
+    protected long vertexBufferSubUploadBytes;
+    /**
+     * Number of generic buffer-object bytes uploaded from CPU memory during the current frame.
+     */
+    protected long bufferObjectUploadBytes;
+    /**
+     * Number of partial generic buffer-object bytes uploaded from CPU memory during the current frame.
+     */
+    protected long bufferObjectSubUploadBytes;
+    /**
+     * Largest single CPU-to-GPU upload during the current frame.
+     */
+    protected long largestUploadBytes;
 
     /**
      * Number of active shaders.
@@ -166,6 +198,106 @@ public class Statistics {
     }
 
     /**
+     * Returns the number of extra mesh instances rendered during the current frame.
+     *
+     * @return count of rendered mesh instances beyond the base draw object
+     */
+    public int getNumMeshInstances() {
+        return numMeshInstances;
+    }
+
+    public long getTextureUploadBytes() {
+        return textureUploadBytes;
+    }
+
+    public long getTextureSubUploadBytes() {
+        return textureSubUploadBytes;
+    }
+
+    public long getVertexBufferUploadBytes() {
+        return vertexBufferUploadBytes;
+    }
+
+    public long getVertexBufferSubUploadBytes() {
+        return vertexBufferSubUploadBytes;
+    }
+
+    public long getBufferObjectUploadBytes() {
+        return bufferObjectUploadBytes;
+    }
+
+    public long getBufferObjectSubUploadBytes() {
+        return bufferObjectSubUploadBytes;
+    }
+
+    public long getCpuToGpuUploadBytes() {
+        return textureUploadBytes
+                + textureSubUploadBytes
+                + vertexBufferUploadBytes
+                + vertexBufferSubUploadBytes
+                + bufferObjectUploadBytes
+                + bufferObjectSubUploadBytes;
+    }
+
+    public long getLargestUploadBytes() {
+        return largestUploadBytes;
+    }
+
+    public void onTextureUpload(long bytes) {
+        if (!enabled) {
+            return;
+        }
+        textureUploadBytes += bytes;
+        trackLargestUpload(bytes);
+    }
+
+    public void onTextureSubUpload(long bytes) {
+        if (!enabled) {
+            return;
+        }
+        textureSubUploadBytes += bytes;
+        trackLargestUpload(bytes);
+    }
+
+    public void onVertexBufferUpload(long bytes) {
+        if (!enabled) {
+            return;
+        }
+        vertexBufferUploadBytes += bytes;
+        trackLargestUpload(bytes);
+    }
+
+    public void onVertexBufferSubUpload(long bytes) {
+        if (!enabled) {
+            return;
+        }
+        vertexBufferSubUploadBytes += bytes;
+        trackLargestUpload(bytes);
+    }
+
+    public void onBufferObjectUpload(long bytes) {
+        if (!enabled) {
+            return;
+        }
+        bufferObjectUploadBytes += bytes;
+        trackLargestUpload(bytes);
+    }
+
+    public void onBufferObjectSubUpload(long bytes) {
+        if (!enabled) {
+            return;
+        }
+        bufferObjectSubUploadBytes += bytes;
+        trackLargestUpload(bytes);
+    }
+
+    private void trackLargestUpload(long bytes) {
+        if (bytes > largestUploadBytes) {
+            largestUploadBytes = bytes;
+        }
+    }
+
+    /**
      * Called by the Renderer when a mesh has been drawn.
      *
      * @param mesh the Mesh that was drawn (not null)
@@ -178,6 +310,9 @@ public class Statistics {
         }
 
         numObjects += 1;
+        if (count > 1) {
+            numMeshInstances += count - 1;
+        }
         numTriangles += mesh.getTriangleCount(lod) * count;
         numVertices += mesh.getVertexCount() * count;
     }
@@ -284,12 +419,20 @@ public class Statistics {
         fbosUsed.clear();
 
         numObjects = 0;
+        numMeshInstances = 0;
         numTriangles = 0;
         numVertices = 0;
         numShaderSwitches = 0;
         numTextureBinds = 0;
         numFboSwitches = 0;
         numUniformsSet = 0;
+        textureUploadBytes = 0;
+        textureSubUploadBytes = 0;
+        vertexBufferUploadBytes = 0;
+        vertexBufferSubUploadBytes = 0;
+        bufferObjectUploadBytes = 0;
+        bufferObjectSubUploadBytes = 0;
+        largestUploadBytes = 0;
 
         lastShader = -1;
     }

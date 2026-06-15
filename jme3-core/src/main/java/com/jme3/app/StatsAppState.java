@@ -42,6 +42,9 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial.CullHint;
 import com.jme3.scene.shape.Quad;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Supplier;
 
 /**
  *  Displays stats in SimpleApplication's GUI node or
@@ -65,6 +68,8 @@ public class StatsAppState extends AbstractAppState {
     protected BitmapFont guiFont;
     protected Geometry darkenFps;
     protected Geometry darkenStats;
+    private final List<Supplier<String>> customStatLines = new ArrayList<>();
+    private float statsDarkenHeight;
 
     public StatsAppState() {
     }
@@ -93,6 +98,31 @@ public class StatsAppState extends AbstractAppState {
 
     public StatsView getStatsView() {
         return statsView;
+    }
+
+    public void addCustomStatLine(Supplier<String> supplier) {
+        if (supplier == null) {
+            throw new IllegalArgumentException("Custom stat supplier cannot be null.");
+        }
+        customStatLines.add(supplier);
+        if (statsView != null) {
+            statsView.addCustomStatLine(supplier);
+        }
+    }
+
+    public boolean removeCustomStatLine(Supplier<String> supplier) {
+        boolean removed = customStatLines.remove(supplier);
+        if (statsView != null) {
+            removed |= statsView.removeCustomStatLine(supplier);
+        }
+        return removed;
+    }
+
+    public void clearCustomStatLines() {
+        customStatLines.clear();
+        if (statsView != null) {
+            statsView.clearCustomStatLines();
+        }
     }
 
     public float getSecondCounter() {
@@ -191,6 +221,9 @@ public class StatsAppState extends AbstractAppState {
         statsView = new StatsView("Statistics View",
                 app.getAssetManager(),
                 app.getRenderer().getStatistics());
+        for (Supplier<String> supplier : customStatLines) {
+            statsView.addCustomStatLine(supplier);
+        }
         // move it up so it appears above fps text
         statsView.setLocalTranslation(0, fpsText.getLineHeight(), 0);
         statsView.setEnabled(showStats);
@@ -210,6 +243,7 @@ public class StatsAppState extends AbstractAppState {
         guiNode.attachChild(darkenFps);
 
         darkenStats = new Geometry("StatsDarken", new Quad(200, statsView.getHeight()));
+        statsDarkenHeight = statsView.getHeight();
         darkenStats.setMaterial(mat);
         darkenStats.setLocalTranslation(0, fpsText.getHeight(), -1);
         darkenStats.setCullHint(showStats && darkenBehind ? CullHint.Never : CullHint.Always);
@@ -251,6 +285,10 @@ public class StatsAppState extends AbstractAppState {
                 secondCounter = 0.0f;
                 frameCounter = 0;
             }
+        }
+        if (darkenStats != null && statsView != null && statsView.getHeight() != statsDarkenHeight) {
+            statsDarkenHeight = statsView.getHeight();
+            ((Quad) darkenStats.getMesh()).updateGeometry(200, statsDarkenHeight);
         }
     }
 
