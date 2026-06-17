@@ -30,79 +30,72 @@
  * the BSD 3-Clause License. 
  */
 
-package org.ngengine.world2d.tiled.app;
+package ngetests.tests.world2d.tiled.app;
 
 import com.jme3.app.SimpleApplication;
 import com.jme3.asset.plugins.FileLocator;
-import com.jme3.input.KeyInput;
 import com.jme3.input.MouseInput;
 import com.jme3.input.controls.ActionListener;
-import com.jme3.input.controls.KeyTrigger;
 import com.jme3.input.controls.MouseButtonTrigger;
 import com.jme3.math.Vector2f;
 import com.jme3.system.AppSettings;
 import org.ngengine.world2d.tiled.TmxLoader;
+import org.ngengine.world2d.tiled.core.TiledTileLayer;
 import org.ngengine.world2d.tiled.core.TiledMap;
-import org.ngengine.world2d.tiled.enums.ZoomMode;
+import org.ngengine.world2d.tiled.math2d.Point;
 
 /**
- * Test zoom mode
+ * Test mouse pick
  * @author yanmaoyuan
  *
  */
-public class TestZoom extends SimpleApplication {
-    private TiledMapAppState tiledMapState;
+public class TestMousePick extends SimpleApplication {
+    private TiledTileLayer tileLayer;
+
+    private TiledMap tiledMap;
+
+    private int tileId = 0;
+    private static final int TILE_MAX = 361;
 
     public void click() {
+        TiledMapAppState state = stateManager.getState(TiledMapAppState.class);
         Vector2f cursor = inputManager.getCursorPosition();
-
-        System.out.println("Click! ======");
-        System.out.println("cursor tile: " + tiledMapState.getCursorTileCoordinate(cursor));
-        System.out.println("cursor pixel: " + tiledMapState.getCursorPixelCoordinate(cursor));
-        System.out.println("cursor screen: " + cursor);
-        System.out.println("center tile: " + tiledMapState.getCameraTileCoordinate());
-        System.out.println("center pixel: " + tiledMapState.getCameraPixelCoordinate());
-        System.out.println("center screen: " + tiledMapState.getCameraScreenCoordinate());
-        System.out.println("map scare: " + tiledMapState.getMapScale());
+        Point point = state.getCursorTileCoordinate(cursor);
+        System.out.println("Click:" + point);
+        if (tiledMap.contains(point.getX(), point.getY())) {
+            // next tile
+            tileId++;
+            if (tileId >= TILE_MAX) {
+                tileId = 0;
+            }
+            tiledMap.setTileAtFromTileId(tileLayer, point.getX(), point.getY(), tileId);
+        }
     }
 
     public void initInput() {
         inputManager.setCursorVisible(true);
-
         inputManager.addMapping("CLICK", new MouseButtonTrigger(MouseInput.BUTTON_LEFT));
         inputManager.addListener((ActionListener) (name, isPressed, tpf) -> {
             if (isPressed) {
                 click();
-                tiledMapState.zoom(1.1f);
             }
         }, "CLICK");
-
-        inputManager.addMapping("ZOOM_MODE_MAP", new KeyTrigger(KeyInput.KEY_1));
-        inputManager.addListener((ActionListener) (name, isPressed, tpf) -> {
-            System.out.println("Set Zoom Mode to MAP");
-            tiledMapState.setZoomMode(ZoomMode.MAP);
-        }, "ZOOM_MODE_MAP");
-
-        inputManager.addMapping("ZOOM_MODE_CAMERA", new KeyTrigger(KeyInput.KEY_2));
-        inputManager.addListener((ActionListener) (name, isPressed, tpf) -> {
-            System.out.println("Set Zoom Mode to CAMERA");
-            tiledMapState.setZoomMode(ZoomMode.CAMERA);
-        }, "ZOOM_MODE_CAMERA");
-
     }
 
     @Override
     public void simpleInitApp() {
         TmxLoader.registerLoader(assetManager);
 
-        TiledMap tiledMap = (TiledMap) assetManager.loadAsset("tmx/Isometric/01.tmx");
+        tiledMap = (TiledMap) assetManager.loadAsset("tmx/Orthogonal/01.tmx");
         assert tiledMap != null;
+        tileLayer = (TiledTileLayer) tiledMap.getLayer("Ground");
 
-        tiledMapState = new TiledMapAppState();
+        TiledMapAppState tiledMapState = new TiledMapAppState();
         stateManager.attach(tiledMapState);
         tiledMapState.initialize(stateManager, this);
 
         tiledMapState.setMap(tiledMap);
+        tiledMapState.getMapRenderer().setInstancedTileChunkSize(8);
 
         initInput();
     }
@@ -113,7 +106,7 @@ public class TestZoom extends SimpleApplication {
         settings.setHeight(720);
         settings.setSamples(4);
 
-        TestZoom app = new TestZoom();
+        TestMousePick app = new TestMousePick();
         app.setSettings(settings);
         app.start();
     }

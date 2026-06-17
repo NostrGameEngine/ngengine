@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.11.2" orientation="hexagonal" renderorder="right-down" width="8" height="6" tilewidth="65" tileheight="65" hexsidelength="31" staggeraxis="y" staggerindex="even" infinite="0" nextlayerid="2" nextobjectid="1">
+ <tileset firstgid="1" name="hexagonal-y-debug" tilewidth="65" tileheight="230" columns="20">
+  <image source="../Hexagonal/01_65x65_65x230.png" width="1300" height="690"/>
+ </tileset>
+ <layer id="1" name="Ground" width="8" height="6">
+  <data encoding="csv">
+1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1
+  </data>
+ </layer>
+</map>

@@ -48,6 +48,14 @@ public final class MaterialConst {
 
     // uniforms
     public static final String COLOR_MAP = "ColorMap";
+    public static final String COLOR_MAP_0 = "ColorMap0";
+    public static final String COLOR_MAP_1 = "ColorMap1";
+    public static final String COLOR_MAP_2 = "ColorMap2";
+    public static final String COLOR_MAP_3 = "ColorMap3";
+    public static final String COLOR_ARRAY_0 = "ColorArray0";
+    public static final String COLOR_ARRAY_1 = "ColorArray1";
+    public static final String COLOR_ARRAY_2 = "ColorArray2";
+    public static final String COLOR_ARRAY_3 = "ColorArray3";
     public static final String COLOR = "Color";
     public static final String TRANS_COLOR = "TransColor";
     public static final String USE_TINT_COLOR = "UseTintColor";
@@ -56,6 +64,7 @@ public final class MaterialConst {
     public static final String IMAGE_SIZE = "ImageSize";
     public static final String TILE_SIZE = "TileSize";
     public static final String USE_TILESET_IMAGE = "UseTilesetImage";
+    public static final String USE_INSTANCING = "UseInstancing";
     public static final String TILE_POSITION = "TilePosition";
     public static final String USE_TILE_POSITION = "UseTilePosition";
 

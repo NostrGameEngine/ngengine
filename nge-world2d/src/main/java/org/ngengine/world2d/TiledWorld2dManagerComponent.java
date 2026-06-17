@@ -94,10 +94,36 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
         implements  RenderFragment, LogicFragment, ContactListener, AsyncAssetLoadingFragment {
     private static Logger logger = Logger.getLogger(TiledWorld2dManagerComponent.class.getName());
     private static final float SNAPSHOT_MAX_POSITION_ERROR = 0.02f;
+    private static final MapRenderer.Listener EMPTY_RENDER_LISTENER = new MapRenderer.Listener() {
+        @Override
+        public void beforeMapRender(float tpf, TiledMap map) {
+        }
+
+        @Override
+        public void afterMapRender(float tpf, TiledMap map, Spatial visual) {
+        }
+
+        @Override
+        public void beforeEntityRender(float tpf, TiledMap map, TiledLayer layer, TiledEntity entry) {
+        }
+
+        @Override
+        public void afterEntityRender(float tpf, TiledMap map, TiledLayer layer, TiledEntity entry, Spatial visual) {
+        }
+
+        @Override
+        public void beforeLayerRender(float tpf, TiledMap map, TiledLayer layer) {
+        }
+
+        @Override
+        public void afterLayerRender(float tpf, TiledMap map, TiledLayer layer, Spatial visual) {
+        }
+    };
  
     private LinkedHashMap<String, TiledWorld2d> loadedMaps = new LinkedHashMap<>();
     private Map<String, TiledWorld2d> loadedMapsRO = Collections.unmodifiableMap(loadedMaps);
     private final Map<String, TransformQuantizer> transformQuantizers = new LinkedHashMap<>();
+    private final ArrayList<TiledWorld2dRenderTarget> activeRenderTargets = new ArrayList<>();
     private List<Consumer<TiledWorld2d>> worldLoadListener = new ArrayList<>();
 
     private String defaultMapName;
@@ -203,14 +229,8 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
         if (ppm < 0) ppm = 32;
 
         SpriteFactory spriteFactory = spriteFactorySupplier.apply(getComponentManager(), map);
-        Node rootNode = new Node("TiledWorld-Map" + name);
-        Node overLayNode = new Node("TiledWorld-Overlay" + name);
-        Node worldGuiNode = new Node("TiledWorld-wGUI" + name);
-        MapRenderer mapRenderer = MapRenderer.create(map, ppm, rootNode);
-        mapRenderer.setSpriteFactory(spriteFactory);
-
         World phy = new World(new Vec2(0, 0), createWorldPool(map));
-        TiledWorld2d l = new TiledWorld2d(name, map, phy, ppm, mapRenderer, rootNode,overLayNode, worldGuiNode);
+        TiledWorld2d l = new TiledWorld2d(name, map, phy, ppm, spriteFactory);
         TiledWorld2dManagerComponent world = this;
         l.listener = new MapRenderer.Listener() {
 
@@ -413,7 +433,7 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
         if (map != null) {
             transformQuantizers.remove(name);
             map.clearPhysicsStepState();
-            map.getMapNode().removeFromParent();
+            map.detachRenderTargets();
         }
     }
 
@@ -472,11 +492,6 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
     private List<String> loadingMaps = new ArrayList<>();
 
     public void loadWorldIfNeededAsync(String path) {
-        if(loadingMaps.contains(path)){
-            // already loading
-            return;
-        }
-        loadingMaps.add(path);
         String mapNameAndPath[] = getMapNameAndPath(path);
         String mapName = mapNameAndPath[0];
         String mapPath = mapNameAndPath[1];
@@ -484,7 +499,12 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
         TiledWorld2d loadedMap = loadedMaps.get(mapName);
         if (loadedMap != null) {
             return;        
-        } 
+        }
+        if(loadingMaps.contains(mapPath)){
+            // already loading
+            return;
+        }
+        loadingMaps.add(mapPath);
         AsyncAssetManager assetManager = getInstanceOf(AsyncAssetManager.class);
         assetManager.loadAssetAsync(mapPath, (Object mapObj, Throwable exc) -> {
             loadingMaps.remove(mapPath);
@@ -574,8 +594,18 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
                 }
             }
 
-            MapRenderer renderer = map.getRenderer();
-            renderer.render(map.getRenderListener(), tpf);
+            boolean notifyComponents = true;
+            activeRenderTargets.clear();
+            map.collectActiveRenderTargets(activeRenderTargets);
+            for (TiledWorld2dRenderTarget target : activeRenderTargets) {
+                target.syncViewPorts();
+                // Component render callbacks are world-level side effects. Run
+                // them once; TiledGuiUpdater fans GUI fragments out to every
+                // registered POV during that first callback pass.
+                target.render(notifyComponents ? map.getRenderListener() : EMPTY_RENDER_LISTENER, tpf);
+                notifyComponents = false;
+            }
+            activeRenderTargets.clear();
 
             // map.getMapNode().updateLogicalState(tpf);
             // map.getMapNode().updateGeometricState();

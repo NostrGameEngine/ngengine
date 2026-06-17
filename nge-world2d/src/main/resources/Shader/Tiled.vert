@@ -9,9 +9,22 @@ attribute vec2 inTexCoord;
 
 #ifdef USE_TILESET_IMAGE
 // use texcoord2 as tile position
+#ifdef INSTANCING
+attribute vec4 inTexCoord2;
+attribute vec4 inTexCoord3;
+attribute vec4 inTexCoord4;
+attribute vec2 inTexCoord5;
+#else
 attribute vec3 inTexCoord2;
+#endif
 // pass it to fragment shader
+#ifdef INSTANCING
+varying vec4 v_TileData;
+varying vec2 v_UvSize;
+varying vec2 v_ImageSize;
+#else
 varying vec2 v_TilePos;
+#endif
 #endif
 
 varying vec2 v_TexCoord;
@@ -20,7 +33,21 @@ void main() {
     v_TexCoord = inTexCoord;
 
 #ifdef USE_TILESET_IMAGE
-    #ifdef USE_TILE_POSITION
+    #ifdef INSTANCING
+    v_TileData = inTexCoord2;
+    v_UvSize = inTexCoord5.xy;
+    v_ImageSize = inTexCoord4.zw;
+    float flags = v_TileData.w;
+    if (mod(floor(flags), 2.0) >= 1.0) {
+        v_TexCoord.x = 1.0 - v_TexCoord.x;
+    }
+    if (mod(floor(flags / 2.0), 2.0) >= 1.0) {
+        v_TexCoord.y = 1.0 - v_TexCoord.y;
+    }
+    if (mod(floor(flags / 4.0), 2.0) >= 1.0) {
+        v_TexCoord = vec2(1.0 - v_TexCoord.y, 1.0 - v_TexCoord.x);
+    }
+    #elif defined(USE_TILE_POSITION)
     v_TilePos = m_TilePosition;
     #else
     v_TilePos = inTexCoord2.xy;
@@ -28,6 +55,10 @@ void main() {
 #endif
 
     vec3 position = inPosition;
+#if defined(INSTANCING) && defined(USE_TILESET_IMAGE)
+    position.x = position.x * inTexCoord3.x + inTexCoord4.x + inTexCoord3.z;
+    position.z = position.z * inTexCoord3.y + inTexCoord4.y + inTexCoord3.w;
+#endif
     vec4 modelSpacePos = vec4(position, 1.0);
 
     gl_Position = TransformWorldViewProjection(modelSpacePos);

@@ -42,6 +42,7 @@ import com.jme3.math.Vector2f;
 
 import org.ngengine.world2d.tiled.components.TiledComponentManager;
 import org.ngengine.world2d.tiled.components.TiledComponentReflectionMounting;
+import org.ngengine.world2d.tiled.enums.RenderingMode;
 import org.ngengine.world2d.tiled.util.CoordinateSystem;
 
 /**
@@ -87,6 +88,7 @@ public abstract class TiledLayer extends TiledBase implements ComponentManagerPr
     protected boolean visible = true;
     protected boolean locked = false;
     protected ColorRGBA tintColor = new ColorRGBA(1f, 1f, 1f, 1f);
+    protected RenderingMode renderingMode = RenderingMode.AUTO;
 
     protected int offsetX = 0;
     protected int offsetY = 0;
@@ -305,6 +307,27 @@ public abstract class TiledLayer extends TiledBase implements ComponentManagerPr
 
     public void setLocked(boolean locked) {
         this.locked = locked;
+        setUpdateNeeded();
+    }
+
+    /**
+     * Returns the rendering strategy requested by this layer.
+     *
+     * @return the layer rendering mode, or {@link RenderingMode#AUTO} when the
+     *         renderer should choose
+     */
+    public RenderingMode getRenderingMode() {
+        return renderingMode;
+    }
+
+    /**
+     * Sets the rendering strategy requested by this layer.
+     *
+     * @param renderingMode the desired rendering mode, or {@code null} to restore
+     *        {@link RenderingMode#AUTO}
+     */
+    public void setRenderingMode(RenderingMode renderingMode) {
+        this.renderingMode = renderingMode == null ? RenderingMode.AUTO : renderingMode;
         setUpdateNeeded();
     }
 

@@ -34,6 +34,7 @@ package org.ngengine.world2d.tiled.renderer.factory;
 
 import com.jme3.asset.AssetManager;
 import com.jme3.material.Material;
+import com.jme3.material.RenderState;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector2f;
 import com.jme3.math.Vector4f;
@@ -68,7 +69,9 @@ public class DefaultMaterialFactory implements MaterialFactory {
 
     @Override
     public Material newMaterial() {
-        return new Material(assetManager, TILED_J3MD);
+        Material material = new Material(assetManager, TILED_J3MD);
+        material.getAdditionalRenderState().setBlendMode(RenderState.BlendMode.Alpha);
+        return material;
     }
 
     @Override

@@ -2,12 +2,21 @@ MaterialDef Tiled {
 
     MaterialParameters {
         Texture2D ColorMap
+        Texture2D ColorMap0
+        Texture2D ColorMap1
+        Texture2D ColorMap2
+        Texture2D ColorMap3
+        TextureArray ColorArray0
+        TextureArray ColorArray1
+        TextureArray ColorArray2
+        TextureArray ColorArray3
         Color Color
         Color TransColor
         Boolean UseTintColor : true
         Color TintColor : 1.0 1.0 1.0 1.0
         Vector2 ImageSize
         Vector4 TileSize
+        Boolean UseInstancing
         Boolean UseTilesetImage
         // for animation use
         Vector2 TilePosition
@@ -32,11 +41,20 @@ MaterialDef Tiled {
 
         Defines {
             HAS_COLOR_MAP : ColorMap
+            HAS_COLOR_MAP0 : ColorMap0
+            HAS_COLOR_MAP1 : ColorMap1
+            HAS_COLOR_MAP2 : ColorMap2
+            HAS_COLOR_MAP3 : ColorMap3
+            HAS_COLOR_ARRAY0 : ColorArray0
+            HAS_COLOR_ARRAY1 : ColorArray1
+            HAS_COLOR_ARRAY2 : ColorArray2
+            HAS_COLOR_ARRAY3 : ColorArray3
             HAS_COLOR : Color
             HAS_TRANS_COLOR: TransColor
             USE_TINT_COLOR: UseTintColor
             HAS_TINT_COLOR: TintColor
             USE_TILESET_IMAGE: UseTilesetImage
+            INSTANCING: UseInstancing
             USE_TILE_POSITION: TilePosition
             HAS_OPACITY : Opacity
             HAS_LAYER_OPACITY : LayerOpacity

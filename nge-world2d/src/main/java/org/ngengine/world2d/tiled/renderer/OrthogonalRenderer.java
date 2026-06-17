@@ -33,24 +33,16 @@
 package org.ngengine.world2d.tiled.renderer;
 
 import com.jme3.material.Material;
-import com.jme3.math.Vector2f;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Mesh;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
-import com.jme3.util.TempVars;
 
-import org.ngengine.world2d.tiled.core.TiledBase;
 import org.ngengine.world2d.tiled.core.TiledMap;
-import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
-import org.ngengine.world2d.tiled.core.entity.TiledTileEntity;
-import org.ngengine.world2d.tiled.core.tileset.Tile;
-import org.ngengine.world2d.tiled.enums.ObjectShape;
-import org.ngengine.world2d.tiled.enums.Orientation;
 import org.ngengine.world2d.tiled.enums.RenderOrder;
-import org.ngengine.world2d.tiled.math2d.Point;
 import org.ngengine.world2d.tiled.renderer.shape.OrthoGrid;
 import org.ngengine.world2d.tiled.renderer.shape.Rect;
+import org.ngengine.world2d.tiled.util.TiledCoordinateSystem;
 
 /**
  * Orthogonal render
@@ -64,24 +56,12 @@ public class OrthogonalRenderer extends MapRenderer {
         super(tiledMap, PPM, rootNode);
     }
 
+    public OrthogonalRenderer(TiledMap tiledMap, int PPM, Node rootNode, TiledCoordinateSystem coordinateSystem) {
+        super(tiledMap, PPM, rootNode, coordinateSystem);
+    }
+
     public float getTileZAxis(float x, float y) {
-        float z;
-        switch (tiledMap.getRenderOrder()) {
-            case RIGHT_UP:
-                z = (height - 1 - y) * width + x;
-                break;
-            case LEFT_DOWN:
-                z = y * width + (width - 1 - x);
-                break;
-            case LEFT_UP:
-                z = (height - 1 - y) * width + (width - 1 - x);
-                break;
-            case RIGHT_DOWN:
-            default:
-                z = y * width + x;
-                break;
-        }
-        return (float) (z * step);
+        return (float) (getTileZIndex((int) x, (int) y) * step);
     }
 
     @Override
@@ -151,141 +131,79 @@ public class OrthogonalRenderer extends MapRenderer {
     }
 
     @Override
+    protected void visitTiles(TileVisitor visitor, ViewCull cull) {
+        if (!cull.active) {
+            visitTiles(visitor);
+            return;
+        }
+        if (cull.empty) {
+            return;
+        }
+
+        int startX = cull.tileMinX;
+        int startY = cull.tileMinY;
+        int endX = cull.tileMaxX;
+        int endY = cull.tileMaxY;
+        int incX = 1;
+        int incY = 1;
+        int tmp;
+        switch (tiledMap.getRenderOrder()) {
+            case RIGHT_UP:
+                tmp = endY;
+                endY = startY;
+                startY = tmp;
+                incY = -1;
+                break;
+            case LEFT_DOWN:
+                tmp = endX;
+                endX = startX;
+                startX = tmp;
+                incX = -1;
+                break;
+            case LEFT_UP:
+                tmp = endX;
+                endX = startX;
+                startX = tmp;
+                incX = -1;
+                tmp = endY;
+                endY = startY;
+                startY = tmp;
+                incY = -1;
+                break;
+            case RIGHT_DOWN:
+                break;
+        }
+        endX += incX;
+        endY += incY;
+
+        for (int y = startY; y != endY; y += incY) {
+            for (int x = startX; x != endX; x += incX) {
+                visitor.visit(x, y, getTileZIndex(x, y));
+            }
+        }
+    }
+
+    private int getTileZIndex(int x, int y) {
+        switch (tiledMap.getRenderOrder()) {
+            case RIGHT_UP:
+                return (height - 1 - y) * width + x;
+            case LEFT_DOWN:
+                return y * width + (width - 1 - x);
+            case LEFT_UP:
+                return (height - 1 - y) * width + (width - 1 - x);
+            case RIGHT_DOWN:
+            default:
+                return y * width + x;
+        }
+    }
+
+    @Override
     public void renderGrid(Node gridVisual, Material gridMaterial) {
         // add boundary
         OrthoGrid grid = new OrthoGrid(width, height, tileWidth, tileHeight);
         Geometry geom = new Geometry("Grid#Boundary", grid);
         geom.setMaterial(gridMaterial);
         gridVisual.attachChild(geom);
-    }
-
-    // Coordinates System Convert
-
-    // OrthogonalRenderer, StaggeredRenderer, HexagonalRenderer
-    @Override
-    public void gridToWorldSpace(float x, float y, Vector2f out) {
-        out.x = x;
-        out.y = y;
-    }
-
-    @Override
-    public void gridToTile(float x, float y, Point out) {
-        out.set(x / tileWidth, y / tileHeight);
-    }
-
-    @Override
-    public void tileToGridSpace(float x, float y, Vector2f out) {
-        // return new Vector2f(x * tileWidth, y * tileHeight);
-        out.x = x * tileWidth;
-        out.y = y * tileHeight;
-    }
-
-    @Override
-    public void tileToWorldSpace(float x, float y, Vector2f out) {
-        // return new Vector2f(x * tileWidth, y * tileHeight);
-        out.x = x * tileWidth;
-        out.y = y * tileHeight;
-    }
-
-    @Override
-    public void worldToGridSpace(float x, float y, Vector2f out) {
-        // return new Vector2f(x, y);
-        out.x = x;
-        out.y = y;
-    }
-
-    @Override
-    public void worldToTile(float x, float y, Point out) {
-        // return new Point(x / tileWidth, y / tileHeight);
-        out.set(x / tileWidth, y / tileHeight);
-    }
-
-    @Override
-    public float getTopDownYIndex(TiledObjectEntity obj) {
-        float y = (float) obj.getY();
-        float x = (float) obj.getX();
-        return getTopDownYIndex(x, y);
-
-    }
-
-    @Override
-    public float getTopDownYIndex(float x, float y) {
-        float tileY = y / mapSize.getY();
-        return (float) (tileY * layerDistance);
-    }
-
-    public void getCollisionCenterInGridSpace(TiledObjectEntity parentTileObj, TiledObjectEntity coll,
-            Vector2f out) {
-        try (TempVars vars = TempVars.get()) {
-            Tile tile = parentTileObj.getTile();
-            Vector2f pos = vars.vect2d;
-            pos.set((float) parentTileObj.getX(), (float) parentTileObj.getY());
-            float dx = (float) ((coll.getX() + coll.getWidth() / 2.) / (double) tile.getWidth());
-            float dy = (float) ((coll.getY() + coll.getHeight() / 2.) / (double) tile.getHeight());
-            pos.x += dx * (float) parentTileObj.getWidth();
-            pos.y = (float) parentTileObj.getHeight() - dy * (float) parentTileObj.getHeight();
-            out.set(pos.x, pos.y);
-        }
-    }
-
-    
-
-    @Override
-    public void getCenterInGridSpace(TiledBase v, Vector2f out) {
-    
-        if (v == null) {
-            out.set(0, 0);
-            return;
-        }
-        if(v instanceof TiledTileEntity){
-            TiledTileEntity entry = (TiledTileEntity) v;
-            Tile tile = entry.getTile();
-            if (tile == null) {
-                getPositionInGridSpace(entry, out);
-                return;
-            }
-
-            float offsetX = 0f;
-            float offsetY = 0f;
-            if (tile.getTileset() != null && tile.getTileset().getTileOffset() != null) {
-                offsetX = tile.getTileset().getTileOffset().x;
-                offsetY = tile.getTileset().getTileOffset().y;
-            }
-
-            float originX = 0f;
-            float originY = tileHeight;
-
-            float centerLocalX = originX + offsetX + (float) tile.getWidth() * 0.5f;
-            float centerLocalY = originY + offsetY - (float) tile.getHeight() * 0.5f;
-
-            try (TempVars vars = TempVars.get()) {
-                Vector2f baseWorld = vars.vect2d;
-                tileToWorldSpace((float) entry.getX(), (float) entry.getY(), baseWorld);
-
-                Vector2f worldCenter = vars.vect2d2;
-                worldCenter.set(baseWorld.x + centerLocalX, baseWorld.y + centerLocalY);
-
-                worldToGridSpace(worldCenter.x, worldCenter.y, out);
-            }
-        } else if(v instanceof TiledObjectEntity){
-            TiledObjectEntity obj = (TiledObjectEntity) v;
-            float centerX;
-            float centerY;
-
-            if (obj.getShape() == ObjectShape.TILE) {
-
-                // For orthogonal tiles, alignment is bottom-left
-                centerX = (float) (obj.getX() + obj.getWidth() * 0.5);
-                centerY = (float) (obj.getY() - obj.getHeight() * 0.5);
-            } else {
-                // For other shapes, (x,y) is top-left in Tiled
-                centerX = (float) (obj.getX() + obj.getWidth() * 0.5);
-                centerY = (float) (obj.getY() + obj.getHeight() * 0.5);
-            }
-
-            out.set(centerX, centerY);
-
-        }
     }
 
 }

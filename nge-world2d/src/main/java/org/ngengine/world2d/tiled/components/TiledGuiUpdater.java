@@ -66,68 +66,118 @@ import org.ngengine.world2d.tiled.core.TiledTileContainer;
 import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
 import org.ngengine.world2d.tiled.core.entity.TiledTileEntity;
 
+/**
+ * Updates GUI fragments anchored to tiled world entries for every registered POV.
+ */
 public class TiledGuiUpdater implements ComponentUpdater, ComponentInitializer {
     private final Logger logger = Logger.getLogger(getClass().getName());
     private final Supplier<TiledBase> entrySupplier;
   
  
+    /**
+     * Per-POV state passed to a {@link TiledGuiFragment}.
+     */
     public static class GuiFragmentContext {
         long updateId = 0;
         private final NWindowManager wmng;
         private final ViewPort vp;
         private final NPanel panel;
-        private TiledGuiFragment fragment;
         private Vector2f padding = new Vector2f();
         private Vector2f size = new Vector2f();
 
         // private float bbX0, bbY0, bbX1, bbY1;
-        GuiFragmentContext(NWindowManager wmng, ViewPort vp,  NPanel panel, TiledGuiFragment fragment){
+        GuiFragmentContext(NWindowManager wmng, ViewPort vp, NPanel panel){
             this.wmng = wmng;
             this.vp = vp;
             this.panel = panel;
-            this.fragment = fragment;
         }
 
         
 
+        /**
+         * Returns the extra screen-space offset applied after automatic anchoring.
+         *
+         * @return mutable padding vector in GUI pixels
+         */
         public Vector2f getPadding(){
             return padding;
         }
 
+        /**
+         * Returns the projected world-space size of the owner spatial in GUI pixels.
+         *
+         * @return mutable size vector in GUI pixels
+         */
         public Vector2f getSize(){
             return size;
         }
 
+        /**
+         * Sets the screen-space offset applied after automatic anchoring.
+         *
+         * @param x horizontal offset in GUI pixels
+         * @param y vertical offset in GUI pixels
+         */
         public void setPadding(float x, float y){
             this.padding.set(x, y);
         }
 
+        /**
+         * Sets the horizontal screen-space offset.
+         *
+         * @param x horizontal offset in GUI pixels
+         */
         public void setPaddingX(float x){
             this.padding.x = x;
         }
 
+        /**
+         * Sets the vertical screen-space offset.
+         *
+         * @param y vertical offset in GUI pixels
+         */
         public void setPaddingY(float y){
             this.padding.y = y;
         }
 
+        /**
+         * Returns the root panel owned by this GUI fragment.
+         *
+         * @return the fragment content panel
+         */
         public NPanel getContent(){
             return panel;
         }
 
+        /**
+         * Returns the window manager associated with this context's GUI viewport.
+         *
+         * @return the window manager
+         */
         public NWindowManager getWindowManager(){
             return wmng;
         }
 
+        /**
+         * Returns the GUI viewport that displays this context.
+         *
+         * @return the GUI viewport
+         */
         public ViewPort getViewPort(){
             return vp;
         }
 
     }
 
+    /**
+     * Creates an updater for GUI fragments anchored to the supplied tiled entry.
+     *
+     * @param entrySupplier supplies the current layer, tile, or object that owns the
+     *        GUI fragment
+     */
     public TiledGuiUpdater(
         Supplier<TiledBase> entrySupplier
     ){
-     
         this.entrySupplier = entrySupplier;
     }
 
@@ -140,7 +190,7 @@ public class TiledGuiUpdater implements ComponentUpdater, ComponentInitializer {
 
 
 
-    private Map<TiledGuiFragment, Map<PovRenderer, GuiFragmentContext>> worldGuiFragmentCache = new HashMap<>();
+    private final Map<TiledGuiFragment, Map<PovRenderer, GuiFragmentContext>> worldGuiFragmentCache = new HashMap<>();
 
     private void updateForPov(  Map<PovRenderer, GuiFragmentContext> cache , ComponentManager mng,  PovRenderer renderer, TiledGuiFragment frag,  long id) {
         if (!(frag instanceof TiledGuiFragment)) return;
@@ -153,6 +203,10 @@ public class TiledGuiUpdater implements ComponentUpdater, ComponentInitializer {
         ViewPort sceneVp = renderer.getSceneViewPort();
         if (guiVp == null || sceneVp == null) return;
 
+        TiledWorld2d world = mng.getInstanceOf(TiledWorld2d.class);
+        if (world == null) {
+            return;
+        }
 
         
         GuiFragmentContext fd = cache.get(renderer);
@@ -161,20 +215,25 @@ public class TiledGuiUpdater implements ComponentUpdater, ComponentInitializer {
         if (fd == null) {
 
             NPanel content = new NPanel();
-            Node guiNode = renderer.getGuiNode(0);
+            Node guiNode = world.getRenderTarget(renderer).getWorldGuiNode();
             if (guiNode != null) {
                 guiNode.attachChild(content);
                 NWindowManagerComponent wmgc = mng.getInstanceOf(NWindowManagerComponent.class);
+                if (wmgc == null) {
+                    content.removeFromParent();
+                    return;
+                }
                 NWindowManager wm = wmgc.getManager(guiVp);
-                fd = new GuiFragmentContext(wm, guiVp, content, (TiledGuiFragment) frag);
+                fd = new GuiFragmentContext(wm, guiVp, content);
                 cache.put(renderer, fd);
                 frag.rebuildGuiFragment(mng, renderer, fd);
             }
         }
+        if (fd == null) {
+            return;
+        }
 
         fd.updateId = id;
-
-        TiledWorld2d world = mng.getInstanceOf(TiledWorld2d.class);
 
     
         Camera sceneCam = sceneVp.getCamera();
@@ -202,7 +261,7 @@ public class TiledGuiUpdater implements ComponentUpdater, ComponentInitializer {
             }
 
             if (layer != null) {
-                Spatial sp = world.getRenderer().getSpatial(layer, entry);
+                Spatial sp = world.getRenderTarget(renderer).getRenderer().getSpatial(layer, entry);
                 if (sp != null) {
 
                     BoundingVolume bv = sp.getWorldBound();
@@ -276,7 +335,6 @@ public class TiledGuiUpdater implements ComponentUpdater, ComponentInitializer {
             if(fd!=null){
                 for(GuiFragmentContext data : fd.values()){
                     data.getContent().removeFromParent();
-                    data.wmng.closeAll();
                 }
             }
         }
@@ -295,6 +353,9 @@ public class TiledGuiUpdater implements ComponentUpdater, ComponentInitializer {
         if (component instanceof TiledGuiFragment) {
             updateCounter++;
             TiledWorld2d world = component.getComponentManager().getInstanceOf(TiledWorld2d.class);
+            if (world == null) {
+                return;
+            }
     
             Map<PovRenderer, GuiFragmentContext> cache = worldGuiFragmentCache.computeIfAbsent((TiledGuiFragment)component, f -> new HashMap<>());
 
@@ -302,7 +363,6 @@ public class TiledGuiUpdater implements ComponentUpdater, ComponentInitializer {
             while(it.hasNext()){
                 PovRenderer pov = it.next();
                 if(pov == null){
-                    it.remove();
                     continue;
                 }
                 updateForPov(cache, mng, pov, (TiledGuiFragment) component, updateCounter);
@@ -313,9 +373,10 @@ public class TiledGuiUpdater implements ComponentUpdater, ComponentInitializer {
                 Map.Entry<PovRenderer, GuiFragmentContext> e = cacheIt.next();
                 GuiFragmentContext fd = e.getValue();
                 if(fd.updateId != updateCounter){
-                    System.out.println("Removing fragment for pov "+e.getKey()+" due to missing update. Last update id: "+fd.updateId+", current update id: "+updateCounter);
+                    logger.fine("Removing fragment for pov " + e.getKey()
+                            + " due to missing update. Last update id: " + fd.updateId
+                            + ", current update id: " + updateCounter);
                     fd.getContent().removeFromParent();
-                    fd.getWindowManager().closeAll();
                     cacheIt.remove();
                 }
             }

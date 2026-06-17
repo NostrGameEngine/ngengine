@@ -1,20 +1,20 @@
 /**
  * Copyright (c) 2025-2026, Nostr Game Engine
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of the copyright holder nor the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -25,44 +25,59 @@
  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
- * the BSD 3-Clause License. 
+ * the BSD 3-Clause License.
  */
 
 package org.ngengine.world2d.tiled.renderer;
 
-import com.jme3.material.Material;
-import com.jme3.scene.Geometry;
-import com.jme3.scene.Node;
-import com.jme3.scene.Spatial;
-
-import org.ngengine.world2d.tiled.core.TiledMap;
-import org.ngengine.world2d.tiled.renderer.shape.Diamond;
-import org.ngengine.world2d.tiled.util.TiledCoordinateSystem;
-
 /**
- * Staggered render
- * 
- * @author yanmaoyuan
- * 
+ * Compact signature used to detect when an entry should leave its batch briefly
+ * instead of mutating texture/source data in place.
  */
-public class StaggeredRenderer extends HexagonalRenderer {
- 
-    public StaggeredRenderer(TiledMap tiledMap, int PPM, Node rootNode) {
-        super(tiledMap, PPM, rootNode);
+final class TransientSignature {
+    final int drawGroup;
+    final int sourceId;
+    final int x;
+    final int y;
+    final int z;
+    final int tileGid;
+
+    TransientSignature(int drawGroup, int sourceId, int x, int y, int z, int tileGid) {
+        this.drawGroup = drawGroup;
+        this.sourceId = sourceId;
+        this.x = x;
+        this.y = y;
+        this.z = z;
+        this.tileGid = tileGid;
     }
 
-    public StaggeredRenderer(TiledMap tiledMap, int PPM, Node rootNode, TiledCoordinateSystem coordinateSystem) {
-        super(tiledMap, PPM, rootNode, coordinateSystem);
+    String reason(TransientSignature next) {
+        if (sourceId != next.sourceId || tileGid != next.tileGid) return "source";
+        if (x != next.x || y != next.y || z != next.z) return "position";
+        if (drawGroup != next.drawGroup) return "batch";
+        return "state";
     }
 
     @Override
-    public Spatial createTileGrid(Material material) {
-        // create a grid
-        Diamond mesh = new Diamond(tiledMap.getTileWidth(), tiledMap.getTileHeight(), true);
-        Geometry geom = new Geometry("TileGrid", mesh);
-        geom.setMaterial(material);
-        return geom;
+    public boolean equals(Object other) {
+        if (!(other instanceof TransientSignature)) {
+            return false;
+        }
+        TransientSignature o = (TransientSignature) other;
+        return drawGroup == o.drawGroup && sourceId == o.sourceId
+                && x == o.x && y == o.y && z == o.z && tileGid == o.tileGid;
+    }
+
+    @Override
+    public int hashCode() {
+        int h = drawGroup;
+        h = 31 * h + sourceId;
+        h = 31 * h + x;
+        h = 31 * h + y;
+        h = 31 * h + z;
+        h = 31 * h + tileGid;
+        return h;
     }
 }

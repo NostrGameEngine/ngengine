@@ -32,22 +32,51 @@
 
 package org.ngengine.world2d.tiled.renderer.queue;
 
+import com.jme3.bounding.BoundingBox;
+import com.jme3.bounding.BoundingVolume;
 import com.jme3.renderer.Camera;
 import com.jme3.renderer.queue.GeometryComparator;
 import com.jme3.scene.Geometry;
 
 /**
- * desc:
- *
- * @author yanmaoyuan
+ * Sorts tiled world geometries by their highest world-space Y coordinate.
+ * <p>
+ * Instanced batches keep their instance data in world space and set bounds over
+ * all contained instances, so using the bound's top edge gives the render queue
+ * a stable back-to-front key for both regular geometries and batch geometries.
+ * </p>
  */
 public class YAxisComparator implements GeometryComparator {
+    private final boolean useBoundingBox = true;
     @Override
     public int compare(Geometry o1, Geometry o2) {
-        float y1 = o1.getWorldTranslation().getY();
-        float y2 = o2.getWorldTranslation().getY();
-        return Float.compare(y1, y2);
+        if(!useBoundingBox){
+            float y1 = o1.getWorldTranslation().getY();
+            float y2 = o2.getWorldTranslation().getY();
+            return Float.compare(y1, y2);
+        } else {
+            float y1 = sortY(o1);
+            float y2 = sortY(o2);
+            return Float.compare(y1, y2);
+        }
     }
+
+    /**
+     * Returns the Y value used as the render-queue sort key for a geometry.
+     *
+     * @param geometry the geometry to sort
+     * @return the top Y edge of the world bound, or the world translation Y when
+     *         no bound is available
+     */
+    public static float sortY(Geometry geometry) {
+        BoundingVolume bound = geometry.getWorldBound();
+        if (bound instanceof BoundingBox) {
+            BoundingBox box = (BoundingBox) bound;
+            return box.getCenter().y + box.getYExtent();
+        }
+        return bound != null ? bound.getCenter().y : geometry.getWorldTranslation().getY();
+    }
+
     @Override
     public void setCamera(Camera cam) {
         // nothing

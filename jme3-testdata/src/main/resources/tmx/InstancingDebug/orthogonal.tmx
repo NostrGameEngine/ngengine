@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="8" height="6" tilewidth="32" tileheight="32" infinite="0" nextlayerid="2" nextobjectid="1">
+ <tileset firstgid="1" name="orthogonal-debug" tilewidth="32" tileheight="32" columns="8">
+  <image source="../Orthogonal/01_32x32_32x32.png" width="256" height="1450"/>
+ </tileset>
+ <layer id="1" name="Ground" width="8" height="6">
+  <data encoding="csv">
+1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1
+  </data>
+ </layer>
+</map>

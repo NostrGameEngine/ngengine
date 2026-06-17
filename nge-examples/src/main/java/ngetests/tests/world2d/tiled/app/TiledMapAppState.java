@@ -30,7 +30,7 @@
  * the BSD 3-Clause License. 
  */
 
-package org.ngengine.world2d.tiled.app;
+package ngetests.tests.world2d.tiled.app;
 
 import com.jme3.app.Application;
 import com.jme3.app.FlyCamAppState;
@@ -55,6 +55,7 @@ import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import com.jme3.util.TempVars;
 
+import org.ngengine.world2d.PovRenderer;
 import org.ngengine.world2d.tiled.core.TiledLayer;
 import org.ngengine.world2d.tiled.core.TiledLayerGroup;
 import org.ngengine.world2d.tiled.core.TiledBase;
@@ -62,6 +63,7 @@ import org.ngengine.world2d.tiled.core.TiledEntity;
 import org.ngengine.world2d.tiled.math2d.Point;
 import org.ngengine.world2d.tiled.core.TiledMap;
 import org.ngengine.world2d.tiled.enums.ZoomMode;
+import org.ngengine.world2d.tiled.enums.RenderingMode;
 import org.ngengine.world2d.tiled.renderer.*;
 import org.ngengine.world2d.tiled.renderer.MapRenderer.Listener;
 import org.ngengine.world2d.tiled.renderer.factory.DefaultMaterialFactory;
@@ -69,6 +71,7 @@ import org.ngengine.world2d.tiled.renderer.factory.DefaultMeshFactory;
 import org.ngengine.world2d.tiled.renderer.factory.DefaultSpriteFactory;
 import org.ngengine.world2d.tiled.renderer.factory.MaterialFactory;
 import org.ngengine.world2d.tiled.renderer.queue.YAxisComparator;
+import java.util.function.Predicate;
 import java.util.logging.Logger;
 
 /**
@@ -76,7 +79,7 @@ import java.util.logging.Logger;
  * 
  * @author yanmaoyuan
  */
-public class TiledMapAppState extends BaseAppState implements AnalogListener, ActionListener, MapRenderer.Listener {
+public class TiledMapAppState extends BaseAppState implements AnalogListener, ActionListener, MapRenderer.Listener, PovRenderer {
 
     private final static Logger logger = Logger.getLogger(TiledMapAppState.class.getName());
     public static final String LEFT = "left";
@@ -88,8 +91,11 @@ public class TiledMapAppState extends BaseAppState implements AnalogListener, Ac
     public static final String ZOOM_OUT = "zoom_out";
     public static final String GRID = "grid";
     public static final String PARALLAX = "parallax";
+    public static final String RENDERING_MODE = "rendering_mode";
+    public static final String BATCH_DEBUG = "batch_debug";
 
-    private static final String[] MAPPINGS = new String[] { LEFT, RIGHT, UP, DOWN, DRAG, ZOOM_IN, ZOOM_OUT, GRID, PARALLAX };
+    private static final String[] MAPPINGS = new String[] { LEFT, RIGHT, UP, DOWN, DRAG, ZOOM_IN, ZOOM_OUT, GRID,
+            PARALLAX, RENDERING_MODE, BATCH_DEBUG };
 
     // Tiled Map
     private TiledMap map;
@@ -112,6 +118,7 @@ public class TiledMapAppState extends BaseAppState implements AnalogListener, Ac
 
     // The parallax
     private boolean isParallaxEnabled = true;
+    private Predicate<TiledLayer> renderingModeCycleFilter = layer -> true;
 
     // The map scale, user can zoom in/out the map from 10% to 400%
     private float mapScale;
@@ -214,7 +221,7 @@ public class TiledMapAppState extends BaseAppState implements AnalogListener, Ac
     @Override
     public void update(float tpf) {
         if (mapRenderer != null) {
-            mapRenderer.render(this,tpf);
+            mapRenderer.render(this, tpf, this);
 
             if (isGridUpdated) {
                 createGird();
@@ -231,8 +238,8 @@ public class TiledMapAppState extends BaseAppState implements AnalogListener, Ac
     private void createGird() {
         gridVisual.getChildren().clear();
         mapRenderer.renderGrid(gridVisual, gridMaterial);
-        if (gridVisual.getParent() != null) {
-            gridVisual.removeFromParent();
+        gridVisual.removeFromParent();
+        if (isGridVisible && mapRenderer.getRootNode() != null) {
             mapRenderer.getRootNode().attachChild(gridVisual);
         }
         isGridUpdated = false;
@@ -416,6 +423,8 @@ public class TiledMapAppState extends BaseAppState implements AnalogListener, Ac
 
         inputManager.addMapping(GRID, new KeyTrigger(KeyInput.KEY_G));// add key mapping to show/hide grid
         inputManager.addMapping(PARALLAX, new KeyTrigger(KeyInput.KEY_P));// add key mapping to enable/disable parallax
+        inputManager.addMapping(RENDERING_MODE, new KeyTrigger(KeyInput.KEY_M));
+        inputManager.addMapping(BATCH_DEBUG, new KeyTrigger(KeyInput.KEY_B), new KeyTrigger(KeyInput.KEY_F8));
 
         inputManager.addListener(this, MAPPINGS);
 
@@ -455,6 +464,26 @@ public class TiledMapAppState extends BaseAppState implements AnalogListener, Ac
 
     public Vector2f getCameraScreenCoordinate() {
         return new Vector2f(cam.getLocation().x, cam.getLocation().z);
+    }
+
+    @Override
+    public ViewPort getSceneViewPort() {
+        return viewPort;
+    }
+
+    @Override
+    public ViewPort getGuiViewPort() {
+        return null;
+    }
+
+    @Override
+    public Node getGuiNode(int i) {
+        return null;
+    }
+
+    @Override
+    public Node getSceneNode(int i) {
+        return i == 0 ? rootNode : null;
     }
 
     /**
@@ -655,7 +684,47 @@ public class TiledMapAppState extends BaseAppState implements AnalogListener, Ac
         } else if (PARALLAX.equals(name) && isPressed) {
             isParallaxEnabled = !isParallaxEnabled;
             calculateMapParallax();
+        } else if (RENDERING_MODE.equals(name) && isPressed) {
+            cycleRenderingMode();
+        } else if (BATCH_DEBUG.equals(name) && isPressed) {
+            if (mapRenderer != null) {
+                mapRenderer.setBatchDebugEnabled(!mapRenderer.isBatchDebugEnabled());
+                logger.info("Batch debug: " + (mapRenderer.isBatchDebugEnabled() ? "ON" : "OFF"));
+            }
         }
+    }
+
+    private void cycleRenderingMode() {
+        if (map == null) {
+            return;
+        }
+        RenderingMode current = RenderingMode.AUTO;
+        for (TiledLayer layer : map.getLayersFlat()) {
+            if (!renderingModeCycleFilter.test(layer)) {
+                continue;
+            }
+            current = layer.getRenderingMode();
+            break;
+        }
+        RenderingMode[] modes = RenderingMode.values();
+        RenderingMode next = modes[(current.ordinal() + 1) % modes.length];
+        for (TiledLayer layer : map.getLayersFlat()) {
+            if (renderingModeCycleFilter.test(layer)) {
+                layer.setRenderingMode(next);
+            }
+        }
+        logger.info("Tiled rendering mode: " + next);
+    }
+
+    /**
+     * Restricts which layers are affected when cycling rendering mode from the
+     * debug key binding.
+     *
+     * @param renderingModeCycleFilter layer predicate, or {@code null} to affect
+     *        every layer
+     */
+    public void setRenderingModeCycleFilter(Predicate<TiledLayer> renderingModeCycleFilter) {
+        this.renderingModeCycleFilter = renderingModeCycleFilter != null ? renderingModeCycleFilter : layer -> true;
     }
 
     public boolean isGridVisible() {

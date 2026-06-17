@@ -24,6 +24,12 @@ task runGuiShowcase(dependsOn: 'build', type:JavaExec) {
     }
 }
 
+task runParticleBufferBenchmark(dependsOn: 'classes', type:JavaExec) {
+    mainClass = 'ngetests.tests.benchmark.TestVertexBufferParticleBenchmark'
+    classpath = sourceSets.main.runtimeClasspath
+    systemProperties System.properties.findAll { key, value -> key.toString().startsWith('particle.') }
+}
+
 dependencies {
     implementation project(':jme3-core')
     implementation project(':jme3-desktop')
@@ -44,6 +50,7 @@ dependencies {
     implementation project(':nge-core')
     implementation project(':nge-gui')
     implementation project(':nge-networking')
+    implementation project(':nge-world2d')
 
     implementation(useSnapshotDeps ? libs.nge.platform.jvm.snapshot : libs.nge.platform.jvm)
 

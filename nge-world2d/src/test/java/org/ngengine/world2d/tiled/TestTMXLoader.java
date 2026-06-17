@@ -36,11 +36,18 @@ import com.jme3.asset.plugins.ClasspathLocator;
 import com.jme3.asset.plugins.FileLocator;
 import org.ngengine.world2d.tiled.core.*;
 import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
+import org.ngengine.world2d.tiled.core.entity.TiledTileEntity;
 import org.ngengine.world2d.tiled.core.tileset.Tile;
 import org.ngengine.world2d.tiled.core.tileset.Tileset;
 import org.ngengine.world2d.tiled.enums.Orientation;
+import org.ngengine.world2d.tiled.enums.RenderingMode;
 import org.ngengine.world2d.tiled.enums.StaggerAxis;
 import org.ngengine.world2d.tiled.enums.StaggerIndex;
+import org.ngengine.world2d.tiled.renderer.MapRenderer;
+import org.ngengine.world2d.tiled.renderer.factory.DefaultMaterialFactory;
+import org.ngengine.world2d.tiled.renderer.factory.DefaultMeshFactory;
+import org.ngengine.world2d.tiled.renderer.factory.DefaultSpriteFactory;
+import org.ngengine.world2d.PovRenderer;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -49,6 +56,12 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.jme3.asset.AssetManager;
 import com.jme3.asset.DesktopAssetManager;
 import com.jme3.material.plugins.J3MLoader;
+import com.jme3.math.Vector3f;
+import com.jme3.renderer.Camera;
+import com.jme3.renderer.ViewPort;
+import com.jme3.scene.Geometry;
+import com.jme3.scene.Node;
+import com.jme3.scene.Spatial;
 import com.jme3.shader.plugins.GLSLLoader;
 import com.jme3.texture.plugins.AWTLoader;
 
@@ -82,6 +95,135 @@ class TestTMXLoader {
         assertEquals(24, map.getTileHeight());
         assertEquals(3, map.getLayerCount());
         assertNotNull(((TiledTileLayer)map.getLayer(0)).getTileAt(0, 0).getTile());
+    }
+
+    @Test void testDesertInstancedMapIsNotCulledWhenFirstTileLeavesView() {
+        TiledMap map = (TiledMap) assetManager.loadAsset("tmx/Desert/desert.tmx");
+        Node sceneRoot = new Node("scene");
+        Node mapRoot = new Node("map");
+        MapRenderer renderer = MapRenderer.create(map, 32, mapRoot);
+        DefaultSpriteFactory spriteFactory = new DefaultSpriteFactory();
+        spriteFactory.setMeshFactory(new DefaultMeshFactory(map));
+        spriteFactory.setMaterialFactory(new DefaultMaterialFactory(assetManager));
+        renderer.setSpriteFactory(spriteFactory);
+        sceneRoot.attachChild(mapRoot);
+
+        Camera cam = new Camera(1280, 720);
+        cam.setFrustum(-1000f, 1000f, -640f, 640f, 360f, -360f);
+        cam.setParallelProjection(true);
+        cam.lookAtDirection(new Vector3f(0f, -1f, 0f), new Vector3f(0f, 0f, -1f));
+        cam.setLocation(new Vector3f(0f, 0f, 450f));
+        renderer.render(new EmptyMapRenderListener(), 0f, new TestPovRenderer(cam));
+        sceneRoot.updateGeometricState();
+
+        assertTrue(sceneRoot.checkCulling(cam), "scene root should still intersect the camera");
+        assertTrue(mapRoot.checkCulling(cam), "map root should still intersect the camera");
+        assertMapChildrenNotCulled(mapRoot, cam);
+        assertTrue(countInstancedTiles(mapRoot) > 1, "instanced map should draw more than the first tile");
+    }
+
+    @Test void testInstancedTilesCullToCameraAndRestoreWithoutCamera() {
+        TiledMap map = (TiledMap) assetManager.loadAsset("tmx/Desert/desert.tmx");
+        Node mapRoot = new Node("map");
+        MapRenderer renderer = MapRenderer.create(map, 32, mapRoot);
+        DefaultSpriteFactory spriteFactory = new DefaultSpriteFactory();
+        spriteFactory.setMeshFactory(new DefaultMeshFactory(map));
+        spriteFactory.setMaterialFactory(new DefaultMaterialFactory(assetManager));
+        renderer.setSpriteFactory(spriteFactory);
+
+        assertThrows(IllegalArgumentException.class, () -> renderer.render(new EmptyMapRenderListener(), 0f));
+
+        Camera fullCam = new Camera(1280, 720);
+        fullCam.setFrustum(-1000f, 1000f, -800f, 800f, 800f, -800f);
+        fullCam.setParallelProjection(true);
+        fullCam.lookAtDirection(new Vector3f(0f, -1f, 0f), new Vector3f(0f, 0f, -1f));
+        fullCam.setLocation(new Vector3f(640f, 0f, 640f));
+        TestPovRenderer fullPov = new TestPovRenderer(fullCam);
+        renderer.render(new EmptyMapRenderListener(), 0f, fullPov);
+        int fullCount = countInstancedTiles(mapRoot);
+        assertTrue(fullCount > 0, "unculled render should create instanced tiles");
+
+        Camera cam = new Camera(320, 240);
+        cam.setFrustum(-1000f, 1000f, -64f, 64f, 48f, -48f);
+        cam.setParallelProjection(true);
+        cam.lookAtDirection(new Vector3f(0f, -1f, 0f), new Vector3f(0f, 0f, -1f));
+        cam.setLocation(new Vector3f(120f, 0f, 120f));
+        renderer.render(new EmptyMapRenderListener(), 0f, new TestPovRenderer(cam));
+        int culledCount = countInstancedTiles(mapRoot);
+        assertTrue(culledCount > 0, "camera over the map should keep visible instanced tiles");
+        assertTrue(culledCount < fullCount,
+                "camera culling should draw fewer instances than the full map: " + culledCount + " / " + fullCount);
+
+        cam.setLocation(new Vector3f(-10000f, 0f, -10000f));
+        renderer.render(new EmptyMapRenderListener(), 0f, new TestPovRenderer(cam));
+        assertEquals(0, countInstancedTiles(mapRoot), "camera outside the map should cull all instanced tiles");
+
+        renderer.render(new EmptyMapRenderListener(), 0f, fullPov);
+        assertEquals(fullCount, countInstancedTiles(mapRoot), "rendering with a wide POV should restore the full batch");
+    }
+
+    @Test void testBatchDebugShowsMovingObjectTransientAndCleansUpWhenDisabled() {
+        TiledMap map = (TiledMap) assetManager.loadAsset("tmx/Orthogonal/01.tmx");
+        TiledTileLayer tileLayer = (TiledTileLayer) map.getLayer("Ground");
+        Tile tile = tileLayer.getTileAt(0, 0).getTile();
+        TiledObjectLayer movingLayer = new TiledObjectLayer(map.getWidth(), map.getHeight());
+        movingLayer.setName("Moving debug object");
+        movingLayer.setRenderingMode(RenderingMode.INSTANCED_BATCH_CULLED);
+        TiledObjectEntity movingObject = new TiledObjectEntity(100000, 96, 96, tile);
+        movingObject.setName("moving transient debug tile");
+        movingLayer.add(movingObject);
+        map.addLayer(movingLayer);
+
+        Node mapRoot = new Node("map");
+        MapRenderer renderer = MapRenderer.create(map, 32, mapRoot);
+        DefaultSpriteFactory spriteFactory = new DefaultSpriteFactory();
+        spriteFactory.setMeshFactory(new DefaultMeshFactory(map));
+        spriteFactory.setMaterialFactory(new DefaultMaterialFactory(assetManager));
+        renderer.setSpriteFactory(spriteFactory);
+        renderer.setBatchDebugEnabled(true);
+
+        Camera cam = new Camera(1280, 720);
+        cam.setFrustum(-1000f, 1000f, -640f, 640f, 360f, -360f);
+        cam.setParallelProjection(true);
+        cam.lookAtDirection(new Vector3f(0f, -1f, 0f), new Vector3f(0f, 0f, -1f));
+        cam.setLocation(new Vector3f(320f, 0f, 320f));
+        TestPovRenderer pov = new TestPovRenderer(cam);
+
+        renderer.render(new EmptyMapRenderListener(), 0f, pov);
+        movingObject.setX(160);
+        renderer.render(new EmptyMapRenderListener(), 0f, pov);
+
+        assertTrue(hasSpatialNamePrefix(mapRoot, "transient#position"),
+                "moving tile object should show a position transient debug overlay");
+
+        renderer.setBatchDebugEnabled(false);
+        renderer.render(new EmptyMapRenderListener(), 0f, pov);
+        assertFalse(hasSpatialNamePrefix(mapRoot, "TiledWorld2D-BatchDebug"),
+                "disabling batch debug should remove the overlay node from the map root");
+    }
+
+    @Test void testGetSpatialFindsMultidrawTileEntity() {
+        TiledMap map = (TiledMap) assetManager.loadAsset("tmx/Orthogonal/01.tmx");
+        TiledTileLayer tileLayer = (TiledTileLayer) map.getLayer("Ground");
+        tileLayer.setRenderingMode(RenderingMode.MULTI_DRAW);
+        TiledTileEntity tileEntry = tileLayer.getTileAt(0, 0);
+        Node mapRoot = new Node("map");
+        MapRenderer renderer = MapRenderer.create(map, 32, mapRoot);
+        DefaultSpriteFactory spriteFactory = new DefaultSpriteFactory();
+        spriteFactory.setMeshFactory(new DefaultMeshFactory(map));
+        spriteFactory.setMaterialFactory(new DefaultMaterialFactory(assetManager));
+        renderer.setSpriteFactory(spriteFactory);
+
+        Camera cam = new Camera(1280, 720);
+        cam.setFrustum(-1000f, 1000f, -640f, 640f, 360f, -360f);
+        cam.setParallelProjection(true);
+        cam.lookAtDirection(new Vector3f(0f, -1f, 0f), new Vector3f(0f, 0f, -1f));
+        cam.setLocation(new Vector3f(320f, 0f, 320f));
+        renderer.render(new EmptyMapRenderListener(), 0f, new TestPovRenderer(cam));
+
+        Spatial spatial = renderer.getSpatial(tileLayer, tileEntry);
+        assertNotNull(spatial);
+        assertTrue(spatial.getName().startsWith("tile#0#0#"));
     }
 
     @Test void testReadingExampleCsvMap() {
@@ -186,5 +328,96 @@ class TestTMXLoader {
         assertEquals(96, tile.getWidth());
         assertEquals(96, tile.getHeight());
         assertNotNull(tile.getImage());
+    }
+
+    private static class EmptyMapRenderListener implements MapRenderer.Listener {
+
+        @Override
+        public void beforeMapRender(float tpf, TiledMap map) {
+        }
+
+        @Override
+        public void afterMapRender(float tpf, TiledMap map, Spatial visual) {
+        }
+
+        @Override
+        public void beforeEntityRender(float tpf, TiledMap map, TiledLayer layer, TiledEntity entry) {
+        }
+
+        @Override
+        public void afterEntityRender(float tpf, TiledMap map, TiledLayer layer, TiledEntity entry, Spatial visual) {
+        }
+
+        @Override
+        public void beforeLayerRender(float tpf, TiledMap map, TiledLayer layer) {
+        }
+
+        @Override
+        public void afterLayerRender(float tpf, TiledMap map, TiledLayer layer, Spatial visual) {
+        }
+    }
+
+    private static void assertMapChildrenNotCulled(Node node, Camera cam) {
+        for (Spatial child : node.getChildren()) {
+            if ("tiled-map-bounds".equals(child.getName())) {
+                continue;
+            }
+            assertTrue(child.checkCulling(cam), child.getName() + " should still intersect the camera");
+            if (child instanceof Node) {
+                assertMapChildrenNotCulled((Node) child, cam);
+            }
+        }
+    }
+
+    private static int countInstancedTiles(Node node) {
+        int count = 0;
+        for (Spatial child : node.getChildren()) {
+            if (child instanceof Geometry && child.getName().startsWith("tiles#")) {
+                count += ((Geometry) child).getNumInstances();
+            } else if (child instanceof Node) {
+                count += countInstancedTiles((Node) child);
+            }
+        }
+        return count;
+    }
+
+    private static boolean hasSpatialNamePrefix(Node node, String prefix) {
+        for (Spatial child : node.getChildren()) {
+            if (child.getName() != null && child.getName().startsWith(prefix)) {
+                return true;
+            }
+            if (child instanceof Node && hasSpatialNamePrefix((Node) child, prefix)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static class TestPovRenderer implements PovRenderer {
+        private final ViewPort sceneViewPort;
+
+        TestPovRenderer(Camera camera) {
+            sceneViewPort = new ViewPort("test", camera);
+        }
+
+        @Override
+        public ViewPort getSceneViewPort() {
+            return sceneViewPort;
+        }
+
+        @Override
+        public ViewPort getGuiViewPort() {
+            return null;
+        }
+
+        @Override
+        public Node getGuiNode(int i) {
+            return null;
+        }
+
+        @Override
+        public Node getSceneNode(int i) {
+            return null;
+        }
     }
 }

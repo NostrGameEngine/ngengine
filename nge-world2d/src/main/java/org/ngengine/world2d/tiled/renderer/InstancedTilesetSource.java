@@ -1,20 +1,20 @@
 /**
  * Copyright (c) 2025-2026, Nostr Game Engine
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of the copyright holder nor the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -25,44 +25,28 @@
  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
- * the BSD 3-Clause License. 
+ * the BSD 3-Clause License.
  */
 
 package org.ngengine.world2d.tiled.renderer;
 
-import com.jme3.material.Material;
-import com.jme3.scene.Geometry;
-import com.jme3.scene.Node;
-import com.jme3.scene.Spatial;
-
-import org.ngengine.world2d.tiled.core.TiledMap;
-import org.ngengine.world2d.tiled.renderer.shape.Diamond;
-import org.ngengine.world2d.tiled.util.TiledCoordinateSystem;
+import com.jme3.texture.Texture;
+import com.jme3.texture.TextureArray;
+import java.util.HashMap;
+import java.util.Map;
+import org.ngengine.world2d.tiled.core.tileset.Tileset;
 
 /**
- * Staggered render
- * 
- * @author yanmaoyuan
- * 
+ * Texture state for one tileset source bound into an instanced batch slot.
  */
-public class StaggeredRenderer extends HexagonalRenderer {
- 
-    public StaggeredRenderer(TiledMap tiledMap, int PPM, Node rootNode) {
-        super(tiledMap, PPM, rootNode);
-    }
-
-    public StaggeredRenderer(TiledMap tiledMap, int PPM, Node rootNode, TiledCoordinateSystem coordinateSystem) {
-        super(tiledMap, PPM, rootNode, coordinateSystem);
-    }
-
-    @Override
-    public Spatial createTileGrid(Material material) {
-        // create a grid
-        Diamond mesh = new Diamond(tiledMap.getTileWidth(), tiledMap.getTileHeight(), true);
-        Geometry geom = new Geometry("TileGrid", mesh);
-        geom.setMaterial(material);
-        return geom;
-    }
+final class InstancedTilesetSource {
+    Tileset tileset;
+    boolean imageBased;
+    int imageWidth;
+    int imageHeight;
+    Texture texture;
+    TextureArray textureArray;
+    Map<Integer, Integer> collectionLayerByTileId = new HashMap<>();
 }

@@ -33,22 +33,14 @@
 package org.ngengine.world2d.tiled.renderer;
 
 import com.jme3.material.Material;
-import com.jme3.math.Vector2f;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
-import com.jme3.util.TempVars;
 
-import org.ngengine.world2d.tiled.core.TiledBase;
 import org.ngengine.world2d.tiled.core.TiledMap;
-import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
-import org.ngengine.world2d.tiled.core.entity.TiledTileEntity;
-import org.ngengine.world2d.tiled.core.tileset.Tile;
-import org.ngengine.world2d.tiled.enums.ObjectShape;
-import org.ngengine.world2d.tiled.enums.Orientation;
-import org.ngengine.world2d.tiled.math2d.Point;
 import org.ngengine.world2d.tiled.renderer.shape.IsoGrid;
 import org.ngengine.world2d.tiled.renderer.shape.IsoRect;
+import org.ngengine.world2d.tiled.util.TiledCoordinateSystem;
 
 /**
  * Isometric render
@@ -58,19 +50,12 @@ import org.ngengine.world2d.tiled.renderer.shape.IsoRect;
  */
 public class IsometricRenderer extends MapRenderer {
 
-    final float xCenter;
-    final float invTW;
-    final float invTH;
-
     public IsometricRenderer(TiledMap tiledMap, int PPM, Node rootNode) {
         super(tiledMap, PPM, rootNode);
+    }
 
-        xCenter = height * tileWidth * 0.5f; // horizontal offset
-        invTW = 1f / tileWidth;
-        invTH = 1f / tileHeight;
-
-        int side = width + height;
-        mapSize.set(side * tileWidth * 0.5f, side * tileHeight * 0.5f);
+    public IsometricRenderer(TiledMap tiledMap, int PPM, Node rootNode, TiledCoordinateSystem coordinateSystem) {
+        super(tiledMap, PPM, rootNode, coordinateSystem);
     }
 
     @Override
@@ -105,205 +90,4 @@ public class IsometricRenderer extends MapRenderer {
         gridVisual.attachChild(geom);
     }
 
-    // Coordinates System Convert
-    @Override
-    public void worldToTile(float x, float y, Point out) {
-        final float fx = (x - height * tileWidth * 0.5f) * (1f / tileWidth);
-        final float fy = y * (1f / tileHeight);
-
-        final int i = (int) Math.floor(fy + fx);
-        final int j = (int) Math.floor(fy - fx);
-        // return new Point(i, j);
-        out.set(i, j);
-
-    }
-
-    @Override
-    public void gridToTile(float u, float v, Point outPoint) {
-        // isometric "grid" is axial pixels => divide by tileHeight to get indices
-        final int i = (int) Math.floor(u * (1f / tileHeight));
-        final int j = (int) Math.floor(v * (1f / tileHeight));
-        // return new Point(i, j);
-        outPoint.set(i, j);
-    }
-
-    @Override
-    public void tileToGridSpace(float i, float j, Vector2f out) {
-        out.set(i * tileHeight, j * tileHeight);
-    }
-
-    @Override
-    public void gridToWorldSpace(float u, float v, Vector2f out) {
-        float sx = (tileWidth / (2f * tileHeight)) * (u - v) + height * tileWidth * 0.5f;
-        float sy = 0.5f * (u + v);
-        // return new Vector2f(sx, sy);
-        out.x = sx;
-        out.y = sy;
-    }
-
-    @Override
-    public void worldToGridSpace(float x, float y, Vector2f out) {
-        float fx = (x - height * tileWidth * 0.5f) * (1f / tileWidth);
-        float fy = y * (1f / tileHeight);
-        // return new Vector2f((fy + fx) * tileHeight, (fy - fx) * tileHeight);
-        out.x = (fy + fx) * tileHeight;
-        out.y = (fy - fx) * tileHeight;
-    }
-
-    @Override
-    public void tileToWorldSpace(float i, float j, Vector2f out) {
-        // return new Vector2f((height + i - j) * tileWidth * 0.5f, (i + j) * tileHeight * 0.5f);
-        out.x = (height + i - j) * tileWidth * 0.5f;
-        out.y = (i + j) * tileHeight * 0.5f;
-    }
-
-    @Override
-    public float getTopDownYIndex(TiledObjectEntity obj) {
-        final float footY, footX;
-        if (obj.getShape() == ObjectShape.TILE) {
-            footY = (float) obj.getY();
-            footX = (float) obj.getX();
-        } else { // shapes are top-left aligned
-            footY = (float) (obj.getY() + obj.getHeight());
-            footX = (float) (obj.getX() + obj.getWidth() * 0.5f);
-        }
-
-        float tileY = footY / tileHeight;
-        float tileX = (footX / tileWidth) - (height * 0.5f);
-
-        return getTopDownYIndex(tileX, tileY);
-    }
-
-    @Override
-    public float getTopDownYIndex(float tileX, float tileY) {
-        // both x and y contribute
-        float u = tileY + tileX;
-        float v = tileY - tileX;
-
-        float denom = (width + height);
-        float uNorm = (u + height * 0.5f) / denom;
-        uNorm = Math.max(0f, Math.min(1f, uNorm));
-
-        float tiebreak = (v / denom) * 1e-3f;
-
-        return (float) ((uNorm + tiebreak) * layerDistance);
-    }
-
-    @Override
-    public void getCollisionCenterInGridSpace(TiledObjectEntity parent, TiledObjectEntity coll,
-            Vector2f out) {
-
-        Tile tile = parent.getTile();
-        if (tile == null) {
-            out.set((float) (parent.getX() + coll.getX() + coll.getWidth() * 0.5),
-                    (float) (parent.getY() + coll.getY() + coll.getHeight() * 0.5));
-            return;
-        }
-
-        float wTile = (float) tile.getWidth();
-        float hTile = (float) tile.getHeight();
-        float wObj = (float) parent.getWidth();
-        float hObj = (float) parent.getHeight();
-
-        float wScale = wObj / wTile;
-        float hScale = hObj / hTile;
-
-        float bx = (float) coll.getX();
-        float by = (float) coll.getY();
-        bx += -wTile * 0.5f;
-        by += -hTile;
-        bx = (bx / wTile) * wObj;
-        by = (by / hTile) * hObj;
-
-        float w = (float) coll.getWidth() * wScale;
-        float h = (float) coll.getHeight() * hScale;
-
-        if (tile.isFlippedHorizontally()) bx = -(bx + w);
-        if (tile.isFlippedVertically()) by = -hObj - (by + h);
-
-        float lx = bx + 0.5f * w;
-        float ly = by + 0.5f * h;
-
-      
-        Vector2f parentWorld = new Vector2f();
-        getPositionInGridSpace(parent, parentWorld);
-        Vector2f parentScreen = new Vector2f();
-        gridToWorldSpace(parentWorld.x, parentWorld.y, parentScreen);
-
-         Vector2f targetScreen = new Vector2f(parentScreen.x + lx, parentScreen.y + ly);
-        worldToGridSpace(targetScreen.x, targetScreen.y, out);
-    }
-
-     
-    @Override
-    public void getCenterInGridSpace(TiledBase v, Vector2f out) {
-        if (v == null) {
-            out.set(0, 0);
-            return;
-        }
-        if (v instanceof TiledTileEntity) {
-            TiledTileEntity entry = (TiledTileEntity) v;
-
-            Tile tile = entry.getTile();
-            if (tile == null) {
-                getPositionInGridSpace(entry, out);
-                return;
-            }
-
-            float offsetX = 0f;
-            float offsetY = 0f;
-            if (tile.getTileset() != null && tile.getTileset().getTileOffset() != null) {
-                offsetX = tile.getTileset().getTileOffset().x;
-                offsetY = tile.getTileset().getTileOffset().y;
-            }
-
-            float originX = (float) -tile.getWidth() * 0.5f;
-            float originY = tileHeight;
-
-            float centerLocalX = originX + offsetX + (float) tile.getWidth() * 0.5f;
-            float centerLocalY = originY + offsetY - (float) tile.getHeight() * 0.5f;
-
-            try (TempVars vars = TempVars.get()) {
-                Vector2f baseWorld = vars.vect2d;
-                tileToWorldSpace((float) entry.getX(), (float) entry.getY(), baseWorld);
-
-                Vector2f worldCenter = vars.vect2d2;
-                worldCenter.set(baseWorld.x + centerLocalX, baseWorld.y + centerLocalY);
-
-                worldToGridSpace(worldCenter.x, worldCenter.y, out);
-            }
-        } else if (v instanceof TiledObjectEntity) {
-            TiledObjectEntity obj = (TiledObjectEntity) v;
-            float centerX;
-            float centerY;
-
-            if (obj.getShape() == ObjectShape.TILE) {
-                // For isometric tiles, we need to adjust both X and Y to move to visual center
-                // while keeping screen X constant.
-                //
-                // In isometric: screenX depends on (tileX - tileY)
-                // where tileX = x/tileWidth, tileY = y/tileHeight
-                //
-                // To keep screenX constant when moving vertically:
-                // We need: Δx/tileWidth = Δy/tileHeight
-                // Therefore: Δx = Δy * (tileWidth/tileHeight)
-                //
-                // To move up by halfHeight in pixel space:
-                float halfHeight = (float) (obj.getHeight() * 0.5);
-                float ratio = (float) tileWidth / (float) tileHeight;
-
-                centerX = (float) obj.getX() - (halfHeight * ratio);
-                centerY = (float) obj.getY() - halfHeight;
-
-            } else {
-                // For other shapes, (x,y) is top-left in Tiled
-                centerX = (float) (obj.getX() + obj.getWidth() * 0.5);
-                centerY = (float) (obj.getY() + obj.getHeight() * 0.5);
-            }
-
-            out.set(centerX, centerY);
-        } else {
-            getPositionInGridSpace(v, out);
-        }
-    }
 }

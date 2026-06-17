@@ -30,7 +30,7 @@
  * the BSD 3-Clause License. 
  */
 
-package org.ngengine.world2d.tiled.app;
+package ngetests.tests.world2d.tiled.app;
 
 import com.jme3.app.SimpleApplication;
 import com.jme3.system.AppSettings;
@@ -54,6 +54,7 @@ public class TmxLoaderExample extends SimpleApplication {
         tiledMapState.initialize(stateManager, this);
 
         tiledMapState.setMap(map);
+        tiledMapState.getMapRenderer().setInstancedTileChunkSize(8);
     }
 
     public static void main(String[] args) {

@@ -1,20 +1,20 @@
 /**
  * Copyright (c) 2025-2026, Nostr Game Engine
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of the copyright holder nor the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -25,44 +25,36 @@
  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
- * the BSD 3-Clause License. 
+ * the BSD 3-Clause License.
  */
 
-package org.ngengine.world2d.tiled.renderer;
-
-import com.jme3.material.Material;
-import com.jme3.scene.Geometry;
-import com.jme3.scene.Node;
-import com.jme3.scene.Spatial;
-
-import org.ngengine.world2d.tiled.core.TiledMap;
-import org.ngengine.world2d.tiled.renderer.shape.Diamond;
-import org.ngengine.world2d.tiled.util.TiledCoordinateSystem;
+package org.ngengine.world2d.tiled.enums;
 
 /**
- * Staggered render
- * 
- * @author yanmaoyuan
- * 
+ * Rendering strategy requested by a tiled layer.
  */
-public class StaggeredRenderer extends HexagonalRenderer {
- 
-    public StaggeredRenderer(TiledMap tiledMap, int PPM, Node rootNode) {
-        super(tiledMap, PPM, rootNode);
-    }
+public enum RenderingMode {
+    /**
+     * Let the renderer choose the safest strategy for the layer and map orientation.
+     */
+    AUTO,
 
-    public StaggeredRenderer(TiledMap tiledMap, int PPM, Node rootNode, TiledCoordinateSystem coordinateSystem) {
-        super(tiledMap, PPM, rootNode, coordinateSystem);
-    }
+    /**
+     * Render each visible tile or object as its own spatial.
+     */
+    MULTI_DRAW,
 
-    @Override
-    public Spatial createTileGrid(Material material) {
-        // create a grid
-        Diamond mesh = new Diamond(tiledMap.getTileWidth(), tiledMap.getTileHeight(), true);
-        Geometry geom = new Geometry("TileGrid", mesh);
-        geom.setMaterial(material);
-        return geom;
-    }
+    /**
+     * Render supported tiles or objects in one instanced batch and rebuild the batch
+     * when the visible camera range changes.
+     */
+    INSTANCED_CULLED,
+
+    /**
+     * Render supported tiles or objects in draw-order batches that are culled as
+     * whole geometries.
+     */
+    INSTANCED_BATCH_CULLED
 }

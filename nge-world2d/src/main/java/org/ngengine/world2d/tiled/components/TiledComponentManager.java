@@ -101,11 +101,10 @@ public class TiledComponentManager extends AbstractComponentManager {
             return type.cast(loadedMap);
         }
         if (type == MapRenderer.class) {
-            if (loadedMap != null) {
-                return type.cast(loadedMap.getRenderer());
-            } else {
-                return null;
-            }
+            // Renderers are per PovRenderer now. Components that only need map
+            // coordinates should ask for CoordinateSystem; rendered state must
+            // go through TiledWorld2dRenderTarget.
+            return null;
         }
         if (type == World.class) {
             if (loadedMap != null) {
