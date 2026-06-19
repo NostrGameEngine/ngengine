@@ -15,7 +15,7 @@
     "DisableJoysticks": false,
     "UseInput": true,
     "VSync": true,
-    "Framerate": -1,
+    "FrameRate": -1,
     "GammaCorrection": true,
     "Resizable": true,
     "X11PlatformPreferred": false,
@@ -59,7 +59,7 @@
         "DisableJoysticks",
         "UseInput",
         "VSync",
-        "Framerate",
+        "FrameRate",
         "GammaCorrection",
         "Resizable",
         "X11PlatformPreferred"
