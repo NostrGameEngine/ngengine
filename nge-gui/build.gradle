@@ -4,7 +4,11 @@ def useSnapshotDeps = (jmeVersionTag == 'SNAPSHOT')
 
 ext.jmeNativeImageAdditionalTargetTypes = (
         (ext.has('jmeNativeImageAdditionalTargetTypes') ? ext.jmeNativeImageAdditionalTargetTypes : []) +
-                ['org.ngengine.gui.nav.NavigatorInputHandler']
+                [
+                        'org.ngengine.components.Component',
+                        'org.ngengine.gui.guix.win.NWindow',
+                        'org.ngengine.gui.nav.NavigatorInputHandler'
+                ]
 ).unique()
 
 dependencies {

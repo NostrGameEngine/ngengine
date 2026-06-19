@@ -1,10 +1,18 @@
 
 
+ext.jmeNativeImageAdditionalTargetTypes = (
+        (ext.has('jmeNativeImageAdditionalTargetTypes') ? ext.jmeNativeImageAdditionalTargetTypes : []) +
+                [
+                        'org.ngengine.auth.Auth',
+                        'org.ngengine.gui.guix.win.NWindow'
+                ]
+).unique()
+
 dependencies {
     api project(':nge-core')
     api project(':nge-gui')
     implementation project(':nge-networking')
- 
+
 }
 
 javadoc {

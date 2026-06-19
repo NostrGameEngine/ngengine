@@ -1,6 +1,21 @@
  
 def useSnapshotDeps = (jmeVersionTag == 'SNAPSHOT')
 
+ext.jmeNativeImageAdditionalTargetTypes = (
+        (ext.has('jmeNativeImageAdditionalTargetTypes') ? ext.jmeNativeImageAdditionalTargetTypes : []) +
+                [
+                        'org.ngengine.components.Component',
+                        'org.ngengine.network.components.ActionMessage',
+                        'org.ngengine.network.components.SnapshotMessage',
+                        'org.ngengine.network.protocol.DiffableMessage'
+                ]
+).unique()
+
+ext.jmeNativeImageAdditionalTargetAnnotations = (
+        (ext.has('jmeNativeImageAdditionalTargetAnnotations') ? ext.jmeNativeImageAdditionalTargetAnnotations : []) +
+                ['org.ngengine.network.protocol.NetworkSafe']
+).unique()
+
 dependencies {
     api project(':nge-core')
     api project(':jme3-networking')
