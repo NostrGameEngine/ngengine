@@ -64,6 +64,7 @@ import com.jme3.texture.Texture.WrapAxis;
 import com.jme3.texture.TextureImage;
 import com.jme3.texture.image.ColorSpace;
 import com.jme3.texture.image.LastTextureState;
+import com.jme3.util.ByteBufferUtils;
 import com.jme3.util.BufferUtils;
 import com.jme3.util.ListMap;
 import com.jme3.util.MipMapGenerator;
@@ -3106,6 +3107,10 @@ public final class GLRenderer implements Renderer {
                             cpuMipmapsGenerated = true;
                             scaleToPot = false;
                             img.setMipmapsGenerated(true);
+                            logger.log(Level.WARNING,
+                                    "Texture " + img + " requires mipmaps, but the format " + img.getFormat()
+                                            + " does not support hardware mipmap generation."
+                                            + " Falling back to CPU mipmap generation.");
                         }
                     } catch (RuntimeException exception) {
                         cpuMipmapFallbackFailed = true;
@@ -3280,7 +3285,7 @@ public final class GLRenderer implements Renderer {
             if (buffer == null) {
                 return null;
             }
-            data.add(buffer.duplicate());
+            data.add(ByteBufferUtils.duplicate(buffer));
         }
         return new Image(image.getFormat(), image.getWidth(), image.getHeight(), image.getDepth(),
                 data, null, image.getColorSpace());

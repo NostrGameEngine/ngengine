@@ -663,6 +663,7 @@ public class InputManager implements RawInputListener {
         }
         mapping.triggers.clear();
         mapping.activeTriggers.clear();
+        mapping.listeners.clear();
     }
 
     
@@ -687,12 +688,12 @@ public class InputManager implements RawInputListener {
         int hash = trigger.triggerHashCode();
         ArrayList<Mapping> maps = bindings.get(hash);
         if (maps != null) {
-            maps.remove(mapping);
-            if (maps.isEmpty()) {
-                bindings.remove(hash);
-                lastValues.remove(hash);
-                emulatedAnalogs.remove(hash);
-            }
+                maps.remove(mapping);
+                if (maps.isEmpty()) {
+                    bindings.remove(hash);
+                    lastValues.remove(hash);
+                    emulatedAnalogs.remove(hash);
+                }
         }
         mapping.triggers.remove((Integer) hash);
         mapping.activeTriggers.remove((Integer) hash);

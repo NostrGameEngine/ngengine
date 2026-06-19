@@ -22,7 +22,7 @@ buildscript {
 plugins {
     id 'org.jetbrains.dokka' version '2.0.0'
     id 'com.diffplug.spotless' version '7.0.2' apply false
-    id "io.github.gradle-nexus.publish-plugin"          version "2.0.0"
+    id 'io.github.gradle-nexus.publish-plugin' version '2.0.0'
     id 'org.jmonkeyengine.nativeimage' apply false
 }
 apply from: file('version.gradle')
@@ -41,7 +41,6 @@ if(System.getenv("SONATYPE_USERNAME") || project.findProperty("sonatypeUsername"
         }
     }
 }
-
 
 allprojects {
     group = 'org.ngengine'
@@ -107,11 +106,10 @@ apply plugin: 'org.jetbrains.kotlin.jvm'
 
 // This is applied to all sub projects
 subprojects {
-
-    if(!project.name.equals('jme3-android-examples')) {
-        apply from: rootProject.file('common.gradle')
-    } else {
+    if(project.name.equals('jme3-android-examples') || project.name.equals('jme3-screenshot-tests-android')) {
         apply from: rootProject.file('common-android-app.gradle')
+    } else {
+        apply from: rootProject.file('common.gradle')
     }
 
     if (!project.name.endsWith("-native") && enableSpotBugs != "false" ) {
@@ -303,9 +301,15 @@ def nativeImagePluginPublishTasks = [
         publish                                      : ':publish',
         publishToMavenLocal                         : ':publishToMavenLocal',
         install                                      : ':install',
+        publishMavenPublicationToCentralRepository  : ':publishAllPublicationsToCentralRepository',
+        publishMavenPublicationToSNAPSHOTRepository : ':publishAllPublicationsToSNAPSHOTRepository',
+        publishMavenPublicationToDistRepository     : ':publishAllPublicationsToDistRepository',
         publishAllPublicationsToCentralRepository   : ':publishAllPublicationsToCentralRepository',
         publishAllPublicationsToSNAPSHOTRepository  : ':publishAllPublicationsToSNAPSHOTRepository',
-        publishAllPublicationsToDistRepository      : ':publishAllPublicationsToDistRepository'
+        publishAllPublicationsToDistRepository      : ':publishAllPublicationsToDistRepository',
+        publishToSonatype                           : ':publishToSonatype',
+        closeSonatypeStagingRepository              : ':closeSonatypeStagingRepository',
+        closeStagingRepositories                    : ':closeStagingRepositories'
 ]
 
 subprojects {
@@ -313,6 +317,19 @@ subprojects {
         String includedTaskPath = nativeImagePluginPublishTasks[task.name]
         if (includedTaskPath != null) {
             task.dependsOn nativeImagePluginBuild.task(includedTaskPath)
+        }
+    }
+}
+
+gradle.projectsEvaluated {
+    [
+            publishToSonatype             : ':publishToSonatype',
+            closeSonatypeStagingRepository: ':closeSonatypeStagingRepository',
+            closeStagingRepositories      : ':closeStagingRepositories'
+    ].each { rootTaskName, includedTaskPath ->
+        def rootTask = tasks.findByName(rootTaskName)
+        if (rootTask != null) {
+            rootTask.dependsOn nativeImagePluginBuild.task(includedTaskPath)
         }
     }
 }

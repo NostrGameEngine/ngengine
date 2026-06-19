@@ -258,6 +258,7 @@ public class IGLESContext implements JmeContext {
         renderable.set(true);
         if (framebufferWidth > 0 && framebufferHeight > 0) {
             listener.reshape(logicalWidth, logicalHeight, getRenderFramebufferWidth(), getRenderFramebufferHeight());
+            listener.reshape(logicalWidth, logicalHeight);
         }
 
         if (waitFor) {
@@ -317,6 +318,7 @@ public class IGLESContext implements JmeContext {
                 logger.log(Level.FINE, "iOS framebuffer resized, width: {0} height: {1}",
                         new Object[]{framebufferWidth, framebufferHeight});
                 listener.reshape(logicalWidth, logicalHeight, getRenderFramebufferWidth(), getRenderFramebufferHeight());
+                listener.reshape(logicalWidth, logicalHeight);
             }
         }
     }
@@ -362,6 +364,7 @@ public class IGLESContext implements JmeContext {
         linearFrameBufferDirty = true;
         if (renderable.get() && listener != null) {
             listener.reshape(logicalWidth, logicalHeight, getRenderFramebufferWidth(), getRenderFramebufferHeight());
+            listener.reshape(logicalWidth, logicalHeight);
         }
     }
 

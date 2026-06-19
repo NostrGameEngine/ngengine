@@ -93,6 +93,7 @@ public class SdlMouseInput implements MouseInput {
     private float windowCoordHeight = 1f;
 
     private boolean cursorVisible = true;
+    private boolean windowFocused = true;
     private boolean x11WarpGrabMode;
     private boolean ignoreNextX11WarpEvent;
     private boolean initialized;
@@ -130,8 +131,37 @@ public class SdlMouseInput implements MouseInput {
     public void onSDLEvent(SDL_Event event) {
         final int type = event.type();
 
+        if (type == SDL_EVENT_WINDOW_FOCUS_GAINED) {
+            if (event.window().windowID() == context.getWindowId()) {
+                windowFocused = true;
+                refreshWindowMetrics();
+                initCurrentMousePosition();
+                setCursorVisible(cursorVisible);
+            }
+            return;
+        }
+
+        if (type == SDL_EVENT_WINDOW_FOCUS_LOST) {
+            if (event.window().windowID() == context.getWindowId()) {
+                windowFocused = false;
+                x11WarpGrabMode = false;
+                ignoreNextX11WarpEvent = false;
+                mouseMotionEvents.clear();
+                SDL_CaptureMouse(false);
+                SDL_SetWindowMouseGrab(context.getWindowHandle(), false);
+                SDL_SetWindowRelativeMouseMode(context.getWindowHandle(), false);
+                if (!cursorVisible) {
+                    SDL_ShowCursor();
+                }
+            }
+            return;
+        }
+
         if (type == SDL_EVENT_MOUSE_MOTION) {
             if (event.motion().windowID() != context.getWindowId()) {
+                return;
+            }
+            if (!windowFocused) {
                 return;
             }
             refreshWindowMetrics();
