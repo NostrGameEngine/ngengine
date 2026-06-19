@@ -9,6 +9,7 @@ def nativeImageExtension = project.extensions.findByName('jmeNativeImage')
         'jmeNativeImageAdditionalTargetAnnotations',
         'jmeNativeImageAdditionalProxyInterfaceSets',
         'jmeNativeImageAdditionalUnsafeAllocatedTypes',
+        'jmeNativeImageAdditionalUnsafeAllocationContainerTypes',
         'jmeNativeImageAdditionalResourceGlobs',
         'jmeNativeImageIncludeResourcesPattern',
         'jmeNativeImageExcludeResourcesPattern'
@@ -109,6 +110,10 @@ def defaultProxyInterfaceSets = [
         [
                 'com.jme3.renderer.opengl.GLFbo'
         ]
+]
+
+def defaultUnsafeAllocationContainerTypes = [
+        'com.jme3.util.SafeArrayList'
 ]
 
 def asStringList = { Object value ->
@@ -463,7 +468,7 @@ def collectClassReferencesFromStream = { InputStream input ->
     return references
 }
 
-def collectUnsafeAllocatedTypesFromStream = { InputStream input ->
+def collectUnsafeAllocatedTypesFromStream = { InputStream input, Set<String> unsafeAllocationContainerTypes ->
     SortedSet<String> unsafeAllocatedTypes = new TreeSet<>()
     try {
         new DataInputStream(new BufferedInputStream(input)).withCloseable { stream ->
@@ -531,13 +536,13 @@ def collectUnsafeAllocatedTypesFromStream = { InputStream input ->
                 int nameIndex = cpIndex > 0 && cpIndex < classNameIndices.length ? classNameIndices[cpIndex] : 0
                 return nameIndex > 0 && nameIndex < utf8Entries.length ? normalizeClassReference(utf8Entries[nameIndex]) : null
             }
-            def isSafeArrayListConstructor = { int cpIndex ->
+            def isUnsafeAllocationContainerConstructor = { int cpIndex ->
                 if (cpIndex <= 0 || cpIndex >= methodClassIndices.length) {
                     return false
                 }
                 String owner = classNameAt(methodClassIndices[cpIndex])
                 int nameAndTypeIndex = methodNameAndTypeIndices[cpIndex]
-                if (owner != 'com.jme3.util.SafeArrayList' || nameAndTypeIndex <= 0 || nameAndTypeIndex >= nameAndTypeNameIndices.length) {
+                if (!unsafeAllocationContainerTypes.contains(owner) || nameAndTypeIndex <= 0 || nameAndTypeIndex >= nameAndTypeNameIndices.length) {
                     return false
                 }
                 String methodName = utf8Entries[nameAndTypeNameIndices[nameAndTypeIndex]]
@@ -620,7 +625,7 @@ def collectUnsafeAllocatedTypesFromStream = { InputStream input ->
                             }
                         } else if (opcode == 0xb7) {
                             int cpIndex = ((code[offset + 1] & 0xff) << 8) | (code[offset + 2] & 0xff)
-                            if (recentClassLiteral != null && instructionIndex - recentClassLiteralInstruction <= 8 && isSafeArrayListConstructor(cpIndex)) {
+                            if (recentClassLiteral != null && instructionIndex - recentClassLiteralInstruction <= 8 && isUnsafeAllocationContainerConstructor(cpIndex)) {
                                 String arrayType = unsafeAllocatedArrayTypeName(recentClassLiteral)
                                 if (arrayType != null) {
                                     unsafeAllocatedTypes.add(arrayType)
@@ -663,10 +668,10 @@ def collectClassReferences = { File classFile ->
     }
 }
 
-def collectUnsafeAllocatedTypes = { File classFile ->
+def collectUnsafeAllocatedTypes = { File classFile, Set<String> unsafeAllocationContainerTypes ->
     try {
         return classFile.withInputStream { input ->
-            collectUnsafeAllocatedTypesFromStream(input)
+            collectUnsafeAllocatedTypesFromStream(input, unsafeAllocationContainerTypes)
         }
     } catch (Throwable ignored) {
         return new TreeSet<String>()
@@ -713,6 +718,14 @@ def normalizedResourceGlobs = {
 def normalizedAdditionalUnsafeAllocatedTypes = {
     return configuredStringList('jmeNativeImageAdditionalUnsafeAllocatedTypes', 'additionalUnsafeAllocatedTypes')
             .collect { normalizeUnsafeAllocatedTypeName(it) }
+            .findAll { it != null && !it.isEmpty() }
+            .toSorted()
+            .unique()
+}
+
+def normalizedUnsafeAllocationContainerTypes = {
+    return (defaultUnsafeAllocationContainerTypes + configuredStringList('jmeNativeImageAdditionalUnsafeAllocationContainerTypes', 'additionalUnsafeAllocationContainerTypes'))
+            .collect { it == null ? null : it.trim().replace('/', '.') }
             .findAll { it != null && !it.isEmpty() }
             .toSorted()
             .unique()
@@ -845,8 +858,9 @@ project.afterEvaluate {
         inputs.property('jmeNativeImageTargetAnnotations', normalizedTargetAnnotations())
         inputs.property('jmeNativeImageProxyInterfaceSets', normalizedProxyInterfaceSets())
         inputs.property('jmeNativeImageAdditionalUnsafeAllocatedTypes', normalizedAdditionalUnsafeAllocatedTypes())
+        inputs.property('jmeNativeImageUnsafeAllocationContainerTypes', normalizedUnsafeAllocationContainerTypes())
         inputs.property('jmeNativeImageAdditionalResourceGlobs', normalizedResourceGlobs())
-        inputs.property('jmeNativeImageGeneratorVersion', 6)
+        inputs.property('jmeNativeImageGeneratorVersion', 7)
         outputs.file(metadataFile)
         outputs.file(reflectConfigFile)
 
@@ -902,6 +916,7 @@ project.afterEvaluate {
                     new ArrayList<>(new LinkedHashSet<>(interfaceSet))
                 }.findAll { !it.isEmpty() }
                 def additionalUnsafeAllocatedTypes = normalizedAdditionalUnsafeAllocatedTypes()
+                def unsafeAllocationContainerTypes = normalizedUnsafeAllocationContainerTypes() as Set<String>
                 def targetTypes = normalizedTargetTypes()
                 def targetAnnotations = normalizedTargetAnnotations()
                 def proxyInterfaceSets = normalizedProxyInterfaceSets()
@@ -916,7 +931,7 @@ project.afterEvaluate {
                         exclude '**/module-info.class'
                         exclude '**/package-info.class'
                     }.files.sort { it.absolutePath }.each { classFile ->
-                        unsafeAllocatedTypes.addAll(collectUnsafeAllocatedTypes(classFile))
+                        unsafeAllocatedTypes.addAll(collectUnsafeAllocatedTypes(classFile, unsafeAllocationContainerTypes))
                     }
                 }
 

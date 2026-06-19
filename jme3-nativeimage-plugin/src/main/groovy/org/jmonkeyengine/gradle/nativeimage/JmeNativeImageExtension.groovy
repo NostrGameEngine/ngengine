@@ -15,6 +15,7 @@ class JmeNativeImageExtension {
     final ListProperty<String> additionalTargetAnnotations
     final ListProperty<List<String>> additionalProxyInterfaceSets
     final ListProperty<String> additionalUnsafeAllocatedTypes
+    final ListProperty<String> additionalUnsafeAllocationContainerTypes
     final ListProperty<String> additionalResourceGlobs
     final Property<String> includeResourcesPattern
     final Property<String> excludeResourcesPattern
@@ -26,6 +27,7 @@ class JmeNativeImageExtension {
         additionalTargetAnnotations = objects.listProperty(String).convention([])
         additionalProxyInterfaceSets = objects.listProperty(List).convention([])
         additionalUnsafeAllocatedTypes = objects.listProperty(String).convention([])
+        additionalUnsafeAllocationContainerTypes = objects.listProperty(String).convention([])
         additionalResourceGlobs = objects.listProperty(String).convention([])
         includeResourcesPattern = objects.property(String)
         excludeResourcesPattern = objects.property(String)
@@ -46,6 +48,10 @@ class JmeNativeImageExtension {
 
     void unsafeAllocatedType(String className) {
         additionalUnsafeAllocatedTypes.add(className)
+    }
+
+    void unsafeAllocationContainerType(String className) {
+        additionalUnsafeAllocationContainerTypes.add(className)
     }
 
     void resourceGlob(String glob) {

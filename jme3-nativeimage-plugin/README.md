@@ -160,9 +160,10 @@ interfaces implemented by that proxy.
 
 ### Unsafe Allocation
 
-The plugin automatically detects direct `SafeArrayList(SomeType.class)`
-constructor usage in compiled bytecode and emits an `unsafeAllocated` entry for
-the backing array type:
+The plugin automatically detects direct construction of known unsafe allocation
+container types, such as `SafeArrayList(SomeType.class)`, in compiled bytecode
+and emits an `unsafeAllocated` entry for the backing array type. By default, the
+container list contains `com.jme3.util.SafeArrayList`:
 
 ```json
 {
@@ -183,3 +184,12 @@ jmeNativeImage {
 
 Accepted values are binary array descriptors, Java-style array names, or class
 names.
+
+If a project has another container type with the same `Class`-first constructor
+pattern, add it to the detector:
+
+```groovy
+jmeNativeImage {
+    unsafeAllocationContainerType 'org.example.FastArrayStore'
+}
+```
