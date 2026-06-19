@@ -56,6 +56,13 @@ public final class MaterialConst {
     public static final String COLOR_ARRAY_1 = "ColorArray1";
     public static final String COLOR_ARRAY_2 = "ColorArray2";
     public static final String COLOR_ARRAY_3 = "ColorArray3";
+    public static final String DECAL_MAP = "DecalMap";
+    public static final String DECAL_IMAGE_SIZE = "DecalImageSize";
+    public static final String DECAL_TILE_SIZE = "DecalTileSize";
+    public static final String DECAL_0 = "Decal0";
+    public static final String DECAL_1 = "Decal1";
+    public static final String DECAL_2 = "Decal2";
+    public static final String DECAL_3 = "Decal3";
     public static final String COLOR = "Color";
     public static final String TRANS_COLOR = "TransColor";
     public static final String USE_TINT_COLOR = "UseTintColor";

@@ -40,6 +40,15 @@ uniform sampler2D m_ColorMap2;
 #ifdef HAS_COLOR_MAP3
 uniform sampler2D m_ColorMap3;
 #endif
+#ifdef HAS_DECAL_MAP
+uniform sampler2D m_DecalMap;
+uniform vec2 m_DecalImageSize;
+uniform vec4 m_DecalTileSize;
+uniform vec4 m_Decal0;
+uniform vec4 m_Decal1;
+uniform vec4 m_Decal2;
+uniform vec4 m_Decal3;
+#endif
 
 #ifdef HAS_COLOR_ARRAY0
 #if !defined(GL_EXT_texture_array) && __VERSION__ < 130
@@ -71,6 +80,12 @@ uniform sampler2DArray m_ColorArray3;
 varying vec4 v_TileData;
 varying vec2 v_UvSize;
 varying vec2 v_ImageSize;
+#ifdef HAS_DECAL_MAP
+varying vec4 v_Decal0;
+varying vec4 v_Decal1;
+varying vec4 v_Decal2;
+varying vec4 v_Decal3;
+#endif
 #else
 uniform vec2 m_ImageSize;
 uniform vec4 m_TileSize;//(width, height, margin, space)
@@ -88,6 +103,40 @@ vec2 getTileUVClamped(vec2 tilePos, vec2 tileSize, vec2 imageSize) {
     uv.y = 1.0 - uv.y;
     return uv;
 }
+
+#ifdef HAS_DECAL_MAP
+vec4 sampleInstancedDecal(vec4 decal) {
+    if (decal.x < -0.5 || decal.w <= 0.0) {
+        return vec4(0.0);
+    }
+
+    vec2 decalUv = (v_TexCoord - decal.yz + decal.ww * 0.5) / decal.ww;
+    if (decalUv.x < 0.0 || decalUv.x > 1.0 || decalUv.y < 0.0 || decalUv.y > 1.0) {
+        return vec4(0.0);
+    }
+
+    float strideX = m_DecalTileSize.x + m_DecalTileSize.w;
+    float strideY = m_DecalTileSize.y + m_DecalTileSize.w;
+    float columns = max(1.0, floor((m_DecalImageSize.x - m_DecalTileSize.z * 2.0 + m_DecalTileSize.w) / strideX));
+    float tileId = floor(decal.x + 0.5);
+    float col = mod(tileId, columns);
+    float row = floor(tileId / columns);
+    vec2 tilePos = vec2(
+        m_DecalTileSize.z + col * strideX,
+        m_DecalTileSize.z + row * strideY
+    );
+    vec2 pixel = decalUv * m_DecalTileSize.xy + tilePos;
+    vec2 minPixel = tilePos + vec2(0.5);
+    vec2 maxPixel = tilePos + m_DecalTileSize.xy - vec2(0.5);
+    vec2 uv = clamp(pixel, minPixel, maxPixel) / m_DecalImageSize;
+    uv.y = 1.0 - uv.y;
+    return texture2D(m_DecalMap, uv);
+}
+
+vec4 alphaOver(vec4 under, vec4 over) {
+    return mix(under, over, over.a);
+}
+#endif
 
 #ifdef INSTANCING
 vec4 sampleInstancedTile(vec2 tileUv) {
@@ -151,9 +200,21 @@ void main(){
     #ifdef USE_TILESET_IMAGE
     #ifdef INSTANCING
     color = sampleInstancedTile(uv);
+    #ifdef HAS_DECAL_MAP
+    color = alphaOver(color, sampleInstancedDecal(v_Decal0));
+    color = alphaOver(color, sampleInstancedDecal(v_Decal1));
+    color = alphaOver(color, sampleInstancedDecal(v_Decal2));
+    color = alphaOver(color, sampleInstancedDecal(v_Decal3));
+    #endif
     #else
     uv = getTileUVClamped(v_TilePos, m_TileSize.xy, m_ImageSize.xy);
     color = texture2D(m_ColorMap, uv);
+    #ifdef HAS_DECAL_MAP
+    color = alphaOver(color, sampleInstancedDecal(m_Decal0));
+    color = alphaOver(color, sampleInstancedDecal(m_Decal1));
+    color = alphaOver(color, sampleInstancedDecal(m_Decal2));
+    color = alphaOver(color, sampleInstancedDecal(m_Decal3));
+    #endif
     #endif
     #else
     color = texture2D(m_ColorMap, uv);

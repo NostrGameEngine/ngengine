@@ -40,6 +40,7 @@ import com.jme3.math.ColorRGBA;
 import com.jme3.math.Quaternion;
 import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
+import com.jme3.math.Vector4f;
 import com.jme3.renderer.Camera;
 import com.jme3.renderer.ViewPort;
 import com.jme3.renderer.queue.RenderQueue;
@@ -191,6 +192,14 @@ public abstract class MapRenderer {
     boolean batchDebugEnabled;
     private static final int TRANSIENT_COOLDOWN_FRAMES = 30;
     static final int BATCH_COOLDOWN_FRAMES = 45;
+    private static final int DECAL_LAYERS = 4;
+    private static final String DECAL_TILE_PROPERTY = "decal.tile";
+    private static final String DECAL_TILESET_PROPERTY = "decal.tileset";
+    private static final String DECAL_SCALE_PROPERTY = "decal.scale";
+    private static final String DECAL_SIZE_PROPERTY = "decal.size";
+    private static final String DECAL_OFFSET_X_PROPERTY = "decal.offsetX";
+    private static final String DECAL_OFFSET_Y_PROPERTY = "decal.offsetY";
+    private static final String DEFAULT_DECAL_TILESET = "tilesetDECALS";
     private static final RenderRef EMPTY_RENDER_REF = new RenderRef(0);
   
     public static class RenderRef {
@@ -1073,6 +1082,111 @@ public abstract class MapRenderer {
                 && canRenderInstancedTile(tile);
     }
 
+    private void applyObjectDecals(Material material, Tile tile) {
+        material.clearParam(MaterialConst.DECAL_MAP);
+        material.clearParam(MaterialConst.DECAL_IMAGE_SIZE);
+        material.clearParam(MaterialConst.DECAL_TILE_SIZE);
+        material.clearParam(MaterialConst.DECAL_0);
+        material.clearParam(MaterialConst.DECAL_1);
+        material.clearParam(MaterialConst.DECAL_2);
+        material.clearParam(MaterialConst.DECAL_3);
+
+        if (tile == null || tile.getCollisions() == null) {
+            return;
+        }
+
+        Vector4f[] decals = new Vector4f[] {
+                new Vector4f(-1f, 0f, 0f, 0f),
+                new Vector4f(-1f, 0f, 0f, 0f),
+                new Vector4f(-1f, 0f, 0f, 0f),
+                new Vector4f(-1f, 0f, 0f, 0f)
+        };
+        InstancedTilesetSource decalSource = null;
+        int layer = 0;
+        for (TiledObjectEntity decalObject : tile.getCollisions().getObjects()) {
+            if (layer >= DECAL_LAYERS) {
+                break;
+            }
+            Object decalTileValue = decalObject.getProperty(DECAL_TILE_PROPERTY);
+            if (decalTileValue == null) {
+                continue;
+            }
+
+            String tilesetName = String.valueOf(decalObject.getPropertyOrDefault(
+                    DECAL_TILESET_PROPERTY, DEFAULT_DECAL_TILESET)).trim();
+            Tileset tileset = tiledMap.getTileset(tilesetName);
+            if (tileset == null || !tileset.isImageBased()) {
+                continue;
+            }
+            int decalTileId = safeInt(decalTileValue, -1);
+            Tile decalTile = tileset.getTile(decalTileId);
+            if (decalTile == null) {
+                continue;
+            }
+            InstancedTilesetSource source = getInstancedTilesetSource(tileset);
+            if (decalSource == null) {
+                decalSource = source;
+            } else if (decalSource != source) {
+                continue;
+            }
+
+            float tileWidth = Math.max((float) tile.getWidth(), 1f);
+            float tileHeight = Math.max((float) tile.getHeight(), 1f);
+            float centerX = (float) ((decalObject.getX() + decalObject.getWidth() * 0.5) / tileWidth);
+            float centerY = (float) ((decalObject.getY() + decalObject.getHeight() * 0.5) / tileHeight);
+            centerX += safeFloat(decalObject.getProperty(DECAL_OFFSET_X_PROPERTY), 0f);
+            centerY += safeFloat(decalObject.getProperty(DECAL_OFFSET_Y_PROPERTY), 0f);
+            float defaultScale = (float) (Math.max(decalObject.getWidth(), decalObject.getHeight()) / tileWidth);
+            float scale = safeFloat(decalObject.getProperty(DECAL_SCALE_PROPERTY),
+                    safeFloat(decalObject.getProperty(DECAL_SIZE_PROPERTY), defaultScale * tileWidth) / tileWidth);
+            decals[layer].set(decalTile.getId(), centerX, centerY, scale);
+            layer++;
+        }
+
+        if (decalSource == null) {
+            return;
+        }
+
+        material.setTexture(MaterialConst.DECAL_MAP, decalSource.texture);
+        material.setVector2(MaterialConst.DECAL_IMAGE_SIZE,
+                new Vector2f(decalSource.imageWidth, decalSource.imageHeight));
+        material.setVector4(MaterialConst.DECAL_TILE_SIZE,
+                new Vector4f(
+                        decalSource.tileset.getTileWidth(),
+                        decalSource.tileset.getTileHeight(),
+                        decalSource.tileset.getMargin(),
+                        decalSource.tileset.getSpacing()));
+        material.setVector4(MaterialConst.DECAL_0, decals[0]);
+        material.setVector4(MaterialConst.DECAL_1, decals[1]);
+        material.setVector4(MaterialConst.DECAL_2, decals[2]);
+        material.setVector4(MaterialConst.DECAL_3, decals[3]);
+    }
+
+    private int safeInt(Object value, int defaultValue) {
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+        try {
+            return Integer.parseInt(String.valueOf(value));
+        } catch (RuntimeException ex) {
+            return defaultValue;
+        }
+    }
+
+    private float safeFloat(Object value, float defaultValue) {
+        if (value instanceof Number) {
+            return ((Number) value).floatValue();
+        }
+        if (value == null) {
+            return defaultValue;
+        }
+        try {
+            return Float.parseFloat(String.valueOf(value));
+        } catch (RuntimeException ex) {
+            return defaultValue;
+        }
+    }
+
     private Spatial renderTilesInstanced(Listener listener, TiledTileLayer layer, float tpf, RenderRef ref, Node layerNode, RenderingMode renderingMode) {
         int layerUpdateId = layer.getUpdateId();
         int layerPropertyUpdateId = layer.getPropertiesUpdateId();
@@ -1453,7 +1567,7 @@ public abstract class MapRenderer {
                 + " frag=" + batch.fragmentation);
     }
 
-    private InstancedTilesetSource getInstancedTilesetSource(Tileset tileset) {
+    InstancedTilesetSource getInstancedTilesetSource(Tileset tileset) {
         InstancedTilesetSource source = instancedSourceCache.get(tileset);
         if (source != null) {
             return source;
@@ -1863,6 +1977,7 @@ public abstract class MapRenderer {
                     spriteFactory.setAnimation(spatial, obj);
                     
                     materialFactory.setMapObject(spatial.getMaterial(), obj);
+                    applyObjectDecals(spatial.getMaterial(), obj.getTile());
                     materialFactory.setTintColor(spatial.getMaterial(), layer.getTintColor());
                     materialFactory.setLayerOpacity(spatial.getMaterial(), (float) layer.getOpacity());
                 

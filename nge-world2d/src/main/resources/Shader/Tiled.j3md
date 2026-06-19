@@ -6,6 +6,7 @@ MaterialDef Tiled {
         Texture2D ColorMap1
         Texture2D ColorMap2
         Texture2D ColorMap3
+        Texture2D DecalMap
         TextureArray ColorArray0
         TextureArray ColorArray1
         TextureArray ColorArray2
@@ -16,6 +17,12 @@ MaterialDef Tiled {
         Color TintColor : 1.0 1.0 1.0 1.0
         Vector2 ImageSize
         Vector4 TileSize
+        Vector2 DecalImageSize
+        Vector4 DecalTileSize
+        Vector4 Decal0
+        Vector4 Decal1
+        Vector4 Decal2
+        Vector4 Decal3
         Boolean UseInstancing
         Boolean UseTilesetImage
         // for animation use
@@ -45,6 +52,7 @@ MaterialDef Tiled {
             HAS_COLOR_MAP1 : ColorMap1
             HAS_COLOR_MAP2 : ColorMap2
             HAS_COLOR_MAP3 : ColorMap3
+            HAS_DECAL_MAP : DecalMap
             HAS_COLOR_ARRAY0 : ColorArray0
             HAS_COLOR_ARRAY1 : ColorArray1
             HAS_COLOR_ARRAY2 : ColorArray2

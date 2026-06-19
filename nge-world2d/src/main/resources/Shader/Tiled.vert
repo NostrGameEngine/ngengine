@@ -14,6 +14,12 @@ attribute vec4 inTexCoord2;
 attribute vec4 inTexCoord3;
 attribute vec4 inTexCoord4;
 attribute vec2 inTexCoord5;
+#ifdef HAS_DECAL_MAP
+attribute vec4 inTexCoord6;
+attribute vec4 inTexCoord7;
+attribute vec4 inTexCoord8;
+attribute vec4 inColor;
+#endif
 #else
 attribute vec3 inTexCoord2;
 #endif
@@ -22,6 +28,12 @@ attribute vec3 inTexCoord2;
 varying vec4 v_TileData;
 varying vec2 v_UvSize;
 varying vec2 v_ImageSize;
+#ifdef HAS_DECAL_MAP
+varying vec4 v_Decal0;
+varying vec4 v_Decal1;
+varying vec4 v_Decal2;
+varying vec4 v_Decal3;
+#endif
 #else
 varying vec2 v_TilePos;
 #endif
@@ -37,6 +49,12 @@ void main() {
     v_TileData = inTexCoord2;
     v_UvSize = inTexCoord5.xy;
     v_ImageSize = inTexCoord4.zw;
+#ifdef HAS_DECAL_MAP
+    v_Decal0 = inTexCoord6;
+    v_Decal1 = inTexCoord7;
+    v_Decal2 = inTexCoord8;
+    v_Decal3 = inColor;
+#endif
     float flags = v_TileData.w;
     if (mod(floor(flags), 2.0) >= 1.0) {
         v_TexCoord.x = 1.0 - v_TexCoord.x;

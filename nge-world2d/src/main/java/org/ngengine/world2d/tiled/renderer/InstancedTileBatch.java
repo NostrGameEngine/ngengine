@@ -44,10 +44,12 @@ import com.jme3.scene.Node;
 import com.jme3.scene.VertexBuffer;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
+import org.ngengine.platform.NGEUtils;
 import org.ngengine.world2d.tiled.core.TiledBase;
 import org.ngengine.world2d.tiled.core.TiledLayer;
 import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
 import org.ngengine.world2d.tiled.core.tileset.Tile;
+import org.ngengine.world2d.tiled.core.tileset.Tileset;
 import org.ngengine.world2d.tiled.enums.FillMode;
 import org.ngengine.world2d.tiled.enums.Orientation;
 
@@ -60,6 +62,14 @@ final class InstancedTileBatch {
     private static final int SIZE_COMPONENTS = 4;
     private static final int ORIGIN_COMPONENTS = 4;
     private static final int UV_SIZE_COMPONENTS = 2;
+    private static final int DECAL_COMPONENTS = 4;
+    private static final String DECAL_TILE_PROPERTY = "decal.tile";
+    private static final String DECAL_TILESET_PROPERTY = "decal.tileset";
+    private static final String DECAL_SCALE_PROPERTY = "decal.scale";
+    private static final String DECAL_SIZE_PROPERTY = "decal.size";
+    private static final String DECAL_OFFSET_X_PROPERTY = "decal.offsetX";
+    private static final String DECAL_OFFSET_Y_PROPERTY = "decal.offsetY";
+    private static final String DEFAULT_DECAL_TILESET = "tilesetDECALS";
     private static final int MIN_CAPACITY = 16;
     private static final int SHRINK_AFTER_UPDATES = 300;
 
@@ -78,7 +88,20 @@ final class InstancedTileBatch {
             VertexBuffer.Type.TexCoord4, ORIGIN_COMPONENTS, MIN_CAPACITY, SHRINK_AFTER_UPDATES);
     private final DynamicFloatVertexBuffer uvSizeData = new DynamicFloatVertexBuffer(
             VertexBuffer.Type.TexCoord5, UV_SIZE_COMPONENTS, MIN_CAPACITY, SHRINK_AFTER_UPDATES);
+    private final DynamicFloatVertexBuffer decal0Data = new DynamicFloatVertexBuffer(
+            VertexBuffer.Type.TexCoord6, DECAL_COMPONENTS, MIN_CAPACITY, SHRINK_AFTER_UPDATES);
+    private final DynamicFloatVertexBuffer decal1Data = new DynamicFloatVertexBuffer(
+            VertexBuffer.Type.TexCoord7, DECAL_COMPONENTS, MIN_CAPACITY, SHRINK_AFTER_UPDATES);
+    private final DynamicFloatVertexBuffer decal2Data = new DynamicFloatVertexBuffer(
+            VertexBuffer.Type.TexCoord8, DECAL_COMPONENTS, MIN_CAPACITY, SHRINK_AFTER_UPDATES);
+    private final DynamicFloatVertexBuffer decal3Data = new DynamicFloatVertexBuffer(
+            VertexBuffer.Type.Color, DECAL_COMPONENTS, MIN_CAPACITY, SHRINK_AFTER_UPDATES);
     private final boolean delayedCompaction;
+    private final float[] tmpDecalTile = new float[InstancedTileRecord.DECAL_LAYERS];
+    private final float[] tmpDecalX = new float[InstancedTileRecord.DECAL_LAYERS];
+    private final float[] tmpDecalY = new float[InstancedTileRecord.DECAL_LAYERS];
+    private final float[] tmpDecalScale = new float[InstancedTileRecord.DECAL_LAYERS];
+    private InstancedTilesetSource decalSource;
     Geometry geometry;
     private boolean materialDirty;
     float minX = Float.POSITIVE_INFINITY;
@@ -127,6 +150,10 @@ final class InstancedTileBatch {
         sizeData.beginUpdate();
         originData.beginUpdate();
         uvSizeData.beginUpdate();
+        decal0Data.beginUpdate();
+        decal1Data.beginUpdate();
+        decal2Data.beginUpdate();
+        decal3Data.beginUpdate();
     }
 
     void tickFrame() {
@@ -172,9 +199,10 @@ final class InstancedTileBatch {
         boolean changed = record.update(tile, source, textureSlot, tileDataX, tileDataY, flipFlags,
                 x, y, z, 0f, tileWidth, tileHeight, offsetX, offsetY,
                 originX, originY, imageWidth, imageHeight, uvWidth, uvHeight);
+        boolean decalChanged = record.updateDecals(null, null, null, null);
 
         int index = slots.get(record.entry);
-        if (changed || record.writeNeeded) {
+        if (changed || decalChanged || record.writeNeeded) {
             writeRecord(index);
             record.writeNeeded = false;
         } else {
@@ -218,13 +246,71 @@ final class InstancedTileBatch {
         boolean changed = record.update(tile, source, textureSlot, tileDataX, tileDataY, flipFlags,
                 x, y, z, rotation, tileWidth, tileHeight, offsetX, offsetY,
                 originX, originY, imageWidth, imageHeight, uvWidth, uvHeight);
+        fillObjectDecals(entry, tile);
+        boolean decalChanged = record.updateDecals(tmpDecalTile, tmpDecalX, tmpDecalY, tmpDecalScale);
 
         int index = slots.get(record.entry);
-        if (changed || record.writeNeeded) {
+        if (changed || decalChanged || record.writeNeeded) {
             writeRecord(index);
             record.writeNeeded = false;
         } else {
             includeRecordBounds(record);
+        }
+    }
+
+    private void fillObjectDecals(TiledObjectEntity entry, Tile tile) {
+        for (int i = 0; i < InstancedTileRecord.DECAL_LAYERS; i++) {
+            tmpDecalTile[i] = -1f;
+            tmpDecalX[i] = 0f;
+            tmpDecalY[i] = 0f;
+            tmpDecalScale[i] = 0f;
+        }
+        if (entry == null || tile == null || tile.getCollisions() == null) {
+            return;
+        }
+
+        int layer = 0;
+        for (TiledObjectEntity decalObject : tile.getCollisions().getObjects()) {
+            if (layer >= InstancedTileRecord.DECAL_LAYERS) {
+                return;
+            }
+            Object decalTileValue = decalObject.getProperty(DECAL_TILE_PROPERTY);
+            if (decalTileValue == null) {
+                continue;
+            }
+
+            String tilesetName = String.valueOf(decalObject.getPropertyOrDefault(
+                    DECAL_TILESET_PROPERTY, DEFAULT_DECAL_TILESET)).trim();
+            Tileset tileset = renderer.tiledMap.getTileset(tilesetName);
+            if (tileset == null || !tileset.isImageBased()) {
+                continue;
+            }
+            int decalTileId = NGEUtils.safeInt(decalTileValue);
+            Tile decalTile = tileset.getTile(decalTileId);
+            if (decalTile == null) {
+                continue;
+            }
+            InstancedTilesetSource source = renderer.getInstancedTilesetSource(tileset);
+            if (decalSource == null) {
+                decalSource = source;
+                materialDirty = true;
+            } else if (decalSource != source) {
+                continue;
+            }
+
+            float tileWidth = Math.max((float) tile.getWidth(), 1f);
+            float tileHeight = Math.max((float) tile.getHeight(), 1f);
+            tmpDecalTile[layer] = decalTile.getId();
+            tmpDecalX[layer] = (float) ((decalObject.getX() + decalObject.getWidth() * 0.5) / tileWidth)
+                    + NGEUtils.safeFloat(decalObject.getProperty(DECAL_OFFSET_X_PROPERTY));
+            tmpDecalY[layer] = (float) ((decalObject.getY() + decalObject.getHeight() * 0.5) / tileHeight)
+                    + NGEUtils.safeFloat(decalObject.getProperty(DECAL_OFFSET_Y_PROPERTY));
+            float defaultScale = (float) (Math.max(decalObject.getWidth(), decalObject.getHeight()) / tileWidth);
+            Object decalSizeValue = decalObject.getProperty(DECAL_SIZE_PROPERTY);
+            float decalSize = decalSizeValue != null ? NGEUtils.safeFloat(decalSizeValue) : defaultScale * tileWidth;
+            Object decalScaleValue = decalObject.getProperty(DECAL_SCALE_PROPERTY);
+            tmpDecalScale[layer] = decalScaleValue != null ? NGEUtils.safeFloat(decalScaleValue) : decalSize / tileWidth;
+            layer++;
         }
     }
 
@@ -461,6 +547,10 @@ final class InstancedTileBatch {
 
         uvSizeData.put(index, 0, record.uvWidth);
         uvSizeData.put(index, 1, record.uvHeight);
+        writeDecalLayer(decal0Data, index, record, 0);
+        writeDecalLayer(decal1Data, index, record, 1);
+        writeDecalLayer(decal2Data, index, record, 2);
+        writeDecalLayer(decal3Data, index, record, 3);
 
         if (!record.tombstone) {
             includeRecordBounds(record);
@@ -473,7 +563,19 @@ final class InstancedTileBatch {
             sizeData.markElementDirty(index);
             originData.markElementDirty(index);
             uvSizeData.markElementDirty(index);
+            decal0Data.markElementDirty(index);
+            decal1Data.markElementDirty(index);
+            decal2Data.markElementDirty(index);
+            decal3Data.markElementDirty(index);
         }
+    }
+
+    private void writeDecalLayer(DynamicFloatVertexBuffer buffer, int index, InstancedTileRecord record, int layer) {
+        boolean hidden = record.tombstone || record.decalTile[layer] < -0.5f;
+        buffer.put(index, 0, hidden ? -1f : record.decalTile[layer]);
+        buffer.put(index, 1, hidden ? 0f : record.decalX[layer]);
+        buffer.put(index, 2, hidden ? 0f : record.decalY[layer]);
+        buffer.put(index, 3, hidden ? 0f : record.decalScale[layer]);
     }
 
     private void includeRecordBounds(InstancedTileRecord record) {
@@ -512,6 +614,10 @@ final class InstancedTileBatch {
         sizeData.ensureCapacity(needed);
         originData.ensureCapacity(needed);
         uvSizeData.ensureCapacity(needed);
+        decal0Data.ensureCapacity(needed);
+        decal1Data.ensureCapacity(needed);
+        decal2Data.ensureCapacity(needed);
+        decal3Data.ensureCapacity(needed);
     }
 
     private void maybeShrink() {
@@ -520,6 +626,10 @@ final class InstancedTileBatch {
         sizeData.maybeShrink(records.size());
         originData.maybeShrink(records.size());
         uvSizeData.maybeShrink(records.size());
+        decal0Data.maybeShrink(records.size());
+        decal1Data.maybeShrink(records.size());
+        decal2Data.maybeShrink(records.size());
+        decal3Data.maybeShrink(records.size());
     }
 
     private int getInstancedFlipFlags(Tile tile) {
@@ -541,6 +651,7 @@ final class InstancedTileBatch {
         material.clearParam(MaterialConst.COLOR_MAP_1);
         material.clearParam(MaterialConst.COLOR_MAP_2);
         material.clearParam(MaterialConst.COLOR_MAP_3);
+        material.clearParam(MaterialConst.DECAL_MAP);
         material.clearParam(MaterialConst.COLOR_ARRAY_0);
         material.clearParam(MaterialConst.COLOR_ARRAY_1);
         material.clearParam(MaterialConst.COLOR_ARRAY_2);
@@ -552,6 +663,17 @@ final class InstancedTileBatch {
             } else {
                 material.setTexture(getColorArrayParam(i), source.textureArray);
             }
+        }
+        if (decalSource != null && decalSource.imageBased) {
+            material.setTexture(MaterialConst.DECAL_MAP, decalSource.texture);
+            material.setVector2(MaterialConst.DECAL_IMAGE_SIZE,
+                    new Vector2f(decalSource.imageWidth, decalSource.imageHeight));
+            material.setVector4(MaterialConst.DECAL_TILE_SIZE,
+                    new com.jme3.math.Vector4f(
+                            decalSource.tileset.getTileWidth(),
+                            decalSource.tileset.getTileHeight(),
+                            decalSource.tileset.getMargin(),
+                            decalSource.tileset.getSpacing()));
         }
         material.setBoolean(MaterialConst.USE_INSTANCING, true);
         material.setBoolean(MaterialConst.USE_TILESET_IMAGE, true);
@@ -604,6 +726,10 @@ final class InstancedTileBatch {
         sizeData.attach(mesh);
         originData.attach(mesh);
         uvSizeData.attach(mesh);
+        decal0Data.attach(mesh);
+        decal1Data.attach(mesh);
+        decal2Data.attach(mesh);
+        decal3Data.attach(mesh);
         mesh.updateBound();
         mesh.updateCounts();
         geometry = new InstancedTileGeometry("tiles#" + layerName, mesh);

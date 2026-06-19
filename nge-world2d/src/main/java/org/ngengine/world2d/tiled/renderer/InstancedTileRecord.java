@@ -39,6 +39,8 @@ import org.ngengine.world2d.tiled.core.tileset.Tile;
  * CPU copy of one instance slot, used to decide whether buffer data changed.
  */
 final class InstancedTileRecord {
+    static final int DECAL_LAYERS = 4;
+
     TiledBase entry;
     Tile tile;
     InstancedTilesetSource source;
@@ -61,6 +63,10 @@ final class InstancedTileRecord {
     float imageHeight;
     float uvWidth;
     float uvHeight;
+    final float[] decalTile = new float[] { -1f, -1f, -1f, -1f };
+    final float[] decalX = new float[DECAL_LAYERS];
+    final float[] decalY = new float[DECAL_LAYERS];
+    final float[] decalScale = new float[DECAL_LAYERS];
     boolean writeNeeded;
     boolean tombstone;
 
@@ -102,6 +108,25 @@ final class InstancedTileRecord {
         this.imageHeight = imageHeight;
         this.uvWidth = uvWidth;
         this.uvHeight = uvHeight;
+        return changed;
+    }
+
+    boolean updateDecals(float[] tile, float[] x, float[] y, float[] scale) {
+        boolean changed = false;
+        for (int i = 0; i < DECAL_LAYERS; i++) {
+            float nextTile = tile != null ? tile[i] : -1f;
+            float nextX = x != null ? x[i] : 0f;
+            float nextY = y != null ? y[i] : 0f;
+            float nextScale = scale != null ? scale[i] : 0f;
+            changed |= decalTile[i] != nextTile
+                    || decalX[i] != nextX
+                    || decalY[i] != nextY
+                    || decalScale[i] != nextScale;
+            decalTile[i] = nextTile;
+            decalX[i] = nextX;
+            decalY[i] = nextY;
+            decalScale[i] = nextScale;
+        }
         return changed;
     }
 }
