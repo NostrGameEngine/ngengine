@@ -317,7 +317,27 @@ public class GuiControl extends AbstractNodeControl<GuiControl>
         }
         if( focusListeners != null ) {
             for( FocusListener l : focusListeners.getArray() ) {
-                l.focusAction(target, pressed);
+                l.focusAction(target, pressed, x, y);
+            }
+        }
+    }
+
+    @Override
+    public void focusDrag(Spatial target, float x, float y) {
+        if (log.isLoggable(Level.FINEST)) {
+            log.finest(getSpatial() + " drag()");
+        }
+        for( GuiComponent c : componentStack.getArray() ) {
+            if( c instanceof FocusTarget ) {
+                ((FocusTarget)c).focusDrag(target, x, y);
+            }
+        }
+        if( layout instanceof FocusTarget ) {
+            ((FocusTarget)layout).focusDrag(target, x, y);
+        }
+        if( focusListeners != null ) {
+            for( FocusListener l : focusListeners.getArray() ) {
+                l.focusDrag(target, x, y);
             }
         }
     }

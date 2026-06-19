@@ -59,12 +59,15 @@ import com.jme3.input.KeyInput;
 import com.jme3.input.Keyboard;
 import com.jme3.input.Mouse;
 import com.jme3.input.MouseInput;
+import com.jme3.input.TouchInput;
 import com.jme3.input.TouchScreen;
 import com.jme3.input.controls.JoyAxisTrigger;
 import com.jme3.input.controls.JoyButtonTrigger;
 import com.jme3.input.controls.KeyTrigger;
 import com.jme3.input.controls.MouseAxisTrigger;
 import com.jme3.input.controls.MouseButtonTrigger;
+import com.jme3.input.controls.TouchListener;
+import com.jme3.input.controls.TouchTrigger;
 import com.jme3.input.event.InputEvent;
 import com.jme3.input.event.JoyAxisEvent;
 import com.jme3.input.event.JoyButtonEvent;
@@ -75,7 +78,7 @@ import com.jme3.math.Vector2f;
 import com.jme3.renderer.ViewPort;
 import com.jme3.scene.Spatial;
 
-public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
+public class DefaultNavigatorInputHandler implements NavigatorInputHandler, TouchListener {
     private WeakReference<ViewPort> guiViewPort;
     private boolean consume = true;
     private String bindId = "";
@@ -302,7 +305,8 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
             }
             bindActiveMappings();
         } else if (device instanceof TouchScreen) {
-            // TODO
+            inputManager.addMapping(_ps("touch"), new TouchTrigger(TouchInput.ALL));
+            bindActiveMappings();
         } else if (device instanceof Joystick) {
             Joystick joy = (Joystick) device;
             inputManager.addMapping(_ps("navigateUp"),
@@ -640,6 +644,36 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
         }   
     }
 
+    @Override
+    public void onTouch(String name, TouchEvent event, float tpf) {
+        if (!_p("touch").equals(name) || inputDevice == null || event == null) {
+            return;
+        }
+        ViewPort vp = getViewPort();
+        if (vp == null) return;
+        GuiContext state = NGEGui.get(vp);
+        if (state == null) return;
+        Navigator navigator = state.getNavigator();
+        if (navigator == null) return;
+
+        TouchEvent.Type type = event.getType();
+        if (type == TouchEvent.Type.TAP) {
+            pointerPressed(state, navigator, event.getX(), event.getY());
+            pointerReleased(state, navigator, event.getX(), event.getY());
+            consume(event);
+        } else if (type == TouchEvent.Type.DOWN) {
+            pointerPressed(state, navigator, event.getX(), event.getY());
+            consume(event);
+        } else if (type == TouchEvent.Type.UP) {
+            pointerReleased(state, navigator, event.getX(), event.getY());
+            consume(event);
+        } else if (type == TouchEvent.Type.MOVE && pointerActionPressed) {
+            pointerDragged(event.getX(), event.getY());
+            updatePointerFocusAt(state, navigator, event.getX(), event.getY());
+            consume(event);
+        }
+    }
+
     private void navigateOrAdjustSlider(Navigator navigator, TraversalDirection dir, InputEvent<?> event) {
         Spatial focus = navigator.getFocus();
         if (focus instanceof Slider) {
@@ -710,6 +744,16 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
         } else {
             navigator.clearPointerFocus();
             pointerActionPressed = false;
+        }
+    }
+
+    private void pointerDragged(double x, double y) {
+        if (pointerActionTarget == null || !pointerActionPressed) {
+            return;
+        }
+        FocusTarget target = NGEGui.findFocusTarget(pointerActionTarget);
+        if (target != null) {
+            target.focusDrag(pointerActionTarget, (float) x, (float) y);
         }
     }
 

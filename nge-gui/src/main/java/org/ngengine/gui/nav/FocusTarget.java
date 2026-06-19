@@ -77,5 +77,8 @@ public interface FocusTarget extends FocusListener {
         focusAction(target, pressed);
     }
 
+    public default void focusDrag(Spatial target, float x, float y) {
+    }
+
     public void focusScrollUpdate(ScrollDirection dir, double value);
 }

@@ -51,6 +51,13 @@ public interface FocusListener {
 
     public void focusAction(Spatial target, boolean pressed);
 
+    public default void focusAction(Spatial target, boolean pressed, float x, float y) {
+        focusAction(target, pressed);
+    }
+
+    public default void focusDrag(Spatial target, float x, float y) {
+    }
+
     public void focusScrollUpdate(Spatial target, ScrollDirection dir, double value);
 
 }

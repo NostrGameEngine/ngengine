@@ -98,6 +98,7 @@ public class ListBox<T> extends Panel  {
     private RangedValueModel baseIndex;  // upside down actually
     private VersionedReference<Double> indexRef;
     private int maxIndex;
+    private float touchScrollSlop = 8f;
     
  
     /**
@@ -261,6 +262,14 @@ public class ListBox<T> extends Panel  {
     
     public GridPanel getGridPanel() {
         return grid;
+    }
+
+    public void setTouchScrollSlop(float pixels) {
+        touchScrollSlop = Math.max(0f, pixels);
+    }
+
+    public float getTouchScrollSlop() {
+        return touchScrollSlop;
     }
 
     public Panel getSelector() {
@@ -476,6 +485,11 @@ public class ListBox<T> extends Panel  {
     private class Listener implements FocusListener, NavigatorListener {
         private Spatial lastTarget = null;
         private Spatial focusOverride = null;
+        private boolean dragActive;
+        private boolean dragMoved;
+        private float dragStartY;
+        private float dragLastY;
+        private float dragRemainderY;
         @Override
         public void focusGained(Spatial target) {
             entered = true;
@@ -540,6 +554,51 @@ public class ListBox<T> extends Panel  {
         }
 
         @Override
+        public void focusAction(Spatial target, boolean pressed, float x, float y) {
+            if (pressed) {
+                dragActive = true;
+                dragMoved = false;
+                dragStartY = y;
+                dragLastY = y;
+                dragRemainderY = 0f;
+                return;
+            }
+            boolean wasDragging = dragMoved;
+            dragActive = false;
+            dragMoved = false;
+            dragRemainderY = 0f;
+            if (!wasDragging) {
+                focusAction(target, false);
+            }
+        }
+
+        @Override
+        public void focusDrag(Spatial target, float x, float y) {
+            if (!dragActive || maxIndex <= 0) {
+                return;
+            }
+            float dy = y - dragLastY;
+            dragLastY = y;
+            if (!dragMoved && Math.abs(y - dragStartY) < touchScrollSlop) {
+                return;
+            }
+            dragMoved = true;
+            dragRemainderY += dy;
+
+            float rowHeight = getTouchScrollRowHeight();
+            if (rowHeight <= 0f) {
+                return;
+            }
+            int rows = (int) (dragRemainderY / rowHeight);
+            if (rows == 0) {
+                return;
+            }
+            dragRemainderY -= rows * rowHeight;
+            scroll(-rows);
+            refreshSelector();
+        }
+
+        @Override
         public boolean beforeNavigatorNavigate(TraversalDirection dir) {
             if(lastTarget==null) return true;
 
@@ -599,12 +658,28 @@ public class ListBox<T> extends Panel  {
         public void focusLost(Spatial target) {
             entered = false;
             if(target==lastTarget)lastTarget = null;
+            dragActive = false;
+            dragMoved = false;
+            dragRemainderY = 0f;
         }
 
        
         @Override
         public void focusScrollUpdate(Spatial target, ScrollDirection dir,  double value) {
             scroll((int)(dir==ScrollDirection.Up||dir==ScrollDirection.Right?value:-value));
+        }
+
+        private float getTouchScrollRowHeight() {
+            int rows = Math.max(1, grid.getVisibleRows());
+            Vector3f size = grid.getSize();
+            if (size != null && size.y > 0f) {
+                return Math.max(1f, size.y / rows);
+            }
+            Vector3f preferred = grid.getPreferredSize();
+            if (preferred != null && preferred.y > 0f) {
+                return Math.max(1f, preferred.y / rows);
+            }
+            return 1f;
         }
 
     }   
