@@ -319,14 +319,19 @@ public class TiledPhysicsComponent extends AbstractComponent
                 TiledBase bodyEntity = ((Box2dUserData) fx.getUserData()).getEntity();
 
                 Object categoryBits = fxEntry.getProperty(PropertiesKeys.phy.categoryBits);
-                if (categoryBits == null)
-                    bodyEntity.getProperty( PropertiesKeys.phy.categoryBits);
+                if (categoryBits == null) {
+                    categoryBits = bodyEntity.getProperty(PropertiesKeys.phy.categoryBits);
+                }
                 if (categoryBits == null) categoryBits = "0x0001";
                 Object maskBits = fxEntry.getProperty( PropertiesKeys.phy.maskBits);
-                if (maskBits == null) bodyEntity.getProperty( PropertiesKeys.phy.maskBits);
+                if (maskBits == null) {
+                    maskBits = bodyEntity.getProperty(PropertiesKeys.phy.maskBits);
+                }
                 if (maskBits == null) maskBits = "0xFFFF";
                 Object groupIndex = fxEntry.getProperty(   PropertiesKeys.phy.groupIndex);
-                if (groupIndex == null) bodyEntity.getProperty( PropertiesKeys.phy.groupIndex);
+                if (groupIndex == null) {
+                    groupIndex = bodyEntity.getProperty(PropertiesKeys.phy.groupIndex);
+                }
                 if (groupIndex == null) groupIndex = "0";
 
                 Filter filterfx = new Filter();
