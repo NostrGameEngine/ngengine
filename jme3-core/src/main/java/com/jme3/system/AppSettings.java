@@ -403,7 +403,7 @@ public final class AppSettings extends HashMap<String, Object> {
         defaults.put("JoysticksAxisJitterThreshold", 0.0001f);
         defaults.put("SDLGameControllerDBResourcePath", "");
         defaults.put("OnDeviceJoystickRumble", false);
-        defaults.put("VirtualJoystick", VIRTUAL_JOYSTICK_DISABLED);
+        defaults.put("VirtualJoystick", VIRTUAL_JOYSTICK_ENABLED);
         defaults.put("VirtualJoystickDefaultLayout", VIRTUAL_JOYSTICK_LAYOUT_DYNAMIC);
         //  defaults.put("Icons", null);
     }

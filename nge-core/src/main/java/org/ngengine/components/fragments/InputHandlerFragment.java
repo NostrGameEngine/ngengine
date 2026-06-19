@@ -50,6 +50,7 @@ import com.jme3.input.event.TouchEvent;
 import com.jme3.system.JmeSystem;
 import com.jme3.system.Platform;
 
+import java.lang.reflect.Method;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -113,33 +114,14 @@ public interface InputHandlerFragment extends Fragment {
             }
             for (Joystick joystick : joysticks) {
                 if (joystick instanceof VirtualJoystick) {
-                    updateVirtualJoystick((VirtualJoystick) joystick);
+                    updateVirtualJoystick((VirtualJoystick) joystick, joysticks);
                     return;
                 }
             }
         }
 
-        private boolean hasPhysicalJoystick() {
-            InputManager inputManager = mng.getInstanceOf(InputManager.class);
-            Joystick[] joysticks = inputManager.getJoysticks();
-            if (joysticks == null) {
-                return false;
-            }
-            for (Joystick joystick : joysticks) {
-                if (!(joystick instanceof VirtualJoystick)) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        private boolean isMobilePlatform() {
-            Platform.Os os = JmeSystem.getPlatform().getOs();
-            return os == Platform.Os.Android || os == Platform.Os.iOS;
-        }
-
-        private void updateVirtualJoystick(VirtualJoystick joystick) {
-            boolean visible = isMobilePlatform() && !hasPhysicalJoystick();
+        private void updateVirtualJoystick(VirtualJoystick joystick, Joystick[] joysticks) {
+            boolean visible = joystick.hasInputBindings() && fragment.showOnScreenJoystick(mng, joysticks);
             joystick.setEnabled(visible);
             if (visible) {
                 deviceConnect(joystick);
@@ -148,7 +130,6 @@ public interface InputHandlerFragment extends Fragment {
             }
         }
 
- 
         private void deviceDisconnect(InputDevice device) {
             if (seenDevices.remove(device)) {
                 fragment.onInputDeviceDisconnected(mng, mng.getInstanceOf(InputManager.class), binder,device);
@@ -231,7 +212,7 @@ public interface InputHandlerFragment extends Fragment {
         public void onConnected(Joystick joystick) {
             if (isFragmentEnabled()) {
                 if (joystick instanceof VirtualJoystick) {
-                    updateVirtualJoystick((VirtualJoystick) joystick);
+                    updateVirtualJoystick((VirtualJoystick) joystick, mng.getInstanceOf(InputManager.class).getJoysticks());
                 } else {
                     syncVirtualJoystick();
                 }
@@ -247,6 +228,43 @@ public interface InputHandlerFragment extends Fragment {
         }
 
      
+    }
+
+    static boolean hasPhysicalJoystick(Joystick[] joysticks) {
+        if (joysticks == null) {
+            return false;
+        }
+        for (Joystick joystick : joysticks) {
+            if (!(joystick instanceof VirtualJoystick)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static boolean isMobilePlatform() {
+        Platform.Os os = JmeSystem.getPlatform().getOs();
+        return os == Platform.Os.Android || os == Platform.Os.iOS;
+    }
+
+    static boolean isMobileWebView() {
+        if (JmeSystem.getPlatform().getOs() != Platform.Os.Web) {
+            return false;
+        }
+        try {
+            Class<?> webInfo = Class.forName("org.ngengine.web.WebPlatformInfo");
+            Method method = webInfo.getMethod("isMobileView");
+            return Boolean.TRUE.equals(method.invoke(null));
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    default boolean showOnScreenJoystick(ComponentManager mng, Joystick[] joysticks) {
+        if (hasPhysicalJoystick(joysticks)) {
+            return false;
+        }
+        return isMobilePlatform() || isMobileWebView();
     }
  
     @Deprecated
