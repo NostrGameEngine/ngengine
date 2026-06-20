@@ -38,6 +38,7 @@ import com.jme3.bounding.BoundingBox;
 import com.jme3.asset.AssetManager;
 import com.jme3.asset.DesktopAssetManager;
 import com.jme3.asset.plugins.ClasspathLocator;
+import com.jme3.material.RenderState;
 import com.jme3.renderer.Camera.FrustumIntersect;
 import com.jme3.material.plugins.J3MLoader;
 import com.jme3.math.Vector2f;
@@ -75,6 +76,7 @@ import org.ngengine.world2d.tiled.core.tileset.Tile;
 import org.ngengine.world2d.tiled.core.tileset.Tileset;
 import org.ngengine.world2d.tiled.enums.DrawOrder;
 import org.ngengine.world2d.tiled.enums.FillMode;
+import org.ngengine.world2d.tiled.enums.LayerBlendMode;
 import org.ngengine.world2d.tiled.enums.ObjectAlignment;
 import org.ngengine.world2d.tiled.enums.Orientation;
 import org.ngengine.world2d.tiled.enums.RenderingMode;
@@ -121,6 +123,7 @@ class TestTiledInstancedBatching {
         imageLayer.setName("Repeating image");
         imageLayer.setRepeatX(true);
         imageLayer.setRepeatY(false);
+        imageLayer.setBlendMode(LayerBlendMode.SCREEN);
         TiledImageEntity image = new TiledImageEntity("generated", null, null, 16, 8);
         Texture2D texture = new Texture2D(new Image(Image.Format.RGBA8, 16, 8,
                 BufferUtils.createByteBuffer(16 * 8 * 4), ColorSpace.sRGB));
@@ -143,6 +146,7 @@ class TestTiledInstancedBatching {
         assertEquals(1f, texCoords.get(5), 0.001f);
         assertEquals(Texture.WrapMode.Repeat, texture.getWrap(Texture.WrapAxis.S));
         assertEquals(Texture.WrapMode.EdgeClamp, texture.getWrap(Texture.WrapAxis.T));
+        assertEquals(RenderState.BlendMode.Screen, geometry.getMaterial().getAdditionalRenderState().getBlendMode());
     }
 
     @Test void batchCulledRemovalLeavesTombstoneThenFillsHoleWithLastInstance() {

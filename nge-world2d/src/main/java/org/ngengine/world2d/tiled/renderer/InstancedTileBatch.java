@@ -402,6 +402,7 @@ final class InstancedTileBatch {
         }
         renderer.spriteFactory.getMaterialFactory().setTintColor(geometry.getMaterial(), layer.getTintColor());
         renderer.spriteFactory.getMaterialFactory().setLayerOpacity(geometry.getMaterial(), (float) layer.getOpacity());
+        renderer.spriteFactory.getMaterialFactory().setBlendMode(geometry.getMaterial(), layer.getBlendMode());
         geometry.setUserData(YAxisComparator.SORT_ORDER_USER_DATA,
                 renderer.getWorldSortOrder(layer, drawGroup));
         geometry.setNumInstances(records.size());

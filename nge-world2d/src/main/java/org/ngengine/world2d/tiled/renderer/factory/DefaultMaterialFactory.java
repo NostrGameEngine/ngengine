@@ -47,6 +47,7 @@ import org.ngengine.world2d.tiled.core.entity.TiledImageEntity;
 import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
 import org.ngengine.world2d.tiled.core.tileset.Tile;
 import org.ngengine.world2d.tiled.core.tileset.Tileset;
+import org.ngengine.world2d.tiled.enums.LayerBlendMode;
 import org.ngengine.world2d.tiled.util.ColorUtil;
 
 import static org.ngengine.world2d.tiled.renderer.MaterialConst.*;
@@ -183,6 +184,51 @@ public class DefaultMaterialFactory implements MaterialFactory {
                     setLayerOpacity(geometry.getMaterial(), opacity);
                 }
             }
+        }
+    }
+
+    @Override
+    public void setBlendMode(Material material, LayerBlendMode blendMode) {
+        material.getAdditionalRenderState().setBlendMode(toRenderStateBlendMode(blendMode));
+    }
+
+    @Override
+    public void setBlendMode(Spatial spatial, LayerBlendMode blendMode) {
+        if (spatial instanceof Geometry) {
+            Geometry geometry = (Geometry) spatial;
+            setBlendMode(geometry.getMaterial(), blendMode);
+        } else {
+            Node node = (Node) spatial;
+            for (Spatial child : node.getChildren()) {
+                if (child instanceof Geometry) {
+                    Geometry geometry = (Geometry) child;
+                    setBlendMode(geometry.getMaterial(), blendMode);
+                }
+            }
+        }
+    }
+
+    private RenderState.BlendMode toRenderStateBlendMode(LayerBlendMode blendMode) {
+        switch (blendMode == null ? LayerBlendMode.NORMAL : blendMode) {
+            case ADD:
+                return RenderState.BlendMode.AlphaAdditive;
+            case MULTIPLY:
+                return RenderState.BlendMode.Modulate;
+            case SCREEN:
+                return RenderState.BlendMode.Screen;
+            case EXCLUSION:
+                return RenderState.BlendMode.Exclusion;
+            case NORMAL:
+            case OVERLAY:
+            case DARKEN:
+            case LIGHTEN:
+            case COLOR_DODGE:
+            case COLOR_BURN:
+            case HARD_LIGHT:
+            case SOFT_LIGHT:
+            case DIFFERENCE:
+            default:
+                return RenderState.BlendMode.Alpha;
         }
     }
 

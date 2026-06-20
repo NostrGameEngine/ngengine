@@ -35,6 +35,7 @@ package org.ngengine.world2d.tiled.loader;
 import com.jme3.asset.AssetKey;
 import com.jme3.asset.AssetManager;
 import org.ngengine.world2d.tiled.core.TiledLayer;
+import org.ngengine.world2d.tiled.enums.LayerBlendMode;
 import org.ngengine.world2d.tiled.util.ColorUtil;
 import org.ngengine.world2d.tiled.xml.XmlNode;
 
@@ -88,6 +89,7 @@ public abstract class LayerLoader {
         final String name = getAttributeValue(node, NAME);
         String clazz = getAttribute(node, CLASS, EMPTY);
         double opacity = getDoubleAttribute(node, OPACITY, 1.0);
+        String mode = getAttribute(node, MODE, LayerBlendMode.NORMAL.getValue());
         boolean visible = getAttribute(node, VISIBLE, 1) == 1;
         boolean locked = getAttribute(node, LOCKED, 0) == 1;
         String tintColor = getAttributeValue(node, TINT_COLOR);
@@ -99,6 +101,7 @@ public abstract class LayerLoader {
         layer.setName(name);
         layer.setClazz(clazz);
         layer.setOpacity(opacity);
+        layer.setBlendMode(LayerBlendMode.fromString(mode));
 
         if (tintColor != null) {
             layer.setTintColor(ColorUtil.toColorRGBA(tintColor));

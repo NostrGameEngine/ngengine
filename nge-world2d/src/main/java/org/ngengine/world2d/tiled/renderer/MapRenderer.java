@@ -1024,6 +1024,7 @@ public abstract class MapRenderer {
                     materialFactory.setTile(mat, tile);
                     materialFactory.setTintColor(mat, layer.getTintColor());
                     materialFactory.setLayerOpacity(mat, (float) layer.getOpacity());
+                    materialFactory.setBlendMode(mat, layer.getBlendMode());
                 
                     spriteFactory.setAnimation(visual, tile);
 
@@ -1035,6 +1036,13 @@ public abstract class MapRenderer {
                 }  
 
                 if(tilePropertiesUpdateNeeded||layerPropertiesUpdateNeeded){
+                    if (layerPropertiesUpdateNeeded) {
+                        MaterialFactory materialFactory = spriteFactory.getMaterialFactory();
+                        Material mat = visual.getMaterial();
+                        materialFactory.setTintColor(mat, layer.getTintColor());
+                        materialFactory.setLayerOpacity(mat, (float) layer.getOpacity());
+                        materialFactory.setBlendMode(mat, layer.getBlendMode());
+                    }
                     spriteFactory.applyProperties(tile, visual);
                     ref.clearTilePropertiesUpdateNeeded(index, propertyUpdateId);
                 }
@@ -1323,6 +1331,7 @@ public abstract class MapRenderer {
                     Geometry geometry = (Geometry) child;
                     materialFactory.setTintColor(geometry.getMaterial(), layer.getTintColor());
                     materialFactory.setLayerOpacity(geometry.getMaterial(), (float) layer.getOpacity());
+                    materialFactory.setBlendMode(geometry.getMaterial(), layer.getBlendMode());
                 }
             }
         }
@@ -1483,6 +1492,7 @@ public abstract class MapRenderer {
         materialFactory.setTile(mat, tile);
         materialFactory.setTintColor(mat, layer.getTintColor());
         materialFactory.setLayerOpacity(mat, (float) layer.getOpacity());
+        materialFactory.setBlendMode(mat, layer.getBlendMode());
         spriteFactory.setAnimation(visual, tile);
         spriteFactory.applyProperties(tile, visual);
 
@@ -1821,6 +1831,7 @@ public abstract class MapRenderer {
             configureImageLayerWrap(layer);
             materialFactory.setTintColor(geo.getMaterial(), layer.getTintColor());
             materialFactory.setLayerOpacity(geo.getMaterial(), (float) layer.getOpacity());
+            materialFactory.setBlendMode(geo.getMaterial(), layer.getBlendMode());
 
             if(layerRef.isPropertiesUpdateNeeded(propertyUpdateId) || ref.isPropertiesUpdateNeeded(propertyUpdateId)){
                 spriteFactory.applyProperties(layer, ref.sp);
@@ -2012,11 +2023,17 @@ public abstract class MapRenderer {
                     applyObjectDecals(spatial.getMaterial(), obj.getTile());
                     materialFactory.setTintColor(spatial.getMaterial(), layer.getTintColor());
                     materialFactory.setLayerOpacity(spatial.getMaterial(), (float) layer.getOpacity());
+                    materialFactory.setBlendMode(spatial.getMaterial(), layer.getBlendMode());
                 
                     ref.clearUpdateNeeded(objectUpdateId);
                 } 
                 
                 if(layerPropertiesUpdateNeeded||ref.isPropertiesUpdateNeeded(objectPropertyUpdateId)){
+                    if (layerPropertiesUpdateNeeded) {
+                        materialFactory.setTintColor(spatial.getMaterial(), layer.getTintColor());
+                        materialFactory.setLayerOpacity(spatial.getMaterial(), (float) layer.getOpacity());
+                        materialFactory.setBlendMode(spatial.getMaterial(), layer.getBlendMode());
+                    }
                     spriteFactory.applyProperties(layer, spatial);
                     spriteFactory.applyProperties(layer, layerNode);
                     ref.clearPropertiesUpdateNeeded(objectPropertyUpdateId);

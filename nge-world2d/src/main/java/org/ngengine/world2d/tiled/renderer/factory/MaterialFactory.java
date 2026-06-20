@@ -40,6 +40,7 @@ import org.ngengine.world2d.tiled.core.entity.TiledImageEntity;
 import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
 import org.ngengine.world2d.tiled.core.tileset.Tile;
 import org.ngengine.world2d.tiled.core.tileset.Tileset;
+import org.ngengine.world2d.tiled.enums.LayerBlendMode;
 
 /**
  * desc:
@@ -64,6 +65,10 @@ public interface MaterialFactory {
     void setLayerOpacity(Material material, float opacity);
 
     void setLayerOpacity(Spatial spatial, float opacity);
+
+    void setBlendMode(Material material, LayerBlendMode blendMode);
+
+    void setBlendMode(Spatial spatial, LayerBlendMode blendMode);
 
     void setOpacity(Material material, float opacity);
 

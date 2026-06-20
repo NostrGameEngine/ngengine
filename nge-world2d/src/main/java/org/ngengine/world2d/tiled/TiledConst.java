@@ -98,6 +98,7 @@ public final class TiledConst {
     public static final String WIDTH = "width";
     public static final String HEIGHT = "height";
     public static final String OPACITY = "opacity";
+    public static final String MODE = "mode";
     public static final String LOCKED = "locked";
     public static final String TINT_COLOR = "tintcolor";
     public static final String PROBABILITY = "probability";

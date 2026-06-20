@@ -42,6 +42,7 @@ import com.jme3.math.Vector2f;
 
 import org.ngengine.world2d.tiled.components.TiledComponentManager;
 import org.ngengine.world2d.tiled.components.TiledComponentReflectionMounting;
+import org.ngengine.world2d.tiled.enums.LayerBlendMode;
 import org.ngengine.world2d.tiled.enums.RenderingMode;
 import org.ngengine.world2d.tiled.util.CoordinateSystem;
 
@@ -88,6 +89,7 @@ public abstract class TiledLayer extends TiledBase implements ComponentManagerPr
     protected boolean visible = true;
     protected boolean locked = false;
     protected ColorRGBA tintColor = new ColorRGBA(1f, 1f, 1f, 1f);
+    protected LayerBlendMode blendMode = LayerBlendMode.NORMAL;
     protected RenderingMode renderingMode = RenderingMode.AUTO;
 
     protected int offsetX = 0;
@@ -347,6 +349,15 @@ public abstract class TiledLayer extends TiledBase implements ComponentManagerPr
      */
     public void setTintColor(ColorRGBA tintColor) {
         this.tintColor = tintColor;
+        setUpdateNeeded();
+    }
+
+    public LayerBlendMode getBlendMode() {
+        return blendMode;
+    }
+
+    public void setBlendMode(LayerBlendMode blendMode) {
+        this.blendMode = blendMode == null ? LayerBlendMode.NORMAL : blendMode;
         setUpdateNeeded();
     }
 
