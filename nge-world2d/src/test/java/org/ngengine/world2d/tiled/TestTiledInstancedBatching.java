@@ -68,6 +68,7 @@ import org.ngengine.world2d.tiled.core.tileset.Tile;
 import org.ngengine.world2d.tiled.core.tileset.Tileset;
 import org.ngengine.world2d.tiled.enums.DrawOrder;
 import org.ngengine.world2d.tiled.enums.FillMode;
+import org.ngengine.world2d.tiled.enums.ObjectAlignment;
 import org.ngengine.world2d.tiled.enums.Orientation;
 import org.ngengine.world2d.tiled.enums.RenderingMode;
 import org.ngengine.world2d.tiled.renderer.MapRenderer;
@@ -521,6 +522,39 @@ class TestTiledInstancedBatching {
 
         assertArrayEquals(new float[] {1f, 0f, 1f, 1f, 0f, 1f, 0f, 0f}, actual, 0.0001f,
                 "Tiled applies diagonal flip before horizontal and vertical flips");
+    }
+
+    @Test void tileObjectMeshUsesTilesetObjectAlignment() {
+        TiledMap map = loadOrthogonalMap();
+        TiledTileLayer tileLayer = (TiledTileLayer) map.getLayer("Ground");
+        Tile tile = tileLayer.getTileAt(0, 0).getTile();
+        tile.getTileset().setObjectAlignment(ObjectAlignment.CENTER);
+        TiledObjectEntity object = new TiledObjectEntity(900000, 0, 0, tile);
+
+        TileMesh mesh = new DefaultMeshFactory(map).tile(object);
+
+        FloatBuffer positions = ((FloatBuffer) mesh.getBuffer(VertexBuffer.Type.Position).getData()).duplicate();
+        assertEquals(-tile.getWidth() * 0.5f, positions.get(0), 0.001f);
+        assertEquals(-tile.getHeight() * 0.5f, positions.get(2), 0.001f);
+    }
+
+    @Test void instancedTileObjectUsesTilesetObjectAlignment() {
+        TiledMap map = loadOrthogonalMap();
+        TiledTileLayer tileLayer = (TiledTileLayer) map.getLayer("Ground");
+        Tile tile = tileLayer.getTileAt(0, 0).getTile();
+        tile.getTileset().setObjectAlignment(ObjectAlignment.CENTER);
+        TiledObjectLayer layer = new TiledObjectLayer(map.getWidth(), map.getHeight());
+        layer.setName("Object alignment");
+        layer.setRenderingMode(RenderingMode.INSTANCED_BATCH_CULLED);
+        layer.add(new TiledObjectEntity(900001, 64, 96, tile));
+        map.addLayer(layer);
+        Node root = new Node("map");
+        MapRenderer renderer = createRenderer(map, root);
+
+        renderer.render(new EmptyMapRenderListener(), 0f, new TestPovRenderer(wideCamera()));
+
+        Geometry batch = batchGeometry(root, "Object alignment");
+        assertOriginData(batch, 0, -tile.getWidth() * 0.5f, tile.getHeight() * 0.5f);
     }
 
     @Test void instancedShaderAppliesDiagonalFlipBeforeHorizontalAndVerticalFlips() throws IOException {
@@ -1315,6 +1349,12 @@ class TestTiledInstancedBatching {
         FloatBuffer data = instanceBuffer(geometry, VertexBuffer.Type.TexCoord5);
         assertEquals(width, data.get(instance * 2), 0.001f);
         assertEquals(height, data.get(instance * 2 + 1), 0.001f);
+    }
+
+    private void assertOriginData(Geometry geometry, int instance, float x, float y) {
+        FloatBuffer data = instanceBuffer(geometry, VertexBuffer.Type.TexCoord4);
+        assertEquals(x, data.get(instance * 4), 0.001f);
+        assertEquals(y, data.get(instance * 4 + 1), 0.001f);
     }
 
     private int findInstanceAt(Geometry geometry, float x, float z) {

@@ -242,8 +242,9 @@ final class InstancedTileBatch {
             offsetX *= sx;
             offsetY *= sy;
         }
-        float originX = renderer.tiledMap.getOrientation() == Orientation.ISOMETRIC ? -tileWidth * 0.5f : 0f;
-        float originY = 0f;
+        Vector2f origin = TileObjectAlignment.origin(renderer.tiledMap.getOrientation(), tile, tileWidth, tileHeight);
+        float originX = origin.x;
+        float originY = origin.y;
         boolean changed = record.update(tile, source, textureSlot, tileDataX, tileDataY, flipFlags,
                 x, y, z, rotation, tileWidth, tileHeight, offsetX, offsetY,
                 originX, originY, imageWidth, imageHeight, uvWidth, uvHeight);

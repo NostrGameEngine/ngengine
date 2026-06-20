@@ -42,6 +42,7 @@ import org.ngengine.world2d.tiled.core.tileset.Tile;
 import org.ngengine.world2d.tiled.core.tileset.Tileset;
 import org.ngengine.world2d.tiled.enums.FillMode;
 import org.ngengine.world2d.tiled.enums.Orientation;
+import org.ngengine.world2d.tiled.renderer.TileObjectAlignment;
 import org.ngengine.world2d.tiled.renderer.shape.*;
 
 import java.util.List;
@@ -313,12 +314,7 @@ public TileMesh tile(TiledObjectEntity obj) {
     }
 
 
-    Vector2f origin = new Vector2f();
-    if (orientation == Orientation.ISOMETRIC) {
-        origin.set(-size.x * 0.5f, 0f);
-    } else {
-        origin.set(0f, 0f);
-    }
+    Vector2f origin = TileObjectAlignment.origin(orientation, tile, size.x, size.y);
 
     return new TileMesh(coord, size, offset, origin, tile.getGid(), orientation);
 }
