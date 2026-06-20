@@ -46,8 +46,12 @@ import java.util.List;
 public class Rect extends Polyline {
 
     public Rect(float width, float height, boolean fill) {
+        this(width, height, fill, 1f, 1f);
+    }
+
+    public Rect(float width, float height, boolean fill, float maxU, float maxV) {
         if (fill) {
-            fill(width, height);
+            fill(width, height, maxU, maxV);
         } else {
             border(width, height);
         }
@@ -62,7 +66,7 @@ public class Rect extends Polyline {
         polyline(points, true);
     }
 
-    private void fill(float w, float h) {
+    private void fill(float w, float h, float maxU, float maxV) {
         this.setBuffer(VertexBuffer.Type.Position, 3, new float[] {
                 0, 0, h,
                 w, 0, h,
@@ -77,9 +81,9 @@ public class Rect extends Polyline {
         });
         this.setBuffer(VertexBuffer.Type.TexCoord, 2, new float[] {
                 0, 0,
-                1, 0,
-                1, 1,
-                0, 1
+                maxU, 0,
+                maxU, maxV,
+                0, maxV
         });
         this.setBuffer(VertexBuffer.Type.Index, 3, new short[] {
                 0, 1, 2,

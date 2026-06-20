@@ -325,7 +325,13 @@ public abstract class MapRenderer {
 
     private BiFunction<TiledLayer, TiledBase,Spatial> imageSpriteGenerator =  (layer, base)->{
         MaterialFactory materialFactory = spriteFactory.getMaterialFactory();
-        Mesh mesh = spriteFactory.getMeshFactory().rectangle(mapSize.getX(), mapSize.getY(), true);
+        TiledImageLayer imageLayer = (TiledImageLayer) layer;
+        TiledImageEntity image = imageLayer.getImage();
+        float imageWidth = Math.max(image != null ? image.getWidth() : mapSize.getX(), 1);
+        float imageHeight = Math.max(image != null ? image.getHeight() : mapSize.getY(), 1);
+        float width = imageLayer.isRepeatX() ? mapSize.getX() : imageWidth;
+        float height = imageLayer.isRepeatY() ? mapSize.getY() : imageHeight;
+        Mesh mesh = new Rect(width, height, true, width / imageWidth, height / imageHeight);
         Geometry geo = new Geometry(layer.getName(), mesh);
         geo.setMaterial( materialFactory.newMaterial());                   
         return geo;
@@ -1812,6 +1818,7 @@ public abstract class MapRenderer {
             Geometry geo = (Geometry) ref.sp;
             geo.setName("image#" + layer.getName());
             materialFactory.setTiledImage(geo.getMaterial(), layer.getImage());
+            configureImageLayerWrap(layer);
             materialFactory.setTintColor(geo.getMaterial(), layer.getTintColor());
             materialFactory.setLayerOpacity(geo.getMaterial(), (float) layer.getOpacity());
 
@@ -1829,6 +1836,16 @@ public abstract class MapRenderer {
             getTrackedSpatialRef(layerRef, layer, null, null);                       
         }
         return layerNode;
+    }
+
+    private void configureImageLayerWrap(TiledImageLayer layer) {
+        TiledImageEntity image = layer.getImage();
+        if (image == null || image.getTexture() == null) {
+            return;
+        }
+        Texture texture = image.getTexture();
+        texture.setWrap(Texture.WrapAxis.S, layer.isRepeatX() ? Texture.WrapMode.Repeat : Texture.WrapMode.EdgeClamp);
+        texture.setWrap(Texture.WrapAxis.T, layer.isRepeatY() ? Texture.WrapMode.Repeat : Texture.WrapMode.EdgeClamp);
     }
 
 

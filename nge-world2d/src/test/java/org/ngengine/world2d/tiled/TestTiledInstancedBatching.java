@@ -50,7 +50,12 @@ import com.jme3.scene.Spatial;
 import com.jme3.scene.VertexBuffer;
 import com.jme3.scene.shape.Quad;
 import com.jme3.shader.plugins.GLSLLoader;
+import com.jme3.texture.Image;
+import com.jme3.texture.Texture;
+import com.jme3.texture.Texture2D;
+import com.jme3.texture.image.ColorSpace;
 import com.jme3.texture.plugins.AWTLoader;
+import com.jme3.util.BufferUtils;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.FloatBuffer;
@@ -59,10 +64,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.ngengine.world2d.PovRenderer;
 import org.ngengine.world2d.tiled.core.TiledEntity;
+import org.ngengine.world2d.tiled.core.TiledImageLayer;
 import org.ngengine.world2d.tiled.core.TiledLayer;
 import org.ngengine.world2d.tiled.core.TiledMap;
 import org.ngengine.world2d.tiled.core.TiledObjectLayer;
 import org.ngengine.world2d.tiled.core.TiledTileLayer;
+import org.ngengine.world2d.tiled.core.entity.TiledImageEntity;
 import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
 import org.ngengine.world2d.tiled.core.tileset.Tile;
 import org.ngengine.world2d.tiled.core.tileset.Tileset;
@@ -106,6 +113,36 @@ class TestTiledInstancedBatching {
         assertNotNull(layerNode);
         assertEquals(177f, layerNode.getLocalTranslation().x, 0.001f);
         assertEquals(247f, layerNode.getLocalTranslation().z, 0.001f);
+    }
+
+    @Test void imageLayerUsesImageSizeAndRepeatTextureCoordinates() {
+        TiledMap map = loadOrthogonalMap();
+        TiledImageLayer imageLayer = new TiledImageLayer(map.getWidth(), map.getHeight());
+        imageLayer.setName("Repeating image");
+        imageLayer.setRepeatX(true);
+        imageLayer.setRepeatY(false);
+        TiledImageEntity image = new TiledImageEntity("generated", null, null, 16, 8);
+        Texture2D texture = new Texture2D(new Image(Image.Format.RGBA8, 16, 8,
+                BufferUtils.createByteBuffer(16 * 8 * 4), ColorSpace.sRGB));
+        image.setTexture(texture);
+        imageLayer.setImage(image);
+        map.addLayer(imageLayer);
+        Node root = new Node("map");
+        MapRenderer renderer = createRenderer(map, root);
+
+        renderer.render(new EmptyMapRenderListener(), 0f, new TestPovRenderer(wideCamera()));
+
+        Geometry geometry = findGeometry(root, "image#Repeating image");
+        assertNotNull(geometry);
+        FloatBuffer positions = ((FloatBuffer) geometry.getMesh().getBuffer(VertexBuffer.Type.Position).getData()).duplicate();
+        FloatBuffer texCoords = ((FloatBuffer) geometry.getMesh().getBuffer(VertexBuffer.Type.TexCoord).getData()).duplicate();
+        float expectedWidth = map.getWidth() * map.getTileWidth();
+        assertEquals(expectedWidth, positions.get(3), 0.001f);
+        assertEquals(8f, positions.get(2), 0.001f);
+        assertEquals(expectedWidth / 16f, texCoords.get(2), 0.001f);
+        assertEquals(1f, texCoords.get(5), 0.001f);
+        assertEquals(Texture.WrapMode.Repeat, texture.getWrap(Texture.WrapAxis.S));
+        assertEquals(Texture.WrapMode.EdgeClamp, texture.getWrap(Texture.WrapAxis.T));
     }
 
     @Test void batchCulledRemovalLeavesTombstoneThenFillsHoleWithLastInstance() {
