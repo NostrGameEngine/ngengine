@@ -320,6 +320,7 @@ public abstract class MapRenderer {
     protected Point mapSize;
     protected float screenMinY=0, screenMaxY=1;
     protected float screenMinX=0, screenMaxX=1;
+    private Camera currentCamera;
     
 
     private BiFunction<TiledLayer, TiledBase,Spatial> imageSpriteGenerator =  (layer, base)->{
@@ -707,6 +708,7 @@ public abstract class MapRenderer {
         instancedRebatchesThisFrame = 0;
         ViewPort viewPort = pov != null ? pov.getSceneViewPort() : null;
         Camera camera = viewPort != null ? viewPort.getCamera() : null;
+        currentCamera = camera;
         updateViewCull(camera);
         transientDebugRecords.clear();
         render(listener, tiledMap.getLayers(),tpf);
@@ -809,9 +811,9 @@ public abstract class MapRenderer {
             }
 
             if (visual != null) {
-                Vector3f loc = visual.getLocalTranslation();
                 float y = getLayerYIndex(layer);
-                visual.setLocalTranslation(loc.x, y, loc.z);
+                Vector2f offset = getLayerRenderOffset(layer);
+                visual.setLocalTranslation(offset.x, y, offset.y);
                 if (layer.isVisible()) {
                     if(visual.getParent()!=rootNode){
                         rootNode.attachChild(visual);
@@ -882,6 +884,18 @@ public abstract class MapRenderer {
         
         listener.afterMapRender(tpf,tiledMap, rootNode);
         lastRenderPass++;
+    }
+
+    private Vector2f getLayerRenderOffset(TiledLayer layer) {
+        float x = layer.getRenderOffsetX();
+        float y = layer.getRenderOffsetY();
+        if (currentCamera != null) {
+            x += (float) ((1.0 - layer.getRenderParallaxX())
+                    * (currentCamera.getLocation().x + tiledMap.getParallaxOriginX()));
+            y += (float) ((1.0 - layer.getRenderParallaxY())
+                    * (currentCamera.getLocation().z + tiledMap.getParallaxOriginY()));
+        }
+        return new Vector2f(x, y);
     }
 
     private void visitLayers(Consumer<TiledLayer> visitor, List<TiledLayer> layers){

@@ -89,6 +89,24 @@ class TestTiledInstancedBatching {
         assetManager.registerLoader(TmxLoader.class, "tmx", "tsx", "tx");
     }
 
+    @Test void rendererAppliesLayerOffsetAndParallaxToLayerNode() {
+        TiledMap map = loadOrthogonalMap();
+        map.setParallaxOriginX(10);
+        map.setParallaxOriginY(20);
+        TiledLayer layer = map.getLayer("Ground");
+        layer.setOffset(12, -8);
+        layer.setParallaxFactor(0.5, 0.25);
+        Node root = new Node("map");
+        MapRenderer renderer = createRenderer(map, root);
+
+        renderer.render(new EmptyMapRenderListener(), 0f, new TestPovRenderer(wideCamera()));
+
+        Node layerNode = findNode(root, "Ground");
+        assertNotNull(layerNode);
+        assertEquals(177f, layerNode.getLocalTranslation().x, 0.001f);
+        assertEquals(247f, layerNode.getLocalTranslation().z, 0.001f);
+    }
+
     @Test void batchCulledRemovalLeavesTombstoneThenFillsHoleWithLastInstance() {
         TiledMap map = loadOrthogonalMap();
         TiledObjectLayer layer = addObjectLayer(map, "Batch compact", 4);
