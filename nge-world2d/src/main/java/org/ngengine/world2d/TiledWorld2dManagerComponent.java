@@ -94,6 +94,8 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
         implements  RenderFragment, LogicFragment, ContactListener, AsyncAssetLoadingFragment {
     private static Logger logger = Logger.getLogger(TiledWorld2dManagerComponent.class.getName());
     private static final float SNAPSHOT_MAX_POSITION_ERROR = 0.02f;
+    private static final int DEFAULT_WORLD_POOL_SIZE = 2048;
+    private static final int DEFAULT_WORLD_POOL_CONTAINER_SIZE = 256;
     private static final MapRenderer.Listener EMPTY_RENDER_LISTENER = new MapRenderer.Listener() {
         @Override
         public void beforeMapRender(float tpf, TiledMap map) {
@@ -418,8 +420,8 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
     }
 
     private DefaultWorldPool createWorldPool(TiledMap map) {
-        int poolSize = NGEUtils.safeInt(map.getPropertyOrDefault("physics.poolSize", "512"));
-        int poolContainerSize = NGEUtils.safeInt(map.getPropertyOrDefault("physics.poolContainerSize", "64"));
+        int poolSize = NGEUtils.safeInt(map.getPropertyOrDefault("physics.poolSize", String.valueOf(DEFAULT_WORLD_POOL_SIZE)));
+        int poolContainerSize = NGEUtils.safeInt(map.getPropertyOrDefault("physics.poolContainerSize", String.valueOf(DEFAULT_WORLD_POOL_CONTAINER_SIZE)));
         poolSize = Math.max(poolSize, World.WORLD_POOL_SIZE);
         poolContainerSize = Math.max(poolContainerSize, World.WORLD_POOL_CONTAINER_SIZE);
         return new DefaultWorldPool(poolSize, poolContainerSize);
