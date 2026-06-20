@@ -54,16 +54,16 @@ void main() {
     v_Decal1 = inTexCoord7;
     v_Decal2 = inTexCoord8;
     v_Decal3 = inColor;
-#endif
+    #endif
     float flags = v_TileData.w;
+    if (mod(floor(flags / 4.0), 2.0) >= 1.0) {
+        v_TexCoord = vec2(1.0 - v_TexCoord.y, 1.0 - v_TexCoord.x);
+    }
     if (mod(floor(flags), 2.0) >= 1.0) {
         v_TexCoord.x = 1.0 - v_TexCoord.x;
     }
     if (mod(floor(flags / 2.0), 2.0) >= 1.0) {
         v_TexCoord.y = 1.0 - v_TexCoord.y;
-    }
-    if (mod(floor(flags / 4.0), 2.0) >= 1.0) {
-        v_TexCoord = vec2(1.0 - v_TexCoord.y, 1.0 - v_TexCoord.x);
     }
     #elif defined(USE_TILE_POSITION)
     v_TilePos = m_TilePosition;

@@ -40,6 +40,7 @@ import com.jme3.asset.DesktopAssetManager;
 import com.jme3.asset.plugins.ClasspathLocator;
 import com.jme3.renderer.Camera.FrustumIntersect;
 import com.jme3.material.plugins.J3MLoader;
+import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
 import com.jme3.renderer.ViewPort;
@@ -50,7 +51,10 @@ import com.jme3.scene.VertexBuffer;
 import com.jme3.scene.shape.Quad;
 import com.jme3.shader.plugins.GLSLLoader;
 import com.jme3.texture.plugins.AWTLoader;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.FloatBuffer;
+import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.ngengine.world2d.PovRenderer;
@@ -71,6 +75,7 @@ import org.ngengine.world2d.tiled.renderer.factory.DefaultMaterialFactory;
 import org.ngengine.world2d.tiled.renderer.factory.DefaultMeshFactory;
 import org.ngengine.world2d.tiled.renderer.factory.DefaultSpriteFactory;
 import org.ngengine.world2d.tiled.renderer.queue.YAxisComparator;
+import org.ngengine.world2d.tiled.renderer.shape.TileMesh;
 
 class TestTiledInstancedBatching {
     private AssetManager assetManager;

@@ -136,15 +136,6 @@ public class TileMesh extends Mesh {
 
         float[] texCoords = new float[]{0f, 0f, 1f, 0f, 1f, 1f, 0f, 1f};
 
-        if (isFlipHorizontally) {
-            swapUV(texCoords, 0, 1);
-            swapUV(texCoords, 2, 3);
-        }
-        if (isFlipVertically) {
-            swapUV(texCoords, 0, 3);
-            swapUV(texCoords, 1, 2);
-        }
-
         if (orientation == Orientation.HEXAGONAL) {
             float rotate = 0f;
             if (isFlipAntiDiagonally) {
@@ -160,6 +151,14 @@ public class TileMesh extends Mesh {
             if (isFlipAntiDiagonally) {
                 swapUV(texCoords, 0, 2);
             }
+        }
+        if (isFlipHorizontally) {
+            swapUV(texCoords, 0, 1);
+            swapUV(texCoords, 2, 3);
+        }
+        if (isFlipVertically) {
+            swapUV(texCoords, 0, 3);
+            swapUV(texCoords, 1, 2);
         }
 
         this.setBuffer(VertexBuffer.Type.TexCoord, 2, texCoords);
