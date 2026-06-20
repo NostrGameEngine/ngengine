@@ -355,27 +355,57 @@ public class InputManager implements RawInputListener {
     }
 
     /**
-     * Dispatches touch events to touch listeners
-     * @param evt The touch event to be dispatched to all onTouch listeners
+     * Dispatches touch events to touch listeners and unified input listeners.
+     * @param evt The touch event to be dispatched
      */
     public void onTouchEventQueued(TouchEvent evt) {
-        int hash = TouchTrigger.touchHash(evt.getKeyCode());
+        dispatchTouchEvent(TouchTrigger.touchHash(evt.getKeyCode()), evt);
+        if (evt.getKeyCode() != TouchInput.ALL && !evt.isConsumed()) {
+            dispatchTouchEvent(TouchTrigger.touchHash(TouchInput.ALL), evt);
+        }
+    }
+
+    private void dispatchTouchEvent(int hash, TouchEvent evt) {
+        double value = touchEventValue(evt);
+        boolean forceValueChange = evt.getType() == TouchEvent.Type.MOVE
+                || evt.getType() == TouchEvent.Type.TAP
+                || evt.getType() == TouchEvent.Type.SCROLL;
+        invokeAnalogsAndActions(hash, value, evt, false, forceValueChange);
+        dispatchLegacyTouchListeners(hash, evt);
+    }
+
+    private double touchEventValue(TouchEvent evt) {
+        switch (evt.getType()) {
+            case UP:
+            case KEY_UP:
+            case HOVER_END:
+            case SCALE_END:
+            case IDLE:
+                return 0.0;
+            default:
+                return 1.0;
+        }
+    }
+
+    private void dispatchLegacyTouchListeners(int hash, TouchEvent evt) {
+        if (evt.isConsumed()) {
+            return;
+        }
         ArrayList<Mapping> maps = bindings.get(hash);
         if (maps == null) {
             return;
         }
 
         int size = maps.size();
-        for (int i = size - 1; i >= 0; i--) {
+        for (int i = size - 1; i >= 0 && !evt.isConsumed(); i--) {
             Mapping mapping = maps.get(i);
             ArrayList<InputListener> listeners = mapping.listeners;
             int listenerSize = listeners.size();
-            for (int j = listenerSize - 1; j >= 0; j--) {
+            for (int j = listenerSize - 1; j >= 0 && !evt.isConsumed(); j--) {
                 InputListener listener = listeners.get(j);
                 if (listener instanceof TouchListener) {
                     ((TouchListener) listener).onTouch(mapping.name, evt, frameTPF);
                 }
-                invokeAnalogsAndActions(hash, evt.getPressure(), evt, false, false);
             }
         }
     }

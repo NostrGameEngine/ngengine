@@ -66,7 +66,6 @@ import com.jme3.input.controls.JoyButtonTrigger;
 import com.jme3.input.controls.KeyTrigger;
 import com.jme3.input.controls.MouseAxisTrigger;
 import com.jme3.input.controls.MouseButtonTrigger;
-import com.jme3.input.controls.TouchListener;
 import com.jme3.input.controls.TouchTrigger;
 import com.jme3.input.event.InputEvent;
 import com.jme3.input.event.JoyAxisEvent;
@@ -78,7 +77,7 @@ import com.jme3.math.Vector2f;
 import com.jme3.renderer.ViewPort;
 import com.jme3.scene.Spatial;
 
-public class DefaultNavigatorInputHandler implements NavigatorInputHandler, TouchListener {
+public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
     private WeakReference<ViewPort> guiViewPort;
     private boolean consume = true;
     private String bindId = "";
@@ -437,6 +436,10 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler, Touc
         Navigator navigator = state.getNavigator();
         if (navigator == null) return;
 
+        if (handleTouchInput(state, navigator, name, event)) {
+            return;
+        }
+
         if (handleSimulatedCursorAxis(state, navigator, name, value, event, tpf)) {
             return;
         }
@@ -473,27 +476,17 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler, Touc
             return;
         }
 
-        if (_p("confirm").equals(name) && toggled && (event instanceof MouseButtonEvent || event instanceof TouchEvent)) {
+        if (_p("confirm").equals(name) && toggled && event instanceof MouseButtonEvent) {
             if (isPressed) {
-                if (event instanceof MouseButtonEvent) {
-                    MouseButtonEvent me = (MouseButtonEvent) event;
-                    double x = inputManager != null && !inputManager.isCursorVisible() ? cursorX : me.getX();
-                    double y = inputManager != null && !inputManager.isCursorVisible() ? cursorY : me.getY();
-                    pointerPressed(state, navigator, x, y);
-                } else {
-                    TouchEvent te = (TouchEvent) event;
-                    pointerPressed(state, navigator, te.getX(), te.getY());
-                }
+                MouseButtonEvent me = (MouseButtonEvent) event;
+                double x = inputManager != null && !inputManager.isCursorVisible() ? cursorX : me.getX();
+                double y = inputManager != null && !inputManager.isCursorVisible() ? cursorY : me.getY();
+                pointerPressed(state, navigator, x, y);
             } else {
-                if (event instanceof MouseButtonEvent) {
-                    MouseButtonEvent me = (MouseButtonEvent) event;
-                    double x = inputManager != null && !inputManager.isCursorVisible() ? cursorX : me.getX();
-                    double y = inputManager != null && !inputManager.isCursorVisible() ? cursorY : me.getY();
-                    pointerReleased(state, navigator, x, y);
-                } else {
-                    TouchEvent te = (TouchEvent) event;
-                    pointerReleased(state, navigator, te.getX(), te.getY());
-                }
+                MouseButtonEvent me = (MouseButtonEvent) event;
+                double x = inputManager != null && !inputManager.isCursorVisible() ? cursorX : me.getX();
+                double y = inputManager != null && !inputManager.isCursorVisible() ? cursorY : me.getY();
+                pointerReleased(state, navigator, x, y);
             }
             consume(event);
             return;
@@ -644,18 +637,11 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler, Touc
         }   
     }
 
-    @Override
-    public void onTouch(String name, TouchEvent event, float tpf) {
-        if (!_p("touch").equals(name) || inputDevice == null || event == null) {
-            return;
+    private boolean handleTouchInput(GuiContext state, Navigator navigator, String name, InputEvent<?> inputEvent) {
+        if (!_p("touch").equals(name) || !(inputEvent instanceof TouchEvent)) {
+            return false;
         }
-        ViewPort vp = getViewPort();
-        if (vp == null) return;
-        GuiContext state = NGEGui.get(vp);
-        if (state == null) return;
-        Navigator navigator = state.getNavigator();
-        if (navigator == null) return;
-
+        TouchEvent event = (TouchEvent) inputEvent;
         TouchEvent.Type type = event.getType();
         if (type == TouchEvent.Type.TAP) {
             pointerPressed(state, navigator, event.getX(), event.getY());
@@ -672,6 +658,7 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler, Touc
             updatePointerFocusAt(state, navigator, event.getX(), event.getY());
             consume(event);
         }
+        return true;
     }
 
     private void navigateOrAdjustSlider(Navigator navigator, TraversalDirection dir, InputEvent<?> event) {

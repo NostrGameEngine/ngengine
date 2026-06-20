@@ -77,13 +77,25 @@ final class NavigatorLayer implements Closeable {
     private Spatial focus;
     private int focusMask = FocusTarget.FOCUS_NAVIGATION;
     private List<Spatial> focusHierarchy = Collections.emptyList();
+    private final boolean navigationLayer;
+    private final boolean pointerLayer;
 
     NavigatorLayer(Spatial root,
                    Function<Predicate<NavigatorListener>, Boolean> foreachListener,
                    Runnable onClose) {
+        this(root, foreachListener, onClose, true, true);
+    }
+
+    NavigatorLayer(Spatial root,
+                   Function<Predicate<NavigatorListener>, Boolean> foreachListener,
+                   Runnable onClose,
+                   boolean navigationLayer,
+                   boolean pointerLayer) {
         this.root = root;
         this.foreachListener = foreachListener;
         this.onClose = onClose;
+        this.navigationLayer = navigationLayer;
+        this.pointerLayer = pointerLayer;
     }
 
     Spatial getFocus() {
@@ -92,6 +104,18 @@ final class NavigatorLayer implements Closeable {
 
     boolean isSameRoot(Spatial otherRoot) {
         return this.root == otherRoot;
+    }
+
+    boolean isNavigationLayer() {
+        return navigationLayer;
+    }
+
+    boolean isPointerLayer() {
+        return pointerLayer;
+    }
+
+    boolean contains(Spatial spatial) {
+        return isDescendantOf(spatial, root);
     }
 
     @Override
@@ -233,26 +257,26 @@ final class NavigatorLayer implements Closeable {
         focus(requested, FocusTarget.FOCUS_NAVIGATION);
     }
 
-    void focusPointer(Spatial requested) {
-        focus(requested, FocusTarget.FOCUS_POINTER);
+    boolean focusPointer(Spatial requested) {
+        return focus(requested, FocusTarget.FOCUS_POINTER);
     }
 
-    private void focus(Spatial requested, int requestedFocusMask) {
-        if (!enabled) {
-            return;
+    private boolean focus(Spatial requested, int requestedFocusMask) {
+        if (!enabled && requestedFocusMask != FocusTarget.FOCUS_POINTER) {
+            return false;
         }
         if (requested == null) {
-            return;
+            return false;
         }
         if (requested == focus) {
             focusMask = requestedFocusMask;
-            return;
+            return true;
         }
         if (!isDescendantOf(requested, root)) {
-            return;
+            return false;
         }
         if (!before(l -> l.beforeNavigatorFocus(requested))) {
-            return;
+            return false;
         }
 
         rememberCurrentFocus();
@@ -261,6 +285,7 @@ final class NavigatorLayer implements Closeable {
         updateFocusHierarchy();
 
         after(l -> l.afterNavigatorFocus(requested));
+        return true;
     }
 
     void unfocus(Spatial s) {

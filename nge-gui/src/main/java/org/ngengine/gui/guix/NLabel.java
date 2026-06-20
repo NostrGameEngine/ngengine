@@ -41,11 +41,17 @@
 package org.ngengine.gui.guix;
 
 import org.ngengine.gui.Label;
+import org.ngengine.gui.style.ElementId;
 
 public class NLabel extends Label {
 
     public NLabel(String s) {
         super(s);
+        applyStyles(NLabel.class);
+    }
+
+    public NLabel(String s, ElementId elementId) {
+        super(s, elementId);
         applyStyles(NLabel.class);
     }
 }

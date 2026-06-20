@@ -129,7 +129,7 @@ public class Checkbox extends Button {
         if( this.onView == c )
             return;
 
-        this.onView = c.clone();
+        this.onView = c == null ? null : c.clone();
         resetStateView();
     }
 
@@ -139,10 +139,10 @@ public class Checkbox extends Button {
 
     @StyleAttribute(value="offView", lookupDefault=false)
     public void setOffView( GuiComponent c ) {
-        if( this.onView == c )
+        if( this.offView == c )
             return;
 
-        this.offView = c.clone();
+        this.offView = c == null ? null : c.clone();
         resetStateView();
     }
 
@@ -165,6 +165,4 @@ public class Checkbox extends Button {
         }
     }
 }
-
-
 

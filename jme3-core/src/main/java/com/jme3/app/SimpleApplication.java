@@ -304,6 +304,8 @@ public abstract class SimpleApplication extends LegacyApplication {
         StatsAppState statsState = stateManager.getState(StatsAppState.class);
         if (statsState != null) {
             statsState.setFont(guiFont);
+            statsState.setDisplayFps(settings.getBoolean("DisplayFps", true));
+            statsState.setDisplayStatView(settings.getBoolean("DisplayStats", true));
             fpsText = statsState.getFpsText();
         }
 

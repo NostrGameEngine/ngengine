@@ -125,8 +125,8 @@ public class NGEStyle {
         System.out.println("Installing NGEStyle");
         Styles styles = NGEGui.getStyles();
 
-        ColorRGBA darkPurple = fromHex("#050609cc");
-        ColorRGBA mediumPurple = fromHex("#151922d9");
+        ColorRGBA darkPurple = fromHex("#050609fb");
+        ColorRGBA mediumPurple = fromHex("#151922f8");
         ColorRGBA lightPurple = fromHex("#d7d9df");
         ColorRGBA accentPurple = fromHex("#f1b84b");
         ColorRGBA glowPurple = fromHex("#79b7ff");
@@ -136,14 +136,14 @@ public class NGEStyle {
         ColorRGBA neontoshi = fromHex("#f1b84b");
         ColorRGBA transparent = new ColorRGBA(0, 0, 0, 0);
 
-        ColorRGBA errorColor = fromHex("#4a1116e6");
-        ColorRGBA warningColor = fromHex("#4a3511e6");
-        ColorRGBA infoColor = fromHex("#102a40e6");
+        ColorRGBA errorColor = fromHex("#4a1116f8");
+        ColorRGBA warningColor = fromHex("#4a3511f8");
+        ColorRGBA infoColor = fromHex("#102a40f8");
 
-        darkPurple.a = 0.82f;
+        darkPurple.a = 0.98f;
         ColorRGBA backgroundColor = darkPurple;
         ColorRGBA seconBackground = mediumPurple;
-        mediumPurple.a = 0.72f;
+        mediumPurple.a = 0.95f;
 
         Attributes glob = styles.getSelector(NAME);
         glob.set("fontSize", vmin(2.1f));
@@ -167,7 +167,7 @@ public class NGEStyle {
 
         {
             Attributes attrs = styles.getSelector(TextField.ELEMENT_ID, NAME);
-            attrs.set("background", new QuadBackgroundComponent(new ColorRGBA(0,0,0,0.82f)), false);
+            attrs.set("background", new QuadBackgroundComponent(new ColorRGBA(0,0,0,0.94f)), false);
             attrs.set("singleLine", true);
         }
 
@@ -283,8 +283,6 @@ public class NGEStyle {
                 1f,
                 false
             );
-            ColorRGBA c = mediumPurple.clone();
-            c.a=0.8f;
             background.setMargin(new Vector2f(10, 10));
             background.setColor(darkPurple);
             container.set("background", background);
@@ -297,6 +295,7 @@ public class NGEStyle {
             title.set("fontSize", vmin(4));
             title.set("background", new QuadBackgroundComponent(transparent));
             title.set("color", lightPurple);
+            title.set("insets", new Insets3f(vh(0.4f), vmin(2.0f), vh(0.4f), vmin(2.0f)));
         }
 
         {
@@ -382,6 +381,8 @@ public class NGEStyle {
             button.set("highlightColor", glowPurple);
             button.set("highlightShadowColor", transparent);
             button.set("insets", new Insets3f(vmin(0.4f), vmin(0.4f), vmin(0.4f), vmin(0.4f)));
+            button.set("textHAlignment", HAlignment.Center, false);
+            button.set("textVAlignment", VAlignment.Center, false);
             // button.set("insets", new Insets3f(vmin(1), vmin(1), vmin(2), vmin(2)));
             // TbtQuadBackgroundComponent background = TbtQuadBackgroundComponent.create("ui/button.png",
             // 0.1f,

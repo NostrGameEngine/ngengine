@@ -142,9 +142,6 @@ public abstract class NWindow<T> extends Container implements GuiUpdateListener,
         title = new Label("", new ElementId("window.title"));
         title.setTextHAlignment(HAlignment.Center);
         title.setTextVAlignment(VAlignment.Center);
-        float margin = title.getFontSize();
-        assert !Float.isNaN(margin)||margin == 0;
-        title.setInsets(new Insets3f(0, margin, 0, margin));
         titleBar.addChild(title, BorderLayout.Position.Center);
 
         addChild(titleBar, BorderLayout.Position.North);
@@ -235,6 +232,10 @@ public abstract class NWindow<T> extends Container implements GuiUpdateListener,
 
     protected boolean capturesInput() {
         return true;
+    }
+
+    protected boolean receivesPointerInput() {
+        return capturesInput();
     }
 
     final void recenter(Vector3f size) {

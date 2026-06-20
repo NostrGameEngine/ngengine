@@ -62,6 +62,7 @@ public class NPanel extends NContainer {
 
     public NPanel(ElementId id) {
         super(new BorderLayout(), id);
+        applyElementStyles();
     }
 
     @Override

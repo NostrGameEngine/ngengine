@@ -11,12 +11,14 @@ import com.jme3.input.JoystickAxis;
 import com.jme3.input.JoystickButton;
 import com.jme3.input.KeyInput;
 import com.jme3.input.RawInputListener;
+import com.jme3.input.controls.JoyAxisTrigger;
 import com.jme3.input.controls.KeyTrigger;
 import com.jme3.input.dummy.DummyKeyInput;
 import com.jme3.input.dummy.DummyMouseInput;
 import com.jme3.input.event.InputEvent;
 import com.jme3.input.event.JoyAxisEvent;
 import com.jme3.input.event.KeyInputEvent;
+import com.jme3.input.virtual.VirtualJoystick;
 import java.lang.reflect.Proxy;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -106,6 +108,54 @@ public class InputHandlerFragmentWrapperTest {
         assertEquals(2, component.rawAxisEvents);
     }
 
+    @Test
+    public void virtualJoystickConnectsBeforeCheckingInputBindings() {
+        TestKeyInput keys = new TestKeyInput();
+        InputManager inputManager = newInputManager(keys, null);
+        VirtualJoystick joystick = new VirtualJoystick(inputManager, new TestJoyInput(), 0);
+        inputManager.setJoysticks(new Joystick[] { joystick });
+        VirtualJoystickBindingComponent component = new VirtualJoystickBindingComponent();
+        ComponentManager manager = componentManager(inputManager, component, true);
+        InputHandlerFragment.Wrapper wrapper = new InputHandlerFragment.Wrapper(
+                manager,
+                component,
+                new InputActions(inputManager));
+
+        assertFalse(joystick.hasInputBindings());
+
+        wrapper.beginInput();
+
+        assertEquals(1, component.connectedDevices);
+        assertTrue(joystick.hasInputBindings());
+        assertTrue(joystick.isEnabled());
+    }
+
+    @Test
+    public void nonControllingFragmentsDoNotDisableVirtualJoystick() {
+        TestKeyInput keys = new TestKeyInput();
+        InputManager inputManager = newInputManager(keys, null);
+        VirtualJoystick joystick = new VirtualJoystick(inputManager, new TestJoyInput(), 0);
+        inputManager.setJoysticks(new Joystick[] { joystick });
+        VirtualJoystickBindingComponent gameplay = new VirtualJoystickBindingComponent();
+        NonControllingInputComponent overlay = new NonControllingInputComponent();
+        InputHandlerFragment.Wrapper gameplayWrapper = new InputHandlerFragment.Wrapper(
+                componentManager(inputManager, gameplay, true),
+                gameplay,
+                new InputActions(inputManager));
+        InputHandlerFragment.Wrapper overlayWrapper = new InputHandlerFragment.Wrapper(
+                componentManager(inputManager, overlay, true),
+                overlay,
+                new InputActions(inputManager));
+
+        gameplayWrapper.beginInput();
+        assertTrue(joystick.isEnabled());
+
+        overlayWrapper.beginInput();
+
+        assertTrue(joystick.isEnabled());
+        assertEquals(0, overlay.connectedDevices);
+    }
+
     private static ComponentManager componentManager(InputManager inputManager, Component component, boolean enabled) {
         return (ComponentManager) Proxy.newProxyInstance(
                 InputHandlerFragmentWrapperTest.class.getClassLoader(),
@@ -161,11 +211,11 @@ public class InputHandlerFragmentWrapperTest {
         return event;
     }
 
-    private static final class RecordingInputComponent implements Component, InputHandlerFragment {
-        private final ArrayList<String> actions = new ArrayList<>();
-        private int connectedDevices;
-        private int rawKeyEvents;
-        private int rawAxisEvents;
+    private static class RecordingInputComponent implements Component, InputHandlerFragment {
+        protected final ArrayList<String> actions = new ArrayList<>();
+        protected int connectedDevices;
+        protected int rawKeyEvents;
+        protected int rawAxisEvents;
 
         @Override
         public void onInputDeviceConnected(ComponentManager mng, InputManager inputManager,
@@ -213,6 +263,81 @@ public class InputHandlerFragmentWrapperTest {
         @Override
         public ComponentManager getComponentManager() {
             return null;
+        }
+    }
+
+    private static final class VirtualJoystickBindingComponent extends RecordingInputComponent {
+
+        @Override
+        public boolean showOnScreenJoystick(ComponentManager mng, Joystick[] joysticks) {
+            return true;
+        }
+
+        @Override
+        public void onInputDeviceConnected(ComponentManager mng, InputManager inputManager,
+                InputActions inputActions, com.jme3.input.InputDevice device) {
+            super.onInputDeviceConnected(mng, inputManager, inputActions, device);
+            if (device instanceof VirtualJoystick) {
+                Joystick joystick = (Joystick) device;
+                inputActions.bind("move_right", new JoyAxisTrigger(
+                        joystick.getJoyId(),
+                        joystick.getXAxis().getAxisId(),
+                        false));
+            }
+        }
+    }
+
+    private static final class NonControllingInputComponent extends RecordingInputComponent {
+
+        @Override
+        public boolean controlsOnScreenJoystick(ComponentManager mng, Joystick[] joysticks) {
+            return false;
+        }
+
+        @Override
+        public boolean showOnScreenJoystick(ComponentManager mng, Joystick[] joysticks) {
+            return false;
+        }
+    }
+
+    private static final class TestJoyInput implements JoyInput {
+        private boolean initialized;
+
+        @Override
+        public void initialize() {
+            initialized = true;
+        }
+
+        @Override
+        public void update() {
+        }
+
+        @Override
+        public void destroy() {
+            initialized = false;
+        }
+
+        @Override
+        public boolean isInitialized() {
+            return initialized;
+        }
+
+        @Override
+        public void setInputListener(RawInputListener listener) {
+        }
+
+        @Override
+        public long getInputTimeNanos() {
+            return System.nanoTime();
+        }
+
+        @Override
+        public void setJoyRumble(int joyId, float amountHigh, float amountLow, float duration) {
+        }
+
+        @Override
+        public Joystick[] loadJoysticks(InputManager inputManager) {
+            return new Joystick[0];
         }
     }
 

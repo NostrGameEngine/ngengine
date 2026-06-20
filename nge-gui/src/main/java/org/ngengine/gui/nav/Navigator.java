@@ -329,12 +329,19 @@ public class Navigator implements GuiContextHandler, NavigatorListenerProvider {
         if (root == null) {
             return;
         }
-        layers.add(new NavigatorLayer(root, this::foreachListener, onClose));
+        layers.add(new NavigatorLayer(root, this::foreachListener, onClose, true, true));
         focus(null);
     }
 
     public void pushLayer(Spatial root) {
         pushLayer(root, null);
+    }
+
+    public void pushPointerLayer(Spatial root) {
+        if (root == null) {
+            return;
+        }
+        layers.add(new NavigatorLayer(root, this::foreachListener, null, false, true));
     }
 
     public void popLayer(Spatial root) {
@@ -361,7 +368,7 @@ public class Navigator implements GuiContextHandler, NavigatorListenerProvider {
         NavigatorLayer layer = null;
         for (int i = layers.size() - 1; i >= 0; i--) {
             NavigatorLayer l = layers.get(i);
-            if (l.isInViewPort(getViewPort())) {
+            if (l.isNavigationLayer() && l.isInViewPort(getViewPort())) {
                 layer = l;
                 break;
             }
@@ -393,21 +400,25 @@ public class Navigator implements GuiContextHandler, NavigatorListenerProvider {
 
     public void clearPointerFocus() {
         if (!enabled) return;
-        NavigatorLayer layer = getCurrentLayer();
-        if (layer == null) return;
         autofocus = false;
-        layer.clearPointerFocus();
+        ViewPort vp = getViewPort();
+        for (NavigatorLayer layer : layers) {
+            if (layer.isPointerLayer() && layer.isInViewPort(vp)) {
+                layer.clearPointerFocus();
+            }
+        }
     }
 
-    public void focusPointer(Spatial newFocus) {
-        if (!enabled) return;
-        NavigatorLayer layer = getCurrentLayer();
-        if (layer == null) return;
+    public boolean focusPointer(Spatial newFocus) {
+        if (!enabled) return false;
+        NavigatorLayer layer = getPointerLayer(newFocus);
+        if (layer == null) return false;
         if (newFocus != null) {
-            layer.focusPointer(newFocus);
+            return layer.focusPointer(newFocus);
         } else {
             autofocus = false;
             layer.clearPointerFocus();
+            return true;
         }
     }
 
@@ -456,8 +467,22 @@ public class Navigator implements GuiContextHandler, NavigatorListenerProvider {
         if (layers.isEmpty()) return null;
         for (int i = layers.size() - 1; i >= 0; i--) {
             NavigatorLayer layer = layers.get(i);
-            if (layer.isInViewPort(getViewPort())) {
+            if (layer.isNavigationLayer() && layer.isInViewPort(getViewPort())) {
                 return layer.getFocus();
+            }
+        }
+        return null;
+    }
+
+    private NavigatorLayer getPointerLayer(Spatial target) {
+        if (target == null) {
+            return getCurrentLayer();
+        }
+        ViewPort vp = getViewPort();
+        for (int i = layers.size() - 1; i >= 0; i--) {
+            NavigatorLayer layer = layers.get(i);
+            if (layer.isPointerLayer() && layer.isInViewPort(vp) && layer.contains(target)) {
+                return layer;
             }
         }
         return null;

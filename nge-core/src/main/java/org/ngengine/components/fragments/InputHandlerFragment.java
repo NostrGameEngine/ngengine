@@ -121,11 +121,16 @@ public interface InputHandlerFragment extends Fragment {
         }
 
         private void updateVirtualJoystick(VirtualJoystick joystick, Joystick[] joysticks) {
-            boolean visible = joystick.hasInputBindings() && fragment.showOnScreenJoystick(mng, joysticks);
-            joystick.setEnabled(visible);
-            if (visible) {
+            if (!fragment.controlsOnScreenJoystick(mng, joysticks)) {
+                return;
+            }
+            boolean wantsVisible = fragment.showOnScreenJoystick(mng, joysticks);
+            if (wantsVisible) {
                 deviceConnect(joystick);
-            } else {
+            }
+            boolean visible = wantsVisible && joystick.hasInputBindings();
+            joystick.setEnabled(visible);
+            if (!wantsVisible) {
                 deviceDisconnect(joystick);
             }
         }
@@ -265,6 +270,10 @@ public interface InputHandlerFragment extends Fragment {
             return false;
         }
         return isMobilePlatform() || isMobileWebView();
+    }
+
+    default boolean controlsOnScreenJoystick(ComponentManager mng, Joystick[] joysticks) {
+        return true;
     }
  
     @Deprecated

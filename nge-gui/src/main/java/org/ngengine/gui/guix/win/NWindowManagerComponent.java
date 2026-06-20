@@ -42,6 +42,8 @@ package org.ngengine.gui.guix.win;
 
 import com.jme3.input.InputDevice;
 import com.jme3.input.InputManager;
+import com.jme3.input.Joystick;
+import com.jme3.input.TouchScreen;
 import com.jme3.input.event.InputEvent;
 import com.jme3.input.event.JoyAxisEvent;
 import com.jme3.input.event.JoyButtonEvent;
@@ -196,6 +198,15 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
         return false;
     }
 
+    public boolean hasPointerInteractiveWindows() {
+        for (NWindowManager manager : windowManagers) {
+            if (manager.hasPointerInteractiveWindows()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 
     public void enqueueInThread(Runnable task) {
         getManager(null).enqueueInThread(task);
@@ -331,12 +342,23 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
 
     private void applyInputDeviceToManagers() {
         for (NWindowManager manager : windowManagers) {
-            if (interactionActive && canInteractWith(manager)) {
-                manager.setInputDevice(lastInputDevice);
+            InputDevice device = inputDeviceFor(manager);
+            if (device != null) {
+                manager.setInputDevice(device);
             } else {
                 manager.setInputDevice(null);
             }
         }
+    }
+
+    private InputDevice inputDeviceFor(NWindowManager manager) {
+        if (interactionActive && canInteractWith(manager)) {
+            return lastInputDevice;
+        }
+        if (canUseDirectTouch(manager)) {
+            return lastInputDevice instanceof TouchScreen ? lastInputDevice : new TouchScreen();
+        }
+        return null;
     }
 
     
@@ -373,6 +395,9 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
  
     @Override
     public void onInputDeviceConnected(ComponentManager mng, InputManager inputManager, InputActions actions, InputDevice device) {
+        if (device instanceof TouchScreen && hasPointerInteractiveWindows()) {
+            setInputDevice(device);
+        }
         if (!interactionActive) setPhysicalCursorVisible(false);
     }
 
@@ -389,6 +414,11 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
     public void onInputAction(ComponentManager mng, String action, boolean toggled,  float value, InputEvent<?> event,
             float tpf) {
         if (!interactionActive) setPhysicalCursorVisible(false);
+    }
+
+    @Override
+    public boolean controlsOnScreenJoystick(ComponentManager mng, Joystick[] joysticks) {
+        return false;
     }
 
     // any input action will set the input device as 
@@ -451,6 +481,15 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
         return interactionEnabled && manager != null && manager.hasInteractiveWindows();
     }
 
+    private boolean canUseDirectTouch(NWindowManager manager) {
+        if (manager == null || !manager.hasPointerInteractiveWindows()) {
+            return false;
+        }
+        return lastInputDevice instanceof TouchScreen
+                || InputHandlerFragment.isMobilePlatform()
+                || InputHandlerFragment.isMobileWebView();
+    }
+
     void onWindowStackChanged() {
         boolean wasActive = interactionActive;
         applyInteractionState();
@@ -462,13 +501,17 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
     private void applyInteractionState() {
         interactionActive = false;
         boolean hardwareCursorVisible = false;
+        boolean directTouchUi = InputHandlerFragment.isMobilePlatform() || InputHandlerFragment.isMobileWebView();
         for (NWindowManager manager : windowManagers) {
             boolean managerCanInteract = canInteractWith(manager);
             interactionActive |= managerCanInteract;
-            if (manager.getContext().getNavigator().isCursorVisible() != managerCanInteract) {
-                manager.getContext().getNavigator().setCursor(managerCanInteract);
+            manager.getContext().getNavigator().setSimulateCursor(!directTouchUi);
+            boolean cursorVisible = managerCanInteract && !directTouchUi;
+            if (manager.getContext().getNavigator().isCursorVisible() != cursorVisible) {
+                manager.getContext().getNavigator().setCursor(cursorVisible);
             }
-            hardwareCursorVisible |= managerCanInteract
+            hardwareCursorVisible |= !directTouchUi
+                    && managerCanInteract
                     && manager.getContext().getNavigator().isHardwareCursor()
                     && manager.getContext().getNavigator().isCursorActive();
         }

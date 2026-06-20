@@ -146,6 +146,11 @@ public class NHud extends NWindow<Void> {
         return false;
     }
 
+    @Override
+    protected boolean receivesPointerInput() {
+        return true;
+    }
+
     public NRow getTop() {
         return topCenter;
     }

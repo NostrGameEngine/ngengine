@@ -41,11 +41,17 @@
 package org.ngengine.gui.guix;
 
 import org.ngengine.gui.Button;
+import org.ngengine.gui.style.ElementId;
 
 public class NButton extends Button {
 
     public NButton(String s) {
         super(s);
+        applyStyles(NButton.class);
+    }
+
+    public NButton(String s, ElementId elementId) {
+        super(s, elementId);
         applyStyles(NButton.class);
     }
 }

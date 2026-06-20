@@ -164,6 +164,15 @@ public class NWindowManager {
         return false;
     }
 
+    public boolean hasPointerInteractiveWindows() {
+        for (NWindow<?> window : windows) {
+            if (window.receivesPointerInput()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public NavigatorInputHandler getInputHandler(){
         return inputHandler;
     }
@@ -362,6 +371,8 @@ public class NWindowManager {
                 if (shouldAutofocusForInputDevice()) {
                     ctx.getNavigator().autofocus();
                 }
+            } else if (window.receivesPointerInput()) {
+                ctx.getNavigator().pushPointerLayer(window);
             }
             mng.onWindowStackChanged();
             return window;
@@ -442,7 +453,7 @@ public class NWindowManager {
     void closeWindow(NWindow<?> window, boolean showPrevious) {
         checkThread();
         boolean wasInteractive = window.capturesInput();
-        if (wasInteractive) {
+        if (wasInteractive || window.receivesPointerInput()) {
             ctx.getNavigator().popLayer(window);
         }
         if (window.getParent() != null) {

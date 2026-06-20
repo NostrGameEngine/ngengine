@@ -36,9 +36,11 @@ import org.junit.jupiter.api.Test;
 import org.ngengine.components.ComponentManager;
 import org.ngengine.gui.GuiContext;
 import org.ngengine.gui.NGEGui;
+import org.ngengine.gui.Panel;
 import org.ngengine.gui.ime.ImeCompositionEvent;
 import org.ngengine.gui.ime.JmeSoftKeyboardImeComposer;
 import org.ngengine.gui.ime.PhysicalKeyboardImeComposer;
+import org.ngengine.gui.nav.FocusTarget;
 import org.ngengine.gui.nav.DefaultNavigatorInputHandler;
 import org.ngengine.gui.nav.Navigator;
 
@@ -92,6 +94,22 @@ public class NWindowManagerTest {
 
         assertSame(guiNode, hud.getParent());
         assertFalse(manager.hasInteractiveWindows());
+    }
+
+    @Test
+    public void passiveHudCanReceivePointerFocusWithoutBecomingInteractive() throws Throwable {
+        TestWindowManager manager = newManager("gui-hud-pointer");
+
+        NHud hud = manager.showWindow(NHud.class);
+        hud.preCompose(new Vector3f(800, 600, 0), null);
+        Panel target = new Panel();
+        target.getControl(org.ngengine.gui.core.GuiControl.class).setFocusable(FocusTarget.FOCUS_POINTER);
+        hud.getBottomRight().addChild(target);
+
+        assertFalse(manager.hasInteractiveWindows());
+        assertTrue(manager.hasPointerInteractiveWindows());
+
+        assertTrue(manager.getContext().getNavigator().focusPointer(target));
     }
 
     @Test
