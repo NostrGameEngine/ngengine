@@ -38,6 +38,7 @@ import com.jme3.bounding.BoundingBox;
 import com.jme3.asset.AssetManager;
 import com.jme3.asset.DesktopAssetManager;
 import com.jme3.asset.plugins.ClasspathLocator;
+import com.jme3.material.MatParamOverride;
 import com.jme3.material.RenderState;
 import com.jme3.renderer.Camera.FrustumIntersect;
 import com.jme3.material.plugins.J3MLoader;
@@ -81,6 +82,7 @@ import org.ngengine.world2d.tiled.enums.ObjectAlignment;
 import org.ngengine.world2d.tiled.enums.Orientation;
 import org.ngengine.world2d.tiled.enums.RenderingMode;
 import org.ngengine.world2d.tiled.renderer.MapRenderer;
+import org.ngengine.world2d.tiled.renderer.MaterialConst;
 import org.ngengine.world2d.tiled.renderer.factory.DefaultMaterialFactory;
 import org.ngengine.world2d.tiled.renderer.factory.DefaultMeshFactory;
 import org.ngengine.world2d.tiled.renderer.factory.DefaultSpriteFactory;
@@ -147,6 +149,36 @@ class TestTiledInstancedBatching {
         assertEquals(Texture.WrapMode.Repeat, texture.getWrap(Texture.WrapAxis.S));
         assertEquals(Texture.WrapMode.EdgeClamp, texture.getWrap(Texture.WrapAxis.T));
         assertEquals(RenderState.BlendMode.Screen, geometry.getMaterial().getAdditionalRenderState().getBlendMode());
+    }
+
+    @Test void rendererInstallsTileAlphaOcclusionOverridesByDefault() {
+        TiledMap map = loadOrthogonalMap();
+        Node root = new Node("map");
+        MapRenderer renderer = createRenderer(map, root);
+
+        assertTrue(renderer.isTileAlphaOcclusionEnabled());
+        assertEquals(0.30f, renderer.getTileAlphaOcclusionStrength(), 0.001f);
+        assertEquals(1.25f, renderer.getTileAlphaOcclusionRadius(), 0.001f);
+        assertEquals(Boolean.TRUE, findOverride(root, MaterialConst.USE_TILE_ALPHA_OCCLUSION).getValue());
+        assertEquals(0.30f, (Float) findOverride(root, MaterialConst.TILE_ALPHA_OCCLUSION_STRENGTH).getValue(), 0.001f);
+        assertEquals(1.25f, (Float) findOverride(root, MaterialConst.TILE_ALPHA_OCCLUSION_RADIUS).getValue(), 0.001f);
+    }
+
+    @Test void tileAlphaOcclusionSettersUpdateRendererOverrides() {
+        TiledMap map = loadOrthogonalMap();
+        Node root = new Node("map");
+        MapRenderer renderer = createRenderer(map, root);
+
+        renderer.setTileAlphaOcclusionEnabled(false);
+        renderer.setTileAlphaOcclusionStrength(2f);
+        renderer.setTileAlphaOcclusionRadius(-4f);
+
+        assertFalse(renderer.isTileAlphaOcclusionEnabled());
+        assertEquals(1f, renderer.getTileAlphaOcclusionStrength(), 0.001f);
+        assertEquals(0f, renderer.getTileAlphaOcclusionRadius(), 0.001f);
+        assertEquals(Boolean.FALSE, findOverride(root, MaterialConst.USE_TILE_ALPHA_OCCLUSION).getValue());
+        assertEquals(1f, (Float) findOverride(root, MaterialConst.TILE_ALPHA_OCCLUSION_STRENGTH).getValue(), 0.001f);
+        assertEquals(0f, (Float) findOverride(root, MaterialConst.TILE_ALPHA_OCCLUSION_RADIUS).getValue(), 0.001f);
     }
 
     @Test void batchCulledRemovalLeavesTombstoneThenFillsHoleWithLastInstance() {
@@ -1245,6 +1277,16 @@ class TestTiledInstancedBatching {
         Geometry geometry = findGeometry(root, "tiles#" + layerName);
         assertNotNull(geometry, "Missing instanced geometry for layer " + layerName);
         return geometry;
+    }
+
+    private MatParamOverride findOverride(Node node, String name) {
+        for (MatParamOverride override : node.getLocalMatParamOverrides()) {
+            if (name.equals(override.getName())) {
+                return override;
+            }
+        }
+        fail("Missing material override " + name);
+        return null;
     }
 
     private Geometry findGeometry(Node node, String name) {

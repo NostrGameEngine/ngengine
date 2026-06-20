@@ -33,6 +33,7 @@
 package org.ngengine.world2d.tiled.renderer;
 
 import com.jme3.bounding.BoundingBox;
+import com.jme3.material.MatParamOverride;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState;
 import com.jme3.math.FastMath;
@@ -48,6 +49,7 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.Mesh;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
+import com.jme3.shader.VarType;
 import com.jme3.texture.Image;
 import com.jme3.texture.Texture;
 import com.jme3.texture.TextureArray;
@@ -203,6 +205,15 @@ public abstract class MapRenderer {
     private static final String DECAL_OFFSET_Y_PROPERTY = "decal.offsetY";
     private static final String DEFAULT_DECAL_TILESET = "tilesetDECALS";
     private static final RenderRef EMPTY_RENDER_REF = new RenderRef(0);
+    private final MatParamOverride tileAlphaOcclusionEnabledOverride =
+            new MatParamOverride(VarType.Boolean, MaterialConst.USE_TILE_ALPHA_OCCLUSION, Boolean.TRUE);
+    private final MatParamOverride tileAlphaOcclusionStrengthOverride =
+            new MatParamOverride(VarType.Float, MaterialConst.TILE_ALPHA_OCCLUSION_STRENGTH, 0.30f);
+    private final MatParamOverride tileAlphaOcclusionRadiusOverride =
+            new MatParamOverride(VarType.Float, MaterialConst.TILE_ALPHA_OCCLUSION_RADIUS, 1.25f);
+    private boolean tileAlphaOcclusionEnabled = true;
+    private float tileAlphaOcclusionStrength = 0.30f;
+    private float tileAlphaOcclusionRadius = 1.25f;
   
     public static class RenderRef {
         TiledBase entry;
@@ -369,8 +380,15 @@ public abstract class MapRenderer {
 
         this.rootNode = rootNode;
         this.rootNode.setQueueBucket(RenderQueue.Bucket.Opaque);
+        installTileAlphaOcclusionOverrides();
 
         recalcScreenExtents();
+    }
+
+    private void installTileAlphaOcclusionOverrides() {
+        rootNode.addMatParamOverride(tileAlphaOcclusionEnabledOverride);
+        rootNode.addMatParamOverride(tileAlphaOcclusionStrengthOverride);
+        rootNode.addMatParamOverride(tileAlphaOcclusionRadiusOverride);
     }
 
     
@@ -679,6 +697,64 @@ public abstract class MapRenderer {
      */
     public void setMaxInstancedRebatchesPerFrame(int maxInstancedRebatchesPerFrame) {
         this.maxInstancedRebatchesPerFrame = Math.max(1, maxInstancedRebatchesPerFrame);
+    }
+
+    /**
+     * Returns whether alpha-driven tile occlusion is enabled for this renderer.
+     *
+     * @return {@code true} when tile alpha occlusion is active
+     */
+    public boolean isTileAlphaOcclusionEnabled() {
+        return tileAlphaOcclusionEnabled;
+    }
+
+    /**
+     * Enables or disables alpha-driven tile occlusion for all tiled materials
+     * rendered below this map root.
+     *
+     * @param enabled {@code true} to enable tile alpha occlusion
+     */
+    public void setTileAlphaOcclusionEnabled(boolean enabled) {
+        this.tileAlphaOcclusionEnabled = enabled;
+        tileAlphaOcclusionEnabledOverride.setValue(Boolean.valueOf(enabled));
+    }
+
+    /**
+     * Returns the tile alpha occlusion strength.
+     *
+     * @return strength in the {@code 0..1} range
+     */
+    public float getTileAlphaOcclusionStrength() {
+        return tileAlphaOcclusionStrength;
+    }
+
+    /**
+     * Sets how strongly alpha edges darken or cast a small fringe shadow.
+     *
+     * @param strength strength clamped to the {@code 0..1} range
+     */
+    public void setTileAlphaOcclusionStrength(float strength) {
+        this.tileAlphaOcclusionStrength = FastMath.clamp(strength, 0f, 1f);
+        tileAlphaOcclusionStrengthOverride.setValue(tileAlphaOcclusionStrength);
+    }
+
+    /**
+     * Returns the tile alpha occlusion sampling radius in source texture pixels.
+     *
+     * @return sampling radius in texture pixels
+     */
+    public float getTileAlphaOcclusionRadius() {
+        return tileAlphaOcclusionRadius;
+    }
+
+    /**
+     * Sets the alpha occlusion sampling radius in source texture pixels.
+     *
+     * @param radius sampling radius; values below zero become zero
+     */
+    public void setTileAlphaOcclusionRadius(float radius) {
+        this.tileAlphaOcclusionRadius = Math.max(0f, radius);
+        tileAlphaOcclusionRadiusOverride.setValue(tileAlphaOcclusionRadius);
     }
 
     /**

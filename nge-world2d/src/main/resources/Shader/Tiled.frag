@@ -24,6 +24,11 @@ uniform float m_Opacity;
 uniform float m_LayerOpacity;
 #endif
 
+#ifdef USE_TILE_ALPHA_OCCLUSION
+uniform float m_TileAlphaOcclusionStrength;
+uniform float m_TileAlphaOcclusionRadius;
+#endif
+
 #ifdef HAS_COLOR_MAP
 uniform sampler2D m_ColorMap;
 #endif
@@ -95,13 +100,17 @@ varying vec2 v_TilePos;
 
 varying vec2 v_TexCoord;
 
-vec2 getTileUVClamped(vec2 tilePos, vec2 tileSize, vec2 imageSize) {
-    vec2 pixel = v_TexCoord * tileSize + tilePos;
+vec2 getTileUVClampedAt(vec2 texCoord, vec2 tilePos, vec2 tileSize, vec2 imageSize) {
+    vec2 pixel = texCoord * tileSize + tilePos;
     vec2 min = vec2(tilePos + 0.5);
     vec2 max = vec2(tilePos + tileSize - 0.5);
     vec2 uv = clamp(pixel, min, max) / imageSize;
     uv.y = 1.0 - uv.y;
     return uv;
+}
+
+vec2 getTileUVClamped(vec2 tilePos, vec2 tileSize, vec2 imageSize) {
+    return getTileUVClampedAt(v_TexCoord, tilePos, tileSize, imageSize);
 }
 
 #ifdef HAS_DECAL_MAP
@@ -149,45 +158,128 @@ vec4 sampleInstancedTile(vec2 tileUv) {
     }
 #ifdef HAS_COLOR_MAP0
     else if (slot < 0.5) {
-        return texture2D(m_ColorMap0, getTileUVClamped(v_TileData.xy, v_UvSize, v_ImageSize));
+        return texture2D(m_ColorMap0, getTileUVClampedAt(tileUv, v_TileData.xy, v_UvSize, v_ImageSize));
     }
 #endif
 #ifdef HAS_COLOR_ARRAY0
     else if (slot < 0.5) {
-        return texture2DArray(m_ColorArray0, vec3(getTileUVClamped(vec2(0.0), v_UvSize, v_ImageSize), v_TileData.x));
+        return texture2DArray(m_ColorArray0, vec3(getTileUVClampedAt(tileUv, vec2(0.0), v_UvSize, v_ImageSize), v_TileData.x));
     }
 #endif
 #ifdef HAS_COLOR_MAP1
     else if (slot >= 0.5 && slot < 1.5) {
-        return texture2D(m_ColorMap1, getTileUVClamped(v_TileData.xy, v_UvSize, v_ImageSize));
+        return texture2D(m_ColorMap1, getTileUVClampedAt(tileUv, v_TileData.xy, v_UvSize, v_ImageSize));
     }
 #endif
 #ifdef HAS_COLOR_ARRAY1
     else if (slot >= 0.5 && slot < 1.5) {
-        return texture2DArray(m_ColorArray1, vec3(getTileUVClamped(vec2(0.0), v_UvSize, v_ImageSize), v_TileData.x));
+        return texture2DArray(m_ColorArray1, vec3(getTileUVClampedAt(tileUv, vec2(0.0), v_UvSize, v_ImageSize), v_TileData.x));
     }
 #endif
 #ifdef HAS_COLOR_MAP2
     else if (slot >= 1.5 && slot < 2.5) {
-        return texture2D(m_ColorMap2, getTileUVClamped(v_TileData.xy, v_UvSize, v_ImageSize));
+        return texture2D(m_ColorMap2, getTileUVClampedAt(tileUv, v_TileData.xy, v_UvSize, v_ImageSize));
     }
 #endif
 #ifdef HAS_COLOR_ARRAY2
     else if (slot >= 1.5 && slot < 2.5) {
-        return texture2DArray(m_ColorArray2, vec3(getTileUVClamped(vec2(0.0), v_UvSize, v_ImageSize), v_TileData.x));
+        return texture2DArray(m_ColorArray2, vec3(getTileUVClampedAt(tileUv, vec2(0.0), v_UvSize, v_ImageSize), v_TileData.x));
     }
 #endif
 #ifdef HAS_COLOR_MAP3
     else if (slot >= 2.5 && slot < 3.5) {
-        return texture2D(m_ColorMap3, getTileUVClamped(v_TileData.xy, v_UvSize, v_ImageSize));
+        return texture2D(m_ColorMap3, getTileUVClampedAt(tileUv, v_TileData.xy, v_UvSize, v_ImageSize));
     }
 #endif
 #ifdef HAS_COLOR_ARRAY3
     else if (slot >= 2.5 && slot < 3.5) {
-        return texture2DArray(m_ColorArray3, vec3(getTileUVClamped(vec2(0.0), v_UvSize, v_ImageSize), v_TileData.x));
+        return texture2DArray(m_ColorArray3, vec3(getTileUVClampedAt(tileUv, vec2(0.0), v_UvSize, v_ImageSize), v_TileData.x));
     }
 #endif
     return vec4(1.0);
+}
+#endif
+
+#if defined(USE_TILE_ALPHA_OCCLUSION) && (defined(HAS_COLOR_MAP) || defined(INSTANCING))
+float alphaFromSample(vec4 sampleColor) {
+#ifdef HAS_TRANS_COLOR
+    if (sampleColor.rgb == m_TransColor.rgb) {
+        return 0.0;
+    }
+#endif
+    return sampleColor.a;
+}
+
+vec4 sampleBaseColor(vec2 texCoord) {
+#ifdef INSTANCING
+    return sampleInstancedTile(texCoord);
+#else
+#ifdef USE_TILESET_IMAGE
+    return texture2D(m_ColorMap, getTileUVClampedAt(texCoord, v_TilePos, m_TileSize.xy, m_ImageSize.xy));
+#else
+    return texture2D(m_ColorMap, texCoord);
+#endif
+#endif
+}
+
+vec2 alphaOcclusionTexel() {
+#ifdef INSTANCING
+    return m_TileAlphaOcclusionRadius / max(v_UvSize, vec2(1.0));
+#else
+#ifdef USE_TILESET_IMAGE
+    return m_TileAlphaOcclusionRadius / max(m_TileSize.xy, vec2(1.0));
+#else
+    return m_TileAlphaOcclusionRadius / max(m_ImageSize.xy, vec2(1.0));
+#endif
+#endif
+}
+
+vec4 applyTileAlphaOcclusion(vec4 color, vec2 texCoord) {
+    float strength = clamp(m_TileAlphaOcclusionStrength, 0.0, 1.0);
+    if (strength <= 0.0) {
+        return color;
+    }
+
+    vec2 stepUv = alphaOcclusionTexel();
+    float a = alphaFromSample(color);
+    float minNeighbor = 1.0;
+    float maxNeighbor = 0.0;
+
+    float neighbor;
+    neighbor = alphaFromSample(sampleBaseColor(texCoord + vec2(stepUv.x, 0.0)));
+    minNeighbor = min(minNeighbor, neighbor);
+    maxNeighbor = max(maxNeighbor, neighbor);
+    neighbor = alphaFromSample(sampleBaseColor(texCoord + vec2(-stepUv.x, 0.0)));
+    minNeighbor = min(minNeighbor, neighbor);
+    maxNeighbor = max(maxNeighbor, neighbor);
+    neighbor = alphaFromSample(sampleBaseColor(texCoord + vec2(0.0, stepUv.y)));
+    minNeighbor = min(minNeighbor, neighbor);
+    maxNeighbor = max(maxNeighbor, neighbor);
+    neighbor = alphaFromSample(sampleBaseColor(texCoord + vec2(0.0, -stepUv.y)));
+    minNeighbor = min(minNeighbor, neighbor);
+    maxNeighbor = max(maxNeighbor, neighbor);
+    neighbor = alphaFromSample(sampleBaseColor(texCoord + stepUv));
+    minNeighbor = min(minNeighbor, neighbor);
+    maxNeighbor = max(maxNeighbor, neighbor);
+    neighbor = alphaFromSample(sampleBaseColor(texCoord + vec2(-stepUv.x, stepUv.y)));
+    minNeighbor = min(minNeighbor, neighbor);
+    maxNeighbor = max(maxNeighbor, neighbor);
+    neighbor = alphaFromSample(sampleBaseColor(texCoord + vec2(stepUv.x, -stepUv.y)));
+    minNeighbor = min(minNeighbor, neighbor);
+    maxNeighbor = max(maxNeighbor, neighbor);
+    neighbor = alphaFromSample(sampleBaseColor(texCoord - stepUv));
+    minNeighbor = min(minNeighbor, neighbor);
+    maxNeighbor = max(maxNeighbor, neighbor);
+
+    if (a >= 0.5) {
+        float edgeShade = (1.0 - minNeighbor) * strength * smoothstep(0.5, 1.0, a);
+        color.rgb *= 1.0 - clamp(edgeShade, 0.0, 0.45);
+    } else {
+        float fringe = smoothstep(0.45, 0.95, maxNeighbor) * (1.0 - a) * strength * 0.65;
+        color = vec4(0.0, 0.0, 0.0, fringe);
+    }
+
+    return color;
 }
 #endif
 
@@ -226,9 +318,19 @@ void main(){
     }
     #endif
 
+    #if defined(USE_TILE_ALPHA_OCCLUSION) && (defined(HAS_COLOR_MAP) || defined(INSTANCING))
+    color = applyTileAlphaOcclusion(color, v_TexCoord);
+    #endif
+
+    #ifdef USE_TILE_ALPHA_OCCLUSION
+    if (color.a <= 0.01) {
+        discard;
+    }
+    #else
     if (color.a < 0.5) {
         discard;
     }
+    #endif
 #endif
 
     #ifdef HAS_COLOR
