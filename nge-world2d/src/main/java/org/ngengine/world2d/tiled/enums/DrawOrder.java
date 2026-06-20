@@ -45,16 +45,7 @@ public enum DrawOrder implements Comparator<TiledObjectEntity> {
     INDEX("index") {
         @Override
         public int compare(TiledObjectEntity o1, TiledObjectEntity o2) {
-            if (o1.getId() == null && o2.getId() == null) {
-                return 0;
-            }
-            if (o1.getId() == null) {
-                return -1;
-            }
-            if (o2.getId() == null) {
-                return 1;
-            }
-            return o1.getId().compareTo(o2.getId());
+            return 0;
         }
     },
     TOPDOWN("topdown") {

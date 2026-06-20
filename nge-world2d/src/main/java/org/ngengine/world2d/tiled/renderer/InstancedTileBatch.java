@@ -52,6 +52,7 @@ import org.ngengine.world2d.tiled.core.tileset.Tile;
 import org.ngengine.world2d.tiled.core.tileset.Tileset;
 import org.ngengine.world2d.tiled.enums.FillMode;
 import org.ngengine.world2d.tiled.enums.Orientation;
+import org.ngengine.world2d.tiled.renderer.queue.YAxisComparator;
 
 /**
  * One instanced geometry plus its CPU-side record list for a single draw group.
@@ -400,6 +401,8 @@ final class InstancedTileBatch {
         }
         renderer.spriteFactory.getMaterialFactory().setTintColor(geometry.getMaterial(), layer.getTintColor());
         renderer.spriteFactory.getMaterialFactory().setLayerOpacity(geometry.getMaterial(), (float) layer.getOpacity());
+        geometry.setUserData(YAxisComparator.SORT_ORDER_USER_DATA,
+                renderer.getWorldSortOrder(layer, drawGroup));
         geometry.setNumInstances(records.size());
         updateBound();
     }

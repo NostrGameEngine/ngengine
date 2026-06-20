@@ -283,19 +283,7 @@ public final class TiledCoordinateSystem implements CoordinateSystem {
     @Override
     public float getTopDownYIndex(TiledObjectEntity obj) {
         if (orientation == Orientation.ISOMETRIC) {
-            final float footY;
-            final float footX;
-            if (obj.getShape() == ObjectShape.TILE) {
-                footY = (float) obj.getY();
-                footX = (float) obj.getX();
-            } else {
-                footY = (float) (obj.getY() + obj.getHeight());
-                footX = (float) (obj.getX() + obj.getWidth() * 0.5f);
-            }
-
-            float tileY = footY / sourceTileHeight;
-            float tileX = (footX / sourceTileWidth) - (height * 0.5f);
-            return getTopDownYIndex(tileX, tileY);
+            return getTopDownYIndex((float) obj.getX(), (float) obj.getY());
         }
         if (orientation == Orientation.HEXAGONAL) {
             float yNorm = (float) obj.getY() / mapSize.getY();
@@ -308,13 +296,11 @@ public final class TiledCoordinateSystem implements CoordinateSystem {
     @Override
     public float getTopDownYIndex(float x, float y) {
         if (orientation == Orientation.ISOMETRIC) {
-            float u = y + x;
-            float v = y - x;
-            float denom = width + height;
-            float uNorm = (u + height * 0.5f) / denom;
-            uNorm = Math.max(0f, Math.min(1f, uNorm));
-            float tiebreak = (v / denom) * 1e-3f;
-            return (float) ((uNorm + tiebreak) * layerDistance);
+            // Match Tiled's editor renderer: TopDown object layers use the
+            // screen-space Y of pixelToScreenCoords(object->position()).
+            float screenY = 0.5f * (x + y);
+            float mapScreenHeight = Math.max(1f, mapSize.getY());
+            return (float) ((screenY / mapScreenHeight) * layerDistance);
         }
         float tileY = y / mapSize.getY();
         return (float) (tileY * layerDistance);

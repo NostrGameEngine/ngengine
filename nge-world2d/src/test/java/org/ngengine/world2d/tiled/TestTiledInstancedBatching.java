@@ -449,8 +449,8 @@ class TestTiledInstancedBatching {
         Geometry batch = batchGeometry(root, "Object world y");
         int instance = findInstanceAt(batch, (float)object.getX(), (float)object.getY());
         assertEquals(renderer.getWorldYIndex(object), instanceTranslationY(batch, instance), 0.001f,
-                "instanced object data must include the layer Y because instancing bypasses the layer node transform");
-        assertEquals(renderer.getWorldYIndex(object), YAxisComparator.sortY(batch), 0.001f,
+                "single-object instanced data must include the world Y because instancing bypasses the layer node transform");
+        assertEquals(instanceTranslationY(batch, instance), YAxisComparator.sortY(batch), 0.001f,
                 "instanced batch sort Y must not be inflated by the fallback bounding-box extent");
     }
 
@@ -464,6 +464,60 @@ class TestTiledInstancedBatching {
 
         assertTrue(new YAxisComparator().compare(lower, higher) < 0,
                 "batch sorting should use the front Y edge of the world bound, not the geometry translation");
+    }
+
+    @Test void yAxisComparatorUsesExplicitSortKeyBeforeBoundingBoxFallback() {
+        Geometry lower = new Geometry("lower", new Quad(1f, 1f));
+        Geometry higher = new Geometry("higher", new Quad(1f, 1f));
+        lower.setModelBound(new BoundingBox(new Vector3f(0f, 10f, 0f), 1f, 1f, 1f));
+        higher.setModelBound(new BoundingBox(new Vector3f(0f, 5f, 0f), 1f, 11f, 1f));
+        lower.setUserData(YAxisComparator.SORT_Y_USER_DATA, 20f);
+        higher.setUserData(YAxisComparator.SORT_Y_USER_DATA, 10f);
+        lower.updateGeometricState();
+        higher.updateGeometricState();
+
+        assertTrue(new YAxisComparator().compare(lower, higher) > 0,
+                "explicit Tiled sort keys should override bounds when the renderer provides them");
+    }
+
+    @Test void yAxisComparatorUsesExplicitOrderAsTieBreaker() {
+        Geometry earlier = new Geometry("earlier", new Quad(1f, 1f));
+        Geometry later = new Geometry("later", new Quad(1f, 1f));
+        earlier.setUserData(YAxisComparator.SORT_Y_USER_DATA, 10f);
+        later.setUserData(YAxisComparator.SORT_Y_USER_DATA, 10f);
+        earlier.setUserData(YAxisComparator.SORT_ORDER_USER_DATA, 1f);
+        later.setUserData(YAxisComparator.SORT_ORDER_USER_DATA, 2f);
+
+        assertTrue(new YAxisComparator().compare(earlier, later) < 0,
+                "same-depth geometry should preserve the renderer's explicit Tiled order");
+    }
+
+    @Test void tileMeshAppliesDiagonalFlipBeforeHorizontalAndVerticalFlips() {
+        int gid = Tile.FLIPPED_DIAGONALLY_FLAG | Tile.FLIPPED_HORIZONTALLY_FLAG | 1;
+        TileMesh mesh = new TileMesh(new Vector2f(), new Vector2f(1f, 1f), new Vector2f(), new Vector2f(),
+                gid, Orientation.ISOMETRIC);
+
+        FloatBuffer texCoords = ((FloatBuffer) mesh.getBuffer(VertexBuffer.Type.TexCoord).getData()).duplicate();
+        float[] actual = new float[8];
+        texCoords.get(actual);
+
+        assertArrayEquals(new float[] {1f, 0f, 1f, 1f, 0f, 1f, 0f, 0f}, actual, 0.0001f,
+                "Tiled applies diagonal flip before horizontal and vertical flips");
+    }
+
+    @Test void instancedShaderAppliesDiagonalFlipBeforeHorizontalAndVerticalFlips() throws IOException {
+        try (InputStream in = getClass().getClassLoader().getResourceAsStream("Shader/Tiled.vert")) {
+            assertNotNull(in, "Tiled vertex shader must be available as a test resource");
+            String shader = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            int diagonal = shader.indexOf("vec2(1.0 - v_TexCoord.y, 1.0 - v_TexCoord.x)");
+            int horizontal = shader.indexOf("v_TexCoord.x = 1.0 - v_TexCoord.x");
+            int vertical = shader.indexOf("v_TexCoord.y = 1.0 - v_TexCoord.y");
+            assertTrue(diagonal >= 0, "instanced shader should handle Tiled diagonal flip");
+            assertTrue(horizontal >= 0, "instanced shader should handle Tiled horizontal flip");
+            assertTrue(vertical >= 0, "instanced shader should handle Tiled vertical flip");
+            assertTrue(diagonal < horizontal && diagonal < vertical,
+                    "instanced shader must apply Tiled diagonal flip before axis flips so decals sample correctly");
+        }
     }
 
     @Test void instancedCulledObjectLayerUpdatesMovedObjectAfterModeSwitch() {
@@ -670,6 +724,34 @@ class TestTiledInstancedBatching {
         assertEquals(2, countDirectGeometries(layerNode));
     }
 
+    @Test void isometricTopDownObjectLayerUsesTiledScreenYForDepth() {
+        TiledMap map = loadIsometricMap();
+        TiledTileLayer tileLayer = (TiledTileLayer) map.getLayer("Ground");
+        Tile tile = tileLayer.getTileAt(0, 0).getTile();
+        TiledObjectLayer layer = new TiledObjectLayer(map.getWidth(), map.getHeight());
+        layer.setName("Object isometric screen y");
+        TiledObjectEntity frontByScreenY = new TiledObjectEntity(520010, 342, -32, tile);
+        TiledObjectEntity backByScreenY = new TiledObjectEntity(520011, 306, -10, tile);
+        frontByScreenY.setName("front by screen y");
+        backByScreenY.setName("back by screen y");
+        layer.add(frontByScreenY);
+        layer.add(backByScreenY);
+        map.addLayer(layer);
+        Node root = new Node("map");
+        MapRenderer renderer = createRenderer(map, root);
+
+        renderer.render(new EmptyMapRenderListener(), 0f, new TestPovRenderer(wideCamera()));
+
+        Geometry front = findGeometry(root, "front by screen y");
+        Geometry back = findGeometry(root, "back by screen y");
+        assertNotNull(front);
+        assertNotNull(back);
+        assertTrue(YAxisComparator.sortY(front) > YAxisComparator.sortY(back),
+                "isometric TOPDOWN object layers should use Tiled pixelToScreenCoords(object.position).y");
+        assertTrue(front.getLocalTranslation().y > back.getLocalTranslation().y,
+                "object local depth should use the same Tiled screen-space Y as the render queue");
+    }
+
     @Test void autoIsometricTileLayerUsesBatchInstancing() {
         TiledMap map = loadIsometricMap();
         Node root = new Node("map");
@@ -822,6 +904,33 @@ class TestTiledInstancedBatching {
         assertEquals(0, countInstancedBatchGeometries(root, "Object index auto"),
                 "INDEX object layers should preserve explicit object order by default");
         assertEquals(2, countDirectGeometries(layerNode));
+    }
+
+    @Test void indexObjectLayerUsesLayerAppearanceOrderForDepth() {
+        TiledMap map = loadOrthogonalMap();
+        TiledTileLayer tileLayer = (TiledTileLayer) map.getLayer("Ground");
+        Tile tile = tileLayer.getTileAt(0, 0).getTile();
+        TiledObjectLayer layer = new TiledObjectLayer(map.getWidth(), map.getHeight());
+        layer.setName("Object index depth");
+        layer.setDrawOrder(DrawOrder.INDEX);
+        TiledObjectEntity firstInLayer = new TiledObjectEntity(540011, 96, 96, tile);
+        TiledObjectEntity secondInLayer = new TiledObjectEntity(540010, 64, 96, tile);
+        firstInLayer.setName("first in layer");
+        secondInLayer.setName("second in layer");
+        layer.add(firstInLayer);
+        layer.add(secondInLayer);
+        map.addLayer(layer);
+        Node root = new Node("map");
+        MapRenderer renderer = createRenderer(map, root);
+
+        renderer.render(new EmptyMapRenderListener(), 0f, new TestPovRenderer(wideCamera()));
+
+        Geometry first = findGeometry(root, "first in layer");
+        Geometry second = findGeometry(root, "second in layer");
+        assertNotNull(first);
+        assertNotNull(second);
+        assertTrue(YAxisComparator.sortY(first) < YAxisComparator.sortY(second),
+                "INDEX draw order means layer appearance order, not object id order");
     }
 
     @Test void instancedIndexObjectLayerDoesNotGroupObjectsWithConfiguredBatchSize() {

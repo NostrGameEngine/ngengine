@@ -62,11 +62,13 @@ import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
 import org.ngengine.world2d.tiled.core.entity.TiledTileEntity;
 import org.ngengine.world2d.tiled.core.tileset.Tile;
 import org.ngengine.world2d.tiled.core.tileset.Tileset;
+import org.ngengine.world2d.tiled.enums.DrawOrder;
 import org.ngengine.world2d.tiled.enums.ObjectShape;
 import org.ngengine.world2d.tiled.enums.Orientation;
 import org.ngengine.world2d.tiled.enums.RenderingMode;
 import org.ngengine.world2d.tiled.renderer.factory.MaterialFactory;
 import org.ngengine.world2d.tiled.renderer.factory.SpriteFactory;
+import org.ngengine.world2d.tiled.renderer.queue.YAxisComparator;
 import org.ngengine.world2d.tiled.renderer.shape.Rect;
 import org.ngengine.world2d.tiled.util.CoordinateSystem;
 import org.ngengine.world2d.tiled.util.TiledCoordinateSystem;
@@ -995,6 +997,8 @@ public abstract class MapRenderer {
                     tileToWorldSpace(x, y, pixelCoord);
                     float zTile =  getTileYAxis(z);
                     visual.move(pixelCoord.x, zTile, pixelCoord.y);
+                    visual.setUserData(YAxisComparator.SORT_Y_USER_DATA, getWorldYIndex(layer, zTile));
+                    visual.setUserData(YAxisComparator.SORT_ORDER_USER_DATA, getWorldSortOrder(layer, z));
 
                     Material mat = visual.getMaterial();
                     materialFactory.setTile(mat, tile);
@@ -1876,13 +1880,10 @@ public abstract class MapRenderer {
             clearInstancedBatches(layerRef);
         }
 
-        List<TiledObjectEntity> renderObjects = objects;
-        if (!useInstancing) {
-            tmpSortedObjects.clear();
-            tmpSortedObjects.addAll(objects);
-            tmpSortedObjects.sort(layer.getDrawOrder());
-            renderObjects = tmpSortedObjects;
-        }
+        tmpSortedObjects.clear();
+        tmpSortedObjects.addAll(objects);
+        tmpSortedObjects.sort(layer.getDrawOrder());
+        List<TiledObjectEntity> renderObjects = tmpSortedObjects;
         int objectBatchHeight = batchCulled ? instancedBatchingPolicy.resolveObjectBatchHeight() : 1;
         try(TempVars vars = TempVars.get()){
             for (int i = 0; i < len; i++) {
@@ -1917,7 +1918,7 @@ public abstract class MapRenderer {
                     int drawGroup = batchCulled
                             ? instancedBatchingPolicy.objectDrawGroup(layer, obj, i, objectBatchHeight)
                             : 0;
-                    float objectY = getWorldYIndex(obj);
+                    float objectY = getWorldYIndex(layer, getObjectLayerDrawYIndex(layer, obj, i, len));
                     boolean transientChange = false;
                     if (batchCulled) {
                         transientChange = updateTransientSignature(obj, drawGroup, source, screenCoord.x,
@@ -1959,13 +1960,13 @@ public abstract class MapRenderer {
                     float x = (float) obj.getX();
                     float y = (float) obj.getY();
 
-                    // sort top-down
-                    // don't support sorting by index
-                    float z = getTopDownYIndex(obj);
+                    float z = getObjectLayerDrawYIndex(layer, obj, i, len);
+                    float worldY = getWorldYIndex(layer, z);
                     Vector2f screenCoord = vars.vect2d;
                     gridToWorldSpace(x, y, screenCoord);
                     spatial.setLocalTranslation(screenCoord.x, z, screenCoord.y);
-                
+                    spatial.setUserData(YAxisComparator.SORT_Y_USER_DATA, worldY);
+                    spatial.setUserData(YAxisComparator.SORT_ORDER_USER_DATA, getWorldSortOrder(layer, i));
 
                     double deg = obj.getRotation();
                     if (deg != 0) {
@@ -2092,6 +2093,22 @@ public abstract class MapRenderer {
      */
     public float getWorldYIndex(TiledLayer layer, float layerLocalYIndex) {
         return getLayerYIndex(layer) + layerLocalYIndex;
+    }
+
+    float getWorldSortOrder(TiledLayer layer, int layerLocalOrder) {
+        int index = tiledMap.getLayersFlat().indexOf(layer);
+        return (index < 0 ? 0 : index) * 1_000_000f + layerLocalOrder;
+    }
+
+    private float getObjectLayerDrawYIndex(TiledObjectLayer layer, TiledObjectEntity object,
+            int sortedIndex, int objectCount) {
+        if (layer != null && layer.getDrawOrder() != DrawOrder.INDEX) {
+            return getTopDownYIndex(object);
+        }
+        if (objectCount <= 0) {
+            return 0f;
+        }
+        return (float) (layerDistance * ((double) sortedIndex / Math.max(1, objectCount - 1)));
     }
 
     /**
