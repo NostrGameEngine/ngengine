@@ -313,7 +313,8 @@ void main(){
     #endif
 
     #ifdef HAS_TRANS_COLOR
-    if(color.rgb == m_TransColor.rgb) {
+    vec3 diff = color.rgb - m_TransColor.rgb;
+    if (dot(diff, diff) < 0.0001) { // 0.01 * 0.01
         discard;
     }
     #endif
