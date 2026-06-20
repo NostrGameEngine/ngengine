@@ -40,9 +40,15 @@ varying vec2 v_TilePos;
 #endif
 
 varying vec2 v_TexCoord;
+#ifdef HAS_DECAL_MAP
+varying vec2 v_DecalTexCoord;
+#endif
 
 void main() {
     v_TexCoord = inTexCoord;
+#ifdef HAS_DECAL_MAP
+    v_DecalTexCoord = inTexCoord;
+#endif
 
 #ifdef USE_TILESET_IMAGE
     #ifdef INSTANCING

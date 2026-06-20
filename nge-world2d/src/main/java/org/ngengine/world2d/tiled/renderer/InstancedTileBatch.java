@@ -303,10 +303,13 @@ final class InstancedTileBatch {
             float tileWidth = Math.max((float) tile.getWidth(), 1f);
             float tileHeight = Math.max((float) tile.getHeight(), 1f);
             tmpDecalTile[layer] = decalTile.getId();
-            tmpDecalX[layer] = (float) ((decalObject.getX() + decalObject.getWidth() * 0.5) / tileWidth)
+            float centerX = (float) ((decalObject.getX() + decalObject.getWidth() * 0.5) / tileWidth)
                     + NGEUtils.safeFloat(decalObject.getProperty(DECAL_OFFSET_X_PROPERTY));
-            tmpDecalY[layer] = (float) ((decalObject.getY() + decalObject.getHeight() * 0.5) / tileHeight)
+            float centerY = (float) ((decalObject.getY() + decalObject.getHeight() * 0.5) / tileHeight)
                     + NGEUtils.safeFloat(decalObject.getProperty(DECAL_OFFSET_Y_PROPERTY));
+            Vector2f displayCenter = ObjectDecalTransform.toDisplayCenter(centerX, centerY, tile);
+            tmpDecalX[layer] = displayCenter.x;
+            tmpDecalY[layer] = displayCenter.y;
             float defaultScale = (float) (Math.max(decalObject.getWidth(), decalObject.getHeight()) / tileWidth);
             Object decalSizeValue = decalObject.getProperty(DECAL_SIZE_PROPERTY);
             float decalSize = decalSizeValue != null ? NGEUtils.safeFloat(decalSizeValue) : defaultScale * tileWidth;

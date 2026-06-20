@@ -1244,10 +1244,11 @@ public abstract class MapRenderer {
             float centerY = (float) ((decalObject.getY() + decalObject.getHeight() * 0.5) / tileHeight);
             centerX += safeFloat(decalObject.getProperty(DECAL_OFFSET_X_PROPERTY), 0f);
             centerY += safeFloat(decalObject.getProperty(DECAL_OFFSET_Y_PROPERTY), 0f);
+            Vector2f displayCenter = ObjectDecalTransform.toDisplayCenter(centerX, centerY, tile);
             float defaultScale = (float) (Math.max(decalObject.getWidth(), decalObject.getHeight()) / tileWidth);
             float scale = safeFloat(decalObject.getProperty(DECAL_SCALE_PROPERTY),
                     safeFloat(decalObject.getProperty(DECAL_SIZE_PROPERTY), defaultScale * tileWidth) / tileWidth);
-            decals[layer].set(decalTile.getId(), centerX, centerY, scale);
+            decals[layer].set(decalTile.getId(), displayCenter.x, displayCenter.y, scale);
             layer++;
         }
 

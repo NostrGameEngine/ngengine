@@ -80,6 +80,10 @@ uniform sampler2DArray m_ColorArray2;
 uniform sampler2DArray m_ColorArray3;
 #endif
 
+#ifdef HAS_DECAL_MAP
+varying vec2 v_DecalTexCoord;
+#endif
+
 #ifdef USE_TILESET_IMAGE
 #ifdef INSTANCING
 varying vec4 v_TileData;
@@ -119,7 +123,7 @@ vec4 sampleInstancedDecal(vec4 decal) {
         return vec4(0.0);
     }
 
-    vec2 decalUv = (v_TexCoord - decal.yz + decal.ww * 0.5) / decal.ww;
+    vec2 decalUv = (v_DecalTexCoord - decal.yz + decal.ww * 0.5) / decal.ww;
     if (decalUv.x < 0.0 || decalUv.x > 1.0 || decalUv.y < 0.0 || decalUv.y > 1.0) {
         return vec4(0.0);
     }

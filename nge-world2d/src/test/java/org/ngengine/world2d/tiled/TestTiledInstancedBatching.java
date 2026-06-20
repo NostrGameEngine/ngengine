@@ -645,6 +645,18 @@ class TestTiledInstancedBatching {
         }
     }
 
+    @Test void fragmentShaderDeclaresDecalTexCoordForAllDecalPaths() throws IOException {
+        try (InputStream in = getClass().getClassLoader().getResourceAsStream("Shader/Tiled.frag")) {
+            assertNotNull(in, "Tiled fragment shader must be available as a test resource");
+            String shader = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            int varying = shader.indexOf("varying vec2 v_DecalTexCoord;");
+            int tilesetBranch = shader.indexOf("#ifdef USE_TILESET_IMAGE");
+            assertTrue(varying >= 0, "fragment shader must receive the unflipped decal texcoord");
+            assertTrue(varying < tilesetBranch,
+                    "decal texcoord varying must be available to both instanced and non-instanced decal paths");
+        }
+    }
+
     @Test void instancedCulledObjectLayerUpdatesMovedObjectAfterModeSwitch() {
         TiledMap map = loadOrthogonalMap();
         TiledObjectLayer layer = addObjectLayer(map, "Object move culled", 3);
