@@ -1245,7 +1245,7 @@ public abstract class MapRenderer {
             float centerY = (float) ((decalObject.getY() + decalObject.getHeight() * 0.5) / tileHeight);
             centerX += safeFloat(decalObject.getProperty(DECAL_OFFSET_X_PROPERTY), 0f);
             centerY += safeFloat(decalObject.getProperty(DECAL_OFFSET_Y_PROPERTY), 0f);
-            Vector2f decalCenter = ObjectDecalPlacement.transformCenterForTileFlip(centerX, centerY, tile);
+            Vector2f decalCenter = ObjectDecalPlacement.centerForFallbackTileUv(centerX, centerY);
             float defaultScale = (float) (Math.max(decalObject.getWidth(), decalObject.getHeight()) / tileWidth);
             float scale = safeFloat(decalObject.getProperty(DECAL_SCALE_PROPERTY),
                     safeFloat(decalObject.getProperty(DECAL_SIZE_PROPERTY), defaultScale * tileWidth) / tileWidth);

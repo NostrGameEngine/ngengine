@@ -29,4 +29,12 @@ class TestObjectDecalPlacement {
         assertEquals(0.7f, center.x, 0.0001f);
         assertEquals(0.8f, center.y, 0.0001f);
     }
+
+    @Test
+    void fallbackMeshUvKeepsOriginalDecalCenterBecauseMeshUvIsAlreadyFlipped() {
+        Vector2f center = ObjectDecalPlacement.centerForFallbackTileUv(0.25f, 0.75f);
+
+        assertEquals(0.25f, center.x, 0.0001f);
+        assertEquals(0.75f, center.y, 0.0001f);
+    }
 }

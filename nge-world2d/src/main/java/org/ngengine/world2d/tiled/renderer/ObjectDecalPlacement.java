@@ -23,4 +23,8 @@ final class ObjectDecalPlacement {
         }
         return new Vector2f(tx, ty);
     }
+
+    static Vector2f centerForFallbackTileUv(float x, float y) {
+        return new Vector2f(x, y);
+    }
 }
