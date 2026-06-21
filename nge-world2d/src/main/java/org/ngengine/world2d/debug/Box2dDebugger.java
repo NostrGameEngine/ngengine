@@ -57,7 +57,6 @@ import com.jme3.math.ColorRGBA;
 import com.jme3.math.FastMath;
 import com.jme3.math.Quaternion;
 import com.jme3.math.Vector2f;
-import com.jme3.math.Vector3f;
 import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
@@ -111,7 +110,7 @@ public class Box2dDebugger {
                             int count = poly.getVertexCount();
                             List<Vector2f> vertices = new ArrayList<>(count);
                             for (int i = 0; i < count; i++) {
-                                Vec2 vec = poly.getVertex(i);
+                                Vec2 vec = body.getWorldPoint(poly.getVertex(i));
                                 coords.physicsToWorldSpace(vec, pos);
                                 Vector2f v = new Vector2f(pos.x, pos.y);
                                 vertices.add(v);
@@ -125,7 +124,7 @@ public class Box2dDebugger {
                             coords.physicsToWorldSpace(vec, pos);
 
                             float radius = Math.max(pos.x, pos.y);
-                            vec.set(cir.m_p.x, cir.m_p.y);
+                            vec = body.getWorldPoint(cir.m_p);
                             coords.physicsToWorldSpace(vec, pos);
 
                             int segments = 16;
@@ -164,13 +163,8 @@ public class Box2dDebugger {
                     }
           
  
-                    coords.physicsToWorldSpace(body.getPosition(), pos);
-                    debugNode.setLocalTranslation(pos.x, 0, pos.y);
-
-                    Quaternion rotation = debugNode.getLocalRotation();
-                    float angle = body.getAngle();
-                    rotation.fromAngleNormalAxis(-angle, Vector3f.UNIT_Y);
-                    debugNode.setLocalRotation(rotation);
+                    debugNode.setLocalTranslation(0, 0, 0);
+                    debugNode.setLocalRotation(Quaternion.IDENTITY);
                 }
 
                 body = body.getNext();
