@@ -55,6 +55,7 @@ import org.ngengine.world2d.PropertiesKeys;
 import org.ngengine.world2d.TiledWorld2d;
 import org.ngengine.world2d.TiledWorld2dManagerComponent;
 import org.ngengine.world2d.box2d.Box2dPhysicsFactory.PhysicsDef;
+import org.ngengine.world2d.debug.Box2dFixtureDebugDumper;
 
 import com.jme3.math.Vector2f;
 import com.jme3.util.TempVars;
@@ -96,6 +97,7 @@ public class TiledPhysicsComponent extends AbstractComponent
     private float worldRot;
     private int collisionGroup;
     private int collisionMask;
+    private boolean debugFixturesDumped;
 
     @Override
     public Component newInstance() {
@@ -265,6 +267,7 @@ public class TiledPhysicsComponent extends AbstractComponent
                 for(Fixture fx : toRemove){
                     this.body.destroyFixture(fx);
                 }
+                debugFixturesDumped = false;
             }
 
             if(def==null) {
@@ -434,7 +437,24 @@ public class TiledPhysicsComponent extends AbstractComponent
                     }
                 }
             }
+            dumpFixturesIfRequested(coords);
         }
+    }
+
+    private void dumpFixturesIfRequested(CoordinateSystem coords) {
+        if (debugFixturesDumped || body == null) {
+            return;
+        }
+        if (!Box2dFixtureDebugDumper.isEnabled()) {
+            return;
+        }
+
+        Fixture fixture = body.getFixtureList();
+        while (fixture != null) {
+            Box2dFixtureDebugDumper.dumpFixture(coords, body, fixture);
+            fixture = fixture.getNext();
+        }
+        debugFixturesDumped = true;
     }
 
     private void fixCoords(Vector2f pos) {

@@ -37,8 +37,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 import org.jbox2d.collision.shapes.CircleShape;
 import org.jbox2d.collision.shapes.PolygonShape;
@@ -70,6 +70,7 @@ public class Box2dDebugger {
 
     
     private static Map<World,Node> nodes = new HashMap<>();
+    private static final Set<World> dumpedFixtureWorlds = ConcurrentHashMap.newKeySet();
 
     public static Node getDebugNode(World world) {
         return nodes.get(world);
@@ -82,6 +83,7 @@ public class Box2dDebugger {
         for (TiledWorld2d tworld : tworlds) {
             CoordinateSystem coords = tworld.getCoordinateSystem();
             World world = tworld.getPhysics();             
+            boolean dumpFixtures = shouldDumpFixtures(world);
             Node rootNode = new Node("DebugPhysicsWorld_" + System.currentTimeMillis());
             newNodes.put(world, rootNode);
             Body body = world.getBodyList();
@@ -104,6 +106,9 @@ public class Box2dDebugger {
                     Fixture fixture = body.getFixtureList();
                     while (fixture != null) {
                         Shape shape = fixture.getShape();
+                        if (dumpFixtures) {
+                            Box2dFixtureDebugDumper.dumpFixture(coords, body, fixture);
+                        }
                         Geometry geometry = null;
                         if (shape instanceof PolygonShape) {
                             PolygonShape poly = (PolygonShape) shape;
@@ -184,6 +189,13 @@ public class Box2dDebugger {
             node.updateGeometricState();
         }
 
+    }
+
+    private static boolean shouldDumpFixtures(World world) {
+        if (!Box2dFixtureDebugDumper.isEnabled()) {
+            return false;
+        }
+        return dumpedFixtureWorlds.add(world);
     }
 
 }
