@@ -157,7 +157,7 @@ public class TiledPhysicsComponent extends AbstractComponent
         }
         TiledObjectEntity entity = getInstanceOf(TiledObjectEntity.class);
         if(entity!=null){
-            entity.setRotation(rot);
+            entity.setRotation(Math.toDegrees(rot));
         }
     }
 
@@ -402,7 +402,7 @@ public class TiledPhysicsComponent extends AbstractComponent
                     logger.finest("Warping physics body for entity: " + entity);
                     Vec2 vb = body.getPosition();
                     coords.worldToPhysicsSpace(pos, vb);
-                    body.setTransform(vb, (float) newAngle+baseAngle);
+                    body.setTransform(vb, (float) Math.toRadians(newAngle) + baseAngle);
 
                     entityX = newX;
                     entityY = newY;
@@ -426,7 +426,7 @@ public class TiledPhysicsComponent extends AbstractComponent
                      
                         obj.setX(pos.x);
                         obj.setY(pos.y);
-                        obj.setRotation(angle-baseAngle);
+                        obj.setRotation(Math.toDegrees(angle - baseAngle));
 
                         entityX = obj.getX();
                         entityY = obj.getY();

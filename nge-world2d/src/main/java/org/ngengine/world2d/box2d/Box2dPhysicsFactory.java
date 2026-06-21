@@ -328,17 +328,20 @@ public class Box2dPhysicsFactory {
         switch (obj.getShape()) {
 
             case RECTANGLE: {
+                float rotation = localShapeRotation(obj, entity);
                 if (isIso) {
                     // Build a quad polygon by converting 4 corners via isoDelta then to physics
-                    final float cx = baseX + w * 0.5f;
-                    final float cy = baseY + h * 0.5f;
-
                     final float[][] pts = {
                             { baseX, baseY },
                             { baseX + w, baseY },
                             { baseX + w, baseY + h },
                             { baseX, baseY + h }
                     };
+                    for (int i = 0; i < pts.length; i++) {
+                        rotatePoint(baseX, baseY, rotation, pts[i]);
+                    }
+                    final float cx = (pts[0][0] + pts[1][0] + pts[2][0] + pts[3][0]) * 0.25f;
+                    final float cy = (pts[0][1] + pts[1][1] + pts[2][1] + pts[3][1]) * 0.25f;
 
                     final Vec2[] verts = new Vec2[4];
                     for (int i = 0; i < 4; i++) {
@@ -353,31 +356,17 @@ public class Box2dPhysicsFactory {
                     poly.set(verts, 4);
                     fixtureDef.shape = poly;
                 } else {
-                    float bx = baseX;
-                    float by = baseY;
-
-                    if (parentIsTileObject) {
-                        if (flipX) bx = -(bx + w);
-                        if (flipY) by = -containerH - (by + h);
-                    } else {
-                        if (flipX) bx = containerW - (bx + w);
-                        if (flipY) by = containerH - (by + h);
-                    }
-
-                    final float hx = w * 0.5f;
-                    final float hy = h * 0.5f;
-
-                    // Convert half-extents to physics units
-                    coords.worldToPhysicsSpace(tmpVec2f.set(hx, hy), tmpVec2);
-                    final float whx = Math.abs(tmpVec2.x);
-                    final float why = Math.abs(tmpVec2.y);
-
-                    // Convert center to physics units
-                    coords.worldToPhysicsSpace(tmpVec2f.set(bx + hx, by + hy), tmpVec2);
-
-                    PolygonShape shape = new PolygonShape();
-                    shape.setAsBox(whx, why, tmpVec2, 0f);
-                    fixtureDef.shape = shape;
+                    Vec2[] vertices = rectangleVertices(
+                            coords,
+                            baseX, baseY, w, h,
+                            rotation,
+                            containerW, containerH,
+                            parentIsTileObject,
+                            flipX, flipY
+                    );
+                    PolygonShape poly = new PolygonShape();
+                    poly.set(vertices, vertices.length);
+                    fixtureDef.shape = poly;
                 }
                 break;
             }
@@ -395,6 +384,7 @@ public class Box2dPhysicsFactory {
                         tmpVec2f.set(p.x * wScale, p.y * hScale);
                         tmpVec2f.x += baseX;
                         tmpVec2f.y += baseY;
+                        rotatePoint(baseX, baseY, localShapeRotation(obj, entity), tmpVec2f);
                         isoDelta(coords, tmpVec2f.x, tmpVec2f.y, tmpVec2f);
                         Vec2 v = new Vec2();
                         coords.worldToPhysicsSpace(tmpVec2f, v);
@@ -406,6 +396,9 @@ public class Box2dPhysicsFactory {
                         Vector2f p = pts.get(i);
                         float px = p.x * wScale + baseX;
                         float py = p.y * hScale + baseY;
+                        rotatePoint(baseX, baseY, localShapeRotation(obj, entity), tmpVec2f.set(px, py));
+                        px = tmpVec2f.x;
+                        py = tmpVec2f.y;
 
                         if (parentIsTileObject) {
                             if (flipX) px = -px;                 // mirror around local origin
@@ -482,6 +475,9 @@ public class Box2dPhysicsFactory {
                             float a = (float) (2 * Math.PI * i / seg);
                             float px = cx + rx * (float) Math.cos(a);
                             float py = cy + ry * (float) Math.sin(a);
+                            rotatePoint(baseX, baseY, localShapeRotation(obj, entity), tmpVec2f.set(px, py));
+                            px = tmpVec2f.x;
+                            py = tmpVec2f.y;
                             isoDelta(coords, px - cx, py - cy, tmpVec2f);
                             vertices[i] = new Vec2();
                             coords.worldToPhysicsSpace(tmpVec2f, vertices[i]);
@@ -494,6 +490,9 @@ public class Box2dPhysicsFactory {
                             float a = (float) (2 * Math.PI * i / seg);
                             float px = cx + rx * (float) Math.cos(a);
                             float py = cy + ry * (float) Math.sin(a);
+                            rotatePoint(baseX, baseY, localShapeRotation(obj, entity), tmpVec2f.set(px, py));
+                            px = tmpVec2f.x;
+                            py = tmpVec2f.y;
 
                             if (parentIsTileObject) {
                                 if (flipX) px = -px;
@@ -544,6 +543,70 @@ public class Box2dPhysicsFactory {
         }
 
         def.getFixtureDefs().add(fixtureDef);
+    }
+
+    private static Vec2[] rectangleVertices(
+            CoordinateSystem coords,
+            float baseX, float baseY,
+            float w, float h,
+            float rotation,
+            float containerW, float containerH,
+            boolean parentIsTileObject,
+            boolean flipX,
+            boolean flipY
+    ) {
+        float[][] pts = {
+                { baseX, baseY },
+                { baseX + w, baseY },
+                { baseX + w, baseY + h },
+                { baseX, baseY + h }
+        };
+        Vec2[] vertices = new Vec2[pts.length];
+        for (int i = 0; i < pts.length; i++) {
+            rotatePoint(baseX, baseY, rotation, pts[i]);
+            float px = pts[i][0];
+            float py = pts[i][1];
+            if (parentIsTileObject) {
+                if (flipX) px = -px;
+                if (flipY) py = -containerH - py;
+            } else {
+                if (flipX) px = containerW - px;
+                if (flipY) py = containerH - py;
+            }
+            Vec2 vertex = new Vec2();
+            coords.worldToPhysicsSpace(tmpVec2f.set(px, py), vertex);
+            vertices[i] = vertex;
+        }
+        if (flipX ^ flipY) {
+            java.util.Collections.reverse(java.util.Arrays.asList(vertices));
+        }
+        return vertices;
+    }
+
+    private static float localShapeRotation(TiledObjectEntity obj, TiledEntity entity) {
+        return obj == entity ? 0f : (float) obj.getRotation();
+    }
+
+    private static void rotatePoint(float originX, float originY, float rotationDegrees, Vector2f point) {
+        if (Math.abs(rotationDegrees) < 1e-6f) {
+            return;
+        }
+        float[] p = { point.x, point.y };
+        rotatePoint(originX, originY, rotationDegrees, p);
+        point.set(p[0], p[1]);
+    }
+
+    private static void rotatePoint(float originX, float originY, float rotationDegrees, float[] point) {
+        if (Math.abs(rotationDegrees) < 1e-6f) {
+            return;
+        }
+        double angle = Math.toRadians(rotationDegrees);
+        float dx = point[0] - originX;
+        float dy = point[1] - originY;
+        float cos = (float) Math.cos(angle);
+        float sin = (float) Math.sin(angle);
+        point[0] = originX + dx * cos - dy * sin;
+        point[1] = originY + dx * sin + dy * cos;
     }
 
     private static boolean isDegenerateCollisionObject(TiledObjectEntity obj, float w, float h) {
