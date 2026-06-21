@@ -45,9 +45,33 @@ import org.ngengine.world2d.tiled.core.TiledEntity;
 import org.ngengine.world2d.tiled.core.TiledMap;
 import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
 import org.ngengine.world2d.tiled.core.entity.TiledTileEntity;
+import org.ngengine.world2d.tiled.core.tileset.Tile;
 import org.ngengine.world2d.tiled.enums.ObjectShape;
 
 public class Box2dHelper {
+    public static boolean isPhysicsEnabled(TiledObjectEntity object) {
+        Object physics = object.getProperty("physics");
+        if (physics instanceof Boolean) {
+            return (Boolean) physics;
+        }
+        if (physics != null) {
+            return !Boolean.parseBoolean(String.valueOf(physics));
+        }
+        return true;
+    }
+
+    public static boolean hasPhysicalCollisions(Tile tile) {
+        if (tile == null || tile.getCollisions() == null) {
+            return false;
+        }
+        for (TiledObjectEntity collision : tile.getCollisions().getObjects()) {
+            if (isPhysicsEnabled(collision)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static void applyControl(TiledEntity entity,  World phy) {
         ComponentRef component = Components.get(entity, TiledPhysicsComponent.class);
         if (component == null || component.isEmpty()) {
@@ -65,8 +89,7 @@ public class Box2dHelper {
                     if(
                         tile==null
                         ||tile.getTile()==null
-                        ||tile.getTile().getCollisions() == null 
-                        || tile.getTile().getCollisions().getObjects().isEmpty()
+                        || !hasPhysicalCollisions(tile.getTile())
                     ) {
                         continue;
                     }
@@ -76,14 +99,10 @@ public class Box2dHelper {
         } else if (entity instanceof TiledObjectLayer) {
             TiledObjectLayer group = (TiledObjectLayer) entity;
             for (TiledObjectEntity obj : group.getObjects()) {
-                if(obj.getShape()==ObjectShape.TILE&&(
-                        obj.getTile() == null ||
-                        obj.getTile().getCollisions() == null ||
-                    obj.getTile().getCollisions().getObjects().isEmpty()
-                )) {
+                if(obj.getShape()==ObjectShape.TILE && !hasPhysicalCollisions(obj.getTile())) {
                     continue;
                 }
-                if(obj.getShape()==ObjectShape.POINT){
+                if(obj.getShape()==ObjectShape.POINT || !isPhysicsEnabled(obj)){
                     continue;
                 }
                 applyControl(obj,  phy);

@@ -219,11 +219,14 @@ public class TiledPhysicsComponent extends AbstractComponent
 
         boolean canCollide = false;
         if (entity instanceof TiledObjectEntity) {
-            canCollide = true;
+            TiledObjectEntity object = (TiledObjectEntity) entity;
+            canCollide = object.getShape() != ObjectShape.POINT && Box2dHelper.isPhysicsEnabled(object);
+            if (canCollide && object.getShape() == ObjectShape.TILE) {
+                canCollide = Box2dHelper.hasPhysicalCollisions(object.getTile());
+            }
         } else if (entity instanceof TiledTileEntity) {
             TiledTileEntity tile = (TiledTileEntity) entity;
-            canCollide = tile != null && tile.getTile() != null && tile.getTile().getCollisions() != null
-                    && tile.getTile().getCollisions().getObjects().size() > 0;
+            canCollide = tile != null && Box2dHelper.hasPhysicalCollisions(tile.getTile());
         }
 
         if (!canCollide && body != null) {

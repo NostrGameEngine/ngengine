@@ -122,6 +122,9 @@ public class Box2dPhysicsFactory {
             final boolean hFlip = tile.isFlippedVertically();
 
             for (TiledObjectEntity coll : tile.getCollisions().getObjects()) {
+                if (!Box2dHelper.isPhysicsEnabled(coll)) {
+                    continue;
+                }
                 float baseX = (float) coll.getX();
                 if (isIso) {
                     // Isometric tiles are centered; shift X half-width
@@ -163,8 +166,9 @@ public class Box2dPhysicsFactory {
                     boolean hFlip = tile.isFlippedVertically();
 
                     for (TiledObjectEntity coll : tile.getCollisions().getObjects()) {
-                        Boolean physics = (Boolean) coll.getProperty("physics");
-                        if(physics!=null&&!physics)continue;
+                        if (!Box2dHelper.isPhysicsEnabled(coll)) {
+                            continue;
+                        }
                         
 
                         float baseX = (float) coll.getX();
@@ -187,18 +191,6 @@ public class Box2dPhysicsFactory {
                                 hFlip
                         );
                     }
-                } else {
-                    // TILE object without explicit collisions
-                    addFixtureLocal(
-                            coords, map,
-                            -((float) obj.getWidth() * 0.5f),
-                            -((float) obj.getHeight()),
-                            1f, 1f,
-                            obj, entity, physicsDef,
-                            false,
-                           false,
-                            false
-                    );
                 }
             } else {
                 // Regular primitive on object layer (RECTANGLE, POLYGON, ELLIPSE, etc.)
