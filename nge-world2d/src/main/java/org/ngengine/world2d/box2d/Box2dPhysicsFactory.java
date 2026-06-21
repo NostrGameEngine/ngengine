@@ -274,27 +274,27 @@ public class Box2dPhysicsFactory {
 
         // Density / mass 
         Object d = obj.getProperty(phy.density);
-        if (d == null) obj.getProperty(phy.mass);
-        if (d == null) entity.getProperty(phy.density);
-        if (d == null) entity.getProperty(phy.mass);
+        if (d == null) d = obj.getProperty(phy.mass);
+        if (d == null) d = entity.getProperty(phy.density);
+        if (d == null) d = entity.getProperty(phy.mass);
         if (d == null) d = 1.0;
         fixtureDef.density = (float) NGEUtils.safeDouble(d);
 
         // Friction
         d = obj.getProperty(phy.friction);
-        if (d == null) entity.getProperty(phy.friction);
+        if (d == null) d = entity.getProperty(phy.friction);
         if (d == null) d = 0.5f;
         fixtureDef.friction = (float) NGEUtils.safeDouble(d);
 
         // Restitution
         d = obj.getProperty(phy.restitution);
-        if (d == null) entity.getProperty(phy.restitution);
+        if (d == null) d = entity.getProperty(phy.restitution);
         if (d == null) d = 0.0f;
         fixtureDef.restitution = (float) NGEUtils.safeDouble(d);
 
         // Sensor flag
         d = obj.getProperty(phy.sensor);
-        if (d == null) entity.getProperty(phy.sensor);
+        if (d == null) d = entity.getProperty(phy.sensor);
         if (d == null) d = false;
         fixtureDef.isSensor = NGEUtils.safeBool(d);
 
