@@ -23,6 +23,7 @@ MaterialDef Tiled {
         Vector4 Decal1
         Vector4 Decal2
         Vector4 Decal3
+        Float DecalFlipFlags : 0.0
         Boolean UseInstancing
         Boolean UseTilesetImage
         // for animation use

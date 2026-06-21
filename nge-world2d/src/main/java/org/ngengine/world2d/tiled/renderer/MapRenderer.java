@@ -1198,6 +1198,7 @@ public abstract class MapRenderer {
         material.clearParam(MaterialConst.DECAL_1);
         material.clearParam(MaterialConst.DECAL_2);
         material.clearParam(MaterialConst.DECAL_3);
+        material.clearParam(MaterialConst.DECAL_FLIP_FLAGS);
 
         if (tile == null || tile.getCollisions() == null) {
             return;
@@ -1269,6 +1270,24 @@ public abstract class MapRenderer {
         material.setVector4(MaterialConst.DECAL_1, decals[1]);
         material.setVector4(MaterialConst.DECAL_2, decals[2]);
         material.setVector4(MaterialConst.DECAL_3, decals[3]);
+        material.setFloat(MaterialConst.DECAL_FLIP_FLAGS, getShaderFlipFlags(tile));
+    }
+
+    private int getShaderFlipFlags(Tile tile) {
+        if (tile == null) {
+            return 0;
+        }
+        int flags = 0;
+        if (tile.isFlippedHorizontally()) {
+            flags |= 1;
+        }
+        if (tile.isFlippedVertically()) {
+            flags |= 2;
+        }
+        if (tile.isFlippedAntiDiagonally()) {
+            flags |= 4;
+        }
+        return flags;
     }
 
     private int safeInt(Object value, int defaultValue) {

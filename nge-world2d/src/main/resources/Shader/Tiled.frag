@@ -53,6 +53,7 @@ uniform vec4 m_Decal0;
 uniform vec4 m_Decal1;
 uniform vec4 m_Decal2;
 uniform vec4 m_Decal3;
+uniform float m_DecalFlipFlags;
 #endif
 
 #ifdef HAS_COLOR_ARRAY0
@@ -118,12 +119,29 @@ vec2 getTileUVClamped(vec2 tilePos, vec2 tileSize, vec2 imageSize) {
 }
 
 #ifdef HAS_DECAL_MAP
+vec2 unflipDecalUv(vec2 decalUv) {
+#ifndef INSTANCING
+    float flags = m_DecalFlipFlags;
+    if (mod(floor(flags / 2.0), 2.0) >= 1.0) {
+        decalUv.y = 1.0 - decalUv.y;
+    }
+    if (mod(floor(flags), 2.0) >= 1.0) {
+        decalUv.x = 1.0 - decalUv.x;
+    }
+    if (mod(floor(flags / 4.0), 2.0) >= 1.0) {
+        decalUv = vec2(1.0 - decalUv.y, 1.0 - decalUv.x);
+    }
+#endif
+    return decalUv;
+}
+
 vec4 sampleInstancedDecal(vec4 decal) {
     if (decal.x < -0.5 || decal.w <= 0.0) {
         return vec4(0.0);
     }
 
     vec2 decalUv = (v_DecalTexCoord - decal.yz + decal.ww * 0.5) / decal.ww;
+    decalUv = unflipDecalUv(decalUv);
     if (decalUv.x < 0.0 || decalUv.x > 1.0 || decalUv.y < 0.0 || decalUv.y > 1.0) {
         return vec4(0.0);
     }

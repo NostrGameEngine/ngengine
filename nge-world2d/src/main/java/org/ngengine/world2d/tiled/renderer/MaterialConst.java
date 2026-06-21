@@ -63,6 +63,7 @@ public final class MaterialConst {
     public static final String DECAL_1 = "Decal1";
     public static final String DECAL_2 = "Decal2";
     public static final String DECAL_3 = "Decal3";
+    public static final String DECAL_FLIP_FLAGS = "DecalFlipFlags";
     public static final String COLOR = "Color";
     public static final String TRANS_COLOR = "TransColor";
     public static final String USE_TINT_COLOR = "UseTintColor";
