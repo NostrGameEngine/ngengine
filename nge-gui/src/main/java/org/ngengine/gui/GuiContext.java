@@ -79,6 +79,7 @@ import org.ngengine.gui.nav.PopupHandler;
 
 public class GuiContext {
     private final static Logger log = Logger.getLogger(GuiContext.class.getName());
+    private static final float PICK_DISTANCE_EPSILON = 0.001f;
 
     private final WeakReference<ViewPort> vpRef;
     private final Set<Object> inputOwners = Collections.newSetFromMap(new IdentityHashMap<>());
@@ -312,6 +313,7 @@ public class GuiContext {
 
         Spatial bestHit = null;
         float bestDistance = Float.POSITIVE_INFINITY;
+        int bestDepth = -1;
 
         for (Spatial root : getViewPort().getScenes()) {
             if (root == null) continue;
@@ -330,8 +332,9 @@ public class GuiContext {
                     hit = hit.getParent();
                 }
 
-                if (hit != null && cr.getDistance() < bestDistance) {
+                if (hit != null && isBetterPick(hit, cr.getDistance(), bestHit, bestDistance, bestDepth)) {
                     bestDistance = cr.getDistance();
+                    bestDepth = sceneDepth(hit);
                     bestHit = hit;
                 }
             }
@@ -339,6 +342,37 @@ public class GuiContext {
 
         pickResults.clear();
         return bestHit;
+    }
+
+    private boolean isBetterPick(Spatial candidate, float candidateDistance, Spatial bestHit, float bestDistance, int bestDepth) {
+        if (candidateDistance < bestDistance - PICK_DISTANCE_EPSILON) {
+            return true;
+        }
+        if (candidateDistance > bestDistance + PICK_DISTANCE_EPSILON) {
+            return false;
+        }
+        int candidateDepth = sceneDepth(candidate);
+        if (candidateDepth != bestDepth) {
+            return candidateDepth > bestDepth;
+        }
+        return bestHit != null && isDescendantOf(candidate, bestHit);
+    }
+
+    private int sceneDepth(Spatial spatial) {
+        int depth = 0;
+        for (Spatial current = spatial; current != null; current = current.getParent()) {
+            depth++;
+        }
+        return depth;
+    }
+
+    private boolean isDescendantOf(Spatial spatial, Spatial ancestor) {
+        for (Spatial current = spatial; current != null; current = current.getParent()) {
+            if (current == ancestor) {
+                return true;
+            }
+        }
+        return false;
     }
 
     protected Ray getPickRay(Spatial root, double x, double y, Ray ray) {

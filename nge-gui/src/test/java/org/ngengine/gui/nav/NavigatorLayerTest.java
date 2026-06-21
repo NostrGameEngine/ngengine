@@ -76,9 +76,11 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import org.junit.jupiter.api.Test;
 import org.ngengine.gui.Axis;
+import org.ngengine.gui.Button;
 import org.ngengine.gui.DefaultRangedValueModel;
 import org.ngengine.gui.GuiContext;
 import org.ngengine.gui.NGEGui;
+import org.ngengine.gui.Panel;
 import org.ngengine.gui.Slider;
 import org.ngengine.gui.core.GuiControl;
 import org.ngengine.gui.ime.ImeComposer;
@@ -797,6 +799,104 @@ public class NavigatorLayerTest {
             "action:target:true",
             "action:target:false"
         ), events);
+    }
+
+    @Test
+    public void pointerClickPrefersNestedFocusableChildOverFocusableParent() {
+        initializeGui();
+
+        ViewPort vp = new ViewPort("gui-nested-pointer", new Camera(800, 600));
+        Node guiNode = new Node("GuiNode");
+        guiNode.setQueueBucket(Bucket.Gui);
+        vp.attachScene(guiNode);
+        GuiContext context = NGEGui.register(vp, true);
+
+        Node root = new Node("root");
+        Node parent = focusable("parent", 100f, 100f);
+        parent.attachChild(new Geometry("parent.quad", new Quad(200f, 120f)));
+        Node child = focusable("child", 20f, -60f);
+        child.attachChild(new Geometry("child.quad", new Quad(100f, 30f)));
+        parent.attachChild(child);
+        root.attachChild(parent);
+        guiNode.attachChild(root);
+        guiNode.updateGeometricState();
+        context.getNavigator().pushLayer(root);
+
+        TestMouseInput mouseInput = new TestMouseInput();
+        InputManager inputManager = newInputManager(mouseInput, null);
+        DefaultNavigatorInputHandler handler = new DefaultNavigatorInputHandler(vp);
+        handler.registerListener(inputManager);
+        handler.setInputDevice(inputManager, new Mouse());
+        inputManager.setCursorVisible(true);
+
+        List<String> parentEvents = new ArrayList<>();
+        List<String> childEvents = new ArrayList<>();
+        addRecorder(parent, parentEvents);
+        addRecorder(child, childEvents);
+
+        mouseInput.queue(new MouseButtonEvent(MouseInput.BUTTON_LEFT, true, 140, 50));
+        inputManager.update(0.016f);
+        mouseInput.queue(new MouseButtonEvent(MouseInput.BUTTON_LEFT, false, 140, 50));
+        inputManager.update(0.016f);
+
+        assertEquals(false, parentEvents.stream().anyMatch(e -> e.startsWith("action:parent")));
+        assertEquals(List.of(
+            "gained:child",
+            "action:child:true",
+            "action:child:false"
+        ), childEvents);
+    }
+
+    @Test
+    public void pointerClickActivatesButtonInsideFocusableContainer() {
+        initializeGui();
+
+        ViewPort vp = new ViewPort("gui-nested-button", new Camera(800, 600));
+        Node guiNode = new Node("GuiNode");
+        guiNode.setQueueBucket(Bucket.Gui);
+        vp.attachScene(guiNode);
+        GuiContext context = NGEGui.register(vp, true);
+
+        Node root = new Node("root");
+        Panel cell = new Panel();
+        cell.setName("cell");
+        cell.setLocalTranslation(100f, 100f, 0f);
+        cell.setPreferredSize(200f, 120f);
+        cell.setSize(new Vector3f(200f, 120f, 0f));
+        cell.getControl(GuiControl.class).setFocusable(FocusTarget.FOCUS_POINTER);
+        cell.attachChild(new Geometry("cell.quad", new Quad(200f, 120f)));
+
+        Button button = new Button("Buy");
+        button.setName("buy");
+        button.setLocalTranslation(20f, -60f, 0f);
+        button.setPreferredSize(100f, 30f);
+        button.setSize(new Vector3f(100f, 30f, 0f));
+        button.attachChild(new Geometry("button.quad", new Quad(100f, 30f)));
+        AtomicInteger clicks = new AtomicInteger();
+        button.addClickCommands(src -> clicks.incrementAndGet());
+
+        cell.attachChild(button);
+        root.attachChild(cell);
+        guiNode.attachChild(root);
+        guiNode.updateLogicalState(0f);
+        guiNode.updateGeometricState();
+        context.getNavigator().pushLayer(root);
+
+        TestMouseInput mouseInput = new TestMouseInput();
+        InputManager inputManager = newInputManager(mouseInput, null);
+        DefaultNavigatorInputHandler handler = new DefaultNavigatorInputHandler(vp);
+        handler.registerListener(inputManager);
+        handler.setInputDevice(inputManager, new Mouse());
+        inputManager.setCursorVisible(true);
+
+        assertSame(button, context.pick(140, 50));
+
+        mouseInput.queue(new MouseButtonEvent(MouseInput.BUTTON_LEFT, true, 140, 50));
+        inputManager.update(0.016f);
+        mouseInput.queue(new MouseButtonEvent(MouseInput.BUTTON_LEFT, false, 140, 50));
+        inputManager.update(0.016f);
+
+        assertEquals(1, clicks.get());
     }
 
     @Test
