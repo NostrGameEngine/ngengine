@@ -188,7 +188,7 @@ public class TiledObjectLayer extends TiledLayer {
 
             for (TiledObjectEntity obj : getObjects()) {
                 Vector2f wpos = temp.vect2d;
-                coords.getPositionInGridSpace(obj, wpos);
+                coords.getCenterInGridSpace(obj, wpos);
                  
                 float dx = wpos.x - worldPos.x;
                 float dy = wpos.y - worldPos.y;
