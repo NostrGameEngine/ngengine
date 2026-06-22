@@ -732,7 +732,6 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
         RenderManager rm = getInstanceOf(RenderManager.class);
         if (cm != null && rm != null) {
             TiledMap map = lmap.getMap();
-            TiledComponentReflectionMounting.mountBuiltInsFromProperties(entity, cm);
             // cm.setParent( getParentManager(map, layer));
             updateParent(map, layer, entity);
             cm.render(lmap, rm, map, layer, entity, visual);

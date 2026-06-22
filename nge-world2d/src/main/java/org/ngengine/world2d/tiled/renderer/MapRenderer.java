@@ -33,6 +33,7 @@
 package org.ngengine.world2d.tiled.renderer;
 
 import com.jme3.bounding.BoundingBox;
+import com.jme3.asset.AssetManager;
 import com.jme3.material.MatParamOverride;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState;
@@ -78,7 +79,6 @@ import org.ngengine.world2d.tiled.math2d.Point;
 import java.util.logging.Logger;
 import org.ngengine.world2d.tiled.animation.AnimatedTileControl;
 import org.ngengine.world2d.tiled.components.TiledComponentManager;
-import org.ngengine.world2d.tiled.components.TiledModelComponent;
 
 import org.jbox2d.collision.shapes.ShapeType;
 import org.jbox2d.common.Vec2;
@@ -345,18 +345,38 @@ public abstract class MapRenderer {
         float height = imageLayer.isRepeatY() ? mapSize.getY() : imageHeight;
         Mesh mesh = new Rect(width, height, true, width / imageWidth, height / imageHeight);
         Geometry geo = new Geometry(layer.getName(), mesh);
-        geo.setMaterial( materialFactory.newMaterial());                   
+        geo.setMaterial( materialFactory.newMaterial());
         return geo;
     };
 
     private BiFunction<TiledLayer, TiledBase, Spatial> objectSpatialGenerator = (layer, base)->{
         TiledObjectEntity obj = (TiledObjectEntity) base;
         MaterialFactory materialFactory = spriteFactory.getMaterialFactory();
+        String spatialPath = TiledSpatialObjectNode.spatialPath(obj);
+        if (spatialPath != null) {
+            try {
+                AssetManager assetManager = materialFactory.getAssetManager();
+                if (assetManager == null) {
+                    throw new IllegalStateException("No AssetManager available for tiled object spatial");
+                }
+                Spatial loaded = assetManager.loadModel(spatialPath);
+                TiledSpatialObjectNode node = new TiledSpatialObjectNode(obj, spatialPath, loaded);
+                node.setUserData("ngengine.world2d.shape", obj.getShape().ordinal());
+                node.setUserData("ngengine.world2d.gid", obj.getTile()!=null? obj.getTile().getGid() : -1);
+                node.setUserData("ngengine.world2d.spatialPath", spatialPath);
+                return node;
+            } catch (RuntimeException ex) {
+                logger.log(Level.WARNING, "Failed to load tiled object spatial: " + spatialPath, ex);
+            }
+        }
         Geometry v = spriteFactory.newObjectSprite(obj);
         v.setMaterial(materialFactory.newMaterial());
-        v.setUserData("ngengine.world2d.shape", obj.getShape().ordinal());     
+        v.setUserData("ngengine.world2d.shape", obj.getShape().ordinal());
 
         v.setUserData("ngengine.world2d.gid", obj.getTile()!=null? obj.getTile().getGid() : -1);
+        if (spatialPath != null) {
+            v.setUserData("ngengine.world2d.spatialPath", spatialPath);
+        }
         return v;
     };
 
@@ -1166,7 +1186,7 @@ public abstract class MapRenderer {
     }
 
     private boolean canRenderInstancedTile(Tile tile) {
-        if (TiledModelComponent.hasModel(tile)) {
+        if (TiledSpatialObjectNode.hasSpatial(tile)) {
             return false;
         }
         Tileset tileset = tile.getTileset();
@@ -1186,7 +1206,7 @@ public abstract class MapRenderer {
         if (obj.getShape() != ObjectShape.TILE || !obj.isVisible()) {
             return false;
         }
-        if (TiledModelComponent.hasModel(obj)) {
+        if (TiledSpatialObjectNode.hasSpatial(obj)) {
             return false;
         }
         Tile tile = obj.getTile();
@@ -1975,9 +1995,14 @@ public abstract class MapRenderer {
             if(gid!=null && gid.intValue() != tileGid){
                 return false;
             }
+            String spatialPath = sp.getUserData("ngengine.world2d.spatialPath");
+            String objectSpatialPath = TiledSpatialObjectNode.spatialPath(obj);
+            if (spatialPath == null ? objectSpatialPath != null : !spatialPath.equals(objectSpatialPath)) {
+                return false;
+            }
 
-        } 
-        return true;   
+        }
+        return true;
     }
 
     private final ArrayList<TiledObjectEntity> tmpSortedObjects = new ArrayList<>();
@@ -2090,8 +2115,8 @@ public abstract class MapRenderer {
                 }
 
                 RenderRef ref = getTrackedSpatialRef(layerRef, obj, objectSpatialGenerator, MapRenderer::filterByShape);
-            
-                Geometry spatial = (Geometry) ref.sp;
+
+                Spatial spatial = ref.sp;
                 if (layerUpdateNeeded||ref.isUpdateNeeded(objectUpdateId)) {
                     if (obj.isVisible()) {
                         layerNode.attachChild(spatial);
@@ -2110,8 +2135,8 @@ public abstract class MapRenderer {
                     Vector2f screenCoord = vars.vect2d;
                     gridToWorldSpace(x, y, screenCoord);
                     spatial.setLocalTranslation(screenCoord.x, z, screenCoord.y);
-                    spatial.setUserData(YAxisComparator.SORT_Y_USER_DATA, worldY);
-                    spatial.setUserData(YAxisComparator.SORT_ORDER_USER_DATA, getWorldSortOrder(layer, i));
+                    float sortOrder = getWorldSortOrder(layer, i);
+                    TiledSpatialObjectNode.applySortUserData(spatial, worldY, sortOrder);
 
                     double deg = obj.getRotation();
                     if (deg != 0) {
@@ -2121,21 +2146,33 @@ public abstract class MapRenderer {
                     }
 
                     spriteFactory.setAnimation(spatial, obj);
-                    
-                    materialFactory.setMapObject(spatial.getMaterial(), obj);
-                    applyObjectDecals(spatial.getMaterial(), obj.getTile());
-                    materialFactory.setTintColor(spatial.getMaterial(), layer.getTintColor());
-                    materialFactory.setLayerOpacity(spatial.getMaterial(), (float) layer.getOpacity());
-                    materialFactory.setBlendMode(spatial.getMaterial(), layer.getBlendMode());
-                
+
+                    if (spatial instanceof TiledSpatialObjectNode) {
+                        ((TiledSpatialObjectNode) spatial).configure(tiledMap, worldY, sortOrder);
+                    } else if (spatial instanceof Geometry) {
+                        Geometry geometry = (Geometry) spatial;
+                        materialFactory.setMapObject(geometry.getMaterial(), obj);
+                        applyObjectDecals(geometry.getMaterial(), obj.getTile());
+                        materialFactory.setTintColor(geometry.getMaterial(), layer.getTintColor());
+                        materialFactory.setLayerOpacity(geometry.getMaterial(), (float) layer.getOpacity());
+                        materialFactory.setBlendMode(geometry.getMaterial(), layer.getBlendMode());
+                    }
+
                     ref.clearUpdateNeeded(objectUpdateId);
-                } 
-                
+                }
+
                 if(layerPropertiesUpdateNeeded||ref.isPropertiesUpdateNeeded(objectPropertyUpdateId)){
                     if (layerPropertiesUpdateNeeded) {
-                        materialFactory.setTintColor(spatial.getMaterial(), layer.getTintColor());
-                        materialFactory.setLayerOpacity(spatial.getMaterial(), (float) layer.getOpacity());
-                        materialFactory.setBlendMode(spatial.getMaterial(), layer.getBlendMode());
+                        if (spatial instanceof Geometry) {
+                            Geometry geometry = (Geometry) spatial;
+                            materialFactory.setTintColor(geometry.getMaterial(), layer.getTintColor());
+                            materialFactory.setLayerOpacity(geometry.getMaterial(), (float) layer.getOpacity());
+                            materialFactory.setBlendMode(geometry.getMaterial(), layer.getBlendMode());
+                        } else {
+                            materialFactory.setTintColor(spatial, layer.getTintColor());
+                            materialFactory.setLayerOpacity(spatial, (float) layer.getOpacity());
+                            materialFactory.setBlendMode(spatial, layer.getBlendMode());
+                        }
                     }
                     spriteFactory.applyProperties(layer, spatial);
                     spriteFactory.applyProperties(layer, layerNode);

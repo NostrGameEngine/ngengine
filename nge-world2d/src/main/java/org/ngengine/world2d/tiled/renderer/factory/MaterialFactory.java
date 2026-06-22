@@ -32,6 +32,7 @@
 
 package org.ngengine.world2d.tiled.renderer.factory;
 
+import com.jme3.asset.AssetManager;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
 import com.jme3.scene.Spatial;
@@ -48,6 +49,8 @@ import org.ngengine.world2d.tiled.enums.LayerBlendMode;
  * @author yanmaoyuan
  */
 public interface MaterialFactory {
+    AssetManager getAssetManager();
+
     Material newMaterial();
 
     void setTile(Material mat, Tile tile);

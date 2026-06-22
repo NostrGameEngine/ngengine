@@ -52,6 +52,7 @@ import org.ngengine.world2d.tiled.util.ColorUtil;
 
 import static org.ngengine.world2d.tiled.renderer.MaterialConst.*;
 
+import java.util.function.Consumer;
 import java.util.logging.Logger;
 
 /**
@@ -66,6 +67,11 @@ public class DefaultMaterialFactory implements MaterialFactory {
     public DefaultMaterialFactory(AssetManager assetManager) {
         this.assetManager = assetManager;
 
+    }
+
+    @Override
+    public AssetManager getAssetManager() {
+        return assetManager;
     }
 
     @Override
@@ -152,18 +158,7 @@ public class DefaultMaterialFactory implements MaterialFactory {
 
     @Override
     public void setTintColor(Spatial spatial, ColorRGBA tintColor) {
-        if (spatial instanceof Geometry) {
-            Geometry geometry = (Geometry) spatial;
-            setTintColor(geometry.getMaterial(), tintColor);
-        } else {
-            Node node = (Node) spatial;
-            for (Spatial child : node.getChildren()) {
-                if (child instanceof Geometry) {
-                    Geometry geometry = (Geometry) child;
-                    setTintColor(geometry.getMaterial(), tintColor);
-                }
-            }
-        }
+        applyToGeometries(spatial, geometry -> setTintColor(geometry.getMaterial(), tintColor));
     }
 
     @Override
@@ -173,18 +168,7 @@ public class DefaultMaterialFactory implements MaterialFactory {
 
     @Override
     public void setLayerOpacity(Spatial spatial, float opacity) {
-        if (spatial instanceof Geometry) {
-            Geometry geometry = (Geometry) spatial;
-            setLayerOpacity(geometry.getMaterial(), opacity);
-        } else {
-            Node node = (Node) spatial;
-            for (Spatial child : node.getChildren()) {
-                if (child instanceof Geometry) {
-                    Geometry geometry = (Geometry) child;
-                    setLayerOpacity(geometry.getMaterial(), opacity);
-                }
-            }
-        }
+        applyToGeometries(spatial, geometry -> setLayerOpacity(geometry.getMaterial(), opacity));
     }
 
     @Override
@@ -194,16 +178,15 @@ public class DefaultMaterialFactory implements MaterialFactory {
 
     @Override
     public void setBlendMode(Spatial spatial, LayerBlendMode blendMode) {
+        applyToGeometries(spatial, geometry -> setBlendMode(geometry.getMaterial(), blendMode));
+    }
+
+    private void applyToGeometries(Spatial spatial, Consumer<Geometry> action) {
         if (spatial instanceof Geometry) {
-            Geometry geometry = (Geometry) spatial;
-            setBlendMode(geometry.getMaterial(), blendMode);
-        } else {
-            Node node = (Node) spatial;
-            for (Spatial child : node.getChildren()) {
-                if (child instanceof Geometry) {
-                    Geometry geometry = (Geometry) child;
-                    setBlendMode(geometry.getMaterial(), blendMode);
-                }
+            action.accept((Geometry) spatial);
+        } else if (spatial instanceof Node) {
+            for (Spatial child : ((Node) spatial).getChildren()) {
+                applyToGeometries(child, action);
             }
         }
     }
