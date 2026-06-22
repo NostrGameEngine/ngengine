@@ -78,6 +78,7 @@ import org.ngengine.world2d.tiled.math2d.Point;
 import java.util.logging.Logger;
 import org.ngengine.world2d.tiled.animation.AnimatedTileControl;
 import org.ngengine.world2d.tiled.components.TiledComponentManager;
+import org.ngengine.world2d.tiled.components.TiledModelComponent;
 
 import org.jbox2d.collision.shapes.ShapeType;
 import org.jbox2d.common.Vec2;
@@ -1165,6 +1166,9 @@ public abstract class MapRenderer {
     }
 
     private boolean canRenderInstancedTile(Tile tile) {
+        if (TiledModelComponent.hasModel(tile)) {
+            return false;
+        }
         Tileset tileset = tile.getTileset();
         if (tileset.isImageBased()) {
             TiledImageEntity image = tileset.getImage();
@@ -1180,6 +1184,9 @@ public abstract class MapRenderer {
 
     private boolean canRenderObjectInstanced(TiledObjectEntity obj) {
         if (obj.getShape() != ObjectShape.TILE || !obj.isVisible()) {
+            return false;
+        }
+        if (TiledModelComponent.hasModel(obj)) {
             return false;
         }
         Tile tile = obj.getTile();

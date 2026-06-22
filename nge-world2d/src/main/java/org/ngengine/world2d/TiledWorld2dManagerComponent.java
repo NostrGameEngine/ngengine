@@ -71,6 +71,7 @@ import com.jme3.renderer.RenderManager;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import org.ngengine.world2d.tiled.components.TiledComponentManager;
+import org.ngengine.world2d.tiled.components.TiledComponentReflectionMounting;
 import org.ngengine.world2d.tiled.core.TiledLayer;
 import org.ngengine.world2d.tiled.core.TiledObjectLayer;
 import org.ngengine.world2d.tiled.core.TiledTileLayer;
@@ -731,6 +732,7 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
         RenderManager rm = getInstanceOf(RenderManager.class);
         if (cm != null && rm != null) {
             TiledMap map = lmap.getMap();
+            TiledComponentReflectionMounting.mountBuiltInsFromProperties(entity, cm);
             // cm.setParent( getParentManager(map, layer));
             updateParent(map, layer, entity);
             cm.render(lmap, rm, map, layer, entity, visual);

@@ -69,6 +69,7 @@ public abstract class TiledEntity extends TiledBase implements ComponentManagerP
                 }
             }
             TiledComponentReflectionMounting.mountFromProperty(this, componentManager);
+            TiledComponentReflectionMounting.mountBuiltInsFromProperties(this, componentManager);
         }
         return componentManager;
     }

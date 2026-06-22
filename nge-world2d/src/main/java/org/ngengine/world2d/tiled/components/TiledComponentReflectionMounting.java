@@ -53,6 +53,16 @@ public final class TiledComponentReflectionMounting {
         }
     }
 
+    public static void mountBuiltInsFromProperties(@Nullable TiledBase owner, @Nullable ComponentManager manager) {
+        if (owner == null || manager == null) {
+            return;
+        }
+        if (TiledModelComponent.hasModel(owner) && manager.getComponent(TiledModelComponent.class) == null) {
+            manager.addComponent(new TiledModelComponent());
+            manager.enableComponent(TiledModelComponent.class);
+        }
+    }
+
     public static @Nullable Component mountByClassName(
         @Nullable ComponentManager manager,
         @Nullable String componentClassName,
