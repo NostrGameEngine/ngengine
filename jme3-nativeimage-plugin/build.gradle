@@ -21,7 +21,7 @@ ext {
 
 apply from: file('../version.gradle')
 
-group = 'org.jmonkeyengine'
+group = 'org.ngengine'
 version = jmeFullVersion
 
 nexusPublishing {
@@ -31,6 +31,7 @@ nexusPublishing {
             snapshotRepositoryUrl.set(uri('https://central.sonatype.com/repository/maven-snapshots/'))
             username = findProperty('sonatypeUsername') ?: findProperty('centralUsername') ?: 'Unknown user'
             password = findProperty('sonatypePassword') ?: findProperty('centralPassword') ?: 'Unknown password'
+            packageGroup = 'org.ngengine'
         }
     }
 }
@@ -59,15 +60,15 @@ dependencies {
 }
 
 gradlePlugin {
-    website = 'https://jmonkeyengine.org'
-    vcsUrl = 'https://github.com/jMonkeyEngine/jmonkeyengine'
+    website = 'https://ngengine.org'
+    vcsUrl = 'https://github.com/riccardobl/ngengine'
     plugins {
         nativeImage {
-            id = 'org.jmonkeyengine.nativeimage'
-            displayName = 'jMonkeyEngine Native Image'
-            description = 'Generates GraalVM Native Image reachability metadata and runtime native library layouts for jMonkeyEngine projects.'
+            id = 'org.ngengine.nativeimage'
+            displayName = 'Nostr Game Engine Native Image'
+            description = 'Generates GraalVM Native Image reachability metadata and runtime native library layouts for Nostr Game Engine projects.'
             implementationClass = 'org.jmonkeyengine.gradle.nativeimage.JmeNativeImagePlugin'
-            tags.set(['jmonkeyengine', 'graalvm', 'native-image'])
+            tags.set(['ngengine', 'graalvm', 'native-image'])
         }
     }
 }
@@ -83,14 +84,14 @@ tasks.withType(GroovyCompile).configureEach {
 publishing {
     publications.withType(MavenPublication).configureEach {
         pom {
-            name = 'jMonkeyEngine Native Image Gradle Plugin'
-            description = 'Generates GraalVM Native Image reachability metadata and runtime native library layouts for jMonkeyEngine projects.'
-            url = 'https://jmonkeyengine.org'
+            name = 'Nostr Game Engine Native Image Gradle Plugin'
+            description = 'Generates GraalVM Native Image reachability metadata and runtime native library layouts for Nostr Game Engine projects.'
+            url = 'https://ngengine.org'
             inceptionYear = '2026'
             scm {
-                url = 'https://github.com/jMonkeyEngine/jmonkeyengine'
-                connection = 'scm:git:git://github.com/jMonkeyEngine/jmonkeyengine.git'
-                developerConnection = 'scm:git:git@github.com:jMonkeyEngine/jmonkeyengine.git'
+                url = 'https://github.com/riccardobl/ngengine'
+                connection = 'scm:git:git://github.com/riccardobl/ngengine.git'
+                developerConnection = 'scm:git:git@github.com:riccardobl/ngengine.git'
             }
             licenses {
                 license {
@@ -100,6 +101,10 @@ publishing {
                 }
             }
             developers {
+                developer {
+                    id = 'ngengine'
+                    name = 'Nostr Game Engine Team'
+                }
                 developer {
                     id = 'jMonkeyEngine'
                     name = 'jMonkeyEngine Team'

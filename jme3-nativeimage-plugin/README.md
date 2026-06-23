@@ -1,7 +1,7 @@
-# jMonkeyEngine Native Image Gradle Plugin
+# Nostr Game Engine Native Image Gradle Plugin
 
-The `org.jmonkeyengine.nativeimage` plugin generates GraalVM Native Image
-reachability metadata for jMonkeyEngine applications and prepares the native
+The `org.ngengine.nativeimage` plugin generates GraalVM Native Image
+reachability metadata for Nostr Game Engine applications and prepares the native
 runtime library layout used by native-image executables.
 
 Use it together with the official GraalVM Build Tools plugin:
@@ -10,7 +10,7 @@ Use it together with the official GraalVM Build Tools plugin:
 plugins {
     id 'application'
     id 'org.graalvm.buildtools.native' version '1.1.0'
-    id 'org.jmonkeyengine.nativeimage'
+    id 'org.ngengine.nativeimage'
 }
 
 application {

@@ -7,7 +7,7 @@ import org.gradle.api.provider.Property
 import javax.inject.Inject
 
 /**
- * DSL extension for jMonkeyEngine Native Image metadata generation.
+ * DSL extension for Nostr Game Engine Native Image metadata generation.
  */
 class JmeNativeImageExtension {
 
