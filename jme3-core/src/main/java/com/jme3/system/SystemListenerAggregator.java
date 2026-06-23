@@ -41,6 +41,20 @@ public class SystemListenerAggregator implements SystemListener{
     }
 
     @Override
+    public void reshape(int logicalWidth, int logicalHeight, int framebufferWidth, int framebufferHeight) {
+        for (SystemListener listener : listeners) {
+            listener.reshape(logicalWidth, logicalHeight, framebufferWidth, framebufferHeight);
+        }
+    }
+
+    @Override
+    public void rescale(float x, float y) {
+        for (SystemListener listener : listeners) {
+            listener.rescale(x, y);
+        }
+    }
+
+    @Override
     public void update() {
         for (SystemListener listener : listeners) {
             listener.update();
