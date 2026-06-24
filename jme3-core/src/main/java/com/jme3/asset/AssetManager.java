@@ -45,7 +45,6 @@ import com.jme3.shader.ShaderGenerator;
 import com.jme3.texture.Texture;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -142,7 +141,7 @@ public interface AssetManager {
      */
     @Deprecated
     public default List<ClassLoader> getClassLoaders() {
-        return new ArrayList<>();
+        return Collections.emptyList();
     }
     
     /**
