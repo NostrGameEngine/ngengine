@@ -264,7 +264,7 @@ public class Navigator implements GuiContextHandler, NavigatorListenerProvider {
         autofocus = false;
         double dx = x - cursorX;
         double dy = y - cursorY;
-        double threshold = cursorActivityThreshold;
+        double threshold = ctx.toGuiDistance(cursorActivityThreshold);
         if (dx * dx + dy * dy < threshold * threshold) {
             return true;
         }

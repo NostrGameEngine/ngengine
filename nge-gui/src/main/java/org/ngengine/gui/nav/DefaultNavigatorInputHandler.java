@@ -179,8 +179,14 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
             this.guiViewPort = new WeakReference<>(vp);
             this.bindId = String.valueOf(vp.hashCode());
         }
-        cursorX = vp.getCamera().getWidth() / 2;
-        cursorY = vp.getCamera().getHeight() / 2;
+        GuiContext state = getGuiContextIfRegistered(vp);
+        if (state != null) {
+            cursorX = state.getLogicalWidth() / 2.0;
+            cursorY = state.getLogicalHeight() / 2.0;
+        } else {
+            cursorX = vp.getCamera().getWidth() / 2.0;
+            cursorY = vp.getCamera().getHeight() / 2.0;
+        }
 
     }
 
@@ -421,13 +427,20 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
         state.getNavigator().autofocus();
     }
 
+    private GuiContext getGuiContextIfRegistered(ViewPort vp) {
+        return NGEGui.isRegistered(vp) ? NGEGui.get(vp) : null;
+    }
+
     private void clampCursorToViewPort() {
         ViewPort vp = getViewPort();
         if (vp == null) return;
+        GuiContext state = getGuiContextIfRegistered(vp);
+        double width = state != null ? state.getLogicalWidth() : vp.getCamera().getWidth();
+        double height = state != null ? state.getLogicalHeight() : vp.getCamera().getHeight();
         if (cursorX < 0) cursorX = 0;
         if (cursorY < 0) cursorY = 0;
-        if (cursorX > vp.getCamera().getWidth()) cursorX = vp.getCamera().getWidth();
-        if (cursorY > vp.getCamera().getHeight()) cursorY = vp.getCamera().getHeight();
+        if (cursorX > width) cursorX = width;
+        if (cursorY > height) cursorY = height;
     }
 
     @Override
