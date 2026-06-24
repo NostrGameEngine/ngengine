@@ -58,6 +58,22 @@ public class NSVGIcon extends IconComponent {
         setIconSize(new Vector2f(width, height));
     }
 
+    public NSVGIcon(String imagePath, float width, float height) {
+        this(imagePath, width, height, 64, 64);
+    }
+
+    public NSVGIcon(String imagePath, float width, float height, int rasterWidth, int rasterHeight) {
+        super(
+            NGEGui.loadTexture(new SVGTextureKey(imagePath, true, Math.max(rasterWidth, 2), Math.max(rasterHeight, 2)), false),
+            new Vector2f(1, 1),
+            0,
+            0,
+            0,
+            false
+        );
+        setIconSize(new Vector2f(Math.max(width, 0.001f), Math.max(height, 0.001f)));
+    }
+
     public NSVGIcon(
         String imagePath,
         int width,

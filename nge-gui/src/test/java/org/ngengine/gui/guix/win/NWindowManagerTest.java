@@ -14,6 +14,7 @@ import com.jme3.input.Mouse;
 import com.jme3.input.dummy.DummyKeyInput;
 import com.jme3.input.dummy.DummyMouseInput;
 import com.jme3.math.Vector3f;
+import com.jme3.post.FilterPostProcessor;
 import com.jme3.renderer.Camera;
 import com.jme3.renderer.ViewPort;
 import com.jme3.renderer.queue.RenderQueue.Bucket;
@@ -33,6 +34,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
+import org.ngengine.ViewPortManager;
 import org.ngengine.components.ComponentManager;
 import org.ngengine.gui.GuiContext;
 import org.ngengine.gui.NGEGui;
@@ -295,6 +297,42 @@ public class NWindowManagerTest {
         assertEquals(0, guiNode.getQuantity());
     }
 
+    @Test
+    public void relativeManagerCreatesDedicatedAspectGuiCameraWithPhysicalRenderTarget() {
+        initializeGui();
+
+        TestViewportComponent component = new TestViewportComponent(true, 1280, 720);
+        NWindowManager manager = component.getManager(null, null);
+        ViewPort vp = manager.getViewPort();
+
+        assertTrue(component.isRelativeSize());
+        assertTrue(NWindowManagerComponent.isRelativeSize(vp.getCamera()));
+        assertEquals(1778, vp.getCamera().getWidth());
+        assertEquals(NWindowManagerComponent.RELATIVE_CAMERA_SCALE, vp.getCamera().getHeight());
+        assertEquals(1280f / 720f, manager.getLogicalWidth(), 0.001f);
+        assertEquals(1f, manager.getLogicalHeight(), 0.001f);
+        assertEquals(1280, vp.getRenderTargetWidth());
+        assertEquals(720, vp.getRenderTargetHeight());
+        assertSame(component.createdGuiViewPort, vp);
+    }
+
+    @Test
+    public void pixelManagerCreatesDedicatedPixelGuiCamera() {
+        initializeGui();
+
+        TestViewportComponent component = new TestViewportComponent(false, 1024, 768);
+        NWindowManager manager = component.getManager(null, null);
+        ViewPort vp = manager.getViewPort();
+
+        assertFalse(component.isRelativeSize());
+        assertFalse(NWindowManagerComponent.isRelativeSize(vp.getCamera()));
+        assertEquals(1024, vp.getCamera().getWidth());
+        assertEquals(768, vp.getCamera().getHeight());
+        assertEquals(1024, vp.getRenderTargetWidth());
+        assertEquals(768, vp.getRenderTargetHeight());
+        assertSame(component.createdGuiViewPort, vp);
+    }
+
     private static TestWindowManager newManager(String name) {
         initializeGui();
 
@@ -403,6 +441,75 @@ public class NWindowManagerTest {
         @Override
         protected void releaseActiveInputMappings() {
             releases.incrementAndGet();
+        }
+    }
+
+    private static class TestViewportComponent extends NWindowManagerComponent {
+        private final TestViewPortManager viewPortManager;
+        private ViewPort createdGuiViewPort;
+
+        TestViewportComponent(boolean relativeSize, int width, int height) {
+            super(relativeSize);
+            this.viewPortManager = new TestViewPortManager(width, height);
+        }
+
+        @Override
+        public <T> T getInstanceOf(Class<T> type) {
+            if (type == ViewPortManager.class) {
+                return type.cast(viewPortManager);
+            }
+            return null;
+        }
+
+        private class TestViewPortManager implements ViewPortManager {
+            private final ViewPort mainViewPort;
+
+            TestViewPortManager(int width, int height) {
+                mainViewPort = new ViewPort("main", new Camera(width, height));
+            }
+
+            @Override
+            public ViewPort getMainSceneViewPort() {
+                return mainViewPort;
+            }
+
+            @Override
+            public ViewPort getGuiViewPort() {
+                return null;
+            }
+
+            @Override
+            public ViewPort createNewGuiViewPort(String name, Camera cam) {
+                createdGuiViewPort = new ViewPort(name, cam);
+                createdGuiViewPort.setRenderTargetSize(
+                        mainViewPort.getCamera().getWidth(),
+                        mainViewPort.getCamera().getHeight());
+                return createdGuiViewPort;
+            }
+
+            @Override
+            public boolean removeGuiViewPort(ViewPort vp) {
+                if (createdGuiViewPort == vp) {
+                    createdGuiViewPort = null;
+                    return true;
+                }
+                return false;
+            }
+
+            @Override
+            public List<ViewPort> getSceneViewPorts() {
+                return Collections.singletonList(mainViewPort);
+            }
+
+            @Override
+            public ViewPort createNewSceneViewPort(String name, Camera cam) {
+                return new ViewPort(name, cam);
+            }
+
+            @Override
+            public FilterPostProcessor getFilterPostProcessor(ViewPort vp) {
+                return null;
+            }
         }
     }
 

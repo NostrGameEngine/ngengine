@@ -127,7 +127,7 @@ public class NHud extends NWindow<Void> {
         setFitContent(false);
         setWithTitleBar(false);
         // setCenter(false);
-        setPreferredSize(new Vector3f(getManager().getWidth(), 0f, getManager().getHeight()));
+        setPreferredSize(new Vector3f(getManager().getLogicalWidth(), getManager().getLogicalHeight(), 0f));
 
         NPanel content = getContent();
 

@@ -51,7 +51,10 @@ import com.jme3.input.event.KeyInputEvent;
 import com.jme3.input.event.MouseButtonEvent;
 import com.jme3.input.event.MouseMotionEvent;
 import com.jme3.input.event.TouchEvent;
+import com.jme3.renderer.Camera;
 import com.jme3.renderer.ViewPort;
+import com.jme3.renderer.queue.RenderQueue.Bucket;
+import com.jme3.scene.Node;
 import org.ngengine.gui.nav.DefaultNavigatorInputHandler;
 import org.ngengine.gui.nav.NavigatorInputHandler;
 
@@ -77,6 +80,8 @@ import org.ngengine.store.DataStoreProvider;
 public class NWindowManagerComponent extends AbstractComponent implements LogicFragment, InputHandlerFragment {
 
     private static final Logger log = Logger.getLogger(NWindowManagerComponent.class.getName());
+    public static final String RELATIVE_CAMERA_NAME = "NGE GUI Relative";
+    public static final int RELATIVE_CAMERA_SCALE = 1000;
     private final ArrayList<NWindowManager> windowManagers = new ArrayList<>();
     private Class<? extends NavigatorInputHandler> defaultInputHandlerClass = DefaultNavigatorInputHandler.class;
     private boolean enabled = false;
@@ -86,6 +91,27 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
     private boolean appliedPhysicalCursorVisible = false;
     private boolean physicalCursorVisibleDirty = true;
     private InputDevice lastInputDevice;
+    private final boolean relativeSize;
+    private ViewPort defaultGuiViewPort;
+    private Node defaultGuiNode;
+    private int physicalWidth = 1;
+    private int physicalHeight = 1;
+
+    public NWindowManagerComponent() {
+        this(false);
+    }
+
+    public NWindowManagerComponent(boolean relativeSize) {
+        this.relativeSize = relativeSize;
+    }
+
+    public boolean isRelativeSize() {
+        return relativeSize;
+    }
+
+    public static boolean isRelativeSize(Camera camera) {
+        return camera != null && RELATIVE_CAMERA_NAME.equals(camera.getName());
+    }
 
     public NWindowManager getManager(ViewPort vp){
         return getManager(vp, defaultInputHandlerClass);
@@ -93,9 +119,9 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
 
     public NWindowManager getManager(ViewPort vp, Class<? extends NavigatorInputHandler> inputHandlerClass) {
          if(vp==null){
-            ViewPortManager vpm = getInstanceOf(ViewPortManager.class);
-            vp= vpm.getGuiViewPort();
+            vp = getDefaultGuiViewPort();
         }
+        configureDefaultGuiViewPort();
         for(NWindowManager manager : windowManagers){
             if(manager.getViewPort() == vp){
                 return manager;
@@ -131,6 +157,107 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
         return newmanager;
     }
 
+    public ViewPort getDefaultGuiViewPort() {
+        ensureDefaultGuiViewPort();
+        return defaultGuiViewPort;
+    }
+
+    private void ensureDefaultGuiViewPort() {
+        if (defaultGuiViewPort != null) {
+            configureDefaultGuiViewPort();
+            return;
+        }
+        ViewPortManager vpm = getInstanceOf(ViewPortManager.class);
+        if (vpm == null) {
+            throw new IllegalStateException("ViewPortManager is required before creating the NGE GUI viewport.");
+        }
+        updatePhysicalSize(vpm);
+        int targetWidth = getTargetCameraWidth();
+        int targetHeight = getTargetCameraHeight();
+        Camera cam = new Camera(targetWidth, targetHeight);
+        if (relativeSize) {
+            cam.setName(RELATIVE_CAMERA_NAME);
+        }
+        configureGuiCamera(cam, targetWidth, targetHeight);
+        defaultGuiViewPort = vpm.createNewGuiViewPort("NGE GUI", cam);
+        defaultGuiViewPort.setClearFlags(false, false, false);
+        defaultGuiNode = new Node("NGE GuiNode");
+        defaultGuiNode.setQueueBucket(Bucket.Gui);
+        configureGuiNodeScale();
+        defaultGuiViewPort.attachScene(defaultGuiNode);
+        configureDefaultGuiViewPort();
+    }
+
+    private void configureDefaultGuiViewPort() {
+        if (defaultGuiViewPort == null) {
+            return;
+        }
+        ViewPortManager vpm = getInstanceOf(ViewPortManager.class);
+        if (vpm != null) {
+            updatePhysicalSize(vpm);
+        }
+        defaultGuiViewPort.setRenderTargetSize(physicalWidth, physicalHeight);
+        Camera cam = defaultGuiViewPort.getCamera();
+        int targetWidth = getTargetCameraWidth();
+        int targetHeight = getTargetCameraHeight();
+        if (relativeSize) {
+            cam.setName(RELATIVE_CAMERA_NAME);
+        }
+        if (cam.getWidth() != targetWidth || cam.getHeight() != targetHeight) {
+            cam.resize(targetWidth, targetHeight, !relativeSize);
+            configureGuiCamera(cam, targetWidth, targetHeight);
+            configureGuiNodeScale();
+            for (NWindowManager manager : windowManagers) {
+                if (manager.getViewPort() == defaultGuiViewPort) {
+                    manager.invalidateAll();
+                }
+            }
+        } else {
+            configureGuiCamera(cam, targetWidth, targetHeight);
+            configureGuiNodeScale();
+        }
+    }
+
+    private int getTargetCameraWidth() {
+        if (!relativeSize) {
+            return physicalWidth;
+        }
+        return Math.max(1, Math.round(getRelativeLogicalWidth() * RELATIVE_CAMERA_SCALE));
+    }
+
+    private int getTargetCameraHeight() {
+        return relativeSize ? RELATIVE_CAMERA_SCALE : physicalHeight;
+    }
+
+    private float getRelativeLogicalWidth() {
+        return physicalWidth / (float) Math.max(physicalHeight, 1);
+    }
+
+    private void configureGuiNodeScale() {
+        if (defaultGuiNode == null) {
+            return;
+        }
+        float scale = relativeSize ? RELATIVE_CAMERA_SCALE : 1f;
+        defaultGuiNode.setLocalScale(scale, scale, 1f);
+    }
+
+    private void configureGuiCamera(Camera cam, int logicalWidth, int logicalHeight) {
+        cam.setParallelProjection(true);
+        cam.setFrustum(-1000f, 1000f, 0f, logicalWidth, logicalHeight, 0f);
+    }
+
+    private void updatePhysicalSize(ViewPortManager vpm) {
+        ViewPort main = vpm.getMainSceneViewPort();
+        Camera cam = main == null ? null : main.getCamera();
+        if (cam != null) {
+            physicalWidth = Math.max(cam.getWidth(), 1);
+            physicalHeight = Math.max(cam.getHeight(), 1);
+        } else if (defaultGuiViewPort != null) {
+            physicalWidth = Math.max(defaultGuiViewPort.getRenderTargetWidth(), 1);
+            physicalHeight = Math.max(defaultGuiViewPort.getRenderTargetHeight(), 1);
+        }
+    }
+
 
     public NWindowManager closeManager(NWindowManager manager) {
         manager.closeAll();
@@ -149,7 +276,7 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
   
     @Override
     public Component newInstance() {
-        return new NWindowManagerComponent();
+        return new NWindowManagerComponent(relativeSize);
     }
 
     /**
@@ -228,6 +355,22 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
 
     public int getHeight() {
         return getManager(null).getHeight();
+    }
+
+    public float getLogicalWidth() {
+        return getManager(null).getLogicalWidth();
+    }
+
+    public float getLogicalHeight() {
+        return getManager(null).getLogicalHeight();
+    }
+
+    public int getPhysicalWidth() {
+        return physicalWidth;
+    }
+
+    public int getPhysicalHeight() {
+        return physicalHeight;
     }
 
     
@@ -313,12 +456,10 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
     public void onEnable(ComponentManager mng,
             boolean firstTime ) {
         enabled = true;
-        int width = getWidth();
-        int height = getHeight();
-        NGEStyle.installAndUse(width,height);
+        NWindowManager m = getManager(null);
+        NGEStyle.installAndUse(m.getLogicalWidth(), m.getLogicalHeight());
 
         setPhysicalCursorVisible(false);
-        NWindowManager m = getManager(null);
     }
 
     @Override
@@ -331,6 +472,16 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
         for(NWindowManager manager : windowManagers) {
             manager.closeAll();
             manager.setInputHandler(null);
+            NGEGui.unregister(manager.getViewPort());
+        }
+        windowManagers.clear();
+        if (defaultGuiViewPort != null) {
+            ViewPortManager vpm = getInstanceOf(ViewPortManager.class);
+            if (vpm != null) {
+                vpm.removeGuiViewPort(defaultGuiViewPort);
+            }
+            defaultGuiViewPort = null;
+            defaultGuiNode = null;
         }
  
     }
@@ -364,6 +515,7 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
     
     @Override
     public void updateAppLogic(ComponentManager mng, float tpf){
+        configureDefaultGuiViewPort();
         if (enabled) {
             boolean wasActive = interactionActive;
             applyInteractionState();

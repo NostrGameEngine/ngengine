@@ -55,6 +55,23 @@ public interface ViewPortManager {
     ViewPort getGuiViewPort();
 
     /**
+     * Create a new post-render GUI ViewPort with the given name and camera.
+     *
+     * @param name the name of the ViewPort
+     * @param cam the camera to use
+     * @return the created ViewPort
+     */
+    ViewPort createNewGuiViewPort(String name, Camera cam);
+
+    /**
+     * Remove a GUI ViewPort previously created through this manager.
+     *
+     * @param vp the ViewPort to remove
+     * @return true if the ViewPort was removed
+     */
+    boolean removeGuiViewPort(ViewPort vp);
+
+    /**
      * Get all scene ViewPorts (read-only).
      * @return the list of scene ViewPorts
      */

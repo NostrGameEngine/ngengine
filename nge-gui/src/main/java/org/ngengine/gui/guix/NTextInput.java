@@ -278,7 +278,7 @@ public class NTextInput extends Container implements GuiUpdateListener {
             }
             return;
         }
-        generateBtn = new NIconButton("icons/outline/dice.svg");
+        generateBtn = new NIconButton("org/ngengine/gui/icons/outline/dice.svg");
         generateBtn.getControl(GuiControl.class).setFocusable(FocusTarget.FOCUS_POINTER);
         generateBtn.addClickCommands(src -> {
             action.get().then(text->{

@@ -68,7 +68,7 @@ public class Label extends Panel {
     private String fontName;
     private Text2d text;
     private Text2d shadow;
-    private Vector3f shadowOffset = new Vector3f(1,-1,-1);
+    private Vector3f shadowOffset = new Vector3f(NGEStyle.px(1), -NGEStyle.px(1), -NGEStyle.px(1));
 
     // Work around so that the regular applyStyles() won't override any font setting
     // since a) that was already determined correctly before applyStyles() was called

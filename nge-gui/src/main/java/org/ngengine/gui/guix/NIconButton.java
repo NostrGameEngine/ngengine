@@ -42,6 +42,7 @@ package org.ngengine.gui.guix;
 
 import org.ngengine.gui.Button;
 import org.ngengine.gui.HAlignment;
+import org.ngengine.gui.NGEStyle;
 import org.ngengine.gui.VAlignment;
 
 import com.jme3.math.ColorRGBA;
@@ -74,8 +75,7 @@ public class NIconButton extends Button {
         applyStyles(NIconButton.class);
 
         // super("", new ElementId(Button.ELEMENT_ID).child("iconButton"));
-        int iconSize = (int) (this.iconSize > 0 ? this.iconSize : getFontSize() * 1.5f);
-        if (iconSize < 2) iconSize = 2;
+        float iconSize = resolveIconSize();
         IconComponent icon = new NSVGIcon(iconPath, iconSize, iconSize);
         icon.setColor(getColor());
         if (getIcon() == null) setIcon(icon);
@@ -93,8 +93,7 @@ public class NIconButton extends Button {
         applyStyles(NIconButton.class);
 
         // super("", new ElementId(Button.ELEMENT_ID).child("iconButton"));
-        int iconSize = (int) (this.iconSize > 0 ? this.iconSize : getFontSize() * 1.5f);
-        if (iconSize < 2) iconSize = 2;
+        float iconSize = resolveIconSize();
         icon.setIconSize(new Vector2f(iconSize, iconSize));
         icon.setColor(getColor());
         if (getIcon() == null) setIcon(icon);
@@ -120,29 +119,35 @@ public class NIconButton extends Button {
     @StyleAttribute("svgIcon")
     @Deprecated
     public void setSVGIcon(String iconPath) {
-        int iconSize = (int) (this.iconSize > 0 ? this.iconSize : getFontSize() * 1.5f);
-        if (iconSize < 2) iconSize = 2;
+        float iconSize = resolveIconSize();
         IconComponent icon = new NSVGIcon(iconPath, iconSize, iconSize);
         super.setIcon(icon);
     }
 
     @StyleAttribute("svgIconComponent")
     public void setSVGIconComponent(NSVGIcon icon) {
-        int iconSize = (int) (this.iconSize > 0 ? this.iconSize : getFontSize() * 1.5f);
-        if (iconSize < 2) iconSize = 2;
+        float iconSize = resolveIconSize();
         icon.setIconSize(new Vector2f(iconSize, iconSize));
         super.setIcon(icon);
     }
 
     @StyleAttribute("iconSize")
     public void setIconSize(float iconSize) {
-        if (iconSize < 2) iconSize = 2;
+        iconSize = Math.max(iconSize, NGEStyle.px(2));
         this.iconSize = iconSize;
         GuiComponent icon = getIcon();
         if (icon != null && icon instanceof IconComponent) {
             IconComponent iconComponent = (IconComponent) icon;
             iconComponent.setIconSize(new Vector2f(iconSize, iconSize));
         }
+    }
+
+    private float resolveIconSize() {
+        float fontSize = getFontSize();
+        if (NGEStyle.isRelativeSize() && fontSize > NGEStyle.vmin(20f)) {
+            fontSize = NGEStyle.vmin(2.1f);
+        }
+        return Math.max(this.iconSize > 0 ? this.iconSize : fontSize * 1.5f, NGEStyle.px(2));
     }
 
     @Override

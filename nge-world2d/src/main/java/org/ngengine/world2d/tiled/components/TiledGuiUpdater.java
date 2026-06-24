@@ -43,6 +43,8 @@ import org.ngengine.components.Component;
 import org.ngengine.components.ComponentManager;
 import org.ngengine.components.runners.ComponentInitializer;
 import org.ngengine.components.runners.ComponentUpdater;
+import org.ngengine.gui.GuiContext;
+import org.ngengine.gui.NGEGui;
 import org.ngengine.gui.guix.containers.NPanel;
 import org.ngengine.gui.guix.win.NWindowManager;
 import org.ngengine.gui.guix.win.NWindowManagerComponent;
@@ -285,14 +287,22 @@ public class TiledGuiUpdater implements ComponentUpdater, ComponentInitializer {
 
                     sceneCam.getScreenCoordinates(renderWp, pos);
 
-                    float scaleX = guiCamera.getWidth() / (float) sceneCam.getWidth();
-                    float scaleY = guiCamera.getHeight() / (float) sceneCam.getHeight();
+                    GuiContext guiContext = NGEGui.isRegistered(guiVp) ? NGEGui.get(guiVp) : null;
+                    if (guiContext != null && guiContext.isRelativeSize()) {
+                        fd.size.x = guiContext.toGuiDeltaX(fd.size.x);
+                        fd.size.y = guiContext.toGuiDeltaY(fd.size.y);
+                        pos.x = guiContext.toGuiX(pos.x);
+                        pos.y = guiContext.toGuiY(pos.y);
+                    } else {
+                        float scaleX = guiCamera.getWidth() / (float) sceneCam.getWidth();
+                        float scaleY = guiCamera.getHeight() / (float) sceneCam.getHeight();
 
-                    fd.size.x *= scaleX;
-                    fd.size.y *= scaleY;
+                        fd.size.x *= scaleX;
+                        fd.size.y *= scaleY;
 
-                    pos.x *= scaleX;
-                    pos.y *= scaleY;
+                        pos.x *= scaleX;
+                        pos.y *= scaleY;
+                    }
                 }
             }
 

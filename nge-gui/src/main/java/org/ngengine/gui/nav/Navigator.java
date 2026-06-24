@@ -230,11 +230,28 @@ public class Navigator implements GuiContextHandler, NavigatorListenerProvider {
     }
 
     private Spatial createDefaultCursor() {
-        float size = Math.max(ctx.getViewPort().getCamera().getWidth(),
-                ctx.getViewPort().getCamera().getHeight());
-        size *= 0.016f;
-        size = FastMath.clamp(size, 10, 38);
-        return new DefaultCursor(ctx.getAssetManager(), size);
+        return new DefaultCursor(ctx.getAssetManager(), getDefaultCursorSize());
+    }
+
+    private float getDefaultCursorSize() {
+        if (ctx.isRelativeSize()) {
+            float size = Math.min(ctx.getGuiCamera().getWidth(), ctx.getGuiCamera().getHeight()) * 0.055f;
+            return FastMath.clamp(size, 0.035f, 0.075f);
+        }
+        float size = Math.max(ctx.getGuiCamera().getWidth(), ctx.getGuiCamera().getHeight());
+        size *= 0.024f;
+        return FastMath.clamp(size, 16, 56);
+    }
+
+    private void refreshDefaultCursorSize() {
+        if (!(cursorPointer instanceof DefaultCursor)) {
+            return;
+        }
+        DefaultCursor cursor = (DefaultCursor) cursorPointer;
+        float expected = getDefaultCursorSize();
+        if (Math.abs(cursor.getSize() - expected) > expected * 0.05f) {
+            cursor.setSize(expected);
+        }
     }
 
     @Override
@@ -442,6 +459,7 @@ public class Navigator implements GuiContextHandler, NavigatorListenerProvider {
         boolean cursorVisible = enabled && cursorEnabled && cursorActive && this.cursorPointer != null
                 && (!cursorHardware || simulatedCursorActive);
         if (cursorVisible) {
+            refreshDefaultCursorSize();
             Node guiNode = ctx.getGuiNode();
             if (cursorPointer.getParent() != guiNode) {
                 guiNode.attachChild(cursorPointer);

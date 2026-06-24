@@ -141,6 +141,10 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
         if (guiViewPort != null) {
             return guiViewPort;
         }
+        NWindowManagerComponent winMng = getComponentManager().getInstanceOf(NWindowManagerComponent.class);
+        if (winMng != null) {
+            return winMng.getDefaultGuiViewPort();
+        }
         ViewPortManager vpm = getComponentManager().getInstanceOf(ViewPortManager.class);
         return vpm != null ? vpm.getGuiViewPort() : null;
     }

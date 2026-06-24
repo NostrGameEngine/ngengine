@@ -24,6 +24,13 @@ task runGuiShowcase(dependsOn: 'build', type:JavaExec) {
     }
 }
 
+task captureGuiScenario(dependsOn: 'classes', type:JavaExec) {
+    mainClass = 'ngetests.tests.gui.capture.GuiCaptureApp'
+    classpath = sourceSets.main.runtimeClasspath
+    jvmArgs '-Xdock:name=NGE GUI Capture', '-Dapple.awt.UIElement=false'
+    systemProperties System.properties.findAll { key, value -> key.toString().startsWith('nge.capture.') }
+}
+
 task runParticleBufferBenchmark(dependsOn: 'classes', type:JavaExec) {
     mainClass = 'ngetests.tests.benchmark.TestVertexBufferParticleBenchmark'
     classpath = sourceSets.main.runtimeClasspath

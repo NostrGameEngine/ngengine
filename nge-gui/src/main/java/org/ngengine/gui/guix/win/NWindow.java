@@ -239,8 +239,8 @@ public abstract class NWindow<T> extends Container implements GuiUpdateListener,
     }
 
     final void recenter(Vector3f size) {
-        int width = getManager().getWidth();
-        int height = getManager().getHeight();
+        float width = getManager().getLogicalWidth();
+        float height = getManager().getLogicalHeight();
 
         setLocalTranslation(width / 2 - size.x / 2, height / 2 + size.y / 2, 1);
     }
@@ -259,6 +259,7 @@ public abstract class NWindow<T> extends Container implements GuiUpdateListener,
     public final void focusLost(GuiControl source) {}
 
     protected int initStage = 0;
+    private boolean layoutDebugLogged = false;
 
     protected final void invalidate() {
         initStage = 0;
@@ -285,20 +286,22 @@ public abstract class NWindow<T> extends Container implements GuiUpdateListener,
         }
 
         if (!fitContent) {
-            int w, h;
+            float w, h;
             if (fullscreen) {
-                w = getManager().getWidth();
-                h = getManager().getHeight();
+                w = getManager().getLogicalWidth();
+                h = getManager().getLogicalHeight();
             } else {
-                w = (int) (getManager().getWidth() * 0.8);
-                h = (int) (getManager().getHeight() * 0.8);
-                if (w == getManager().getWidth()) w -= 2;
-                if (h == getManager().getHeight()) h -= 2;
+                w = getManager().getLogicalWidth() * 0.8f;
+                h = getManager().getLogicalHeight() * 0.8f;
+                if (w == getManager().getLogicalWidth()) w -= getManager().getLogicalWidth() * 0.02f;
+                if (h == getManager().getLogicalHeight()) h -= getManager().getLogicalHeight() * 0.02f;
             }
-            if (w < 800) w = 800;
-            if (h < 600) h = 600;
-            if (w > getManager().getWidth()) w = getManager().getWidth();
-            if (h > getManager().getHeight()) h = getManager().getHeight();
+            if (!getManager().getContext().isRelativeSize()) {
+                if (w < 800) w = 800;
+                if (h < 600) h = 600;
+            }
+            if (w > getManager().getLogicalWidth()) w = getManager().getLogicalWidth();
+            if (h > getManager().getLogicalHeight()) h = getManager().getLogicalHeight();
             setPreferredSize(new Vector3f(w, h, 0));
         } else {
             setPreferredSize(null);
@@ -320,6 +323,16 @@ public abstract class NWindow<T> extends Container implements GuiUpdateListener,
         }
         if (center) {
             recenter(getSize());
+        }
+        if (!layoutDebugLogged && Boolean.getBoolean("nge.gui.debugLayout") && getSize().length() != 0) {
+            layoutDebugLogged = true;
+            System.out.println(
+                "NGE_GUI_LAYOUT " + getClass().getName()
+                + " logical=" + getManager().getLogicalWidth() + "x" + getManager().getLogicalHeight()
+                + " preferred=" + getPreferredSize()
+                + " size=" + getSize()
+                + " translation=" + getLocalTranslation()
+            );
         }
     }
 

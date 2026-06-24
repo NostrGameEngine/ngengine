@@ -73,7 +73,6 @@ import com.jme3.renderer.Camera;
 import com.jme3.renderer.ViewPort;
 import com.jme3.scene.Spatial.CullHint;
 import org.ngengine.gui.component.BorderLayout;
-import org.ngengine.gui.component.DynamicInsetsComponent;
 import org.ngengine.gui.component.SpringGridLayout;
 import org.ngengine.gui.guix.win.NToast.ToastType;
 import org.ngengine.gui.ime.ImeComposer;
@@ -83,13 +82,14 @@ import org.ngengine.gui.nav.NavigatorInputHandler;
 
 public class NWindowManager {
     private static final Logger log = Logger.getLogger(NWindowManager.class.getName());
+    private static final float TOAST_LAYER_Z = 2f;
 
     private final GuiContext ctx;
     private final NWindowManagerComponent mng;
     private final ArrayList<NWindow<?>> windows = new ArrayList<>();
     private final ArrayList<NToast> toastsStack = new ArrayList<>();
     private Container containerToast;
-    private int oldWidth, oldHeight;
+    private float oldWidth, oldHeight;
     private NavigatorInputHandler inputHandler;
     private InputDevice inputDevice;
     private Label controllerBackHint;
@@ -211,17 +211,15 @@ public class NWindowManager {
         }
 
         Camera cam = ctx.getViewPort().getCamera();
-        if (oldWidth != cam.getWidth() || oldHeight != cam.getHeight()) {
-            oldWidth = cam.getWidth();
-            oldHeight = cam.getHeight();
+        if (oldWidth != getLogicalWidth() || oldHeight != getLogicalHeight()) {
+            oldWidth = getLogicalWidth();
+            oldHeight = getLogicalHeight();
             for (NWindow<?> window : windows) {
                 window.invalidate();
             }
 
             if (containerToast != null) {
-                Container toastParent = ((Container) containerToast.getParent());
-                toastParent.setLocalTranslation(0, oldHeight, 10);
-                toastParent.setPreferredSize(new Vector3f(oldWidth, oldHeight, 10));
+                updateToastStackLayout();
             }
         }
 
@@ -246,7 +244,12 @@ public class NWindowManager {
             controllerBackHint.setFontSize(NGEStyle.vmin(2.2f));
             controllerBackHint.setColor(new ColorRGBA(1f, 1f, 1f, 0.72f));
             controllerBackHint.setShadowColor(new ColorRGBA(0f, 0f, 0f, 0.85f));
-            controllerBackHint.setInsets(new Insets3f(5, 9, 5, 9));
+            controllerBackHint.setInsets(new Insets3f(
+                NGEStyle.px(5),
+                NGEStyle.px(9),
+                NGEStyle.px(5),
+                NGEStyle.px(9)
+            ));
             controllerBackHint.setBackground(new QuadBackgroundComponent(new ColorRGBA(0f, 0f, 0f, 0.58f)));
         }
 
@@ -294,6 +297,20 @@ public class NWindowManager {
     public int getHeight() {
         Camera cam = ctx.getViewPort().getCamera();
         return cam.getHeight();
+    }
+
+    public float getLogicalWidth() {
+        return ctx.getLogicalWidth();
+    }
+
+    public float getLogicalHeight() {
+        return ctx.getLogicalHeight();
+    }
+
+    void invalidateAll() {
+        for (NWindow<?> window : windows) {
+            window.invalidate();
+        }
     }
   
     protected void checkThread() {
@@ -509,21 +526,48 @@ public class NWindowManager {
         NToast toast = new NToast(type, message, finalDuration);
 
         if(containerToast == null){
-            int width = getWidth();
-            int height = getHeight();
-            containerToast = new Container( new SpringGridLayout(Axis.Y, Axis.X, FillMode.None, FillMode.Even));
-            containerToast.setInsetsComponent(new DynamicInsetsComponent(0f, 1f, 0f, 0f));
-            
-            Container toastParent = new Container( new BorderLayout());
-            toastParent.setLocalTranslation(0, height, 10);
-            toastParent.setPreferredSize(new Vector3f(width, height, 10));
+            containerToast = new Container( new SpringGridLayout(Axis.Y, Axis.X, FillMode.ForcedEven, FillMode.Even));
+            Container toastParent = new Container(new BorderLayout());
             toastParent.addChild(containerToast, BorderLayout.Position.South);
             ctx.getGuiNode().attachChild(toastParent);
         }
         containerToast.addChild(toast);
 
         toastsStack.add(toast);
+        updateToastStackLayout();
         return toast;       
+    }
+
+    private void updateToastStackLayout() {
+        if (containerToast == null) {
+            return;
+        }
+
+        float logicalWidth = getLogicalWidth();
+        float toastWidth = getToastStackWidth(logicalWidth);
+        float stackHeight = 0f;
+        for (NToast toast : toastsStack) {
+            stackHeight += getToastHeight(toast);
+        }
+
+        float margin = NGEStyle.vmin(1f);
+        containerToast.setPreferredSize(new Vector3f(toastWidth, stackHeight, TOAST_LAYER_Z));
+        Container toastParent = (Container) containerToast.getParent();
+        toastParent.setPreferredSize(new Vector3f(toastWidth, stackHeight, TOAST_LAYER_Z));
+        toastParent.setLocalTranslation(getToastStackX(logicalWidth, toastWidth), stackHeight + margin, TOAST_LAYER_Z);
+    }
+
+    private float getToastStackWidth(float logicalWidth) {
+        return Math.min(logicalWidth, NGEStyle.vmin(55f));
+    }
+
+    private float getToastStackX(float logicalWidth, float toastWidth) {
+        return Math.max(0f, logicalWidth - toastWidth - NGEStyle.vmin(1f));
+    }
+
+    private float getToastHeight(NToast toast) {
+        int lines = Math.max(1, toast.getMessage().split("\\R", -1).length);
+        return Math.max(NGEStyle.vmin(9.6f), NGEStyle.vmin(5.4f) * lines);
     }
 
     public void closeAllToasts() {
@@ -548,6 +592,8 @@ public class NWindowManager {
                 containerToast.removeFromParent();
             }
             containerToast = null;
+        } else {
+            updateToastStackLayout();
         }
     }
 

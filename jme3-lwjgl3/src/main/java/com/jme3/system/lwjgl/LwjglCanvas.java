@@ -115,6 +115,12 @@ public class LwjglCanvas extends LwjglWindow implements JmeCanvasContext, Runnab
     /** GL versions map. */
     private static final Map<String, Consumer<GLData>> RENDER_CONFIGS = new HashMap<>();
 
+    private static GLData.Profile awtProfile() {
+        return Boolean.getBoolean("jme.awt.forceCoreProfile")
+                ? GLData.Profile.CORE
+                : GLData.Profile.COMPATIBILITY;
+    }
+
     /*
         Register the different versions.
 
@@ -128,42 +134,42 @@ public class LwjglCanvas extends LwjglWindow implements JmeCanvasContext, Runnab
         RENDER_CONFIGS.put(AppSettings.LWJGL_OPENGL32, (data) -> {
             data.majorVersion = 3;
             data.minorVersion = 2;
-            data.profile = GLData.Profile.COMPATIBILITY;
+            data.profile = awtProfile();
         });
         RENDER_CONFIGS.put(AppSettings.LWJGL_OPENGL33, (data) -> {
             data.majorVersion = 3;
             data.minorVersion = 3;
-            data.profile = GLData.Profile.COMPATIBILITY;
+            data.profile = awtProfile();
         });
         RENDER_CONFIGS.put(AppSettings.LWJGL_OPENGL40, (data) -> {
             data.majorVersion = 4;
             data.minorVersion = 0;
-            data.profile = GLData.Profile.COMPATIBILITY;
+            data.profile = awtProfile();
         });
         RENDER_CONFIGS.put(AppSettings.LWJGL_OPENGL41, (data) -> {
             data.majorVersion = 4;
             data.minorVersion = 1;
-            data.profile = GLData.Profile.COMPATIBILITY;
+            data.profile = awtProfile();
         });
         RENDER_CONFIGS.put(AppSettings.LWJGL_OPENGL42, (data) -> {
             data.majorVersion = 4;
             data.minorVersion = 2;
-            data.profile = GLData.Profile.COMPATIBILITY;
+            data.profile = awtProfile();
         });
         RENDER_CONFIGS.put(AppSettings.LWJGL_OPENGL43, (data) -> {
             data.majorVersion = 4;
             data.minorVersion = 3;
-            data.profile = GLData.Profile.COMPATIBILITY;
+            data.profile = awtProfile();
         });
         RENDER_CONFIGS.put(AppSettings.LWJGL_OPENGL44, (data) -> {
             data.majorVersion = 4;
             data.minorVersion = 4;
-            data.profile = GLData.Profile.COMPATIBILITY;
+            data.profile = awtProfile();
         });
         RENDER_CONFIGS.put(AppSettings.LWJGL_OPENGL45, (data) -> {
             data.majorVersion = 4;
             data.minorVersion = 5;
-            data.profile = GLData.Profile.COMPATIBILITY;
+            data.profile = awtProfile();
         });
     }
 

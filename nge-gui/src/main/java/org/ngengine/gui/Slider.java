@@ -133,14 +133,14 @@ public class Slider extends Panel implements FocusListener {
                                             new Button( elementId.child(RIGHT_ID)));                
                 decrement = layout.addChild(BorderLayout.Position.West,
                                             new Button( elementId.child(LEFT_ID)));                
-                range = layout.addChild(new Panel( 50, 2, elementId.child(RANGE_ID)));
+                range = layout.addChild(createRangePanel(NGEStyle.px(50), NGEStyle.px(2), elementId.child(RANGE_ID)));
                 break;
             case Y:
                 increment = layout.addChild(BorderLayout.Position.North,
                                             new Button( elementId.child(UP_ID)));
                 decrement = layout.addChild(BorderLayout.Position.South,
                                             new Button( elementId.child(DOWN_ID)));
-                range = layout.addChild(new Panel(2, 50, elementId.child(RANGE_ID)));
+                range = layout.addChild(createRangePanel(NGEStyle.px(2), NGEStyle.px(50), elementId.child(RANGE_ID)));
                 break;
             case Z:
                 throw new IllegalArgumentException("Z axis not yet supported.");
@@ -165,6 +165,12 @@ public class Slider extends Panel implements FocusListener {
         decrement.addFocusListener(scrollListener);
         range.addFocusListener(scrollListener);
         thumb.addFocusListener(scrollListener);
+    }
+
+    private Panel createRangePanel(float width, float height, ElementId elementId) {
+        Panel panel = new Panel(elementId);
+        panel.setPreferredSize(width, height);
+        return panel;
     }
     @SuppressWarnings("unchecked") // because Java doesn't like var-arg generics
     protected final void setupCommands() {

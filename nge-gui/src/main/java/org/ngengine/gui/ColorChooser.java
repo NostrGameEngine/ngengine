@@ -135,7 +135,7 @@ public class ColorChooser extends Panel {
         getControl(GuiControl.class).addFocusChangeListener( new SwatchListener());
         
         colors.setBackground(swatchComponent);
-        colors.setPreferredSize(new Vector3f(256, 64, 0));
+        colors.setPreferredSize(new Vector3f(NGEStyle.px(256), NGEStyle.px(64), 0));
         layout.addChild(colorPanel, 2);
 
         brightness = new Slider( Axis.Y, elementId.child(BRIGHTNESS_ID));
@@ -143,7 +143,7 @@ public class ColorChooser extends Panel {
         brightnessRef = brightness.getModel().createReference();
 
         value = new Panel( elementId.child(VALUE_ID));
-        value.setPreferredSize(new Vector3f(64, 64, 0));
+        value.setPreferredSize(new Vector3f(NGEStyle.px(64), NGEStyle.px(64), 0));
         value.setBackground(valueColor);
         layout.addChild(value, 0);
 

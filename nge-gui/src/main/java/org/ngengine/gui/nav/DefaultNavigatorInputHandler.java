@@ -295,8 +295,13 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
             if (device instanceof Mouse) {
                 if (inputManager.isCursorVisible()) {
                     Vector2f pos = inputManager.getCursorPosition();
-                    cursorX = pos.x;
-                    cursorY = pos.y;
+                    if (state != null) {
+                        cursorX = state.toGuiX(pos.x);
+                        cursorY = state.toGuiY(pos.y);
+                    } else {
+                        cursorX = pos.x;
+                        cursorY = pos.y;
+                    }
                 }
                 clampCursorToViewPort();
             } else {
@@ -391,9 +396,12 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
         }
 
         double step = navigator.getSimulatedCursorSpeed() * Math.max(tpf, 0f);
+        if (state.isRelativeSize()) {
+            step = state.toGuiDistance(step);
+        }
         double dx = simulatedCursorX * step;
         double dy = simulatedCursorY * step;
-        double threshold = navigator.getCursorActivityThreshold();
+        double threshold = state.toGuiDistance(navigator.getCursorActivityThreshold());
         if (dx * dx + dy * dy < threshold * threshold) {
             return;
         }
@@ -479,13 +487,13 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
         if (_p("confirm").equals(name) && toggled && event instanceof MouseButtonEvent) {
             if (isPressed) {
                 MouseButtonEvent me = (MouseButtonEvent) event;
-                double x = inputManager != null && !inputManager.isCursorVisible() ? cursorX : me.getX();
-                double y = inputManager != null && !inputManager.isCursorVisible() ? cursorY : me.getY();
+                double x = inputManager != null && !inputManager.isCursorVisible() ? cursorX : state.toGuiX(me.getX());
+                double y = inputManager != null && !inputManager.isCursorVisible() ? cursorY : state.toGuiY(me.getY());
                 pointerPressed(state, navigator, x, y);
             } else {
                 MouseButtonEvent me = (MouseButtonEvent) event;
-                double x = inputManager != null && !inputManager.isCursorVisible() ? cursorX : me.getX();
-                double y = inputManager != null && !inputManager.isCursorVisible() ? cursorY : me.getY();
+                double x = inputManager != null && !inputManager.isCursorVisible() ? cursorX : state.toGuiX(me.getX());
+                double y = inputManager != null && !inputManager.isCursorVisible() ? cursorY : state.toGuiY(me.getY());
                 pointerReleased(state, navigator, x, y);
             }
             consume(event);
@@ -606,15 +614,17 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
                     return;
                 }
                 lastCursorMotionEvent = mme;
-                double eventX = mme.getX();
-                double eventY = mme.getY();
+                double rawEventX = mme.getX();
+                double rawEventY = mme.getY();
+                double eventX = state.toGuiX(rawEventX);
+                double eventY = state.toGuiY(rawEventY);
                 boolean fixedAbsolute = eventX == lastMotionX && eventY == lastMotionY
                         || (Double.isNaN(lastMotionX) && eventX == cursorX && eventY == cursorY);
                 if (inputManager != null && !inputManager.isCursorVisible()
                         && fixedAbsolute
                         && (mme.getDX() != 0 || mme.getDY() != 0)) {
-                    cursorX += mme.getDX();
-                    cursorY += mme.getDY();
+                    cursorX += state.toGuiDeltaX(mme.getDX());
+                    cursorY += state.toGuiDeltaY(mme.getDY());
                 } else {
                     cursorX = eventX;
                     cursorY = eventY;
@@ -643,19 +653,21 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
         }
         TouchEvent event = (TouchEvent) inputEvent;
         TouchEvent.Type type = event.getType();
+        double x = state.toGuiX(event.getX());
+        double y = state.toGuiY(event.getY());
         if (type == TouchEvent.Type.TAP) {
-            pointerPressed(state, navigator, event.getX(), event.getY());
-            pointerReleased(state, navigator, event.getX(), event.getY());
+            pointerPressed(state, navigator, x, y);
+            pointerReleased(state, navigator, x, y);
             consume(event);
         } else if (type == TouchEvent.Type.DOWN) {
-            pointerPressed(state, navigator, event.getX(), event.getY());
+            pointerPressed(state, navigator, x, y);
             consume(event);
         } else if (type == TouchEvent.Type.UP) {
-            pointerReleased(state, navigator, event.getX(), event.getY());
+            pointerReleased(state, navigator, x, y);
             consume(event);
         } else if (type == TouchEvent.Type.MOVE && pointerActionPressed) {
-            pointerDragged(event.getX(), event.getY());
-            updatePointerFocusAt(state, navigator, event.getX(), event.getY());
+            pointerDragged(x, y);
+            updatePointerFocusAt(state, navigator, x, y);
             consume(event);
         }
         return true;

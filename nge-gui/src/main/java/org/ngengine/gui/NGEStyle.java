@@ -44,6 +44,7 @@ import com.jme3.material.Material;
 import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector2f;
+import com.jme3.math.Vector3f;
 import org.ngengine.gui.component.IconComponent;
 import org.ngengine.gui.component.QuadBackgroundComponent;
 import org.ngengine.gui.component.SpringGridLayout;
@@ -81,6 +82,10 @@ public class NGEStyle {
     }
 
     public static void installAndUse(int width, int height) {
+        installAndUse((float) width, (float) height);
+    }
+
+    public static void installAndUse(float width, float height) {
         install(width, height);
         use();
     }
@@ -94,24 +99,34 @@ public class NGEStyle {
         NGEGui.getStyles().setDefaultStyle(NAME);
     }
 
-    private static int width = 1280;
-    private static int height = 720;
+    private static float width = 1280;
+    private static float height = 720;
+    private static final float REFERENCE_MIN_AXIS = 720f;
 
-    public static int vmin(float f) {
-        return (int) (Math.min((double) width, (double) height) / 100. * f);
+    public static float vmin(float f) {
+        return Math.min(width, height) / 100f * f;
     }
 
-    public static int vmax(float f) {
-        return (int) (Math.max((double) width, (double) height) / 100. * f);
+    public static float vmax(float f) {
+        return Math.max(width, height) / 100f * f;
     }
 
-    public static int vw(float f) {
-        return (int) ((double) width / 100. * f);
+    public static float vw(float f) {
+        return width / 100f * f;
     }
 
-    public static int vh(float f) {
-        return (int) ((double) height / 100. * f);
+    public static float vh(float f) {
+        return height / 100f * f;
     }
+
+    public static boolean isRelativeSize() {
+        return height <= 1.0001f;
+    }
+
+    public static float px(float f) {
+        return vmin(100f) / REFERENCE_MIN_AXIS * f;
+    }
+
     public static void install() {
         install(-1, -1);
     }
@@ -119,8 +134,12 @@ public class NGEStyle {
     
 
     public static void install(int width, int height) {
-        if(width>2)NGEStyle.width = 1280 ;
-        if(height>2)NGEStyle.height =720 ;
+        install((float) width, (float) height);
+    }
+
+    public static void install(float width, float height) {
+        NGEStyle.width = width > 0 ? width : 1280f;
+        NGEStyle.height = height > 0 ? height : 720f;
 
         System.out.println("Installing NGEStyle");
         Styles styles = NGEGui.getStyles();
@@ -147,6 +166,7 @@ public class NGEStyle {
 
         Attributes glob = styles.getSelector(NAME);
         glob.set("fontSize", vmin(2.1f));
+        glob.set("shadowOffset", new Vector3f(px(1), -px(1), -px(1)));
         
         {
             Material highlightMat = new Material(
@@ -204,7 +224,7 @@ public class NGEStyle {
             ElementId parent = new ElementId(ProgressBar.ELEMENT_ID);        
             styles.getSelector(parent.child(ProgressBar.CONTAINER_ID), NAME).set("background", 
                                                     new QuadBackgroundComponent(NGEGui.srgbaColor(new ColorRGBA(0.2f, 0.2f, 0.2f, 0.5f), true)
-                                                   , 2, 2) ); 
+                                                   , px(2), px(2)) );
             styles.getSelector(parent.child(ProgressBar.VALUE_ID), NAME).set("background", 
                                                     new QuadBackgroundComponent(NGEGui.srgbaColor(new ColorRGBA(0.1f, 0.7f, 0.3f, 1), true))); 
             styles.getSelector(parent.child(ProgressBar.LABEL_ID), NAME).set("textHAlignment", HAlignment.Center, false);
@@ -231,10 +251,10 @@ public class NGEStyle {
 
         {
             Attributes attrs = styles.getSelector(Checkbox.ELEMENT_ID, NAME);
-            IconComponent on = new IconComponent("/org/ngengine/gui/icons/Check.png", 1.2f,
-                                   2, 2, 0.01f, false);
-            IconComponent off = new IconComponent("/org/ngengine/gui/icons/Check.png", 1.2f,
-                                    2, 2, 0.01f, false);
+            IconComponent on = new IconComponent("/org/ngengine/gui/icons/Check.png", px(1.2f),
+                                   px(2), px(2), 0.01f, false);
+            IconComponent off = new IconComponent("/org/ngengine/gui/icons/Check.png", px(1.2f),
+                                    px(2), px(2), 0.01f, false);
             off.setColor(new ColorRGBA(0,0,0,0));
 
             attrs.set("background", new QuadBackgroundComponent( new ColorRGBA(0,0,0,0) ), false);
@@ -271,7 +291,7 @@ public class NGEStyle {
             int x2 = 48-15;
             int y1 = 15;
             int y2 = 48-15;
-            float scale = 1f;
+            float scale = px(1f);
 
             TbtQuadBackgroundComponent background = TbtQuadBackgroundComponent.create(
                 "org/ngengine/gui/border/bg.png",
@@ -283,7 +303,7 @@ public class NGEStyle {
                 1f,
                 false
             );
-            background.setMargin(new Vector2f(10, 10));
+            background.setMargin(new Vector2f(px(10), px(10)));
             background.setColor(darkPurple);
             container.set("background", background);
             container.set("selectionBackground", new QuadBackgroundComponent(mediumPurple));
@@ -317,7 +337,7 @@ public class NGEStyle {
             warnLabel.set("insets", new Insets3f(vmin(2), vmin(2), vmin(2), vmin(2)));
             TbtQuadBackgroundComponent border = TbtQuadBackgroundComponent.create(
                 "/org/ngengine/gui/icons/border.png",
-                1,
+                px(1),
                 6,
                 6,
                 6,
@@ -359,7 +379,7 @@ public class NGEStyle {
             int x2 = 48-23;
             int y1 = 23;
             int y2 = 48-23;
-            float scale = 1f;
+            float scale = px(1f);
             TbtQuadBackgroundComponent bg = TbtQuadBackgroundComponent.create(
                 "org/ngengine/gui/border/btn0.png",
                 scale,
@@ -412,17 +432,17 @@ public class NGEStyle {
         }
 
         {
-            int squareSize = (int) (vmin(2.8f));
+            float squareSize = vmin(2.8f);
 
             Attributes checkbox = styles.getSelector("checkbox", NAME);
             IconComponent on = new NSVGIcon("org/ngengine/gui/icons/outline/square-check.svg", squareSize, squareSize);
             on.setColor(new ColorRGBA(0.5f, 0.9f, 0.9f, 0.9f));
-            on.setMargin(5, 0);
+            on.setMargin(px(5), 0);
             on.setColor(lightPurple);
 
             IconComponent off = new NSVGIcon("org/ngengine/gui/icons/outline/square.svg", squareSize, squareSize);
             off.setColor(new ColorRGBA(0.6f, 0.8f, 0.8f, 0.8f));
-            off.setMargin(5, 0);
+            off.setMargin(px(5), 0);
             off.setColor(lightPurple);
 
             checkbox.set("onView", on);
@@ -518,7 +538,7 @@ public class NGEStyle {
             }
 
             {
-                int iconSize = vmin(2.1f);
+                float iconSize = vmin(2.1f);
                 NSVGIcon on = new NSVGIcon("org/ngengine/gui/icons/outline/x.svg", iconSize, iconSize);
 
                 Attributes closeBtn = styles.getSelector("toast.close.iconButton", NAME);
@@ -529,7 +549,7 @@ public class NGEStyle {
             }
 
             {
-                int iconSize = vmin(2.1f);
+                float iconSize = vmin(2.1f);
                 Attributes toastIcon = styles.getSelector("toast.iconButton", NAME);
                 NSVGIcon on = new NSVGIcon("org/ngengine/gui/icons/outline/info-square-rounded.svg", iconSize, iconSize);
                 toastIcon.set("color", lightPurple);
@@ -538,14 +558,14 @@ public class NGEStyle {
 
             {
                 Attributes errorToastIcon = styles.getSelector("error.toast.iconButton", NAME);
-                int iconSize = vmin(2.1f);
+                float iconSize = vmin(2.1f);
                 NSVGIcon on = new NSVGIcon("org/ngengine/gui/icons/outline/alert-triangle.svg", iconSize, iconSize);
                 errorToastIcon.set("svgIconComponent",on );
             }
 
             {
                 Attributes warningToastIcon = styles.getSelector("warning.toast.iconButton", NAME);
-                int iconSize = vmin(2.1f);
+                float iconSize = vmin(2.1f);
                 NSVGIcon on = new NSVGIcon("org/ngengine/gui/icons/outline/alert-triangle.svg", iconSize, iconSize);
                 warningToastIcon.set("svgIconComponent",on );
             }

@@ -378,7 +378,17 @@ public class ViewPort {
         this.resizeWithDefaultFramebuffer = resizeWithDefaultFramebuffer;
     }
 
-    void setRenderTargetSize(int width, int height) {
+    /**
+     * Sets the current render target size in physical pixels.
+     *
+     * <p>This is normally maintained by {@link RenderManager}. Viewports with a
+     * logical camera size that intentionally differs from the default framebuffer
+     * size can set it explicitly so rendering still covers the full target.</p>
+     *
+     * @param width the render target width in pixels
+     * @param height the render target height in pixels
+     */
+    public void setRenderTargetSize(int width, int height) {
         renderTargetWidth = Math.max(width, 1);
         renderTargetHeight = Math.max(height, 1);
     }

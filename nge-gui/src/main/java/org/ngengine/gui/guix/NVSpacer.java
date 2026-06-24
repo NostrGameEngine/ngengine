@@ -40,6 +40,7 @@
 
 package org.ngengine.gui.guix;
 
+import org.ngengine.gui.NGEStyle;
 import org.ngengine.gui.Panel;
 
 import org.ngengine.gui.style.ElementId;
@@ -52,12 +53,12 @@ public class NVSpacer extends Panel {
         super(new ElementId(ELEMENT_ID));
         applyStyles(NVSpacer.class);
 
-        setPreferredSize(new com.jme3.math.Vector3f(0, 12, 0));
+        setPreferredSize(new com.jme3.math.Vector3f(0, NGEStyle.px(12), 0));
         setBackground(null);
         setBorder(null);
     }
 
     public void setHeight(int height) {
-        setPreferredSize(new com.jme3.math.Vector3f(0, height, 0));
+        setPreferredSize(new com.jme3.math.Vector3f(0, NGEStyle.px(height), 0));
     }
 }

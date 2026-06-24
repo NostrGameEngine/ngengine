@@ -101,8 +101,12 @@ public class DefaultCursor extends Node {
     }
 
     public void setSize(float sizePx) {
-        this.sizePx = Math.max(8f, sizePx);
+        this.sizePx = Math.max(0.001f, sizePx);
         rebuild();
+    }
+
+    public float getSize() {
+        return sizePx;
     }
 
     /** Call this after changing fillColor/borderColor. */

@@ -73,6 +73,7 @@ import org.ngengine.gui.anim.AnimationHandler;
 import org.ngengine.gui.ime.DummyImeComposer;
 import org.ngengine.gui.ime.ImeComposer;
 import org.ngengine.gui.ime.ImeCompositionEvent;
+import org.ngengine.gui.guix.win.NWindowManagerComponent;
 import org.ngengine.gui.nav.FocusTarget;
 import org.ngengine.gui.nav.Navigator;
 import org.ngengine.gui.nav.PopupHandler;
@@ -169,6 +170,61 @@ public class GuiContext {
             throw new IllegalStateException("ViewPort has been garbage collected");
         }
         return view.getCamera();
+    }
+
+    public boolean isRelativeSize() {
+        return NWindowManagerComponent.isRelativeSize(getGuiCamera());
+    }
+
+    public int getPhysicalWidth() {
+        ViewPort view = getViewPort();
+        return view == null ? getGuiCamera().getWidth() : view.getRenderTargetWidth();
+    }
+
+    public int getPhysicalHeight() {
+        ViewPort view = getViewPort();
+        return view == null ? getGuiCamera().getHeight() : view.getRenderTargetHeight();
+    }
+
+    public float getLogicalWidth() {
+        Camera cam = getGuiCamera();
+        if (!isRelativeSize()) return cam.getWidth();
+        return cam.getWidth() / (float) NWindowManagerComponent.RELATIVE_CAMERA_SCALE;
+    }
+
+    public float getLogicalHeight() {
+        Camera cam = getGuiCamera();
+        if (!isRelativeSize()) return cam.getHeight();
+        return cam.getHeight() / (float) NWindowManagerComponent.RELATIVE_CAMERA_SCALE;
+    }
+
+    public float getLogicalScale() {
+        return isRelativeSize() ? NWindowManagerComponent.RELATIVE_CAMERA_SCALE : 1f;
+    }
+
+    public float toGuiX(double physicalX) {
+        if (!isRelativeSize()) return (float) physicalX;
+        return (float) (physicalX / Math.max(getPhysicalHeight(), 1));
+    }
+
+    public float toGuiY(double physicalY) {
+        if (!isRelativeSize()) return (float) physicalY;
+        return (float) (physicalY / Math.max(getPhysicalHeight(), 1));
+    }
+
+    public float toGuiDeltaX(double physicalDeltaX) {
+        if (!isRelativeSize()) return (float) physicalDeltaX;
+        return (float) (physicalDeltaX / Math.max(getPhysicalHeight(), 1));
+    }
+
+    public float toGuiDeltaY(double physicalDeltaY) {
+        if (!isRelativeSize()) return (float) physicalDeltaY;
+        return (float) (physicalDeltaY / Math.max(getPhysicalHeight(), 1));
+    }
+
+    public float toGuiDistance(double physicalDistance) {
+        if (!isRelativeSize()) return (float) physicalDistance;
+        return (float) (physicalDistance / Math.max(getPhysicalHeight(), 1));
     }
 
     public Node getGuiNode() {
@@ -383,6 +439,10 @@ public class GuiContext {
             Camera cam = getViewPort().getCamera();
 
             if (root.getQueueBucket() == Bucket.Gui) {
+                if (isRelativeSize()) {
+                    float scale = getLogicalScale();
+                    cursor.multLocal(scale);
+                }
                 float[] range = vars.fADdU;
                 getZBounds(root, range);
 

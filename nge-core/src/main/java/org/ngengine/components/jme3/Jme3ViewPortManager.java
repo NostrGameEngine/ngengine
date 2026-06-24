@@ -61,6 +61,25 @@ public class Jme3ViewPortManager implements ViewPortManager {
     }
 
     @Override
+    public ViewPort createNewGuiViewPort(String name, Camera cam) {
+        ViewPort vp = app.getRenderManager().createManagedPostView(name, cam);
+        vp.setClearFlags(false, false, false);
+        Camera mainCamera = app.getCamera();
+        if (mainCamera != null) {
+            vp.setRenderTargetSize(mainCamera.getWidth(), mainCamera.getHeight());
+        }
+        return vp;
+    }
+
+    @Override
+    public boolean removeGuiViewPort(ViewPort vp) {
+        if (vp == null) {
+            return false;
+        }
+        return app.getRenderManager().removePostView(vp);
+    }
+
+    @Override
     public List<ViewPort> getSceneViewPorts() {
         return sceneViewPortsRO;
     }
