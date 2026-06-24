@@ -405,6 +405,7 @@ public final class AppSettings extends HashMap<String, Object> {
         defaults.put("OnDeviceJoystickRumble", false);
         defaults.put("VirtualJoystick", VIRTUAL_JOYSTICK_ENABLED);
         defaults.put("VirtualJoystickDefaultLayout", VIRTUAL_JOYSTICK_LAYOUT_DYNAMIC);
+        defaults.put("HardwareCursor", true);
         //  defaults.put("Icons", null);
     }
 
@@ -1900,5 +1901,22 @@ public final class AppSettings extends HashMap<String, Object> {
      */
     public String getSDLGameControllerDBResourcePath() {
         return getString("SDLGameControllerDBResourcePath");
+    }
+
+    /**
+     * Set if to use hardware cursor by default (if supported by the platform).
+     * @param v true to use hardware cursor, false to use software cursor
+     * (Default: true)
+     */
+    public void setHardwareCursor(boolean v){
+        putBoolean("HardwareCursor", v);
+    }
+
+    /**
+     * Returns true if hardware cursor should be used by default
+     * @return true if hardware cursor should be used by default, false otherwise
+     */
+    public boolean isHardwareCursor(){
+        return getBoolean("HardwareCursor");
     }
 }

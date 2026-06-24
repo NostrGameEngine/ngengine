@@ -55,6 +55,8 @@ import com.jme3.renderer.Camera;
 import com.jme3.renderer.ViewPort;
 import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.Node;
+import com.jme3.system.AppSettings;
+
 import org.ngengine.gui.nav.DefaultNavigatorInputHandler;
 import org.ngengine.gui.nav.NavigatorInputHandler;
 
@@ -96,6 +98,9 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
     private Node defaultGuiNode;
     private int physicalWidth = 1;
     private int physicalHeight = 1;
+
+    
+
 
     public NWindowManagerComponent() {
         this(false);
@@ -146,6 +151,13 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
                 inputHandler.setBackAction(()->{
                     newmanager.back();
                 });
+
+                AppSettings settings = getInstanceOf(AppSettings.class);
+                if (settings != null) {
+                    boolean useHardwareCursor = settings.isHardwareCursor();
+                    newmanager.getContext().getNavigator().setHardwareCursor(useHardwareCursor);
+                }
+
             } catch (Exception e) {
                 log.log(Level.SEVERE,"Failed to create input handler",e);
             }
