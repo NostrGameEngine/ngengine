@@ -40,6 +40,7 @@ import com.jme3.input.InputManager;
 import com.jme3.renderer.Camera;
 import com.jme3.renderer.RenderManager;
 import com.jme3.renderer.ViewPort;
+import com.jme3.system.AppSettings;
 
 import java.util.logging.Logger;
 import org.ngengine.AsyncAssetManager;
@@ -174,6 +175,9 @@ public abstract class Jme3AppComponentManager extends AbstractComponentManager{
         }
         if (type==MainThreadRunner.class){
             return type.cast(MainThreadRunner.of(this.getApplication()));
+        }
+        if(type==AppSettings.class){
+            return type.cast(this.getApplication().getContext().getSettings());
         }
         return super.getInstanceOf(type);
     }
