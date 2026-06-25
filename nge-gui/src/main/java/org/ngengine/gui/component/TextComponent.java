@@ -153,7 +153,10 @@ public class TextComponent extends AbstractGuiComponent
      */
     @Override
     public void setMaxWidth( float f ) {
+        if( this.maxWidth == f )
+            return;
         this.maxWidth = f;
+        invalidate();
     }
 
     @Override
