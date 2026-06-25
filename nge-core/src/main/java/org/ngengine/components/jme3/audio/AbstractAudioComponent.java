@@ -33,47 +33,23 @@
 package org.ngengine.components.jme3.audio;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 import org.ngengine.AsyncAssetManager;
 import org.ngengine.components.AbstractComponent;
-import org.ngengine.components.Component;
 import org.ngengine.components.ComponentManager;
-import org.ngengine.components.fragments.AsyncAssetLoadingFragment;
+import org.ngengine.components.ReloadableComponent;
 import org.ngengine.components.fragments.LogicFragment;
 import org.ngengine.runner.MainThreadRunner;
-import org.ngengine.runner.Runner;
-import org.ngengine.store.DataStore;
-import org.ngengine.store.DataStoreProvider;
-
-import com.jme3.asset.AssetManager;
-import com.jme3.asset.AssetNotFoundException;
-import com.jme3.audio.AudioData;
-import com.jme3.audio.AudioData.DataType;
 import com.jme3.audio.AudioKey;
-import com.jme3.audio.AudioNode;
-import com.jme3.audio.AudioParam;
 import com.jme3.audio.AudioRenderer;
-import com.jme3.audio.AudioSource;
-import com.jme3.audio.AudioStream;
-import com.jme3.audio.Filter;
 import com.jme3.export.InputCapsule;
 import com.jme3.export.JmeExporter;
 import com.jme3.export.JmeImporter;
 import com.jme3.export.OutputCapsule;
 import com.jme3.math.Transform;
-import com.jme3.math.Vector3f;
-import com.jme3.util.PlaceholderAssets;
-import com.jme3.util.clone.Cloner;
 
-public abstract class AbstractAudioComponent  extends AbstractComponent implements  LogicFragment {
+public abstract class AbstractAudioComponent  extends AbstractComponent implements  LogicFragment, ReloadableComponent {
     private Map<AudioKey,Sound> sounds = new HashMap<>();
 
     @Override
@@ -126,6 +102,11 @@ public abstract class AbstractAudioComponent  extends AbstractComponent implemen
             s.stop();
         }  
         sounds.clear();
+    }
+
+    @Override
+    public void reload() {
+        clear();
     }
 
     public void free(AudioKey key){

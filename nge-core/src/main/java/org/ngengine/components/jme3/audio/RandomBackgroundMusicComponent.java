@@ -56,6 +56,7 @@ public class RandomBackgroundMusicComponent extends AbstractAudioComponent {
     private int lastMusicId = -1;
     private String musicPath = "bgmusic/";
     private int lastSeed = 0;
+    private boolean autoDetectLastMusicId = true;
     private transient Sound selectedSound = null;
 
     @Override
@@ -73,6 +74,7 @@ public class RandomBackgroundMusicComponent extends AbstractAudioComponent {
         this.musicPath = musicPath.endsWith("/") ? musicPath : musicPath + "/";
         this.firstMusicId = firstMusicId;
         this.lastMusicId = lastMusicId;
+        this.autoDetectLastMusicId = lastMusicId == -1;
 
     }
 
@@ -103,6 +105,7 @@ public class RandomBackgroundMusicComponent extends AbstractAudioComponent {
         oc.write(lastMusicId, "last_music_id", -1);
         oc.write(musicPath, "music_path", "bgmusic/");
         oc.write(lastSeed, "last_seed", 0);
+        oc.write(autoDetectLastMusicId, "auto_detect_last_music_id", true);
         oc.write(soundKeys.toArray(new AudioKey[0]), "sound_keys", null);
         
     }
@@ -116,6 +119,7 @@ public class RandomBackgroundMusicComponent extends AbstractAudioComponent {
         lastMusicId = ic.readInt("last_music_id", -1);
         musicPath = ic.readString("music_path", "bgmusic/");
         lastSeed = ic.readInt("last_seed", 0);
+        autoDetectLastMusicId = ic.readBoolean("auto_detect_last_music_id", lastMusicId == -1);
         AudioKey[] keys = (AudioKey[]) ic.readSavableArray("sound_keys", null);
         soundKeys.clear();
         if (keys != null) {
@@ -129,9 +133,9 @@ public class RandomBackgroundMusicComponent extends AbstractAudioComponent {
     protected void reloadMusic() {
         AsyncAssetManager assetManager = getInstanceOf(AsyncAssetManager.class);
 
-        int s = firstMusicId;
-        if (lastMusicId == -1) {
-            int i = s;
+        soundKeys.clear();
+        if (autoDetectLastMusicId) {
+            int i = firstMusicId;
             while (true) {
                 AudioKey k = new AudioKey(musicPath + "" + (i) + ".ogg");
                 logger.fine("Locating background music: " + k);
@@ -144,12 +148,18 @@ public class RandomBackgroundMusicComponent extends AbstractAudioComponent {
             }
             logger.info("Located " + (i - 1) + " background music tracks in path: " + musicPath);
             lastMusicId = i - 1;
+        } else {
+            for (int i = firstMusicId; i <= lastMusicId; i++) {
+                AudioKey k = new AudioKey(musicPath + "" + i + ".ogg");
+                soundKeys.add(k);
+                get(k); // preload
+            }
         }
 
     }
 
     protected void selectMusic(int seed) {
-        if (lastMusicId == 0) return;
+        if (soundKeys.isEmpty()) return;
         lastSeed = seed;
 
         int s = firstMusicId;
@@ -176,6 +186,14 @@ public class RandomBackgroundMusicComponent extends AbstractAudioComponent {
         }
        
 
+    }
+
+    @Override
+    public void reload() {
+        clear();
+        selectedSound = null;
+        reloadMusic();
+        selectMusic(lastSeed);
     }
 
     public Sound getCurrentMusic() {

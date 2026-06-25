@@ -70,6 +70,7 @@ import org.ngengine.ViewPortManager;
 import org.ngengine.components.AbstractComponent;
 import org.ngengine.components.Component;
 import org.ngengine.components.ComponentManager;
+import org.ngengine.components.ReloadableComponent;
 import org.ngengine.components.fragments.InputHandlerFragment;
 import org.ngengine.components.fragments.LogicFragment;
 import org.ngengine.components.jme3.AppComponentInitializer.InputActions;
@@ -79,7 +80,7 @@ import org.ngengine.gui.NGEStyle;
 import org.ngengine.gui.guix.win.NToast.ToastType;
 import org.ngengine.store.DataStoreProvider;
 
-public class NWindowManagerComponent extends AbstractComponent implements LogicFragment, InputHandlerFragment {
+public class NWindowManagerComponent extends AbstractComponent implements LogicFragment, InputHandlerFragment, ReloadableComponent {
 
     private static final Logger log = Logger.getLogger(NWindowManagerComponent.class.getName());
     public static final String RELATIVE_CAMERA_NAME = "NGE GUI Relative";
@@ -687,6 +688,16 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
         InputManager inputManager = getInstanceOf(InputManager.class);
         if (inputManager != null) {
             inputManager.releaseActiveMappings();
+        }
+    }
+
+    @Override
+    public void reload() {
+        for(NWindowManager manager : windowManagers) {
+            NWindow<?>[] windows = manager.getWindows().toArray(new NWindow[0]);
+            for(NWindow<?> window : windows) {
+                window.reloadNow();
+            }
         }
     }
 }

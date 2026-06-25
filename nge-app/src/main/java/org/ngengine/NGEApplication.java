@@ -87,6 +87,7 @@ public class NGEApplication implements ComponentManagerProvider{
 
         @Override
         public void simpleInitApp() {
+            DevMode.setDevModeEnabled(true);
             getRenderManager().setSinglePassLightBatchSize(16);
 
             flyCam.setEnabled(false);

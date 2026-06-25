@@ -43,6 +43,7 @@ package org.ngengine.gui.guix.win;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -454,6 +455,10 @@ public class NWindowManager {
             if(filter.test(window))return (T) window;
         }
         return null;
+    }
+
+    Collection<NWindow<?>> getWindows() {
+        return windows;
     }
 
     public void closeAllWindows() {

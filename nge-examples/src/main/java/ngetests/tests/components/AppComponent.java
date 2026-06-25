@@ -39,6 +39,7 @@ import org.ngengine.Components;
 import org.ngengine.ViewPortManager;
 import org.ngengine.components.AbstractComponent;
 import org.ngengine.components.ComponentManager;
+import org.ngengine.components.ReloadableComponent;
 import org.ngengine.components.fragments.AsyncAssetLoadingFragment;
 import org.ngengine.gui.guix.NLabel;
 import org.ngengine.gui.guix.containers.NRow;
@@ -56,7 +57,7 @@ import com.jme3.scene.Spatial;
 import com.jme3.scene.shape.Box;
 import com.jme3.util.SkyFactory;
 
-public class AppComponent extends AbstractComponent implements AsyncAssetLoadingFragment{
+public class AppComponent extends AbstractComponent implements AsyncAssetLoadingFragment, ReloadableComponent{
     
     private Spatial sky;
     private EnvironmentProbeControl evp;
@@ -130,6 +131,15 @@ public class AppComponent extends AbstractComponent implements AsyncAssetLoading
         rootNode.detachChild(characterNode);
         hud.close();
         hud = null;        
+    }
+
+    @Override
+    public void reload() {
+        ComponentManager mng = getComponentManager();
+        if (mng != null && hud != null) {
+            onDisable(mng);
+            onEnable(mng, false);
+        }
     }
 
 

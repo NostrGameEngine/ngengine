@@ -53,6 +53,7 @@ import org.ngengine.ViewPortManager;
 import org.ngengine.components.AbstractComponent;
 import org.ngengine.components.Component;
 import org.ngengine.components.ComponentManager;
+import org.ngengine.components.ReloadableComponent;
 import org.ngengine.components.fragments.LogicFragment;
 import org.ngengine.export.NostrPrivateKeySavableWrapper;
 import org.ngengine.nostr4j.NostrPool;
@@ -76,7 +77,7 @@ import org.ngengine.runner.Runner;
 import org.ngengine.store.DataStore;
 import org.ngengine.store.DataStoreProvider;
 
-public class ImmersiveAdComponent  extends AbstractComponent implements  LogicFragment {
+public class ImmersiveAdComponent  extends AbstractComponent implements  LogicFragment, ReloadableComponent {
 
     private static final Logger logger = Logger.getLogger(ImmersiveAdComponent.class.getName());
     private AdsDisplayClient displayClient;
@@ -154,6 +155,11 @@ public class ImmersiveAdComponent  extends AbstractComponent implements  LogicFr
                 }
             }
         }
+    }
+
+    @Override
+    public void reload() {
+        refreshAll();
     }
 
     public void setDefaultPriceSlot(AdPriceSlot priceSlot) {

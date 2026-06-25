@@ -44,6 +44,7 @@ import com.jme3.system.AppSettings;
 
 import java.util.logging.Logger;
 import org.ngengine.AsyncAssetManager;
+import org.ngengine.DevMode;
 import org.ngengine.ViewPortManager;
 import org.ngengine.components.AbstractComponentManager;
 import org.ngengine.components.ComponentManager;
@@ -98,6 +99,7 @@ public abstract class Jme3AppComponentManager extends AbstractComponentManager{
         mng.getUpdaters().add(new AppViewPortComponentUpdater(app));
         mng.getUpdaters().add(new AppComponentUpdater(app));
         mng.getLoaders().add(new AppComponentLoader(app));
+        DevMode.registerForReload(this);
 
     }
     

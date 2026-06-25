@@ -13,6 +13,7 @@ import org.ngengine.AsyncAssetManager;
 import org.ngengine.Components;
 import org.ngengine.components.AbstractComponent;
 import org.ngengine.components.ComponentManager;
+import org.ngengine.components.ReloadableComponent;
 import org.ngengine.network.components.NetcodeManagerComponent;
 
 import com.jme3.asset.AssetManager;
@@ -27,7 +28,7 @@ import org.ngengine.world2d.tiled.core.tileset.Tileset;
 import org.ngengine.world2d.tiled.enums.ObjectShape;
 import org.ngengine.world2d.tiled.util.CoordinateSystem;
 
-public class TiledParticlesSystem extends AbstractComponent {
+public class TiledParticlesSystem extends AbstractComponent implements ReloadableComponent {
     private final Logger logger = Logger.getLogger(TiledParticlesSystem.class.getName());
     private Map<String, Map<String,Tile>> particles = new HashMap<>();
     private List<TiledObjectEntity> foundObjects= new ArrayList<>();
@@ -43,6 +44,12 @@ public class TiledParticlesSystem extends AbstractComponent {
     @Override
     protected void onDisable(ComponentManager mng) {
 
+    }
+
+    @Override
+    public void reload() {
+        particles.clear();
+        foundObjects.clear();
     }
 
     private void loadParticles(String tileset, Tileset ts) {
