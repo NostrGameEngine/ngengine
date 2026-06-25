@@ -165,6 +165,22 @@ public class GridPanel extends Panel {
         return visibleColumns;
     }
 
+    public void setRowFillMode(FillMode fillMode) {
+        layout.setFillModes(fillMode, layout.getMinorFillMode());
+    }
+
+    public FillMode getRowFillMode() {
+        return layout.getMainFillMode();
+    }
+
+    public void setColumnFillMode(FillMode fillMode) {
+        layout.setFillModes(layout.getMainFillMode(), fillMode);
+    }
+
+    public FillMode getColumnFillMode() {
+        return layout.getMinorFillMode();
+    }
+
     public void setAlpha( float alpha, boolean recursive ) {
         this.alpha = alpha;
         super.setAlpha(alpha, recursive);

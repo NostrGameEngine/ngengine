@@ -174,9 +174,8 @@ public class Slider extends Panel implements FocusListener {
     }
     @SuppressWarnings("unchecked") // because Java doesn't like var-arg generics
     protected final void setupCommands() {
-        double sign = axis == Axis.Y ? -1 : 1;
-        increment.addClickCommands(new ChangeValueCommand(sign));
-        decrement.addClickCommands(new ChangeValueCommand(-sign));
+        increment.addClickCommands(new ChangeValueCommand(1));
+        decrement.addClickCommands(new ChangeValueCommand(-1));
     }
 
     public void setModel( RangedValueModel model ) {

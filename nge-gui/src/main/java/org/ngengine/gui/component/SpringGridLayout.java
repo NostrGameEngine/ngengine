@@ -100,6 +100,23 @@ public class SpringGridLayout extends AbstractGuiComponent
         }
     }
 
+    public void setFillModes(FillMode mainFill, FillMode minorFill) {
+        if (this.mainFill == mainFill && this.minorFill == minorFill) {
+            return;
+        }
+        this.mainFill = mainFill;
+        this.minorFill = minorFill;
+        invalidate();
+    }
+
+    public FillMode getMainFillMode() {
+        return mainFill;
+    }
+
+    public FillMode getMinorFillMode() {
+        return minorFill;
+    }
+
     @Override
     public SpringGridLayout clone() {
         // Easier and better to just instantiate with the proper

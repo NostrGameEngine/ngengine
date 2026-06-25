@@ -346,6 +346,25 @@ public class ListBox<T> extends Panel  {
         return grid.getVisibleRows();
     }
 
+    @StyleAttribute(value = "rowFillMode", lookupDefault = false)
+    public void setRowFillMode(FillMode fillMode) {
+        grid.setRowFillMode(fillMode);
+        refreshSelector();
+    }
+
+    public FillMode getRowFillMode() {
+        return grid.getRowFillMode();
+    }
+
+    @StyleAttribute(value = "variableCellHeights", lookupDefault = false)
+    public void setVariableCellHeights(boolean enabled) {
+        setRowFillMode(enabled ? FillMode.None : FillMode.ForcedEven);
+    }
+
+    public boolean isVariableCellHeights() {
+        return getRowFillMode() == FillMode.None;
+    }
+
     @StyleAttribute(value = "cellRenderer", lookupDefault = false)
     public void setCellRenderer(ValueRenderer<T> renderer) {
         if (Objects.equals(this.cellRenderer, renderer)) {
