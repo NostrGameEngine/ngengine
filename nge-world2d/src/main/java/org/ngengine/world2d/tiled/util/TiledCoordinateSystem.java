@@ -47,6 +47,7 @@ import org.ngengine.world2d.tiled.enums.Orientation;
 import org.ngengine.world2d.tiled.enums.StaggerAxis;
 import org.ngengine.world2d.tiled.enums.StaggerIndex;
 import org.ngengine.world2d.tiled.math2d.Point;
+import org.ngengine.world2d.tiled.renderer.TileObjectAlignment;
 
 /**
  * Coordinate conversion for one tiled map.
@@ -606,15 +607,33 @@ public final class TiledCoordinateSystem implements CoordinateSystem {
         float centerY;
 
         if (obj.getShape() == ObjectShape.TILE) {
-            if (orientation == Orientation.ISOMETRIC) {
-                float halfHeight = (float) (obj.getHeight() * 0.5);
-                float ratio = (float) sourceTileWidth / (float) sourceTileHeight;
-                centerX = (float) obj.getX() - halfHeight * ratio;
-                centerY = (float) obj.getY() - halfHeight;
-            } else {
-                centerX = (float) (obj.getX() + obj.getWidth() * 0.5);
-                centerY = (float) (obj.getY() - obj.getHeight() * 0.5);
+            Tile tile = obj.getTile();
+            if (tile != null) {
+                float width = (float) obj.getWidth();
+                float height = (float) obj.getHeight();
+                float offsetX = 0f;
+                float offsetY = 0f;
+                if (tile.getTileset() != null && tile.getTileset().getTileOffset() != null) {
+                    offsetX = tile.getTileset().getTileOffset().x;
+                    offsetY = tile.getTileset().getTileOffset().y;
+                }
+
+                Vector2f origin = TileObjectAlignment.origin(orientation, tile, width, height);
+                try (TempVars vars = TempVars.get()) {
+                    Vector2f baseWorld = vars.vect2d;
+                    gridToWorldSpace((float) obj.getX(), (float) obj.getY(), baseWorld);
+
+                    Vector2f worldCenter = vars.vect2d2;
+                    worldCenter.set(
+                        baseWorld.x + origin.x + offsetX + width * 0.5f,
+                        baseWorld.y + origin.y + offsetY - height * 0.5f
+                    );
+                    worldToGridSpace(worldCenter.x, worldCenter.y, out);
+                }
+                return;
             }
+            centerX = (float) (obj.getX() + obj.getWidth() * 0.5);
+            centerY = (float) (obj.getY() - obj.getHeight() * 0.5);
         } else {
             centerX = (float) (obj.getX() + obj.getWidth() * 0.5);
             centerY = (float) (obj.getY() + obj.getHeight() * 0.5);
