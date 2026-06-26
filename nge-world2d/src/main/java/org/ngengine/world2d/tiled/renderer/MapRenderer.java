@@ -204,8 +204,6 @@ public abstract class MapRenderer {
     private static final String DECAL_SIZE_PROPERTY = "decal.size";
     private static final String DECAL_OFFSET_X_PROPERTY = "decal.offsetX";
     private static final String DECAL_OFFSET_Y_PROPERTY = "decal.offsetY";
-    private static final String DECAL_HIDDEN_PROPERTY = "decal.hidden";
-    private static final String SOCKET_HIDE_DECAL_PROPERTY = "socket.hideDecal";
     private static final String DEFAULT_DECAL_TILESET = "tilesetDECALS";
     private static final RenderRef EMPTY_RENDER_REF = new RenderRef(0);
     private final MatParamOverride tileAlphaOcclusionEnabledOverride =
@@ -1245,9 +1243,6 @@ public abstract class MapRenderer {
             if (layer >= DECAL_LAYERS) {
                 break;
             }
-            if (isDecalHidden(decalObject)) {
-                continue;
-            }
             Object decalTileValue = decalObject.getProperty(DECAL_TILE_PROPERTY);
             if (decalTileValue == null) {
                 continue;
@@ -1303,18 +1298,6 @@ public abstract class MapRenderer {
         material.setVector4(MaterialConst.DECAL_2, decals[2]);
         material.setVector4(MaterialConst.DECAL_3, decals[3]);
         material.setFloat(MaterialConst.DECAL_FLIP_FLAGS, getShaderFlipFlags(tile));
-    }
-
-    private boolean isDecalHidden(TiledObjectEntity decalObject) {
-        return isTruthy(decalObject.getProperty(DECAL_HIDDEN_PROPERTY))
-                || isTruthy(decalObject.getProperty(SOCKET_HIDE_DECAL_PROPERTY));
-    }
-
-    private boolean isTruthy(Object value) {
-        if (value instanceof Boolean) {
-            return (Boolean) value;
-        }
-        return value != null && Boolean.parseBoolean(String.valueOf(value));
     }
 
     private int getShaderFlipFlags(Tile tile) {

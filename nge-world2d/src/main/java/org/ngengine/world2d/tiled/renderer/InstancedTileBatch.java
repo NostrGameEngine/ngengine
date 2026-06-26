@@ -70,8 +70,6 @@ final class InstancedTileBatch {
     private static final String DECAL_SIZE_PROPERTY = "decal.size";
     private static final String DECAL_OFFSET_X_PROPERTY = "decal.offsetX";
     private static final String DECAL_OFFSET_Y_PROPERTY = "decal.offsetY";
-    private static final String DECAL_HIDDEN_PROPERTY = "decal.hidden";
-    private static final String SOCKET_HIDE_DECAL_PROPERTY = "socket.hideDecal";
     private static final String DEFAULT_DECAL_TILESET = "tilesetDECALS";
     private static final int MIN_CAPACITY = 16;
     private static final int SHRINK_AFTER_UPDATES = 300;
@@ -278,9 +276,6 @@ final class InstancedTileBatch {
             if (layer >= InstancedTileRecord.DECAL_LAYERS) {
                 return;
             }
-            if (isDecalHidden(decalObject)) {
-                continue;
-            }
             Object decalTileValue = decalObject.getProperty(DECAL_TILE_PROPERTY);
             if (decalTileValue == null) {
                 continue;
@@ -322,18 +317,6 @@ final class InstancedTileBatch {
             tmpDecalScale[layer] = decalScaleValue != null ? NGEUtils.safeFloat(decalScaleValue) : decalSize / tileWidth;
             layer++;
         }
-    }
-
-    private boolean isDecalHidden(TiledObjectEntity decalObject) {
-        return isTruthy(decalObject.getProperty(DECAL_HIDDEN_PROPERTY))
-                || isTruthy(decalObject.getProperty(SOCKET_HIDE_DECAL_PROPERTY));
-    }
-
-    private boolean isTruthy(Object value) {
-        if (value instanceof Boolean) {
-            return (Boolean) value;
-        }
-        return value != null && Boolean.parseBoolean(String.valueOf(value));
     }
 
     private InstancedTileRecord getRecord(TiledBase entry) {
