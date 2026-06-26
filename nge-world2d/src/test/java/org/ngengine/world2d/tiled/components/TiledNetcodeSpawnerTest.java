@@ -2,14 +2,17 @@ package org.ngengine.world2d.tiled.components;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 import java.lang.reflect.Method;
 import java.math.BigInteger;
 import java.util.Objects;
 
 import org.junit.Test;
+import org.ngengine.Components;
 import org.ngengine.components.AbstractComponent;
 import org.ngengine.components.ComponentManager;
+import org.ngengine.network.components.NetcodeManagerComponent;
 import org.ngengine.network.components.SnapshotMessage;
 import org.ngengine.network.protocol.NetworkSafe;
 
@@ -55,6 +58,24 @@ public class TiledNetcodeSpawnerTest {
         RecordingNetcodeComponent component = entity.getComponentManager().getComponent(RecordingNetcodeComponent.class);
         assertNotNull(component);
         assertEquals(123, component.getLastValue());
+    }
+
+    @Test
+    public void localOnlyEntitiesKeepLocalAuthorityWhenNetcodeManagerExists() {
+        TiledObjectEntity entity = new TiledObjectEntity(BigInteger.valueOf(-1), 0, 0, 16, 16);
+        Components.mount(entity, new NetcodeManagerComponent());
+        RecordingNetcodeComponent component = Components.mount(entity, new RecordingNetcodeComponent()).get();
+
+        assertEquals(true, component.checkAuthority());
+    }
+
+    @Test
+    public void localOnlyObjectSyncDoesNotPublishSnapshots() {
+        TiledObjectEntity entity = new TiledObjectEntity(BigInteger.valueOf(-1), 0, 0, 16, 16);
+        TiledObjectSyncComponent sync = entity.getComponentManager().getComponent(TiledObjectSyncComponent.class);
+
+        assertNotNull(sync);
+        assertNull(sync.requestSnapshot(null));
     }
 
     private static Object invoke(Object target, String name, Class<?>[] types, Object... args) throws Exception {

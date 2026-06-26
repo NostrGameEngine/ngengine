@@ -24,9 +24,13 @@ public interface NetcodeFragment  extends ActionBasedFragment<ActionMessage> {
             }
         }
         if(net==null) return true;
+        BigInteger networkId = getNetworkId();
+        if (networkId == null || networkId.signum() < 0) {
+            return true;
+        }
         return NetcodeAuthorityAssignment.hasAuthority(
             net.getLocalPeerPublicKey(), 
-            getNetworkId(),
+            networkId,
             net.getKnownPeerPublicKeys(),
             net.getLocalPeerPublicKey()
         );

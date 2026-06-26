@@ -12,15 +12,20 @@ import java.math.BigInteger;
 import org.ngengine.AsyncAssetManager;
 import org.ngengine.Components;
 import org.ngengine.components.AbstractComponent;
+import org.ngengine.components.Component;
 import org.ngengine.components.ComponentManager;
 import org.ngengine.components.ReloadableComponent;
 import org.ngengine.network.components.NetcodeManagerComponent;
+import org.ngengine.network.components.NetcodeFragment;
+import org.ngengine.network.components.NetcodePartitioning;
+import org.ngengine.nostr4j.keypair.NostrPublicKey;
 
 import com.jme3.asset.AssetManager;
 import com.jme3.math.Vector2f;
 import com.jme3.util.TempVars;
 
 import org.ngengine.world2d.tiled.core.TiledBase;
+import org.ngengine.world2d.tiled.core.TiledMap;
 import org.ngengine.world2d.tiled.core.TiledObjectLayer;
 import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
 import org.ngengine.world2d.tiled.core.tileset.Tile;
@@ -34,7 +39,7 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
     private List<TiledObjectEntity> foundObjects= new ArrayList<>();
     private static final AtomicLong LOCAL_PARTICLE_ID = new AtomicLong(-1L);
 
-    
+
 
     @Override
     protected void onEnable(ComponentManager mng, boolean firstTime) {
@@ -72,16 +77,18 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
 
     }
 
-    public TiledObjectEntity spawn(
-        String tileset, 
-        String name, 
+    private TiledObjectEntity spawnInternal(
+        Object source,
+        String tileset,
+        String name,
         TiledObjectLayer layer,
-        float screenX, 
-        float screenY, 
+        float screenX,
+        float screenY,
         float baseWidth,
         float baseHeight,
         float scale,
-        boolean onlyIfEmpty
+        boolean onlyIfEmpty,
+        boolean networkSync
     ) {
         try(TempVars vars = TempVars.get()){
             Map<String, Tile> map = particles.get(tileset);
@@ -101,14 +108,12 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
             if (tile == null) {
                 logger.log(Level.WARNING, "No particle named " + name + " in tileset: " + tileset);
                 return null;
-            }   
+            }
 
             Vector2f pos = vars.vect2d;
             CoordinateSystem cs = layer.getComponentManager().getInstanceOf(CoordinateSystem.class);
             cs.worldToGridSpace(screenX, screenY, pos);
-            
 
-            
             if(onlyIfEmpty){
                 foundObjects.clear();
                 layer.getObjectsAt(pos.x, pos.y, foundObjects);
@@ -126,14 +131,14 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
                         }
                     }
                 }
-            } 
+            }
 
-            
-            TiledObjectEntity obj = new TiledObjectEntity(nextObjectId(false), pos.x, pos.y, tile.getWidth(), tile.getHeight());
+
+            TiledObjectEntity obj = new TiledObjectEntity(nextObjectId(source, networkSync), pos.x, pos.y, tile.getWidth(), tile.getHeight());
             obj.setVisible(true);
             obj.setShape(ObjectShape.TILE);
             obj.setTile(tile);
-             if(baseWidth>0){
+            if(baseWidth>0){
                 obj.setWidth(baseWidth);
             }
             if(baseHeight>0){
@@ -146,46 +151,272 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
             return obj;
 
         }
-   
+
 
     }
 
-    private BigInteger nextObjectId(boolean networkSync) {
-        if (networkSync) {
-            NetcodeManagerComponent net = getInstanceOf(NetcodeManagerComponent.class);
-            if (net != null) {
-                return net.getNextTemporaryNetworkUID();
+    private BigInteger nextObjectId(Object source, boolean networkSync) {
+        if (!networkSync) {
+            return nextLocalObjectId();
+        }
+
+        BigInteger sourceId = source != null ? getSourceNetworkId(source) : null;
+        if (source != null) {
+            if (sourceId == null || sourceId.signum() < 0) {
+                return nextLocalObjectId();
+            }
+            if (!isSourceLocallyAuthoritative(source)) {
+                return nextLocalObjectId();
+            }
+
+            if (!NetcodePartitioning.isReservedId(sourceId) && !NetcodePartitioning.isPersistentId(sourceId)) {
+                BigInteger sharedId = nextSharedObjectId(sourceId);
+                if (sharedId != null) {
+                    return sharedId;
+                }
             }
         }
+
+        NetcodeManagerComponent net = getInstanceOf(NetcodeManagerComponent.class);
+        if (net != null) {
+            try {
+                return net.getNextTemporaryNetworkUID();
+            } catch (IllegalStateException ex) {
+                logger.log(Level.FINE, "Cannot allocate networked particle id without a local peer key.", ex);
+            }
+        }
+        return nextLocalObjectId();
+    }
+
+    private BigInteger nextLocalObjectId() {
         return BigInteger.valueOf(LOCAL_PARTICLE_ID.getAndDecrement());
     }
 
-  
-    public TiledObjectEntity spawn(
-        String tileset, 
-        String name, 
-        TiledObjectLayer layer,
-        float screenX, 
-        float screenY,
-        float baseWidth,
-        float baseHeight,
-        float scale
-    ) {
-        return spawn(tileset, name, layer, screenX, screenY, baseWidth, baseHeight, scale, false);
-    }
-    public TiledObjectEntity spawnIfEmpty(
-        String tileset, 
-        String name, 
-        TiledObjectLayer layer,
-        float screenX, 
-        float screenY,
-        float baseWidth,
-        float baseHeight,
-        float scale
-    ) {
-        return spawn(tileset, name, layer, screenX, screenY, baseWidth, baseHeight, scale, true);
-   
+    private BigInteger nextSharedObjectId(BigInteger sourceId) {
+        NetcodeManagerComponent net = getInstanceOf(NetcodeManagerComponent.class);
+        TiledMap map = getInstanceOf(TiledMap.class);
+        if (map == null) {
+            return null;
+        }
 
+        NostrPublicKey sourceOwner = net != null ? net.resolveActiveOwnerPeerPublicKey(sourceId) : null;
+        int candidate = Math.max(1, map.getNextObjectId());
+        int attempts = 0;
+        while (candidate > 0 && candidate <= NetcodePartitioning.SHARED_MAX.intValue() && attempts < 4096) {
+            BigInteger candidateId = BigInteger.valueOf(candidate);
+            map.setNextObjectId(candidate + 1);
+            candidate++;
+            attempts++;
+
+            if (sourceOwner == null || net == null) {
+                return candidateId;
+            }
+            NostrPublicKey candidateOwner = net.resolveActiveOwnerPeerPublicKey(candidateId);
+            if (sourceOwner.equals(candidateOwner)) {
+                return candidateId;
+            }
+        }
+        return null;
+    }
+
+    private boolean isSourceLocallyAuthoritative(Object source) {
+        NetcodeFragment fragment = getSourceNetcodeFragment(source);
+        if (fragment != null) {
+            return fragment.checkAuthority();
+        }
+        return true;
+    }
+
+    private BigInteger getSourceNetworkId(Object source) {
+        NetcodeFragment fragment = getSourceNetcodeFragment(source);
+        if (fragment != null) {
+            return fragment.getNetworkId();
+        }
+        if (source instanceof TiledObjectEntity) {
+            return ((TiledObjectEntity) source).getId();
+        }
+        return null;
+    }
+
+    private NetcodeFragment getSourceNetcodeFragment(Object source) {
+        if (source instanceof NetcodeFragment) {
+            return (NetcodeFragment) source;
+        }
+        ComponentManager manager = null;
+        if (source instanceof TiledObjectEntity) {
+            manager = ((TiledObjectEntity) source).getComponentManager();
+        } else if (source instanceof Component) {
+            manager = ((Component) source).getComponentManager();
+        }
+        if (manager != null) {
+            NetcodeFragment fragment = manager.getComponent(TiledObjectSyncComponent.class);
+            if (fragment != null) {
+                return fragment;
+            }
+            fragment = manager.getComponent(TiledParticleComponent.class);
+            if (fragment != null) {
+                return fragment;
+            }
+        }
+        if (source instanceof Component) {
+            Object entity = ((Component) source).getInstanceOf(TiledObjectEntity.class);
+            if (entity instanceof TiledObjectEntity) {
+                ComponentManager entityManager = ((TiledObjectEntity) entity).getComponentManager();
+                NetcodeFragment fragment = entityManager.getComponent(TiledObjectSyncComponent.class);
+                if (fragment != null) {
+                    return fragment;
+                }
+                fragment = entityManager.getComponent(TiledParticleComponent.class);
+                if (fragment != null) {
+                    return fragment;
+                }
+            }
+        }
+        return null;
+    }
+    public TiledObjectEntity spawn(
+        String tileset,
+        String name,
+        TiledObjectLayer layer,
+        float screenX,
+        float screenY,
+        float baseWidth,
+        float baseHeight,
+        float scale
+    ) {
+        return spawn(tileset, name, layer, screenX, screenY, baseWidth, baseHeight, scale, false, false);
+    }
+
+    public TiledObjectEntity spawn(
+        String tileset,
+        String name,
+        TiledObjectLayer layer,
+        float screenX,
+        float screenY,
+        float baseWidth,
+        float baseHeight,
+        float scale,
+        boolean onlyIfEmpty
+    ) {
+        return spawn(tileset, name, layer, screenX, screenY, baseWidth, baseHeight, scale, onlyIfEmpty, false);
+    }
+
+    public TiledObjectEntity spawn(
+        String tileset,
+        String name,
+        TiledObjectLayer layer,
+        float screenX,
+        float screenY,
+        float baseWidth,
+        float baseHeight,
+        float scale,
+        boolean onlyIfEmpty,
+        boolean networkSync
+    ) {
+        return spawnInternal(null, tileset, name, layer, screenX, screenY, baseWidth, baseHeight, scale, onlyIfEmpty, networkSync);
+    }
+
+    public TiledObjectEntity spawnNetworked(
+        String tileset,
+        String name,
+        TiledObjectLayer layer,
+        float screenX,
+        float screenY,
+        float baseWidth,
+        float baseHeight,
+        float scale
+    ) {
+        return spawnNetworked(tileset, name, layer, screenX, screenY, baseWidth, baseHeight, scale, false);
+    }
+
+    public TiledObjectEntity spawnNetworked(
+        String tileset,
+        String name,
+        TiledObjectLayer layer,
+        float screenX,
+        float screenY,
+        float baseWidth,
+        float baseHeight,
+        float scale,
+        boolean onlyIfEmpty
+    ) {
+        return spawn(tileset, name, layer, screenX, screenY, baseWidth, baseHeight, scale, onlyIfEmpty, true);
+    }
+
+    public TiledObjectEntity spawnFrom(
+        Object source,
+        String tileset,
+        String name,
+        TiledObjectLayer layer,
+        float screenX,
+        float screenY,
+        float baseWidth,
+        float baseHeight,
+        float scale,
+        boolean onlyIfEmpty
+    ) {
+        BigInteger sourceId = getSourceNetworkId(source);
+        boolean networkSync = sourceId != null && sourceId.signum() >= 0;
+        return spawnFrom(source, tileset, name, layer, screenX, screenY, baseWidth, baseHeight, scale, onlyIfEmpty, networkSync);
+    }
+
+    public TiledObjectEntity spawnFrom(
+        Object source,
+        String tileset,
+        String name,
+        TiledObjectLayer layer,
+        float screenX,
+        float screenY,
+        float baseWidth,
+        float baseHeight,
+        float scale,
+        boolean onlyIfEmpty,
+        boolean networkSync
+    ) {
+        if (networkSync && !isSourceLocallyAuthoritative(source)) {
+            return null;
+        }
+        return spawnInternal(source, tileset, name, layer, screenX, screenY, baseWidth, baseHeight, scale, onlyIfEmpty, networkSync);
+    }
+
+    public TiledObjectEntity spawnIfEmpty(
+        String tileset,
+        String name,
+        TiledObjectLayer layer,
+        float screenX,
+        float screenY,
+        float baseWidth,
+        float baseHeight,
+        float scale
+    ) {
+        return spawn(tileset, name, layer, screenX, screenY, baseWidth, baseHeight, scale, true, false);
+    }
+
+    public TiledObjectEntity spawnIfEmptyNetworked(
+        String tileset,
+        String name,
+        TiledObjectLayer layer,
+        float screenX,
+        float screenY,
+        float baseWidth,
+        float baseHeight,
+        float scale
+    ) {
+        return spawn(tileset, name, layer, screenX, screenY, baseWidth, baseHeight, scale, true, true);
+    }
+
+    public TiledObjectEntity spawnIfEmptyFrom(
+        Object source,
+        String tileset,
+        String name,
+        TiledObjectLayer layer,
+        float screenX,
+        float screenY,
+        float baseWidth,
+        float baseHeight,
+        float scale
+    ) {
+        return spawnFrom(source, tileset, name, layer, screenX, screenY, baseWidth, baseHeight, scale, true);
     }
 
     public void load(String tileset) {

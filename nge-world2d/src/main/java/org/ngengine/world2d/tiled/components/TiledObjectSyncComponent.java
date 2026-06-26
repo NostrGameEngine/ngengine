@@ -81,7 +81,7 @@ public class TiledObjectSyncComponent extends AbstractComponent implements Tiled
     @SuppressWarnings("unchecked")
     public <T extends SnapshotMessage> T requestSnapshot(RemotePeer target) {
         TiledObjectEntity entity = getNetworkEntity();
-        if (entity == null || entity.getId() == null) {
+        if (entity == null || entity.getId() == null || entity.getId().signum() < 0) {
             return null;
         }
         TiledObjectSnapshotMessage snapshot = new TiledObjectSnapshotMessage();
