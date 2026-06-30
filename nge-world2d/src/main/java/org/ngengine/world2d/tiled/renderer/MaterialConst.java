@@ -68,6 +68,7 @@ public final class MaterialConst {
     public static final String TRANS_COLOR = "TransColor";
     public static final String USE_TINT_COLOR = "UseTintColor";
     public static final String TINT_COLOR = "TintColor";
+    public static final String HUE_SHIFT = "HueShift";
 
     public static final String IMAGE_SIZE = "ImageSize";
     public static final String TILE_SIZE = "TileSize";

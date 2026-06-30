@@ -12,6 +12,10 @@ uniform vec4 m_TransColor;
 uniform vec4 m_TintColor;
 #endif
 
+#ifdef HAS_HUE_SHIFT
+uniform float m_HueShift;
+#endif
+
 #ifdef HAS_COLOR
 uniform vec4 m_Color;
 #endif
@@ -305,6 +309,26 @@ vec4 applyTileAlphaOcclusion(vec4 color, vec2 texCoord) {
 }
 #endif
 
+vec3 hueShift(vec3 color, float shift) {
+    float angle = shift * 6.28318530718;
+    float s = sin(angle);
+    float c = cos(angle);
+    mat3 weights = mat3(
+        vec3(0.299, 0.587, 0.114),
+        vec3(0.299, 0.587, 0.114),
+        vec3(0.299, 0.587, 0.114)
+    ) + mat3(
+        vec3(0.701, -0.587, -0.114),
+        vec3(-0.299, 0.413, -0.114),
+        vec3(-0.300, -0.588, 0.886)
+    ) * c + mat3(
+        vec3(0.168, 0.330, -0.497),
+        vec3(-0.328, 0.035, 0.292),
+        vec3(1.250, -1.050, -0.203)
+    ) * s;
+    return clamp(color * weights, 0.0, 1.0);
+}
+
 void main(){
     vec4 color = vec4(1.0);
 
@@ -362,6 +386,12 @@ void main(){
 
     #if defined(USE_TINT_COLOR) && defined(HAS_TINT_COLOR)
     color *= m_TintColor;
+    #endif
+
+    #ifdef HAS_HUE_SHIFT
+    if (abs(m_HueShift) > 0.0001) {
+        color.rgb = hueShift(color.rgb, m_HueShift);
+    }
     #endif
 
     #ifdef HAS_LAYER_OPACITY

@@ -15,6 +15,7 @@ MaterialDef Tiled {
         Color TransColor
         Boolean UseTintColor : true
         Color TintColor : 1.0 1.0 1.0 1.0
+        Float HueShift : 0.0
         Vector2 ImageSize
         Vector4 TileSize
         Vector2 DecalImageSize
@@ -65,6 +66,7 @@ MaterialDef Tiled {
             HAS_TRANS_COLOR: TransColor
             USE_TINT_COLOR: UseTintColor
             HAS_TINT_COLOR: TintColor
+            HAS_HUE_SHIFT: HueShift
             USE_TILESET_IMAGE: UseTilesetImage
             INSTANCING: UseInstancing
             USE_TILE_POSITION: TilePosition
