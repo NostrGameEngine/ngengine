@@ -304,6 +304,20 @@ class TestTiledInstancedBatching {
                 "transient object should still be rendered through the non-instanced path");
     }
 
+    @Test void objectCanOptOutOfInstancedRendering() {
+        TiledMap map = loadOrthogonalMap();
+        TiledObjectLayer layer = addObjectLayer(map, "Object instancing opt out", 1);
+        TiledObjectEntity object = layer.getObjects().get(0);
+        object.putProperty("render.instanced", Boolean.FALSE);
+        Node root = new Node("map");
+        MapRenderer renderer = createRenderer(map, root);
+
+        renderer.render(new EmptyMapRenderListener(), 0f, new TestPovRenderer(wideCamera()));
+
+        assertTrue(hasSpatialNamePrefix(root, object.getName()),
+                "objects with render.instanced=false must keep an individual spatial");
+    }
+
     @Test void drawGroupChangeUsesTransientCooldownBeforeReentry() {
         TiledMap map = loadOrthogonalMap();
         TiledTileLayer tileLayer = (TiledTileLayer) map.getLayer("Ground");

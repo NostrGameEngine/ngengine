@@ -1206,6 +1206,14 @@ public abstract class MapRenderer {
         if (obj.getShape() != ObjectShape.TILE || !obj.isVisible()) {
             return false;
         }
+        Object instanced = obj.getProperty("render.instanced");
+        if (instanced != null && !org.ngengine.platform.NGEUtils.safeBool(instanced)) {
+            return false;
+        }
+        Object noInstancing = obj.getProperty("render.noInstancing");
+        if (noInstancing != null && org.ngengine.platform.NGEUtils.safeBool(noInstancing)) {
+            return false;
+        }
         if (TiledSpatialObjectNode.hasSpatial(obj)) {
             return false;
         }
