@@ -83,6 +83,7 @@ public class Slider extends Panel implements FocusListener {
     private double delta = 1.0f;
     private VersionedReference<Double> state;
     private final ScrollListener scrollListener = new ScrollListener();
+    private final DragListener dragListener = new DragListener();
 
  
 
@@ -164,7 +165,9 @@ public class Slider extends Panel implements FocusListener {
         increment.addFocusListener(scrollListener);
         decrement.addFocusListener(scrollListener);
         range.addFocusListener(scrollListener);
+        range.addFocusListener(dragListener);
         thumb.addFocusListener(scrollListener);
+        thumb.addFocusListener(dragListener);
     }
 
     private Panel createRangePanel(float width, float height, ElementId elementId) {
@@ -256,6 +259,11 @@ public class Slider extends Panel implements FocusListener {
         return model.getMinimum() + rangeDelta * part;        
     }
 
+    protected void setValueForPointer(float x, float y) {
+        Vector3f local = worldToLocal(new Vector3f(x, y, 0), null);
+        model.setValue(getValueForLocation(local));
+    }
+
     @Override
     public void updateLogicalState(float tpf) {
         super.updateLogicalState(tpf);
@@ -336,6 +344,18 @@ public class Slider extends Panel implements FocusListener {
     }
 
     @Override
+    public void focusAction(Spatial target, boolean pressed, float x, float y) {
+        if (pressed) {
+            setValueForPointer(x, y);
+        }
+    }
+
+    @Override
+    public void focusDrag(Spatial target, float x, float y) {
+        setValueForPointer(x, y);
+    }
+
+    @Override
     public void focusScrollUpdate(Spatial target, ScrollDirection dir, double v) {
         int dvalue = (int)(dir==ScrollDirection.Up||dir==ScrollDirection.Right?v:-v);
         double delta = getDelta();
@@ -377,5 +397,42 @@ public class Slider extends Panel implements FocusListener {
             getModel().setValue(value + delta * dvalue);   
         }
 
+    }
+
+    private class DragListener implements FocusListener {
+        private boolean active;
+
+        @Override
+        public void focusGained(Spatial target) {
+        }
+
+        @Override
+        public void focusLost(Spatial target) {
+            active = false;
+        }
+
+        @Override
+        public void focusAction(Spatial target, boolean pressed) {
+            active = pressed;
+        }
+
+        @Override
+        public void focusAction(Spatial target, boolean pressed, float x, float y) {
+            active = pressed;
+            if (pressed) {
+                setValueForPointer(x, y);
+            }
+        }
+
+        @Override
+        public void focusDrag(Spatial target, float x, float y) {
+            if (active) {
+                setValueForPointer(x, y);
+            }
+        }
+
+        @Override
+        public void focusScrollUpdate(Spatial target, ScrollDirection dir, double value) {
+        }
     }
 }
