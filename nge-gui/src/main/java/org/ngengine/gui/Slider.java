@@ -260,7 +260,9 @@ public class Slider extends Panel implements FocusListener {
     }
 
     protected void setValueForPointer(float x, float y) {
-        Vector3f local = worldToLocal(new Vector3f(x, y, 0), null);
+        GuiContext context = NGEGui.get(this);
+        float scale = context != null ? context.getLogicalScale() : 1f;
+        Vector3f local = worldToLocal(new Vector3f(x * scale, y * scale, 0), null);
         model.setValue(getValueForLocation(local));
     }
 
