@@ -99,6 +99,8 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
     private Node defaultGuiNode;
     private int physicalWidth = 1;
     private int physicalHeight = 1;
+    private int inputCoordinateWidth = 1;
+    private int inputCoordinateHeight = 1;
 
     
 
@@ -135,6 +137,7 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
         }
         NGEGui.register(vp, true);
         GuiContext ctx = NGEGui.get(vp);
+        configureGuiInputCoordinates(ctx);
         NWindowManager newmanager = new NWindowManager(this,ctx); 
         windowManagers.add(newmanager);
  
@@ -210,6 +213,9 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
             updatePhysicalSize(vpm);
         }
         defaultGuiViewPort.setRenderTargetSize(physicalWidth, physicalHeight);
+        if (NGEGui.isRegistered(defaultGuiViewPort)) {
+            configureGuiInputCoordinates(NGEGui.get(defaultGuiViewPort));
+        }
         Camera cam = defaultGuiViewPort.getCamera();
         int targetWidth = getTargetCameraWidth();
         int targetHeight = getTargetCameraHeight();
@@ -233,7 +239,7 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
 
     private int getTargetCameraWidth() {
         if (!relativeSize) {
-            return physicalWidth;
+            return inputCoordinateWidth;
         }
         return Math.max(1, Math.round(getRelativeLogicalWidth() * RELATIVE_CAMERA_SCALE));
     }
@@ -243,7 +249,7 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
     }
 
     private float getRelativeLogicalWidth() {
-        return physicalWidth / (float) Math.max(physicalHeight, 1);
+        return inputCoordinateWidth / (float) Math.max(inputCoordinateHeight, 1);
     }
 
     private void configureGuiNodeScale() {
@@ -262,11 +268,27 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
     private void updatePhysicalSize(ViewPortManager vpm) {
         ViewPort main = vpm.getMainSceneViewPort();
         if (main != null) {
+            Camera cam = main.getCamera();
+            if (cam != null) {
+                inputCoordinateWidth = Math.max(cam.getWidth(), 1);
+                inputCoordinateHeight = Math.max(cam.getHeight(), 1);
+            } else {
+                inputCoordinateWidth = Math.max(main.getRenderTargetWidth(), 1);
+                inputCoordinateHeight = Math.max(main.getRenderTargetHeight(), 1);
+            }
             physicalWidth = Math.max(main.getRenderTargetWidth(), 1);
             physicalHeight = Math.max(main.getRenderTargetHeight(), 1);
         } else if (defaultGuiViewPort != null) {
             physicalWidth = Math.max(defaultGuiViewPort.getRenderTargetWidth(), 1);
             physicalHeight = Math.max(defaultGuiViewPort.getRenderTargetHeight(), 1);
+            inputCoordinateWidth = Math.max(defaultGuiViewPort.getCamera().getWidth(), 1);
+            inputCoordinateHeight = Math.max(defaultGuiViewPort.getCamera().getHeight(), 1);
+        }
+    }
+
+    private void configureGuiInputCoordinates(GuiContext ctx) {
+        if (ctx != null) {
+            ctx.setInputCoordinateSize(inputCoordinateWidth, inputCoordinateHeight);
         }
     }
 

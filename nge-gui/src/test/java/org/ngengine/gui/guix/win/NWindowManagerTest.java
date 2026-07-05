@@ -334,6 +334,19 @@ public class NWindowManagerTest {
     }
 
     @Test
+    public void relativeManagerConvertsInputUsingLogicalCoordinatesWhenRenderTargetIsScaled() {
+        initializeGui();
+
+        TestViewportComponent component = new TestViewportComponent(true, 1280, 720, 2560, 1440);
+        NWindowManager manager = component.getManager(null, null);
+
+        assertEquals(0.5f, manager.getContext().toGuiX(360), 0.001f);
+        assertEquals(0.5f, manager.getContext().toGuiY(360), 0.001f);
+        assertEquals(0.5f, manager.getContext().toGuiDeltaX(360), 0.001f);
+        assertEquals(0.5f, manager.getContext().toGuiDistance(360), 0.001f);
+    }
+
+    @Test
     public void pixelManagerCreatesDedicatedPixelGuiCamera() {
         initializeGui();
 

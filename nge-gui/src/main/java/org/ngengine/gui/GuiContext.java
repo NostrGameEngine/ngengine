@@ -91,6 +91,8 @@ public class GuiContext {
     private boolean gammaEnabled;
     private ImeComposer imeComposer = new DummyImeComposer();
     private InputDevice inputDevice;
+    private float inputCoordinateWidth = -1f;
+    private float inputCoordinateHeight = -1f;
 
     public static interface GuiContextHandler extends Closeable{
         public void update( float tpf );
@@ -186,6 +188,19 @@ public class GuiContext {
         return view == null ? getGuiCamera().getHeight() : view.getRenderTargetHeight();
     }
 
+    public void setInputCoordinateSize(float width, float height) {
+        inputCoordinateWidth = width > 0f ? width : -1f;
+        inputCoordinateHeight = height > 0f ? height : -1f;
+    }
+
+    public float getInputCoordinateWidth() {
+        return inputCoordinateWidth > 0f ? inputCoordinateWidth : getPhysicalWidth();
+    }
+
+    public float getInputCoordinateHeight() {
+        return inputCoordinateHeight > 0f ? inputCoordinateHeight : getPhysicalHeight();
+    }
+
     public float getLogicalWidth() {
         Camera cam = getGuiCamera();
         if (!isRelativeSize()) return cam.getWidth();
@@ -204,27 +219,27 @@ public class GuiContext {
 
     public float toGuiX(double physicalX) {
         if (!isRelativeSize()) return (float) physicalX;
-        return (float) (physicalX / Math.max(getPhysicalHeight(), 1));
+        return (float) (physicalX / Math.max(getInputCoordinateHeight(), 1f));
     }
 
     public float toGuiY(double physicalY) {
         if (!isRelativeSize()) return (float) physicalY;
-        return (float) (physicalY / Math.max(getPhysicalHeight(), 1));
+        return (float) (physicalY / Math.max(getInputCoordinateHeight(), 1f));
     }
 
     public float toGuiDeltaX(double physicalDeltaX) {
         if (!isRelativeSize()) return (float) physicalDeltaX;
-        return (float) (physicalDeltaX / Math.max(getPhysicalHeight(), 1));
+        return (float) (physicalDeltaX / Math.max(getInputCoordinateHeight(), 1f));
     }
 
     public float toGuiDeltaY(double physicalDeltaY) {
         if (!isRelativeSize()) return (float) physicalDeltaY;
-        return (float) (physicalDeltaY / Math.max(getPhysicalHeight(), 1));
+        return (float) (physicalDeltaY / Math.max(getInputCoordinateHeight(), 1f));
     }
 
     public float toGuiDistance(double physicalDistance) {
         if (!isRelativeSize()) return (float) physicalDistance;
-        return (float) (physicalDistance / Math.max(getPhysicalHeight(), 1));
+        return (float) (physicalDistance / Math.max(getInputCoordinateHeight(), 1f));
     }
 
     public Node getGuiNode() {
