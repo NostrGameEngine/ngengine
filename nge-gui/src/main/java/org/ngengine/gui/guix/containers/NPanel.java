@@ -44,6 +44,7 @@ import java.util.EnumMap;
 import java.util.Map;
 
 import org.ngengine.gui.Container;
+import org.ngengine.gui.Panel;
 
 import com.jme3.scene.Node;
 import org.ngengine.gui.component.BorderLayout;
@@ -53,11 +54,13 @@ import org.ngengine.gui.style.ElementId;
  * A container that can be split into rows and columns.
  */
 public class NPanel extends NContainer {
+    public static final ElementId ELEMENT_ID = new ElementId("n-panel." + Panel.ELEMENT_ID);
+
     private Map<BorderLayout.Position, Container> containers = new EnumMap<>(BorderLayout.Position.class);
 
 
     public NPanel() {
-        super(new BorderLayout());
+        this(ELEMENT_ID);
     }
 
     public NPanel(ElementId id) {

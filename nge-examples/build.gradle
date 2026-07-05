@@ -1,10 +1,14 @@
-ext.mainClassName = 'ngetest.TestChooser'
+ext.mainClassName = findProperty('mainClassName') ?: 'ngetest.TestChooser'
 
 def useSnapshotDeps = (jmeVersionTag == 'SNAPSHOT')
 
 task run(dependsOn: 'build', type:JavaExec) {
     mainClass = mainClassName
     classpath = sourceSets.main.runtimeClasspath
+
+    if (System.getProperty('os.name').toLowerCase().contains('mac')) {
+        jvmArgs '-XstartOnFirstThread'
+    }
 
     if (System.properties['java.util.logging.config.file'] != null) {
         systemProperty "java.util.logging.config.file", System.properties['java.util.logging.config.file']
@@ -22,13 +26,6 @@ task runGuiShowcase(dependsOn: 'build', type:JavaExec) {
     if (System.properties['java.util.logging.config.file'] != null) {
         systemProperty "java.util.logging.config.file", System.properties['java.util.logging.config.file']
     }
-}
-
-task captureGuiScenario(dependsOn: 'classes', type:JavaExec) {
-    mainClass = 'ngetests.tests.gui.capture.GuiCaptureApp'
-    classpath = sourceSets.main.runtimeClasspath
-    jvmArgs '-Xdock:name=NGE GUI Capture', '-Dapple.awt.UIElement=false'
-    systemProperties System.properties.findAll { key, value -> key.toString().startsWith('nge.capture.') }
 }
 
 task runParticleBufferBenchmark(dependsOn: 'classes', type:JavaExec) {

@@ -51,7 +51,6 @@ import org.ngengine.gui.style.ElementId;
 import org.ngengine.gui.FillMode;
 
 public class NHud extends NWindow<Void> {
-
     private NPanel top;
     private NPanel center;
     private NPanel bottom;
@@ -68,17 +67,20 @@ public class NHud extends NWindow<Void> {
     private NRow topLeft;
     private NRow topRight;
 
-    private NPanel gameConsole;
     private boolean initialized = false;
 
     public NHud() {
         super(new ElementId("hud"));
         top = new NPanel();
+        top.setBackground(null);
         top.setInsetsComponent(new DynamicInsetsComponent(0, 0, 1, 0));
 
         center = new NPanel();
+        center.setBackground(null);
+        center.setInsetsComponent(null);
 
         bottom = new NPanel();
+        bottom.setBackground(null);
         bottom.setInsetsComponent(new DynamicInsetsComponent(1, 0, 0, 0));
 
         centerCenter = new NColumn();

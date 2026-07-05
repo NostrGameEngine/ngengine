@@ -49,7 +49,9 @@ import org.ngengine.gui.component.IconComponent;
 import org.ngengine.gui.component.QuadBackgroundComponent;
 import org.ngengine.gui.component.SpringGridLayout;
 import org.ngengine.gui.component.TbtQuadBackgroundComponent;
+import org.ngengine.gui.guix.NChip;
 import org.ngengine.gui.guix.NSVGIcon;
+import org.ngengine.gui.guix.containers.NPanel;
 import org.ngengine.gui.style.Attributes;
 import org.ngengine.gui.style.ElementId;
 import org.ngengine.gui.style.Styles;
@@ -233,6 +235,32 @@ public class NGEStyle {
         {        
             Attributes attrs = styles.getSelector(Panel.ELEMENT_ID, NAME);
             attrs.set( "background", new QuadBackgroundComponent(mediumPurple) , false );
+        }
+
+        {
+            Attributes attrs = styles.getSelector(NPanel.ELEMENT_ID, NAME);
+            attrs.set("insets", new Insets3f(px(5f), px(8f), px(5f), px(8f)), false);
+        }
+
+        {
+            Attributes chip = styles.getSelector(NChip.PANEL_ID, NAME);
+            QuadBackgroundComponent background = new QuadBackgroundComponent(mediumPurple);
+            chip.set("background", background, false);
+
+            Attributes chipLabel = styles.getSelector(NChip.LABEL_ID, NAME);
+            chipLabel.set("fontSize", px(14f), false);
+            chipLabel.set("color", lightPurple, false);
+            chipLabel.set("textHAlignment", HAlignment.Left, false);
+            chipLabel.set("textVAlignment", VAlignment.Center, false);
+
+            Attributes chipIcon = styles.getSelector(NChip.ICON_ID, NAME);
+            QuadBackgroundComponent iconBackground = new QuadBackgroundComponent(accentPurple);
+            iconBackground.setMargin(px(3f), px(3f));
+            chipIcon.set("background", iconBackground, false);
+            chipIcon.set("fontSize", px(12.5f), false);
+            chipIcon.set("color", darkPurple, false);
+            chipIcon.set("textHAlignment", HAlignment.Center, false);
+            chipIcon.set("textVAlignment", VAlignment.Center, false);
         }
 
         {
