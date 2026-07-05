@@ -38,24 +38,21 @@ import com.jme3.export.JmeImporter;
 import com.jme3.export.OutputCapsule;
 import com.jme3.export.Savable;
 import com.jme3.renderer.RenderManager;
+import com.jme3.util.SafeArrayList;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Predicate;
-import java.util.function.UnaryOperator;
 import java.util.logging.Logger;
 import org.ngengine.components.runners.ComponentInitializer;
 import org.ngengine.components.runners.ComponentLoader;
@@ -71,133 +68,17 @@ public abstract class AbstractComponentManager  implements ComponentManager, Sav
 
     private static final Logger log = Logger.getLogger(AbstractComponentManager.class.getName());
 
-    protected final SnapshotCopyOnWriteList<ComponentMount> componentMounts = new SnapshotCopyOnWriteList<>();
-    protected final Map<Object, ComponentSlot> slotComponent = new ConcurrentHashMap<>();
-    protected final SnapshotCopyOnWriteList<ComponentInitializer> initializers = new SnapshotCopyOnWriteList<>();
-    protected final SnapshotCopyOnWriteList<ComponentLoader> loaders = new SnapshotCopyOnWriteList<>();
-    protected final SnapshotCopyOnWriteList<ComponentUpdater> updaters = new SnapshotCopyOnWriteList<>();
+    protected final SafeArrayList<ComponentMount> componentMounts = new SafeArrayList<>(ComponentMount.class);
+    protected final Map<Object, ComponentSlot> slotComponent = new HashMap<>();
+    protected final SafeArrayList<ComponentInitializer> initializers = new SafeArrayList<>(ComponentInitializer.class);
+    protected final SafeArrayList<ComponentLoader> loaders = new SafeArrayList<>(ComponentLoader.class);
+    protected final SafeArrayList<ComponentUpdater> updaters = new SafeArrayList<>(ComponentUpdater.class);
     private final AtomicBoolean mountLifecycleDirty = new AtomicBoolean(true);
     private ComponentManager parent;
     protected final List<Component> componentsPaused = new ArrayList<>();
     private boolean enabled = true;
     private List<WeakReference<ComponentManager>> children = new ArrayList<>();
     private final VComponentList componentList = new VComponentList(componentMounts);
-
-    protected static class SnapshotCopyOnWriteList<E> extends CopyOnWriteArrayList<E> {
-
-        private static final long serialVersionUID = 1L;
-        private volatile Object[] snapshot = new Object[0];
-
-        Object[] snapshot() {
-            return snapshot;
-        }
-
-        private void refreshSnapshot() {
-            snapshot = super.toArray();
-        }
-
-        @Override
-        public boolean add(E e) {
-            boolean changed = super.add(e);
-            if (changed) refreshSnapshot();
-            return changed;
-        }
-
-        @Override
-        public void add(int index, E element) {
-            super.add(index, element);
-            refreshSnapshot();
-        }
-
-        @Override
-        public boolean addAll(Collection<? extends E> c) {
-            boolean changed = super.addAll(c);
-            if (changed) refreshSnapshot();
-            return changed;
-        }
-
-        @Override
-        public boolean addAll(int index, Collection<? extends E> c) {
-            boolean changed = super.addAll(index, c);
-            if (changed) refreshSnapshot();
-            return changed;
-        }
-
-        @Override
-        public int addAllAbsent(Collection<? extends E> c) {
-            int changed = super.addAllAbsent(c);
-            if (changed > 0) refreshSnapshot();
-            return changed;
-        }
-
-        @Override
-        public boolean addIfAbsent(E e) {
-            boolean changed = super.addIfAbsent(e);
-            if (changed) refreshSnapshot();
-            return changed;
-        }
-
-        @Override
-        public E remove(int index) {
-            E removed = super.remove(index);
-            refreshSnapshot();
-            return removed;
-        }
-
-        @Override
-        public boolean remove(Object o) {
-            boolean changed = super.remove(o);
-            if (changed) refreshSnapshot();
-            return changed;
-        }
-
-        @Override
-        public boolean removeAll(Collection<?> c) {
-            boolean changed = super.removeAll(c);
-            if (changed) refreshSnapshot();
-            return changed;
-        }
-
-        @Override
-        public boolean removeIf(Predicate<? super E> filter) {
-            boolean changed = super.removeIf(filter);
-            if (changed) refreshSnapshot();
-            return changed;
-        }
-
-        @Override
-        public boolean retainAll(Collection<?> c) {
-            boolean changed = super.retainAll(c);
-            if (changed) refreshSnapshot();
-            return changed;
-        }
-
-        @Override
-        public void clear() {
-            boolean changed = !isEmpty();
-            super.clear();
-            if (changed) refreshSnapshot();
-        }
-
-        @Override
-        public E set(int index, E element) {
-            E previous = super.set(index, element);
-            refreshSnapshot();
-            return previous;
-        }
-
-        @Override
-        public void replaceAll(UnaryOperator<E> operator) {
-            super.replaceAll(operator);
-            refreshSnapshot();
-        }
-
-        @Override
-        public void sort(Comparator<? super E> c) {
-            super.sort(c);
-            refreshSnapshot();
-        }
-    }
 
     private static class VComponentList extends AbstractList<Component> {
         private final List<ComponentMount> mounts;
@@ -329,13 +210,13 @@ public abstract class AbstractComponentManager  implements ComponentManager, Sav
 
     @Override
     public <T extends Component> T getComponent(Class<T> type) {
-        for (Object mountObj : componentMounts.snapshot()) {
+        for (Object mountObj : componentMounts.getArray()) {
             ComponentMount mount = (ComponentMount) mountObj;
             if (mount.component.getClass().equals(type)) {
                 return type.cast(mount.component);
             }
         }
-        for (Object mountObj : componentMounts.snapshot()) {
+        for (Object mountObj : componentMounts.getArray()) {
             ComponentMount mount = (ComponentMount) mountObj;
             if (type.isAssignableFrom(mount.component.getClass())) {
                 return type.cast(mount.component);
@@ -346,7 +227,7 @@ public abstract class AbstractComponentManager  implements ComponentManager, Sav
 
     @Override
     public boolean hasComponent(Component component) {
-        for (Object mountObj : componentMounts.snapshot()) {
+        for (Object mountObj : componentMounts.getArray()) {
             ComponentMount mount = (ComponentMount) mountObj;
             if (mount.component == component) {
                 return true;
@@ -357,13 +238,13 @@ public abstract class AbstractComponentManager  implements ComponentManager, Sav
 
     @Override
     public boolean hasComponent(Class<? extends Component> cls) {
-        for (Object mountObj : componentMounts.snapshot()) {
+        for (Object mountObj : componentMounts.getArray()) {
             ComponentMount mount = (ComponentMount) mountObj;
             if (mount.component.getClass().equals(cls)) {
                 return true;
             }
         }
-        for (Object mountObj : componentMounts.snapshot()) {
+        for (Object mountObj : componentMounts.getArray()) {
             ComponentMount mount = (ComponentMount) mountObj;
             if (cls.isAssignableFrom(mount.component.getClass())) {
                 return true;
@@ -374,7 +255,7 @@ public abstract class AbstractComponentManager  implements ComponentManager, Sav
 
     @Override
     public boolean hasComponent(String id) {
-        for (Object mountObj : componentMounts.snapshot()) {
+        for (Object mountObj : componentMounts.getArray()) {
             ComponentMount mount = (ComponentMount) mountObj;
             if (mount.component.getId().equals(id)) {
                 return true;
@@ -386,7 +267,7 @@ public abstract class AbstractComponentManager  implements ComponentManager, Sav
     @SuppressWarnings("unchecked")
     @Override
     public <T extends Component> T getComponentById(String id) {
-        for (Object mountObj : componentMounts.snapshot()) {
+        for (Object mountObj : componentMounts.getArray()) {
             ComponentMount mount = (ComponentMount) mountObj;
             if (mount.component.getId().equals(id)) {
                 return (T) mount.component;
@@ -406,7 +287,7 @@ public abstract class AbstractComponentManager  implements ComponentManager, Sav
 
    
     private ComponentMount getMount(Component fragment) {
-        for (Object mountObj : componentMounts.snapshot()) {
+        for (Object mountObj : componentMounts.getArray()) {
             ComponentMount mount = (ComponentMount) mountObj;
             if (mount.component == fragment) {
                 return mount;
@@ -488,7 +369,7 @@ public abstract class AbstractComponentManager  implements ComponentManager, Sav
             throw new IllegalArgumentException("Fragment not found: " + component.getId());
         }
         // disable all depdendencies
-        for (Object mountObj : componentMounts.snapshot()) {
+        for (Object mountObj : componentMounts.getArray()) {
             ComponentMount m = (ComponentMount) mountObj;
             Object deps[] = m.deps;
             if (deps != null) {
@@ -512,7 +393,7 @@ public abstract class AbstractComponentManager  implements ComponentManager, Sav
         if (fragment instanceof StallingComponent) {
             return false; // StallingComponent is never enabled
         }
-        for (Object mountObj : componentMounts.snapshot()) {
+        for (Object mountObj : componentMounts.getArray()) {
             ComponentMount mount = (ComponentMount) mountObj;
             if (mount.component == fragment) {
                 return mount.enabled;
@@ -531,7 +412,7 @@ public abstract class AbstractComponentManager  implements ComponentManager, Sav
         boolean noop = false;
         do {
             noop = true;
-            for (Object mountObj : componentMounts.snapshot()) {
+            for (Object mountObj : componentMounts.getArray()) {
                 ComponentMount mount = (ComponentMount) mountObj;
                 if(mount.newlyAttached){
                     mount.newlyAttached = false;
@@ -541,13 +422,13 @@ public abstract class AbstractComponentManager  implements ComponentManager, Sav
             }
         } while(!noop);
         
-        for (Object mountObj : componentMounts.snapshot()) {
+        for (Object mountObj : componentMounts.getArray()) {
             ComponentMount mount = (ComponentMount) mountObj;
             if (mount.ready) continue;
             if (mount.newlyAttached) continue;
             if (mount.initialized.get() == Integer.MIN_VALUE) {
                 mount.initialized.set(0); // if no initializer is registered, we assume it is initialized
-                for (Object initializerObj : initializers.snapshot()) {
+                for (Object initializerObj : initializers.getArray()) {
                     ComponentInitializer initializer = (ComponentInitializer) initializerObj;
                     if (initializer.canInitialize(this, mount.component)) {
                         int n = initializer.initialize(
@@ -572,13 +453,13 @@ public abstract class AbstractComponentManager  implements ComponentManager, Sav
             }
         }
 
-        for (Object mountObj : componentMounts.snapshot()) {
+        for (Object mountObj : componentMounts.getArray()) {
             ComponentMount mount = (ComponentMount) mountObj;
             if (mount.ready || mount.initialized.get() > 0) continue;
             if (mount.newlyAttached) continue;
             if (mount.loaded.get() == Integer.MIN_VALUE) {
                 mount.loaded.set(0); // if no loader is registered, we assume it is loaded
-                for (Object loaderObj : loaders.snapshot()) {
+                for (Object loaderObj : loaders.getArray()) {
                     ComponentLoader loader = (ComponentLoader) loaderObj;
                     if (loader.canLoad(this, mount.component)) {
                         int n = loader.load(
@@ -599,7 +480,7 @@ public abstract class AbstractComponentManager  implements ComponentManager, Sav
             }
         }
 
-        for (Object mountObj : componentMounts.snapshot()) {
+        for (Object mountObj : componentMounts.getArray()) {
             ComponentMount mount = (ComponentMount) mountObj;
             if (mount.newlyAttached) continue;
             if (!mount.ready) {
@@ -684,13 +565,13 @@ public abstract class AbstractComponentManager  implements ComponentManager, Sav
             }
             if (mount.markForRemoval) {
                 mount.component.onDetached(this, getRunner(), getDataStoreProvider());
-                for (Object initializerObj : initializers.snapshot()) {
+                for (Object initializerObj : initializers.getArray()) {
                     ComponentInitializer initializer = (ComponentInitializer) initializerObj;
                     if (initializer.canInitialize(this, mount.component)) {
                         initializer.cleanup(this, mount.component);
                     }
                 }
-                for (Object loaderObj : loaders.snapshot()) {
+                for (Object loaderObj : loaders.getArray()) {
                     ComponentLoader loader = (ComponentLoader) loaderObj;
                     if (loader.canLoad(this, mount.component)) {
                         loader.unload(this, mount.component);
@@ -716,7 +597,7 @@ public abstract class AbstractComponentManager  implements ComponentManager, Sav
     }
 
     private boolean hasPendingMountLifecycleWork() {
-        for (Object mountObj : componentMounts.snapshot()) {
+        for (Object mountObj : componentMounts.getArray()) {
             ComponentMount mount = (ComponentMount) mountObj;
             if (
                 mount.newlyAttached ||
@@ -733,9 +614,9 @@ public abstract class AbstractComponentManager  implements ComponentManager, Sav
     protected void onUpdate(float tpf) {
         runMountUpdate();
 
-        for (Object updaterObj : updaters.snapshot()) {
+        for (Object updaterObj : updaters.getArray()) {
             ComponentUpdater updater = (ComponentUpdater) updaterObj;
-            for (Object mountObj : componentMounts.snapshot()) {
+            for (Object mountObj : componentMounts.getArray()) {
                 ComponentMount mount = (ComponentMount) mountObj;
                 if (!mount.enabled) continue;
                 if (updater.canUpdate(this, mount.component)) {
@@ -744,9 +625,9 @@ public abstract class AbstractComponentManager  implements ComponentManager, Sav
             }
         }
         
-        for (Object updaterObj : updaters.snapshot()) {
+        for (Object updaterObj : updaters.getArray()) {
             ComponentUpdater updater = (ComponentUpdater) updaterObj;
-            for (Object mountObj : componentMounts.snapshot()) {
+            for (Object mountObj : componentMounts.getArray()) {
                 ComponentMount mount = (ComponentMount) mountObj;
                 if (!mount.enabled) continue;
                 if (updater.canUpdate(this, mount.component)) {
@@ -758,9 +639,9 @@ public abstract class AbstractComponentManager  implements ComponentManager, Sav
     }
 
     protected void onRender(RenderManager rm) {
-        for (Object updaterObj : updaters.snapshot()) {
+        for (Object updaterObj : updaters.getArray()) {
             ComponentUpdater updater = (ComponentUpdater) updaterObj;
-            for (Object mountObj : componentMounts.snapshot()) {
+            for (Object mountObj : componentMounts.getArray()) {
                 ComponentMount mount = (ComponentMount) mountObj;
                 if (!mount.enabled) continue;
                 if (updater.canUpdate(this, mount.component)) {
@@ -769,9 +650,9 @@ public abstract class AbstractComponentManager  implements ComponentManager, Sav
             }
         }
 
-        for (Object updaterObj : updaters.snapshot()) {
+        for (Object updaterObj : updaters.getArray()) {
             ComponentUpdater updater = (ComponentUpdater) updaterObj;
-            for (Object mountObj : componentMounts.snapshot()) {
+            for (Object mountObj : componentMounts.getArray()) {
                 ComponentMount mount = (ComponentMount) mountObj;
                 if (!mount.enabled) continue;
                 if (updater.canUpdate(this, mount.component)) {
@@ -861,7 +742,7 @@ public abstract class AbstractComponentManager  implements ComponentManager, Sav
             this.componentsPaused.clear();
         } else{
             componentsPaused.clear();
-            for (Object mountObj : this.componentMounts.snapshot()) {
+            for (Object mountObj : this.componentMounts.getArray()) {
                 ComponentMount mount = (ComponentMount) mountObj;
                 if(mount.enabled || mount.desiredEnabledState){
                     componentsPaused.add(mount.component);

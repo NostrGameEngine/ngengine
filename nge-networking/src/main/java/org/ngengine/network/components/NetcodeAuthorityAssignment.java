@@ -23,8 +23,7 @@ import jakarta.annotation.Nullable;
  * across known peers.
  */
 public final class NetcodeAuthorityAssignment {
-    private static final Map<NostrPublicKey, BigInteger> PEER_KEY_CACHE =
-        Collections.synchronizedMap(new WeakHashMap<>());
+    private static final ThreadLocal<Map<NostrPublicKey, BigInteger>> peerKeyCache = ThreadLocal.withInitial(WeakHashMap::new);
 
     private NetcodeAuthorityAssignment() {}
 
@@ -144,14 +143,13 @@ public final class NetcodeAuthorityAssignment {
         if (peerId == null) {
             return null;
         }
-        synchronized (PEER_KEY_CACHE) {
-            BigInteger cached = PEER_KEY_CACHE.get(peerId);
-            if (cached == null) {
-                cached = new BigInteger(peerId.asHex(), 16);
-                PEER_KEY_CACHE.put(peerId, cached);
-            }
-            return cached;
+        BigInteger cached = peerKeyCache.get().get(peerId);
+        if (cached == null) {
+            cached = new BigInteger(peerId.asHex(), 16);
+            peerKeyCache.get().put(peerId, cached);
         }
+        return cached;
+        
     }
 
     private static boolean containsPeer(Collection<NostrPublicKey> peers, @Nullable NostrPublicKey target) {
