@@ -232,7 +232,13 @@ public class VertexBuffer extends BufferObject implements Savable, Cloneable {
          * Application-defined vertex attribute. Custom buffers must provide
          * an explicit shader attribute name with {@link #setAttributeName(String)}.
          */
-        Custom,
+        Custom;
+
+        private final String shaderAttributeName;
+
+        Type() {
+            this.shaderAttributeName = "in" + name();
+        }
     }
 
     /**
@@ -636,7 +642,7 @@ public class VertexBuffer extends BufferObject implements Savable, Cloneable {
         if (bufType == Type.Custom) {
             throw new IllegalStateException("Custom vertex buffers require an attribute name");
         }
-        return "in" + bufType.name();
+        return bufType.shaderAttributeName;
     }
 
     /**
