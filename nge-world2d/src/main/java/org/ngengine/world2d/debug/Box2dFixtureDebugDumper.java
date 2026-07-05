@@ -16,6 +16,7 @@ import org.jbox2d.collision.shapes.Shape;
 import org.jbox2d.common.Vec2;
 import org.jbox2d.dynamics.Body;
 import org.jbox2d.dynamics.Fixture;
+import org.ngengine.config.NGEAppSettings;
 import org.ngengine.world2d.box2d.Box2dUserData;
 import org.ngengine.world2d.tiled.core.TiledEntity;
 import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
@@ -25,6 +26,7 @@ import org.ngengine.world2d.tiled.util.CoordinateSystem;
 import com.jme3.math.Vector2f;
 
 public final class Box2dFixtureDebugDumper {
+    public static final String SETTING = "PhysicsFixtureDebug";
     public static final String PROPERTY = "nge.box2d.debug.dumpFixtures";
     public static final String LEGACY_PROPERTY = "ngengine.box2d.debug.dumpFixtures";
 
@@ -33,6 +35,10 @@ public final class Box2dFixtureDebugDumper {
 
     public static boolean isEnabled() {
         return Boolean.getBoolean(PROPERTY) || Boolean.getBoolean(LEGACY_PROPERTY);
+    }
+
+    public static boolean isEnabled(NGEAppSettings settings) {
+        return settings != null && settings.getBoolean(SETTING, false);
     }
 
     public static void dumpFixture(CoordinateSystem coords, Body body, Fixture fixture) {

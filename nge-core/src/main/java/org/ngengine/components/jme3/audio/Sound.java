@@ -133,14 +133,15 @@ public class Sound implements AudioSource, JmeCloneable, Savable {
               
             });
         }).then(data->{
+            AudioData loadedData = (AudioData) data;
             mainRunner.run(()->{
                 if(audioData==null){
-                    setAudioData(audioData, audioKey);
+                    setAudioData(loadedData, audioKey);
                 }                      
                 this.loadTask = null;
 
             });
-            return audioData;
+            return loadedData;
         });
         
         

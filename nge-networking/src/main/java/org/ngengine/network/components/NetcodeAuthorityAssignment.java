@@ -5,9 +5,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 
 import org.ngengine.nostr4j.keypair.NostrPublicKey;
 import org.ngengine.platform.NGEPlatform;
@@ -22,6 +23,9 @@ import jakarta.annotation.Nullable;
  * across known peers.
  */
 public final class NetcodeAuthorityAssignment {
+    private static final Map<NostrPublicKey, BigInteger> PEER_KEY_CACHE =
+        Collections.synchronizedMap(new WeakHashMap<>());
+
     private NetcodeAuthorityAssignment() {}
 
     /**
@@ -55,12 +59,12 @@ public final class NetcodeAuthorityAssignment {
         if (networkId == null || networkId.signum() < 0) {
             return null;
         }
-        Set<NostrPublicKey> known = new LinkedHashSet<>(knownPeerIds != null ? knownPeerIds : Collections.emptyList());
+        Collection<NostrPublicKey> known = knownPeerIds != null ? knownPeerIds : Collections.emptyList();
         if (known.isEmpty()) {
             return localPeerId;
         }
         NostrPublicKey preferred = resolveDeterministicOwner(networkId, known, localPeerId);
-        if (preferred != null && known.contains(preferred)) {
+        if (preferred != null && containsPeer(known, preferred)) {
             return preferred;
         }
         // Reserved ids encode creator ownership and should not be failover-reassigned.
@@ -112,17 +116,7 @@ public final class NetcodeAuthorityAssignment {
         if (ownerKey == null) {
             return null;
         }
-        Set<NostrPublicKey> peers = new LinkedHashSet<>(knownPeerIds != null ? knownPeerIds : Collections.emptyList());
-        if (localPeerId != null) {
-            peers.add(localPeerId);
-        }
-        for (NostrPublicKey peer : peers) {
-            BigInteger key = peerKey(peer);
-            if (key != null && key.equals(ownerKey)) {
-                return peer;
-            }
-        }
-        return null;
+        return findPeerByKey(knownPeerIds, localPeerId, ownerKey);
     }
 
     /**
@@ -140,17 +134,7 @@ public final class NetcodeAuthorityAssignment {
         if (ownerKey == null) {
             return null;
         }
-        Set<NostrPublicKey> peers = new LinkedHashSet<>(knownPeerIds != null ? knownPeerIds : Collections.emptyList());
-        if (localPeerId != null) {
-            peers.add(localPeerId);
-        }
-        for (NostrPublicKey peer : peers) {
-            BigInteger key = peerKey(peer);
-            if (key != null && key.equals(ownerKey)) {
-                return peer;
-            }
-        }
-        return null;
+        return findPeerByKey(knownPeerIds, localPeerId, ownerKey);
     }
 
     /**
@@ -160,7 +144,35 @@ public final class NetcodeAuthorityAssignment {
         if (peerId == null) {
             return null;
         }
-        return new BigInteger(peerId.asHex(), 16);
+        synchronized (PEER_KEY_CACHE) {
+            BigInteger cached = PEER_KEY_CACHE.get(peerId);
+            if (cached == null) {
+                cached = new BigInteger(peerId.asHex(), 16);
+                PEER_KEY_CACHE.put(peerId, cached);
+            }
+            return cached;
+        }
+    }
+
+    private static boolean containsPeer(Collection<NostrPublicKey> peers, @Nullable NostrPublicKey target) {
+        return target != null && peers != null && peers.contains(target);
+    }
+
+    private static @Nullable NostrPublicKey findPeerByKey(
+        @Nullable Collection<NostrPublicKey> knownPeerIds,
+        @Nullable NostrPublicKey localPeerId,
+        BigInteger ownerKey
+    ) {
+        if (knownPeerIds != null) {
+            for (NostrPublicKey peer : knownPeerIds) {
+                BigInteger key = peerKey(peer);
+                if (key != null && key.equals(ownerKey)) {
+                    return peer;
+                }
+            }
+        }
+        BigInteger localKey = peerKey(localPeerId);
+        return localKey != null && localKey.equals(ownerKey) ? localPeerId : null;
     }
 
     private static @Nullable NostrPublicKey resolveByRendezvous(BigInteger networkId, Collection<NostrPublicKey> peers) {

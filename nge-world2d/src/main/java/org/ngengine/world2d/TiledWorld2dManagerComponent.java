@@ -94,6 +94,7 @@ import jakarta.annotation.Nullable;
 public class TiledWorld2dManagerComponent extends AbstractComponent
         implements  RenderFragment, LogicFragment, ContactListener, AsyncAssetLoadingFragment {
     private static Logger logger = Logger.getLogger(TiledWorld2dManagerComponent.class.getName());
+    public static final String PHYSICS_DEBUG_SETTING = "PhysicsDebug";
     private static final float SNAPSHOT_MAX_POSITION_ERROR = 0.02f;
     private static final int DEFAULT_WORLD_POOL_SIZE = 2048;
     private static final int DEFAULT_WORLD_POOL_CONTAINER_SIZE = 256;
@@ -622,7 +623,7 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
         if(isDebugEnabled()){
             MainThreadRunner mainRunner = getInstanceOf(MainThreadRunner.class);
             AssetManager assetManager = getInstanceOf(AssetManager.class);
-            Box2dDebugger.update(mainRunner, assetManager, worlds, tpf);
+            Box2dDebugger.update(mainRunner, assetManager, worlds, tpf, getSettings());
         }
     }
  
@@ -769,7 +770,7 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
     }
 
     public boolean isDebugEnabled(){
-        return true;
+        return getSettings().getBoolean(PHYSICS_DEBUG_SETTING, false);
     }
 
 }

@@ -261,10 +261,9 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
 
     private void updatePhysicalSize(ViewPortManager vpm) {
         ViewPort main = vpm.getMainSceneViewPort();
-        Camera cam = main == null ? null : main.getCamera();
-        if (cam != null) {
-            physicalWidth = Math.max(cam.getWidth(), 1);
-            physicalHeight = Math.max(cam.getHeight(), 1);
+        if (main != null) {
+            physicalWidth = Math.max(main.getRenderTargetWidth(), 1);
+            physicalHeight = Math.max(main.getRenderTargetHeight(), 1);
         } else if (defaultGuiViewPort != null) {
             physicalWidth = Math.max(defaultGuiViewPort.getRenderTargetWidth(), 1);
             physicalHeight = Math.max(defaultGuiViewPort.getRenderTargetHeight(), 1);

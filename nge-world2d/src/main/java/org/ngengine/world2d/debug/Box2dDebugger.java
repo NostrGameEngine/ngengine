@@ -48,6 +48,7 @@ import org.jbox2d.dynamics.Body;
 import org.jbox2d.dynamics.BodyType;
 import org.jbox2d.dynamics.Fixture;
 import org.jbox2d.dynamics.World;
+import org.ngengine.config.NGEAppSettings;
 import org.ngengine.runner.Runner;
 import org.ngengine.world2d.TiledWorld2d;
 
@@ -77,13 +78,18 @@ public class Box2dDebugger {
     }
 
 
-    public static void update(Runner mainRunner, AssetManager assetManager,  
+    public static void update(Runner mainRunner, AssetManager assetManager,
             Collection<TiledWorld2d> tworlds, float tpf) {
+        update(mainRunner, assetManager, tworlds, tpf, null);
+    }
+
+    public static void update(Runner mainRunner, AssetManager assetManager,
+            Collection<TiledWorld2d> tworlds, float tpf, NGEAppSettings settings) {
         Map<World,Node> newNodes = new HashMap<>(); // TODO: in multithreading use ConcurrentHashMap
         for (TiledWorld2d tworld : tworlds) {
             CoordinateSystem coords = tworld.getCoordinateSystem();
-            World world = tworld.getPhysics();             
-            boolean dumpFixtures = shouldDumpFixtures(world);
+            World world = tworld.getPhysics();
+            boolean dumpFixtures = shouldDumpFixtures(world, settings);
             Node rootNode = new Node("DebugPhysicsWorld_" + System.currentTimeMillis());
             newNodes.put(world, rootNode);
             Body body = world.getBodyList();
@@ -191,8 +197,8 @@ public class Box2dDebugger {
 
     }
 
-    private static boolean shouldDumpFixtures(World world) {
-        if (!Box2dFixtureDebugDumper.isEnabled()) {
+    private static boolean shouldDumpFixtures(World world, NGEAppSettings settings) {
+        if (!Box2dFixtureDebugDumper.isEnabled(settings)) {
             return false;
         }
         return dumpedFixtureWorlds.add(world);

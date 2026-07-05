@@ -57,6 +57,9 @@ public class RandomBackgroundMusicComponent extends AbstractAudioComponent {
     private String musicPath = "bgmusic/";
     private int lastSeed = 0;
     private boolean autoDetectLastMusicId = true;
+    private boolean streamMusic = true;
+    private boolean streamCache = true;
+    private boolean preloadMusic = false;
     private transient Sound selectedSound = null;
 
     @Override
@@ -106,6 +109,9 @@ public class RandomBackgroundMusicComponent extends AbstractAudioComponent {
         oc.write(musicPath, "music_path", "bgmusic/");
         oc.write(lastSeed, "last_seed", 0);
         oc.write(autoDetectLastMusicId, "auto_detect_last_music_id", true);
+        oc.write(streamMusic, "stream_music", true);
+        oc.write(streamCache, "stream_cache", true);
+        oc.write(preloadMusic, "preload_music", false);
         oc.write(soundKeys.toArray(new AudioKey[0]), "sound_keys", null);
         
     }
@@ -120,6 +126,9 @@ public class RandomBackgroundMusicComponent extends AbstractAudioComponent {
         musicPath = ic.readString("music_path", "bgmusic/");
         lastSeed = ic.readInt("last_seed", 0);
         autoDetectLastMusicId = ic.readBoolean("auto_detect_last_music_id", lastMusicId == -1);
+        streamMusic = ic.readBoolean("stream_music", true);
+        streamCache = ic.readBoolean("stream_cache", true);
+        preloadMusic = ic.readBoolean("preload_music", false);
         AudioKey[] keys = (AudioKey[]) ic.readSavableArray("sound_keys", null);
         soundKeys.clear();
         if (keys != null) {
@@ -137,25 +146,33 @@ public class RandomBackgroundMusicComponent extends AbstractAudioComponent {
         if (autoDetectLastMusicId) {
             int i = firstMusicId;
             while (true) {
-                AudioKey k = new AudioKey(musicPath + "" + (i) + ".ogg");
+                AudioKey k = createMusicKey(i);
                 logger.fine("Locating background music: " + k);
                 if (assetManager.locateAsset(k) == null) {
                     break;
                 }
                 soundKeys.add(k);
-                get(k); // preload
+                if (preloadMusic) {
+                    get(k);
+                }
                 i++;
             }
             logger.info("Located " + (i - 1) + " background music tracks in path: " + musicPath);
             lastMusicId = i - 1;
         } else {
             for (int i = firstMusicId; i <= lastMusicId; i++) {
-                AudioKey k = new AudioKey(musicPath + "" + i + ".ogg");
+                AudioKey k = createMusicKey(i);
                 soundKeys.add(k);
-                get(k); // preload
+                if (preloadMusic) {
+                    get(k);
+                }
             }
         }
 
+    }
+
+    protected AudioKey createMusicKey(int musicId) {
+        return new AudioKey(musicPath + "" + musicId + ".ogg", streamMusic, streamCache);
     }
 
     protected void selectMusic(int seed) {
@@ -198,5 +215,38 @@ public class RandomBackgroundMusicComponent extends AbstractAudioComponent {
 
     public Sound getCurrentMusic() {
         return selectedSound;
+    }
+
+    public boolean isStreamMusic() {
+        return streamMusic;
+    }
+
+    public void setStreamMusic(boolean streamMusic) {
+        if (this.streamMusic != streamMusic) {
+            this.streamMusic = streamMusic;
+            reload();
+        }
+    }
+
+    public boolean isStreamCache() {
+        return streamCache;
+    }
+
+    public void setStreamCache(boolean streamCache) {
+        if (this.streamCache != streamCache) {
+            this.streamCache = streamCache;
+            reload();
+        }
+    }
+
+    public boolean isPreloadMusic() {
+        return preloadMusic;
+    }
+
+    public void setPreloadMusic(boolean preloadMusic) {
+        if (this.preloadMusic != preloadMusic) {
+            this.preloadMusic = preloadMusic;
+            reload();
+        }
     }
 }

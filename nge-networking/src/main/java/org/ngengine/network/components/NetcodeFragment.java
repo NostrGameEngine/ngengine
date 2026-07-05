@@ -7,6 +7,7 @@ import org.ngengine.components.Component;
 import org.ngengine.components.ComponentManager;
 import org.ngengine.components.fragments.ActionBasedFragment;
 import org.ngengine.network.RemotePeer;
+import org.ngengine.nostr4j.keypair.NostrPublicKey;
 
 public interface NetcodeFragment  extends ActionBasedFragment<ActionMessage> {
     
@@ -28,11 +29,12 @@ public interface NetcodeFragment  extends ActionBasedFragment<ActionMessage> {
         if (networkId == null || networkId.signum() < 0) {
             return true;
         }
+        NostrPublicKey localPeer = net.getLocalPeerPublicKey();
         return NetcodeAuthorityAssignment.hasAuthority(
-            net.getLocalPeerPublicKey(), 
+            localPeer,
             networkId,
             net.getKnownPeerPublicKeys(),
-            net.getLocalPeerPublicKey()
+            localPeer
         );
     }
 
@@ -50,11 +52,12 @@ public interface NetcodeFragment  extends ActionBasedFragment<ActionMessage> {
         }
         Set<org.ngengine.nostr4j.keypair.NostrPublicKey> knownPeers = new LinkedHashSet<>(net.getKnownPeerPublicKeys());
         knownPeers.add(peer.getRemotePeer().getPubkey());
+        NostrPublicKey localPeer = net.getLocalPeerPublicKey();
         return NetcodeAuthorityAssignment.hasAuthority(
             peer.getRemotePeer().getPubkey(),
             getNetworkId(),
             knownPeers,
-            net.getLocalPeerPublicKey()
+            localPeer
         );
     }
 

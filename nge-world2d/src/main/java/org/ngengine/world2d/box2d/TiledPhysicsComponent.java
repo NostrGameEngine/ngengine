@@ -448,7 +448,7 @@ public class TiledPhysicsComponent extends AbstractComponent
         if (debugFixturesDumped || body == null) {
             return;
         }
-        if (!Box2dFixtureDebugDumper.isEnabled()) {
+        if (!Box2dFixtureDebugDumper.isEnabled(getSettings())) {
             return;
         }
 

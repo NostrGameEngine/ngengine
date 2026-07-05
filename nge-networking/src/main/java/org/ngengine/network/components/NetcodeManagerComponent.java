@@ -6,8 +6,8 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -71,6 +71,13 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
 
     private List<RemotePeer> connectedPeers = new ArrayList<>();
     private List<RemotePeer> connectedPeersRO = Collections.unmodifiableList(connectedPeers);
+    private long connectedPeerSetVersion;
+    private @Nullable NostrSigner cachedLocalPeerSigner;
+    private @Nullable NostrPublicKey cachedLocalPeerPublicKey;
+    private boolean cachedLocalPeerPublicKeyResolved;
+    private long cachedKnownPeerSetVersion = -1;
+    private @Nullable NostrPublicKey cachedKnownPeerLocalPublicKey;
+    private @Nullable Set<NostrPublicKey> cachedKnownPeerPublicKeys;
 
     public void registerActionHandler(NetcodeFragment handler) {
         registeredActionHandlers.putIfAbsent(handler, new RegisteredHandler());
@@ -125,6 +132,7 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
             }
             RemotePeer remotePeer = (RemotePeer) conn;
             connectedPeers.add(remotePeer);
+            invalidateKnownPeerPublicKeys();
             String pub = remotePeer.getRemotePeer() != null && remotePeer.getRemotePeer().getPubkey() != null
                 ? remotePeer.getRemotePeer().getPubkey().asHex()
                 : "unknown";
@@ -138,6 +146,7 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
             }
             RemotePeer remotePeer = (RemotePeer) conn;
             connectedPeers.remove(remotePeer);
+            invalidateKnownPeerPublicKeys();
             String pub = remotePeer.getRemotePeer() != null && remotePeer.getRemotePeer().getPubkey() != null
                 ? remotePeer.getRemotePeer().getPubkey().asHex()
                 : "unknown";
@@ -225,6 +234,7 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
         conn.addMessageListener(messageListener);
 
         connection = conn;
+        invalidateLocalPeerPublicKey();
         connectedLobby = lobby;
     }
 
@@ -257,6 +267,8 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
         connectedLobby = null;
         connectedPeers.clear();
         inboundMessages.clear();
+        invalidateLocalPeerPublicKey();
+        invalidateKnownPeerPublicKeys();
     }
 
     public Lobby getLobby() {
@@ -311,14 +323,32 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
     }
 
     public @Nullable NostrPublicKey getLocalPeerPublicKey() {
-        if (connection == null || connection.getLocalSigner() == null) {
+        NostrSigner localSigner = connection != null ? connection.getLocalSigner() : null;
+        if (localSigner == null) {
+            if (cachedLocalPeerSigner != null || cachedLocalPeerPublicKey != null || cachedLocalPeerPublicKeyResolved) {
+                invalidateLocalPeerPublicKey();
+            }
             return null;
         }
+        if (localSigner != cachedLocalPeerSigner) {
+            cachedLocalPeerSigner = localSigner;
+            cachedLocalPeerPublicKey = null;
+            cachedLocalPeerPublicKeyResolved = false;
+            invalidateKnownPeerPublicKeys();
+        }
+        if (cachedLocalPeerPublicKeyResolved) {
+            return cachedLocalPeerPublicKey;
+        }
         try {
-            if (connection.getLocalSigner().getPublicKey() == null) {
+            var publicKeyTask = localSigner.getPublicKey();
+            if (publicKeyTask == null) {
                 return null;
             }
-            return connection.getLocalSigner().getPublicKey().await();
+            NostrPublicKey publicKey = publicKeyTask.await();
+            cachedLocalPeerPublicKey = publicKey;
+            cachedLocalPeerPublicKeyResolved = publicKey != null;
+            invalidateKnownPeerPublicKeys();
+            return publicKey;
         } catch (Exception ex) {
             return null;
         }
@@ -330,18 +360,28 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
     }
 
     public Set<NostrPublicKey> getKnownPeerPublicKeys() {
-        Set<NostrPublicKey> peers = new HashSet<>();
+        NostrPublicKey local = getLocalPeerPublicKey();
+        if (
+            cachedKnownPeerPublicKeys != null
+                && cachedKnownPeerSetVersion == connectedPeerSetVersion
+                && Objects.equals(cachedKnownPeerLocalPublicKey, local)
+        ) {
+            return cachedKnownPeerPublicKeys;
+        }
+        Set<NostrPublicKey> peers = new LinkedHashSet<>();
         for (RemotePeer peer : connectedPeersRO) {
             if (peer == null || peer.getRemotePeer() == null || peer.getRemotePeer().getPubkey() == null) {
                 continue;
             }
             peers.add(peer.getRemotePeer().getPubkey());
         }
-        NostrPublicKey local = getLocalPeerPublicKey();
         if (local != null) {
             peers.add(local);
         }
-        return Collections.unmodifiableSet(peers);
+        cachedKnownPeerSetVersion = connectedPeerSetVersion;
+        cachedKnownPeerLocalPublicKey = local;
+        cachedKnownPeerPublicKeys = Collections.unmodifiableSet(peers);
+        return cachedKnownPeerPublicKeys;
     }
 
  
@@ -602,6 +642,20 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
         }
         Component cmp = (Component) handler;
         return cmp.getComponentManager() != null;
+    }
+
+    public void invalidateLocalPeerPublicKey() {
+        cachedLocalPeerSigner = null;
+        cachedLocalPeerPublicKey = null;
+        cachedLocalPeerPublicKeyResolved = false;
+        invalidateKnownPeerPublicKeys();
+    }
+
+    private void invalidateKnownPeerPublicKeys() {
+        connectedPeerSetVersion++;
+        cachedKnownPeerSetVersion = -1;
+        cachedKnownPeerLocalPublicKey = null;
+        cachedKnownPeerPublicKeys = null;
     }
 
    

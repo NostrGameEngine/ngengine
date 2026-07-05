@@ -83,6 +83,7 @@ public class HUDInputHintComponent extends AbstractComponent implements LogicFra
     private String renderedInputHintSignature = "";
     private InputDevice activeDevice;
     private Integer activeInput;
+    private boolean inputHintsDirty = true;
 
     public void setInputHint(InputDevice device, int input, String hint) {
         InputHintKey key = InputHintKey.of(device, input);
@@ -92,9 +93,11 @@ public class HUDInputHintComponent extends AbstractComponent implements LogicFra
         if (hint == null || hint.isBlank()) {
             if (hints.remove(key) != null) {
                 renderedInputHintSignature = "";
+                inputHintsDirty = true;
             }
             if (key.matches(activeDevice, activeInput)) {
                 activeInput = null;
+                inputHintsDirty = true;
             }
             updateHud();
             return;
@@ -103,6 +106,7 @@ public class HUDInputHintComponent extends AbstractComponent implements LogicFra
         if (!trimmed.equals(hints.get(key))) {
             hints.put(key, trimmed);
             renderedInputHintSignature = "";
+            inputHintsDirty = true;
             updateHud();
         }
     }
@@ -115,6 +119,7 @@ public class HUDInputHintComponent extends AbstractComponent implements LogicFra
         hints.clear();
         activeDevice = null;
         activeInput = null;
+        inputHintsDirty = true;
         hideInputHints();
     }
 
@@ -125,6 +130,7 @@ public class HUDInputHintComponent extends AbstractComponent implements LogicFra
         }
         activeDevice = device;
         activeInput = input;
+        inputHintsDirty = true;
         updateHud();
     }
 
@@ -134,6 +140,7 @@ public class HUDInputHintComponent extends AbstractComponent implements LogicFra
         }
         activeDevice = device;
         activeInput = null;
+        inputHintsDirty = true;
         updateHud();
     }
 
@@ -147,6 +154,7 @@ public class HUDInputHintComponent extends AbstractComponent implements LogicFra
         renderedInputHintSignature = "";
         activeDevice = null;
         activeInput = null;
+        inputHintsDirty = false;
     }
 
     @Override
@@ -159,11 +167,16 @@ public class HUDInputHintComponent extends AbstractComponent implements LogicFra
         hints.clear();
         activeDevice = null;
         activeInput = null;
+        inputHintsDirty = true;
     }
 
     @Override
     public void updateAppLogic(ComponentManager mng, float tpf) {
-        updateHud();
+        NHud hud = currentHud();
+        if (!inputHintsDirty && inputHintAttached && hud == attachedHud) {
+            return;
+        }
+        updateHud(hud);
     }
 
     @Override
@@ -212,16 +225,21 @@ public class HUDInputHintComponent extends AbstractComponent implements LogicFra
     }
 
     private void updateHud() {
-        NHud hud = currentHud();
+        updateHud(currentHud());
+    }
+
+    private void updateHud(NHud hud) {
         if (hud == null) {
             return;
         }
         if (activeDevice == null) {
+            inputHintsDirty = false;
             return;
         }
         if (activeInput != null) {
             InputHintKey activeKey = InputHintKey.of(activeDevice, activeInput);
             if (activeKey == null || !hints.containsKey(activeKey)) {
+                inputHintsDirty = false;
                 return;
             }
         }
@@ -269,6 +287,7 @@ public class HUDInputHintComponent extends AbstractComponent implements LogicFra
         }
         String signature = inputHintSignature(hints);
         if (signature.equals(renderedInputHintSignature) && hud == attachedHud) {
+            inputHintsDirty = false;
             return;
         }
         if (attachedHud != null && attachedHud != hud) {
@@ -301,6 +320,7 @@ public class HUDInputHintComponent extends AbstractComponent implements LogicFra
             attachedHud = hud;
         }
         inputHintRoot.setLocalTranslation(0f, 0f, 4f);
+        inputHintsDirty = false;
     }
 
     private NChip createInputHintChip(InputHintView hint) {

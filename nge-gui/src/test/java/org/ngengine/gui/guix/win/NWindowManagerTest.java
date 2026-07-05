@@ -317,6 +317,23 @@ public class NWindowManagerTest {
     }
 
     @Test
+    public void relativeManagerUsesPhysicalRenderTargetWhenLogicalCameraIsScaled() {
+        initializeGui();
+
+        TestViewportComponent component = new TestViewportComponent(true, 1280, 720, 2560, 1440);
+        NWindowManager manager = component.getManager(null, null);
+        ViewPort vp = manager.getViewPort();
+
+        assertTrue(component.isRelativeSize());
+        assertEquals(1778, vp.getCamera().getWidth());
+        assertEquals(NWindowManagerComponent.RELATIVE_CAMERA_SCALE, vp.getCamera().getHeight());
+        assertEquals(2560, vp.getRenderTargetWidth());
+        assertEquals(1440, vp.getRenderTargetHeight());
+        assertEquals(2560, component.getPhysicalWidth());
+        assertEquals(1440, component.getPhysicalHeight());
+    }
+
+    @Test
     public void pixelManagerCreatesDedicatedPixelGuiCamera() {
         initializeGui();
 
@@ -449,8 +466,12 @@ public class NWindowManagerTest {
         private ViewPort createdGuiViewPort;
 
         TestViewportComponent(boolean relativeSize, int width, int height) {
+            this(relativeSize, width, height, width, height);
+        }
+
+        TestViewportComponent(boolean relativeSize, int width, int height, int renderTargetWidth, int renderTargetHeight) {
             super(relativeSize);
-            this.viewPortManager = new TestViewPortManager(width, height);
+            this.viewPortManager = new TestViewPortManager(width, height, renderTargetWidth, renderTargetHeight);
         }
 
         @Override
@@ -464,8 +485,9 @@ public class NWindowManagerTest {
         private class TestViewPortManager implements ViewPortManager {
             private final ViewPort mainViewPort;
 
-            TestViewPortManager(int width, int height) {
+            TestViewPortManager(int width, int height, int renderTargetWidth, int renderTargetHeight) {
                 mainViewPort = new ViewPort("main", new Camera(width, height));
+                mainViewPort.setRenderTargetSize(renderTargetWidth, renderTargetHeight);
             }
 
             @Override
@@ -482,8 +504,8 @@ public class NWindowManagerTest {
             public ViewPort createNewGuiViewPort(String name, Camera cam) {
                 createdGuiViewPort = new ViewPort(name, cam);
                 createdGuiViewPort.setRenderTargetSize(
-                        mainViewPort.getCamera().getWidth(),
-                        mainViewPort.getCamera().getHeight());
+                        mainViewPort.getRenderTargetWidth(),
+                        mainViewPort.getRenderTargetHeight());
                 return createdGuiViewPort;
             }
 
