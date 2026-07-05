@@ -1634,8 +1634,8 @@ public final class AppSettings extends HashMap<String, Object> {
      */
     public float getDisplayScaleMode() {
         Object mode = get("DisplayScaleMode");
-        if (mode instanceof Float) {
-            return DisplayScaleUtils.normalizeDisplayScaleMode((Float) mode);
+        if (mode instanceof Number) {
+            return DisplayScaleUtils.normalizeDisplayScaleMode(((Number) mode).floatValue());
         }
         return DISPLAY_SCALE_DISABLED;
     }

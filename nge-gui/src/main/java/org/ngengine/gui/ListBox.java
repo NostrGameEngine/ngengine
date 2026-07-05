@@ -201,7 +201,11 @@ public class ListBox<T> extends Panel  {
         boolean indexUpdate = indexRef.update();
         boolean selectionUpdate = selectionRef.update();         
         if( indexUpdate ) {
-            int index = (int)(maxIndex - baseIndex.getValue());
+            int index = snapToVisibleIndex(maxIndex - baseIndex.getValue());
+            double snappedValue = maxIndex - index;
+            if (Math.abs(baseIndex.getValue() - snappedValue) > 0.0001) {
+                baseIndex.setValue(snappedValue);
+            }
             grid.setRow(index);
         }         
 
@@ -433,7 +437,11 @@ public class ListBox<T> extends Panel  {
         
         baseIndex.setMinimum(0);
         baseIndex.setMaximum(maxIndex);
-        baseIndex.setValue(maxIndex - val);        
+        baseIndex.setValue(maxIndex - snapToVisibleIndex(val));        
+    }
+
+    protected int snapToVisibleIndex(double index) {
+        return Math.max(0, Math.min(maxIndex, (int) Math.round(index)));
     }
 
     protected void refreshActivation() {
