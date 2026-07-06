@@ -66,19 +66,14 @@ import org.ngengine.world2d.tiled.util.CoordinateSystem;
  * </p>
  */
 public class TiledViewRenderComponent extends AbstractComponent implements PovRenderer, TiledEntityLogicFragment {
-    private static final String CAMERA_FOLLOW_MODE_SETTING = "CameraFollowMode";
-    private static final String CAMERA_FOLLOW_SMOOTHING_SETTING = "CameraFollowSmoothing";
-    static final String CAMERA_FOLLOW_MODE_SNAP = "snap";
-    static final String CAMERA_FOLLOW_MODE_SMOOTH = "smooth";
-
+    private static final float DEFAULT_SMOOTHING = 3f;
     private ViewPort viewPort;
     private ViewPort guiViewPort;
     private TiledWorld2d registeredWorld;
     private final Vector3f targetCameraLoc = new Vector3f();
     private boolean cameraTargetReady;
     private float maxDistBeforeSnap = -1;
-    private float smoothing = -1f;
-    private String cameraFollowMode = CAMERA_FOLLOW_MODE_SMOOTH;
+    private float smoothing = DEFAULT_SMOOTHING;
 
     /**
      * Creates a component that resolves its scene and GUI viewports from the
@@ -92,7 +87,7 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
     }
 
     public TiledViewRenderComponent(ViewPort viewPort, ViewPort guiViewPort) {
-        this(viewPort, guiViewPort, -1f);
+        this(viewPort, guiViewPort, DEFAULT_SMOOTHING);
     }
 
     /**
@@ -135,7 +130,6 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
     @Override
     public Component newInstance() {
         TiledViewRenderComponent copy = new TiledViewRenderComponent(viewPort, guiViewPort, smoothing);
-        copy.cameraFollowMode = cameraFollowMode;
         return copy;
     }
 
@@ -260,14 +254,7 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
         ViewPort viewPort = getSceneViewPort();
         if (viewPort != null) {
             if (maxDistBeforeSnap == -1) {
-                maxDistBeforeSnap = Math.max(world.getMap().getTileWidth(), world.getMap().getTileHeight()) * 5f;
-                NGEAppSettings settings = getSettings();
-                if (smoothing < 0f) {
-                    smoothing = settings != null ? settings.getNumber(CAMERA_FOLLOW_SMOOTHING_SETTING, 12).floatValue() : 12f;
-                }
-                cameraFollowMode = settings != null
-                        ? settings.getString(CAMERA_FOLLOW_MODE_SETTING, cameraFollowMode)
-                        : cameraFollowMode;
+                maxDistBeforeSnap = Math.max(world.getMap().getTileWidth(), world.getMap().getTileHeight()) * 5f;               
             }
             try (TempVars vars = TempVars.get()) {
                 Camera cam = viewPort.getCamera();
@@ -276,7 +263,7 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
                 Vector3f dir = vars.vect1;
                 dir.set(targetCameraLoc).subtractLocal(loc);
                 float dist = dir.length();
-                if (shouldSnapCamera(cameraFollowMode, cameraTargetReady, dist, maxDistBeforeSnap)) {
+                if (shouldSnapCamera(smoothing, cameraTargetReady, dist, maxDistBeforeSnap)) {
                     loc.set(targetCameraLoc);
                     cameraTargetReady = true;
                 } else {
@@ -427,15 +414,13 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
         }
     }
 
-    static boolean shouldSnapCamera(String mode, boolean targetReady, float distance, float maxDistanceBeforeSnap) {
+    static boolean shouldSnapCamera(float smoothing, boolean targetReady, float distance, float maxDistanceBeforeSnap) {
         return !targetReady
-                || isSnapFollowMode(mode)
+                || smoothing <= 0f
                 || maxDistanceBeforeSnap >= 0f && distance > maxDistanceBeforeSnap;
     }
 
-    static boolean isSnapFollowMode(String mode) {
-        return CAMERA_FOLLOW_MODE_SNAP.equalsIgnoreCase(mode);
-    }
+ 
 
     static float cameraFollowAlpha(float smoothing, float tpf) {
         if (smoothing <= 0f) {
