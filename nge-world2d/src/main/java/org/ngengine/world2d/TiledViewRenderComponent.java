@@ -49,7 +49,9 @@ import org.ngengine.ViewPortManager;
 import org.ngengine.components.AbstractComponent;
 import org.ngengine.components.Component;
 import org.ngengine.components.ComponentManager;
+import org.ngengine.config.NGEAppSettings;
 import org.ngengine.gui.guix.win.NWindowManagerComponent;
+import org.ngengine.world2d.box2d.TiledPhysicsComponent;
 import org.ngengine.world2d.tiled.components.fragments.TiledEntityLogicFragment;
 import org.ngengine.world2d.tiled.core.TiledBase;
 import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
@@ -64,9 +66,19 @@ import org.ngengine.world2d.tiled.util.CoordinateSystem;
  * </p>
  */
 public class TiledViewRenderComponent extends AbstractComponent implements PovRenderer, TiledEntityLogicFragment {
+    private static final String CAMERA_FOLLOW_MODE_SETTING = "CameraFollowMode";
+    private static final String CAMERA_FOLLOW_SMOOTHING_SETTING = "CameraFollowSmoothing";
+    static final String CAMERA_FOLLOW_MODE_SNAP = "snap";
+    static final String CAMERA_FOLLOW_MODE_SMOOTH = "smooth";
+
     private ViewPort viewPort;
     private ViewPort guiViewPort;
     private TiledWorld2d registeredWorld;
+    private final Vector3f targetCameraLoc = new Vector3f();
+    private boolean cameraTargetReady;
+    private float maxDistBeforeSnap = -1;
+    private float smoothing = -1f;
+    private String cameraFollowMode = CAMERA_FOLLOW_MODE_SMOOTH;
 
     /**
      * Creates a component that resolves its scene and GUI viewports from the
@@ -75,15 +87,25 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
     public TiledViewRenderComponent() {
     }
 
+    public TiledViewRenderComponent(float smoothing) {
+        this.smoothing = smoothing;
+    }
+
+    public TiledViewRenderComponent(ViewPort viewPort, ViewPort guiViewPort) {
+        this(viewPort, guiViewPort, -1f);
+    }
+
     /**
      * Creates a component bound to explicit scene and GUI viewports.
      *
      * @param viewPort the scene viewport to render the world into
      * @param guiViewPort the GUI viewport to use for world GUI fragments
+     * @param smoothing the camera follow smoothing factor, or a negative value to read settings
      */
-    public TiledViewRenderComponent(ViewPort viewPort, ViewPort guiViewPort) {
+    public TiledViewRenderComponent(ViewPort viewPort, ViewPort guiViewPort, float smoothing) {
         this.viewPort = viewPort;
         this.guiViewPort = guiViewPort;
+        this.smoothing = smoothing;
     }
 
     /**
@@ -112,7 +134,9 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
      */
     @Override
     public Component newInstance() {
-        return new TiledViewRenderComponent(viewPort, guiViewPort);
+        TiledViewRenderComponent copy = new TiledViewRenderComponent(viewPort, guiViewPort, smoothing);
+        copy.cameraFollowMode = cameraFollowMode;
+        return copy;
     }
 
     /**
@@ -232,6 +256,35 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
         if (winMng != null && guiVp != null) {
             winMng.getManager(guiVp);
         }
+
+        ViewPort viewPort = getSceneViewPort();
+        if (viewPort != null) {
+            if (maxDistBeforeSnap == -1) {
+                maxDistBeforeSnap = Math.max(world.getMap().getTileWidth(), world.getMap().getTileHeight()) * 5f;
+                NGEAppSettings settings = getSettings();
+                if (smoothing < 0f) {
+                    smoothing = settings != null ? settings.getNumber(CAMERA_FOLLOW_SMOOTHING_SETTING, 12).floatValue() : 12f;
+                }
+                cameraFollowMode = settings != null
+                        ? settings.getString(CAMERA_FOLLOW_MODE_SETTING, cameraFollowMode)
+                        : cameraFollowMode;
+            }
+            try (TempVars vars = TempVars.get()) {
+                Camera cam = viewPort.getCamera();
+                Vector3f loc = cam.getLocation();
+
+                Vector3f dir = vars.vect1;
+                dir.set(targetCameraLoc).subtractLocal(loc);
+                float dist = dir.length();
+                if (shouldSnapCamera(cameraFollowMode, cameraTargetReady, dist, maxDistBeforeSnap)) {
+                    loc.set(targetCameraLoc);
+                    cameraTargetReady = true;
+                } else {
+                    moveCameraLocation(loc, targetCameraLoc, smoothing, tpf);
+                }
+                cam.setLocation(loc);
+            }
+        }
     }
 
     private void ensureRegistered() {
@@ -308,11 +361,10 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
         cam.setParallelProjection(true);
         cam.setFrustum(near, 10f, -halfWidth, halfWidth, halfHeight, -halfHeight);
 
-        Vector3f loc = cam.getLocation();
+        Vector3f loc = targetCameraLoc;
         loc.x = center.x;
         loc.y = 0;
         loc.z = center.z;
-        cam.setLocation(loc);
 
         try (TempVars vars = TempVars.get()) {
             Vector3f dir = vars.vect1;
@@ -344,10 +396,27 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
 
         try (TempVars vars = TempVars.get()) {
             Vector2f c = vars.vect2d;
-            coords.getCenterInGridSpace(obj, c);
-            coords.gridToWorldSpace(c.x, c.y, c);
+            TiledPhysicsComponent physics = mng.getComponent(TiledPhysicsComponent.class);
+            float z;
+            if (physics != null && physics.getBody() != null) {
+                Vector2f objectPositionGrid = vars.vect2d2;
+                Vector2f objectPositionWorld = vars.vect2d3;
 
-            float z = coords.getTopDownYIndex(obj);
+                coords.getCenterInGridSpace(obj, c);
+                coords.getPositionInGridSpace(obj, objectPositionGrid);
+                coords.gridToWorldSpace(c.x, c.y, c);
+                coords.gridToWorldSpace(objectPositionGrid.x, objectPositionGrid.y, objectPositionWorld);
+
+                coords.physicsToWorldSpace(physics.getPhysicsWorldPosition(), objectPositionGrid);
+                applyObjectCenterOffset(c, objectPositionWorld, objectPositionGrid, c);
+
+                coords.worldToGridSpace(c.x, c.y, objectPositionGrid);
+                z = coords.getTopDownYIndex(objectPositionGrid.x, objectPositionGrid.y);
+            } else {
+                coords.getCenterInGridSpace(obj, c);
+                coords.gridToWorldSpace(c.x, c.y, c);
+                z = coords.getTopDownYIndex(obj);
+            }
             float d = (float) Math.max(obj.getWidth(), obj.getHeight()) * 1.2f;
 
             Vector3f wp = vars.vect1;
@@ -356,6 +425,42 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
             wp.z = c.y;
             pointCameraTo(wp, d);
         }
+    }
+
+    static boolean shouldSnapCamera(String mode, boolean targetReady, float distance, float maxDistanceBeforeSnap) {
+        return !targetReady
+                || isSnapFollowMode(mode)
+                || maxDistanceBeforeSnap >= 0f && distance > maxDistanceBeforeSnap;
+    }
+
+    static boolean isSnapFollowMode(String mode) {
+        return CAMERA_FOLLOW_MODE_SNAP.equalsIgnoreCase(mode);
+    }
+
+    static float cameraFollowAlpha(float smoothing, float tpf) {
+        if (smoothing <= 0f) {
+            return 1f;
+        }
+        if (tpf <= 0f) {
+            return 0f;
+        }
+        return Math.min(1f, 1f - (float) Math.exp(-smoothing * tpf));
+    }
+
+    static void moveCameraLocation(Vector3f location, Vector3f target, float smoothing, float tpf) {
+        float alpha = cameraFollowAlpha(smoothing, tpf);
+        location.interpolateLocal(target, alpha);
+    }
+
+    static void applyObjectCenterOffset(
+            Vector2f objectCenterWorld,
+            Vector2f objectPositionWorld,
+            Vector2f physicsPositionWorld,
+            Vector2f out
+    ) {
+        out.set(objectCenterWorld)
+                .subtractLocal(objectPositionWorld)
+                .addLocal(physicsPositionWorld);
     }
 
 }
