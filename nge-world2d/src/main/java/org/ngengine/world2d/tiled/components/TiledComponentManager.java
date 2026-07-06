@@ -165,6 +165,9 @@ public class TiledComponentManager extends AbstractComponentManager {
     @Override
     protected void initialize(AbstractComponentManager mng, NGEAppSettings settings) {
         super.initialize(mng, settings);
+        if (mng != this) {
+            return;
+        }
         List<ComponentUpdater> updaters = mng.getUpdaters();
         if (!updaters.contains(logicUpdater)) {
             updaters.add(logicUpdater);
@@ -184,7 +187,9 @@ public class TiledComponentManager extends AbstractComponentManager {
             initializers.add(guiUpdater);
         }
 
-        physicsManagers.add(new TiledPhysicsUpdater());
+        if (physicsManagers.isEmpty()) {
+            physicsManagers.add(new TiledPhysicsUpdater());
+        }
     }
 
     @Override
