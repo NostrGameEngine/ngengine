@@ -645,6 +645,9 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
                 lastMotionX = eventX;
                 lastMotionY = eventY;
                 clampCursorToViewPort();
+                if (pointerActionPressed) {
+                    pointerDragged(cursorX, cursorY);
+                }
                 if(navigator.updateCursorPosition(cursorX, cursorY)){
                     Spatial picked = state.pick(cursorX, cursorY);
                     if (picked != null) {
@@ -773,11 +776,13 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
         Spatial pressedTarget = pointerActionTarget;
         Spatial releaseTarget = state.pick(x, y);
         pointerActionTarget = null;
-        if (pressedTarget != null && pressedTarget == releaseTarget && pointerActionPressed) {
-            navigator.focusPointer(pressedTarget);
+        if (pressedTarget != null && pointerActionPressed) {
             FocusTarget target = NGEGui.findFocusTarget(pressedTarget);
             if (target != null) {
                 target.focusAction(pressedTarget, false, (float) x, (float) y);
+            }
+            if (pressedTarget == releaseTarget) {
+                navigator.focusPointer(pressedTarget);
             }
         }
         pointerActionPressed = false;
