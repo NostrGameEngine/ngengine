@@ -83,6 +83,7 @@ import org.ngengine.gui.NGEGui;
 import org.ngengine.gui.Panel;
 import org.ngengine.gui.Slider;
 import org.ngengine.gui.core.GuiControl;
+import org.ngengine.gui.guix.win.NWindowManagerComponent;
 import org.ngengine.gui.ime.ImeComposer;
 import org.ngengine.gui.ime.ImeCompositionEvent;
 import org.ngengine.gui.ime.PhysicalKeyboardImeComposer;
@@ -502,6 +503,74 @@ public class NavigatorLayerTest {
     }
 
     @Test
+    public void sliderThumbFocusDragChangesSliderValue() {
+        initializeGui();
+
+        ViewPort vp = new ViewPort("gui-slider-thumb-direct-drag", new Camera(800, 600));
+        Node guiNode = new Node("GuiNode");
+        guiNode.setQueueBucket(Bucket.Gui);
+        vp.attachScene(guiNode);
+        NGEGui.register(vp, true);
+
+        Node root = new Node("root");
+        DefaultRangedValueModel model = new DefaultRangedValueModel(0, 100, 50);
+        Slider slider = new Slider(model, Axis.Y);
+        slider.setPreferredSize(40f, 240f);
+        slider.setSize(new Vector3f(40f, 240f, 0f));
+        slider.setLocalTranslation(100f, 320f, 0f);
+        root.attachChild(slider);
+        guiNode.attachChild(root);
+        guiNode.updateLogicalState(0.016f);
+        guiNode.updateGeometricState();
+
+        Vector3f thumbCenter = slider.getThumbButton()
+                .localToWorld(slider.getThumbButton().getSize().mult(0.5f), null);
+        GuiControl thumbControl = slider.getThumbButton().getControl(GuiControl.class);
+        thumbControl.focusAction(slider.getThumbButton(), true, thumbCenter.x, thumbCenter.y);
+        thumbControl.focusDrag(slider.getThumbButton(), thumbCenter.x, thumbCenter.y + 60f);
+        thumbControl.focusAction(slider.getThumbButton(), false, thumbCenter.x, thumbCenter.y + 60f);
+
+        assertTrue(model.getValue() != 50, "value=" + model.getValue());
+    }
+
+    @Test
+    public void relativeSliderThumbFocusDragChangesSliderValue() {
+        initializeGui();
+
+        Camera camera = new Camera(1778, 1000);
+        camera.setName(NWindowManagerComponent.RELATIVE_CAMERA_NAME);
+        ViewPort vp = new ViewPort("gui-relative-slider-thumb-direct-drag", camera);
+        Node guiNode = new Node("GuiNode");
+        guiNode.setQueueBucket(Bucket.Gui);
+        guiNode.setLocalScale(NWindowManagerComponent.RELATIVE_CAMERA_SCALE);
+        vp.attachScene(guiNode);
+        NGEGui.register(vp, true);
+        NGEGui.get(vp).setInputCoordinateSize(1280f, 720f);
+
+        Node root = new Node("root");
+        DefaultRangedValueModel model = new DefaultRangedValueModel(0, 100, 50);
+        Slider slider = new Slider(model, Axis.Y);
+        slider.setPreferredSize(0.04f, 0.24f);
+        slider.setSize(new Vector3f(0.04f, 0.24f, 0f));
+        slider.setLocalTranslation(0.1f, 0.32f, 0f);
+        root.attachChild(slider);
+        guiNode.attachChild(root);
+        guiNode.updateLogicalState(0.016f);
+        guiNode.updateGeometricState();
+
+        Vector3f thumbCenter = slider.getThumbButton()
+                .localToWorld(slider.getThumbButton().getSize().mult(0.5f), null);
+        float startX = thumbCenter.x / NWindowManagerComponent.RELATIVE_CAMERA_SCALE;
+        float startY = thumbCenter.y / NWindowManagerComponent.RELATIVE_CAMERA_SCALE;
+        GuiControl thumbControl = slider.getThumbButton().getControl(GuiControl.class);
+        thumbControl.focusAction(slider.getThumbButton(), true, startX, startY);
+        thumbControl.focusDrag(slider.getThumbButton(), startX, startY + 0.06f);
+        thumbControl.focusAction(slider.getThumbButton(), false, startX, startY + 0.06f);
+
+        assertTrue(model.getValue() != 50, "value=" + model.getValue());
+    }
+
+    @Test
     public void joystickAxisNavigationIgnoresVerticalNoiseWhenHorizontalAxisDominates() {
         initializeGui();
 
@@ -802,6 +871,47 @@ public class NavigatorLayerTest {
     }
 
     @Test
+    public void visibleMouseDragSendsFocusDragToPressedPointerTarget() {
+        initializeGui();
+
+        ViewPort vp = new ViewPort("gui-mouse-drag", new Camera(800, 600));
+        Node guiNode = new Node("GuiNode");
+        guiNode.setQueueBucket(Bucket.Gui);
+        vp.attachScene(guiNode);
+        GuiContext context = NGEGui.register(vp, true);
+
+        Node root = new Node("root");
+        Node target = pickable("target", 100f, 100f);
+        List<String> events = new ArrayList<>();
+        addRecorder(target, events);
+        root.attachChild(target);
+        guiNode.attachChild(root);
+        guiNode.updateGeometricState();
+        context.getNavigator().pushLayer(root);
+
+        TestMouseInput mouseInput = new TestMouseInput();
+        InputManager inputManager = newInputManager(mouseInput, null);
+        DefaultNavigatorInputHandler handler = new DefaultNavigatorInputHandler(vp);
+        handler.registerListener(inputManager);
+        handler.setInputDevice(inputManager, new Mouse());
+        inputManager.setCursorVisible(true);
+
+        mouseInput.queue(new MouseButtonEvent(MouseInput.BUTTON_LEFT, true, 110, 110));
+        inputManager.update(0.016f);
+        mouseInput.queue(new MouseMotionEvent(140, 130, 30, 20, 0, 0));
+        inputManager.update(0.016f);
+        mouseInput.queue(new MouseButtonEvent(MouseInput.BUTTON_LEFT, false, 140, 130));
+        inputManager.update(0.016f);
+
+        assertEquals(List.of(
+            "gained:target",
+            "action:target:true",
+            "drag:target:140.0:130.0",
+            "action:target:false"
+        ), events);
+    }
+
+    @Test
     public void pointerClickPrefersNestedFocusableChildOverFocusableParent() {
         initializeGui();
 
@@ -1035,6 +1145,11 @@ public class NavigatorLayerTest {
             @Override
             public void focusAction(Spatial target, boolean pressed) {
                 events.add("action:" + target.getName() + ":" + pressed);
+            }
+
+            @Override
+            public void focusDrag(Spatial target, float x, float y) {
+                events.add("drag:" + target.getName() + ":" + x + ":" + y);
             }
 
             @Override

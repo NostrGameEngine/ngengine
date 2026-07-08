@@ -59,13 +59,12 @@ import com.jme3.input.KeyInput;
 import com.jme3.input.Keyboard;
 import com.jme3.input.Mouse;
 import com.jme3.input.MouseInput;
+import com.jme3.input.RawInputListenerAdapter;
 import com.jme3.input.TouchInput;
 import com.jme3.input.TouchScreen;
 import com.jme3.input.controls.JoyAxisTrigger;
 import com.jme3.input.controls.JoyButtonTrigger;
 import com.jme3.input.controls.KeyTrigger;
-import com.jme3.input.controls.MouseAxisTrigger;
-import com.jme3.input.controls.MouseButtonTrigger;
 import com.jme3.input.controls.TouchTrigger;
 import com.jme3.input.event.InputEvent;
 import com.jme3.input.event.JoyAxisEvent;
@@ -102,6 +101,17 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
     private float leftStickY;
     private float simulatedCursorX;
     private float simulatedCursorY;
+    private final RawInputListenerAdapter rawMouseListener = new RawInputListenerAdapter() {
+        @Override
+        public void onMouseMotionEvent(MouseMotionEvent evt) {
+            handleRawMouseMotion(evt);
+        }
+
+        @Override
+        public void onMouseButtonEvent(MouseButtonEvent evt) {
+            handleRawMouseButton(evt);
+        }
+    };
     
 
     public DefaultNavigatorInputHandler(ViewPort guiViewPort) {
@@ -204,6 +214,8 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
     public void registerListener(InputManager inputManager) {
         this.inputManager = inputManager;
         inputManager.removeListener(this);
+        inputManager.removeRawInputListener(rawMouseListener);
+        inputManager.addRawInputListener(rawMouseListener);
         bindActiveMappings();
     }
 
@@ -211,6 +223,7 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
     public void unregisterListener(InputManager inputManager) {
         if (inputManager != null) {
             inputManager.removeListener(this);
+            inputManager.removeRawInputListener(rawMouseListener);
             clearActiveMappings(inputManager);
         }
         this.inputManager = null;
@@ -279,17 +292,7 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
             inputManager.addMapping(_ps("navigateLeft"), new KeyTrigger(KeyInput.KEY_LEFT));
             inputManager.addMapping(_ps("navigateRight"), new KeyTrigger(KeyInput.KEY_RIGHT));
             inputManager.addMapping(_ps("navigateNext"), new KeyTrigger(KeyInput.KEY_TAB));
-            inputManager.addMapping(_ps("navigateByCursor"), new MouseAxisTrigger(MouseInput.AXIS_X, true),
-                    new MouseAxisTrigger(MouseInput.AXIS_X, false),
-                    new MouseAxisTrigger(MouseInput.AXIS_Y, true),
-                    new MouseAxisTrigger(MouseInput.AXIS_Y, false));
-
-            inputManager.addMapping(_ps("scrollUp"), new MouseAxisTrigger(MouseInput.AXIS_WHEEL, false));
-
-            inputManager.addMapping(_ps("scrollDown"), new MouseAxisTrigger(MouseInput.AXIS_WHEEL, true));
-
-            inputManager.addMapping(_ps("confirm"), new KeyTrigger(KeyInput.KEY_RETURN),
-                    new MouseButtonTrigger(MouseInput.BUTTON_LEFT));
+            inputManager.addMapping(_ps("confirm"), new KeyTrigger(KeyInput.KEY_RETURN));
 
             inputManager.addMapping(_ps("primaryAction"), new KeyTrigger(KeyInput.KEY_RETURN));
 
@@ -627,24 +630,7 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
                     return;
                 }
                 lastCursorMotionEvent = mme;
-                double rawEventX = mme.getX();
-                double rawEventY = mme.getY();
-                double eventX = state.toGuiX(rawEventX);
-                double eventY = state.toGuiY(rawEventY);
-                boolean fixedAbsolute = eventX == lastMotionX && eventY == lastMotionY
-                        || (Double.isNaN(lastMotionX) && eventX == cursorX && eventY == cursorY);
-                if (inputManager != null && !inputManager.isCursorVisible()
-                        && fixedAbsolute
-                        && (mme.getDX() != 0 || mme.getDY() != 0)) {
-                    cursorX += state.toGuiDeltaX(mme.getDX());
-                    cursorY += state.toGuiDeltaY(mme.getDY());
-                } else {
-                    cursorX = eventX;
-                    cursorY = eventY;
-                }
-                lastMotionX = eventX;
-                lastMotionY = eventY;
-                clampCursorToViewPort();
+                updateCursorFromMotion(state, mme);
                 if (pointerActionPressed) {
                     pointerDragged(cursorX, cursorY);
                 }
@@ -661,6 +647,95 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
                 }
             }
         }   
+    }
+
+    private void handleRawMouseMotion(MouseMotionEvent event) {
+        ViewPort vp = getViewPort();
+        if (vp == null) return;
+
+        GuiContext state = NGEGui.get(vp);
+        if (state == null) return;
+
+        Navigator navigator = state.getNavigator();
+        if (navigator == null || (!navigator.isCursorVisible() && !pointerActionPressed)) {
+            return;
+        }
+
+        updateCursorFromMotion(state, event);
+        Spatial picked = null;
+        if (navigator.updateCursorPosition(cursorX, cursorY) && !pointerActionPressed) {
+            picked = state.pick(cursorX, cursorY);
+            if (picked != null) {
+                navigator.focusPointer(picked);
+            } else {
+                navigator.clearPointerFocus();
+            }
+        }
+
+        if (pointerActionPressed) {
+            pointerDragged(cursorX, cursorY);
+        }
+
+        if (event.getDeltaWheel() != 0) {
+            navigator.scroll(event.getDeltaWheel() < 0 ? ScrollDirection.Down : ScrollDirection.Up, 1);
+        }
+
+        lastCursorMotionEvent = event;
+        if (pointerActionPressed || event.getDeltaWheel() != 0 || picked != null) {
+            consume(event);
+        }
+    }
+
+    private void handleRawMouseButton(MouseButtonEvent event) {
+        if (event.getButtonIndex() != MouseInput.BUTTON_LEFT) {
+            return;
+        }
+
+        ViewPort vp = getViewPort();
+        if (vp == null) return;
+
+        GuiContext state = NGEGui.get(vp);
+        if (state == null) return;
+
+        Navigator navigator = state.getNavigator();
+        if (navigator == null || (!navigator.isCursorVisible() && !pointerActionPressed)) {
+            return;
+        }
+
+        double x = hasCursorMotion() ? cursorX : state.toGuiX(event.getX());
+        double y = hasCursorMotion() ? cursorY : state.toGuiY(event.getY());
+        navigator.updateCursorPosition(x, y);
+        if (event.isPressed()) {
+            pointerPressed(state, navigator, x, y);
+        } else {
+            pointerReleased(state, navigator, x, y);
+        }
+        consume(event);
+    }
+
+    private boolean hasCursorMotion() {
+        return !Double.isNaN(lastMotionX) && !Double.isNaN(lastMotionY);
+    }
+
+    private void updateCursorFromMotion(GuiContext state, MouseMotionEvent event) {
+        double rawEventX = event.getX();
+        double rawEventY = event.getY();
+        double eventX = state.toGuiX(rawEventX);
+        double eventY = state.toGuiY(rawEventY);
+        boolean fixedAbsolute = eventX == lastMotionX && eventY == lastMotionY
+                || (Double.isNaN(lastMotionX) && eventX == cursorX && eventY == cursorY);
+        if (inputManager != null && !inputManager.isCursorVisible()
+                && fixedAbsolute
+                && (event.getDX() != 0 || event.getDY() != 0)) {
+            cursorX += state.toGuiDeltaX(event.getDX());
+            cursorY += state.toGuiDeltaY(event.getDY());
+        } else {
+            cursorX = eventX;
+            cursorY = eventY;
+        }
+        lastMotionX = eventX;
+        lastMotionY = eventY;
+        clampCursorToViewPort();
     }
 
     private boolean handleTouchInput(GuiContext state, Navigator navigator, String name, InputEvent<?> inputEvent) {
