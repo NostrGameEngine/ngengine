@@ -265,8 +265,9 @@ public class NGEStyle {
 
         {
             ElementId parent = new ElementId(ListBox.ELEMENT_ID);
-            QuadBackgroundComponent quad = new QuadBackgroundComponent(accentPurple);
-            quad.getMaterial().getMaterial().getAdditionalRenderState().setBlendMode(BlendMode.Exclusion);
+            ColorRGBA selectorColor = accentPurple.clone();
+            selectorColor.a = 0.72f;
+            QuadBackgroundComponent quad = new QuadBackgroundComponent(selectorColor);
             styles.getSelector(parent.child(ListBox.SELECTOR_ID), NAME).set("background", quad, false);        
         }
 
@@ -332,7 +333,9 @@ public class NGEStyle {
                 false
             );
             background.setMargin(new Vector2f(px(10), px(10)));
-            background.setColor(darkPurple);
+            ColorRGBA windowBackground = mediumPurple.clone();
+            windowBackground.a = 0.98f;
+            background.setColor(windowBackground);
             container.set("background", background);
             container.set("selectionBackground", new QuadBackgroundComponent(mediumPurple));
         }
@@ -533,7 +536,9 @@ public class NGEStyle {
         {
             Attributes listSelector = styles.getSelector("list.selector", NAME);
 
-            QuadBackgroundComponent bg = new QuadBackgroundComponent(mediumPurple);
+            ColorRGBA selectorColor = mediumPurple.clone();
+            selectorColor.a = 0.72f;
+            QuadBackgroundComponent bg = new QuadBackgroundComponent(selectorColor);
             bg.setMargin(0, 0);
             listSelector.set("background", bg);
         }
@@ -541,7 +546,7 @@ public class NGEStyle {
         {
             {
                 Attributes toast = styles.getSelector("toast", NAME);
-                toast.set("insets", new Insets3f(vmin(1), vmin(1), vmin(1), vmin(1)));
+                toast.set("insets", new Insets3f(vmin(1.4f), vmin(1.8f), vmin(1.4f), vmin(1.8f)));
             }
 
             {
@@ -574,6 +579,8 @@ public class NGEStyle {
                 closeBtn.set("fontSize", vmin(2.1f));
                 closeBtn.set("color", lightPurple);
                 closeBtn.set("svgIconComponent", on);
+                closeBtn.set("preferredSize", new Vector3f(vmin(4.4f), vmin(4.4f), 0f));
+                closeBtn.set("insets", new Insets3f(0f, 0f, 0f, 0f));
             }
 
             {
@@ -582,6 +589,8 @@ public class NGEStyle {
                 NSVGIcon on = new NSVGIcon("org/ngengine/gui/icons/outline/info-square-rounded.svg", iconSize, iconSize);
                 toastIcon.set("color", lightPurple);
                 toastIcon.set("svgIconComponent",on );
+                toastIcon.set("preferredSize", new Vector3f(vmin(4.4f), vmin(4.4f), 0f));
+                toastIcon.set("insets", new Insets3f(0f, 0f, 0f, 0f));
             }
 
             {
@@ -602,6 +611,7 @@ public class NGEStyle {
                 Attributes toastLabel = styles.getSelector("toast.label", NAME);
                 toastLabel.set("textHAlignment", HAlignment.Left);
                 toastLabel.set("textVAlignment", VAlignment.Center);
+                toastLabel.set("insets", new Insets3f(0f, vmin(0.8f), 0f, vmin(0.8f)));
             }
         }
     }

@@ -44,7 +44,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -103,8 +102,8 @@ public class NWindowManager {
         this.mng = mng;
         this.ctx = ctx;
         
-        oldWidth = getWidth();
-        oldHeight = getHeight();
+        oldWidth = getLogicalWidth();
+        oldHeight = getLogicalHeight();
     }
 
     public void setInputHandler(NavigatorInputHandler inputHandler){
@@ -197,24 +196,27 @@ public class NWindowManager {
         }    
         if (toastsStack.size() > 0) {
             Instant now = Instant.now();
-            Iterator<NToast> it = toastsStack.iterator();
-            while (it.hasNext()) {
-                NToast toast = it.next();
-                boolean expired = toast.getCreationTime().plus(toast.getDuration()).isBefore(now);
-                boolean closed = toast.isClosed();
-                if (expired) {
-                    toast.close();
+            NToast[] toasts = toastsStack.toArray(new NToast[0]);
+            for (NToast toast : toasts) {
+                if (!toastsStack.contains(toast)) {
+                    continue;
                 }
-                if (closed) {
-                    it.remove();
+                boolean expired = toast.getDuration() != null && toast.getCreationTime().plus(toast.getDuration()).isBefore(now);
+                if (toast.isClosed()) {
+                    closeToast(toast);
+                } else if (expired) {
+                    toast.close();
                 }
             }
         }
 
         Camera cam = ctx.getViewPort().getCamera();
-        if (oldWidth != getLogicalWidth() || oldHeight != getLogicalHeight()) {
-            oldWidth = getLogicalWidth();
-            oldHeight = getLogicalHeight();
+        float logicalWidth = getLogicalWidth();
+        float logicalHeight = getLogicalHeight();
+        if (oldWidth != logicalWidth || oldHeight != logicalHeight) {
+            oldWidth = logicalWidth;
+            oldHeight = logicalHeight;
+            NGEStyle.installAndUse(logicalWidth, logicalHeight);
             for (NWindow<?> window : windows) {
                 window.invalidate();
             }
@@ -532,13 +534,16 @@ public class NWindowManager {
 
         if(containerToast == null){
             containerToast = new Container( new SpringGridLayout(Axis.Y, Axis.X, FillMode.ForcedEven, FillMode.Even));
+            containerToast.setInsets(new Insets3f(0f, 0f, 0f, 0f));
             Container toastParent = new Container(new BorderLayout());
+            toastParent.setInsets(new Insets3f(0f, 0f, 0f, 0f));
             toastParent.addChild(containerToast, BorderLayout.Position.South);
             ctx.getGuiNode().attachChild(toastParent);
         }
         containerToast.addChild(toast);
 
         toastsStack.add(toast);
+        toast.initialize(this);
         updateToastStackLayout();
         return toast;       
     }
@@ -552,13 +557,18 @@ public class NWindowManager {
         float toastWidth = getToastStackWidth(logicalWidth);
         float stackHeight = 0f;
         for (NToast toast : toastsStack) {
-            stackHeight += getToastHeight(toast);
+            float toastHeight = getToastHeight(toast);
+            toast.setToastSize(toastWidth, toastHeight);
+            stackHeight += toastHeight;
         }
 
         float margin = NGEStyle.vmin(1f);
-        containerToast.setPreferredSize(new Vector3f(toastWidth, stackHeight, TOAST_LAYER_Z));
+        Vector3f stackSize = new Vector3f(toastWidth, stackHeight, TOAST_LAYER_Z);
+        containerToast.setPreferredSize(stackSize);
+        containerToast.setSize(stackSize);
         Container toastParent = (Container) containerToast.getParent();
-        toastParent.setPreferredSize(new Vector3f(toastWidth, stackHeight, TOAST_LAYER_Z));
+        toastParent.setPreferredSize(stackSize);
+        toastParent.setSize(stackSize);
         toastParent.setLocalTranslation(getToastStackX(logicalWidth, toastWidth), stackHeight + margin, TOAST_LAYER_Z);
     }
 
@@ -585,7 +595,9 @@ public class NWindowManager {
 
     void closeToast(NToast toast) {
         checkThread();
-        if (toast.getParent() != null) {
+        if (containerToast != null && toast.getParent() == containerToast) {
+            containerToast.removeChild(toast);
+        } else if (toast.getParent() != null) {
             toast.removeFromParent();
         }
         toastsStack.remove(toast);

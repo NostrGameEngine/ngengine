@@ -350,21 +350,23 @@ public class SpringGridLayout extends AbstractGuiComponent
             throw new IllegalArgumentException( "Child is not GUI element." );
 
         // Remove any element that is already at this row/column
-        Map<Integer, Entry> rowMap = getRow(row, true);
-        Entry existing = rowMap.get(column);
+        Map<Integer, Entry> rowMap = getRow(row, false);
+        Entry existing = rowMap == null ? null : rowMap.get(column);
+        Entry previous = lookup.get(n);
+
         if( existing != null ) {
-            remove(existing);
+            remove(existing, false);
         }
 
         // Remove a previous entry for this node if we've
         // seen it before
-        Entry previous = lookup.get(n);
-        if( previous != null ) {
-            remove(previous);
+        if( previous != null && previous != existing ) {
+            remove(previous, false);
         }
         
         // Now we can create our grid cell entry and set it up.
         Entry entry = new Entry(row, column, n);
+        rowMap = getRow(row, true);
         rowMap.put(column, entry);
         
         if( n != null ) {
@@ -466,6 +468,10 @@ public class SpringGridLayout extends AbstractGuiComponent
     }
 
     protected void remove( Entry e ) {
+        remove(e, true);
+    }
+
+    protected void remove( Entry e, boolean compact ) {
     
         e.detach();
 
@@ -479,8 +485,16 @@ public class SpringGridLayout extends AbstractGuiComponent
             lookup.remove(e.child);
         }
 
-        // Recalculate the row and column count in case
-        // we have shrunk.
+        if( compact ) {
+            compactRows();
+        } else {
+            recalculateCounts();
+        }
+
+        invalidate();
+    }
+
+    protected void recalculateCounts() {
         rowCount = 0;
         columnCount = 0;
         for( Entry child : lookup.values() ) {
@@ -491,8 +505,34 @@ public class SpringGridLayout extends AbstractGuiComponent
                 columnCount = child.col + 1;
             }
         }
+    }
 
-        invalidate();
+    protected void compactRows() {
+        List<Integer> rows = new ArrayList<Integer>(children.keySet());
+        Collections.sort(rows);
+
+        Map<Integer, Map<Integer, Entry>> compacted = new HashMap<Integer, Map<Integer, Entry>>();
+        rowCount = 0;
+        columnCount = 0;
+        for( Integer row : rows ) {
+            Map<Integer, Entry> rowMap = children.get(row);
+            if( rowMap == null || rowMap.isEmpty() ) {
+                continue;
+            }
+
+            int newRow = rowCount++;
+            Map<Integer, Entry> compactedRow = new HashMap<Integer, Entry>();
+            for( Entry child : rowMap.values() ) {
+                child.row = newRow;
+                compactedRow.put(child.col, child);
+                if( child.col + 1 > columnCount ) {
+                    columnCount = child.col + 1;
+                }
+            }
+            compacted.put(newRow, compactedRow);
+        }
+
+        children = compacted;
     }
 
     @Override

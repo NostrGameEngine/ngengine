@@ -35,7 +35,6 @@ package ngetests.tests.gui.showcase;
 import org.ngengine.Components;
 import org.ngengine.NGEApplication;
 import org.ngengine.NGEApplication.NGEAppRunner;
-import org.ngengine.gui.guix.win.NWindowManagerComponent;
 import org.ngengine.platform.NGEPlatform;
 import org.ngengine.platform.jvm.JVMAsyncPlatform;
 
@@ -49,9 +48,6 @@ public class TestNGEGuiShowcase {
     public static void main(String[] args) {
         NGEPlatform.set(new JVMAsyncPlatform());
         NGEAppRunner app = NGEApplication.createApp(a -> {
-            NWindowManagerComponent win = new NWindowManagerComponent();
-            Components.mount(a, win).enable();
-            win.setInteractionEnabled(true);
             Components.mount(a, new ShowcaseLauncherComponent()).enable();
         });
         app.run();

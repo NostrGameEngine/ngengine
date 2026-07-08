@@ -44,15 +44,22 @@ import org.ngengine.gui.guix.win.NWindow;
 /**
  * Main launcher: shows a menu of demo sections, each opening a dedicated window.
  */
-public class ShowcaseLauncherWindow extends NWindow<Void> {
+public class ShowcaseLauncherWindow extends NWindow<ShowcaseLauncherComponent> {
 
     @Override
-    protected void compose(Vector3f size, Void args) throws Throwable {
+    protected void compose(Vector3f size, ShowcaseLauncherComponent launcher) throws Throwable {
         setTitle("NGE GUI Showcase");
 
         NPanel content = getContent();
 
         content.addChild(new NLabel("Choose a section to explore:"));
+        if (launcher != null) {
+            NRow sizingRow = content.addRow();
+            sizingRow.addChild(new NLabel(launcher.getUiModeLabel()));
+            NButton sizingToggle = new NButton(launcher.getUiModeToggleLabel());
+            sizingToggle.addClickCommands(b -> launcher.toggleUiMode());
+            sizingRow.addChild(sizingToggle);
+        }
         content.addChild(new NVSpacer());
 
         NColumn col = content.addCol();

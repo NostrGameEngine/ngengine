@@ -44,6 +44,9 @@ import org.ngengine.gui.component.BorderLayout;
 import org.ngengine.gui.component.DynamicInsetsComponent;
 import org.ngengine.gui.guix.NIconButton;
 import org.ngengine.gui.style.ElementId;
+
+import com.jme3.math.Vector3f;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -65,6 +68,7 @@ public class NToast extends Container {
 
     protected ToastType type;
     protected Label message;
+    protected NIconButton icon;
     protected Duration duration;
     protected Instant creationTime;
     protected NWindowManager appState;
@@ -72,6 +76,9 @@ public class NToast extends Container {
     protected NIconButton closeBtn;
     protected List<Runnable> closeListeners = new CopyOnWriteArrayList<>();
     protected List<Consumer<Integer>> actionListeners = new CopyOnWriteArrayList<>();
+    private float assignedWidth;
+    private float assignedHeight;
+    private boolean assignedCloseable;
 
     NToast(ToastType type, String message, Duration duration) {
         super( new BorderLayout(), new ElementId(type.name().toLowerCase() + "." + ELEMENT_ID));
@@ -81,7 +88,7 @@ public class NToast extends Container {
         this.message = new Label(message, new ElementId(type.name().toLowerCase() + "." + ELEMENT_ID + ".label"));
         addChild(this.message, BorderLayout.Position.Center);
 
-        NIconButton icon = new NIconButton(
+        icon = new NIconButton(
             "org/ngengine/gui/icons/outline/activity.svg",
             type.name().toLowerCase() + "." + "toast." + NIconButton.ELEMENT_ID
         );
@@ -145,6 +152,22 @@ public class NToast extends Container {
 
     protected NWindowManager getManager() {
         return appState;
+    }
+
+    void setToastSize(float width, float height) {
+        if (assignedWidth == width && assignedHeight == height && assignedCloseable == closeable) {
+            return;
+        }
+        assignedWidth = width;
+        assignedHeight = height;
+        assignedCloseable = closeable;
+        setPreferredSize(new Vector3f(width, height, 0f));
+        float childHeight = Math.max(1f, height * 0.72f);
+        icon.setPreferredSize(new Vector3f(childHeight, childHeight, 0f));
+        message.setPreferredSize(new Vector3f(Math.max(1f, width - childHeight * (closeable ? 2.6f : 1.7f)), childHeight, 0f));
+        if (closeable) {
+            closeBtn.setPreferredSize(new Vector3f(childHeight, childHeight, 0f));
+        }
     }
 
     public Instant getCreationTime() {

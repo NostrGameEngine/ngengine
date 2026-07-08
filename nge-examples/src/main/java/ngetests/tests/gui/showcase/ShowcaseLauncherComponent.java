@@ -38,33 +38,92 @@ import com.jme3.input.KeyInput;
 import com.jme3.input.event.InputEvent;
 import com.jme3.input.event.KeyInputEvent;
 import com.jme3.math.ColorRGBA;
+import org.ngengine.Components;
 import org.ngengine.ViewPortManager;
 import org.ngengine.components.AbstractComponent;
 import org.ngengine.components.ComponentManager;
 import org.ngengine.components.fragments.InputHandlerFragment;
+import org.ngengine.components.fragments.LogicFragment;
 import org.ngengine.components.jme3.AppComponentInitializer.InputActions;
 import org.ngengine.gui.nav.Navigator;
 import org.ngengine.gui.guix.win.NToast.ToastType;
 import org.ngengine.gui.guix.win.NWindowManagerComponent;
 
-public class ShowcaseLauncherComponent extends AbstractComponent implements InputHandlerFragment {
+public class ShowcaseLauncherComponent extends AbstractComponent implements InputHandlerFragment, LogicFragment {
+    private NWindowManagerComponent windowManager;
+    private boolean relativeSize;
+    private Boolean pendingRelativeSize;
+    private boolean mountPending;
+    private boolean openPending;
 
     @Override
     protected void onEnable(ComponentManager mng, boolean firstTime) {
         getInstanceOf(ViewPortManager.class).getMainSceneViewPort()
             .setBackgroundColor(new ColorRGBA(0.34f, 0.37f, 0.41f, 1f));
-        NWindowManagerComponent win = getInstanceOf(NWindowManagerComponent.class);
-        win.showWindow(ShowcaseLauncherWindow.class);
+        mountWindowManager(mng);
     }
 
     @Override
-    protected void onDisable(ComponentManager mng) {}
+    protected void onDisable(ComponentManager mng) {
+        if (windowManager != null) {
+            Components.unmount(mng, windowManager);
+            windowManager = null;
+        }
+    }
+
+    public String getUiModeLabel() {
+        return relativeSize ? "UI sizing: Relative" : "UI sizing: Fixed";
+    }
+
+    public String getUiModeToggleLabel() {
+        return relativeSize ? "Switch to fixed UI" : "Switch to relative UI";
+    }
+
+    public void toggleUiMode() {
+        pendingRelativeSize = !relativeSize;
+    }
+
+    @Override
+    public void updateAppLogic(ComponentManager mng, float tpf) {
+        if (pendingRelativeSize != null) {
+            if (windowManager != null) {
+                Components.unmount(mng, windowManager);
+                windowManager = null;
+            }
+            relativeSize = pendingRelativeSize.booleanValue();
+            pendingRelativeSize = null;
+            mountPending = true;
+            openPending = false;
+            return;
+        }
+
+        if (mountPending) {
+            mountPending = false;
+            mountWindowManager(mng);
+            return;
+        }
+
+        if (openPending && windowManager != null && windowManager.getComponentManager() != null) {
+            openPending = false;
+            windowManager.showWindow(ShowcaseLauncherWindow.class, this);
+        }
+    }
+
+    private void mountWindowManager(ComponentManager mng) {
+        windowManager = new NWindowManagerComponent(relativeSize);
+        Components.mount(mng, windowManager).enable();
+        windowManager.setInteractionEnabled(true);
+        openPending = true;
+    }
 
     @Override
     public void onKeyEvent(ComponentManager mng, KeyInputEvent evt) {
         if (!evt.isPressed()) return;
 
-        NWindowManagerComponent win = getInstanceOf(NWindowManagerComponent.class);
+        NWindowManagerComponent win = windowManager;
+        if (win == null) {
+            return;
+        }
         Navigator navigator = win.getManager(null).getContext().getNavigator();
         if (evt.getKeyCode() == KeyInput.KEY_1) {
             navigator.setHardwareCursor(false);

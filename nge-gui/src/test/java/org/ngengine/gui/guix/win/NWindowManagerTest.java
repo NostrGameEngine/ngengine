@@ -29,6 +29,7 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -38,6 +39,7 @@ import org.ngengine.ViewPortManager;
 import org.ngengine.components.ComponentManager;
 import org.ngengine.gui.GuiContext;
 import org.ngengine.gui.NGEGui;
+import org.ngengine.gui.NGEStyle;
 import org.ngengine.gui.Panel;
 import org.ngengine.gui.ime.ImeCompositionEvent;
 import org.ngengine.gui.ime.JmeSoftKeyboardImeComposer;
@@ -298,6 +300,94 @@ public class NWindowManagerTest {
     }
 
     @Test
+    public void toastStackCompactsRowsWhenEarlierToastsClose() {
+        TestWindowManager manager = newManager("gui-toast-stack");
+        Node guiNode = (Node) manager.getContext().getGuiNode();
+
+        NToast first = manager.showToast(NToast.ToastType.INFO, "First toast", Duration.ofSeconds(60));
+        NToast second = manager.showToast(NToast.ToastType.INFO, "Second toast", Duration.ofSeconds(60));
+        NToast third = manager.showToast(NToast.ToastType.INFO, "Third toast", Duration.ofSeconds(60));
+        guiNode.updateLogicalState(0.016f);
+        guiNode.updateGeometricState();
+
+        float toastHeight = second.getSize().y;
+        assertEquals(toastHeight, first.getSize().y, 0.001f);
+        assertEquals(toastHeight, second.getSize().y, 0.001f);
+        assertEquals(toastHeight, third.getSize().y, 0.001f);
+
+        first.close();
+        guiNode.updateLogicalState(0.016f);
+        guiNode.updateGeometricState();
+
+        assertNull(first.getParent());
+        assertEquals(toastHeight, second.getSize().y, 0.001f);
+        assertEquals(toastHeight, third.getSize().y, 0.001f);
+
+        second.close();
+        guiNode.updateLogicalState(0.016f);
+        guiNode.updateGeometricState();
+
+        assertNull(second.getParent());
+        assertEquals(toastHeight, third.getSize().y, 0.001f);
+    }
+
+    @Test
+    public void toastStackKeepsSameHeightWhenToastsAreAddedOverMultipleFrames() {
+        TestWindowManager manager = newManager("gui-toast-growth");
+        Node guiNode = (Node) manager.getContext().getGuiNode();
+
+        NToast first = manager.showToast(NToast.ToastType.INFO, "Same toast", Duration.ofSeconds(60));
+        guiNode.updateLogicalState(0.016f);
+        guiNode.updateGeometricState();
+        float toastHeight = first.getSize().y;
+        assertEquals(toastHeight, first.getSize().y, 0.001f);
+
+        NToast second = manager.showToast(NToast.ToastType.INFO, "Same toast", Duration.ofSeconds(60));
+        guiNode.updateLogicalState(0.016f);
+        guiNode.updateGeometricState();
+        assertEquals(toastHeight, first.getSize().y, 0.001f);
+        assertEquals(toastHeight, second.getSize().y, 0.001f);
+
+        NToast third = manager.showToast(NToast.ToastType.INFO, "Same toast", Duration.ofSeconds(60));
+        guiNode.updateLogicalState(0.016f);
+        guiNode.updateGeometricState();
+        assertEquals(toastHeight, first.getSize().y, 0.001f);
+        assertEquals(toastHeight, second.getSize().y, 0.001f);
+        assertEquals(toastHeight, third.getSize().y, 0.001f);
+    }
+
+    @Test
+    public void existingToastsResizeToMatchNewToastsAfterLogicalResize() {
+        initializeGui();
+
+        Camera camera = new Camera(800, 450);
+        ViewPort vp = new ViewPort("gui-toast-resize", camera);
+        Node guiNode = new Node("GuiNode");
+        guiNode.setQueueBucket(Bucket.Gui);
+        vp.attachScene(guiNode);
+        GuiContext context = NGEGui.register(vp, true);
+        NGEStyle.installAndUse(800, 450);
+        NWindowManager manager = new TestWindowManager(new TestWindowManagerComponent(), context);
+
+        NToast first = manager.showToast(NToast.ToastType.INFO, "Same toast", Duration.ofSeconds(60));
+        guiNode.updateLogicalState(0.016f);
+        guiNode.updateGeometricState();
+        float initialHeight = first.getSize().y;
+
+        camera.resize(1600, 900, true);
+        manager.update(0.016f);
+        guiNode.updateLogicalState(0.016f);
+        guiNode.updateGeometricState();
+
+        NToast second = manager.showToast(NToast.ToastType.INFO, "Same toast", Duration.ofSeconds(60));
+        guiNode.updateLogicalState(0.016f);
+        guiNode.updateGeometricState();
+
+        assertTrue(first.getSize().y > initialHeight);
+        assertEquals(second.getSize().y, first.getSize().y, 0.001f);
+    }
+
+    @Test
     public void relativeManagerCreatesDedicatedAspectGuiCameraWithPhysicalRenderTarget() {
         initializeGui();
 
@@ -371,6 +461,7 @@ public class NWindowManagerTest {
         guiNode.setQueueBucket(Bucket.Gui);
         vp.attachScene(guiNode);
         GuiContext context = NGEGui.register(vp, true);
+        NGEStyle.installAndUse(800, 600);
         return new TestWindowManager(new TestWindowManagerComponent(), context);
     }
 
