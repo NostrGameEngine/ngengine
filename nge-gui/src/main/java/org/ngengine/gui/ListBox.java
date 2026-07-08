@@ -145,6 +145,11 @@ public class ListBox<T> extends Panel  {
  
         grid = new GridPanel(new GridModelDelegate(), elementId.child(ITEMS_ID));
         grid.setVisibleColumns(1);
+        if (grid.getBackground() == null) {
+            grid.setBackground(new QuadBackgroundComponent(ColorRGBA.BlackNoAlpha));
+        }
+        grid.addFocusListener(listener);
+        grid.getControl(GuiControl.class).setFocusable(FocusTarget.FOCUS_POINTER);
         grid.getControl(GuiControl.class).addListener(new GridListener());
         layout.addChild(grid, BorderLayout.Position.Center);
  
@@ -550,6 +555,26 @@ public class ListBox<T> extends Panel  {
             return -1;            
         }
 
+        private int findCell(float x, float y) {
+            if (model == null || model.isEmpty()) {
+                return -1;
+            }
+            GuiContext context = NGEGui.get(ListBox.this);
+            float scale = context != null ? context.getLogicalScale() : 1f;
+            Vector3f local = grid.worldToLocal(new Vector3f(x * scale, y * scale, 0f), null);
+            Vector3f size = grid.getSize();
+            if (size == null || size.x <= 0f || size.y <= 0f) {
+                return -1;
+            }
+            if (local.x < 0f || local.x > size.x || local.y > 0f || -local.y > size.y) {
+                return -1;
+            }
+            int rows = Math.max(1, grid.getVisibleRows());
+            int visibleRow = Math.min(rows - 1, (int)Math.floor((-local.y / size.y) * rows));
+            int cell = grid.getRow() + visibleRow;
+            return cell >= 0 && cell < model.size() ? cell : -1;
+        }
+
         private boolean isDescendantOf(Spatial target, Spatial ancestor) {
             if (target == null || ancestor == null) {
                 return false;
@@ -572,12 +597,7 @@ public class ListBox<T> extends Panel  {
                 Integer selected = selection.getSelection();
                 cell = selected != null ? selected : -1;
             }
-            if (cell == -1) {
-                return;
-            }
-            selection.add(cell);
-            commandMap.runCommands(ListAction.Click);
-            runEffect(EFFECT_CLICK);
+            activateCell(cell);
         }
 
         @Override
@@ -595,7 +615,15 @@ public class ListBox<T> extends Panel  {
             dragMoved = false;
             dragRemainderY = 0f;
             if (!wasDragging) {
-                focusAction(target, false);
+                int cell = findCell(target);
+                if (cell == -1) {
+                    cell = findCell(x, y);
+                }
+                if (cell == -1) {
+                    Integer selected = selection.getSelection();
+                    cell = selected != null ? selected : -1;
+                }
+                activateCell(cell);
             }
         }
 
@@ -672,6 +700,15 @@ public class ListBox<T> extends Panel  {
                 focusOverride = selectedCell;
             }
             refreshSelector();
+        }
+
+        private void activateCell(int cell) {
+            if (cell == -1) {
+                return;
+            }
+            selection.add(cell);
+            commandMap.runCommands(ListAction.Click);
+            runEffect(EFFECT_CLICK);
         }
 
         @Override

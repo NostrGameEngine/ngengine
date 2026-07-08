@@ -38,6 +38,7 @@ import com.jme3.input.Joystick;
 import com.jme3.input.JoystickAxis;
 import com.jme3.input.JoystickButton;
 import com.jme3.input.KeyInput;
+import com.jme3.input.Keyboard;
 import com.jme3.input.Mouse;
 import com.jme3.input.MouseInput;
 import com.jme3.input.RawInputListener;
@@ -78,7 +79,9 @@ import org.junit.jupiter.api.Test;
 import org.ngengine.gui.Axis;
 import org.ngengine.gui.Button;
 import org.ngengine.gui.DefaultRangedValueModel;
+import org.ngengine.gui.GridPanel;
 import org.ngengine.gui.GuiContext;
+import org.ngengine.gui.ListBox;
 import org.ngengine.gui.NGEGui;
 import org.ngengine.gui.Panel;
 import org.ngengine.gui.Slider;
@@ -266,6 +269,55 @@ public class NavigatorLayerTest {
         ), events);
         assertEquals(0, primaryActions.get());
         assertEquals(1, backActions.get());
+    }
+
+    @Test
+    public void keyboardHandlerNavigatesWithArrowsAndConfirmsWithEnter() {
+        initializeGui();
+
+        ViewPort vp = new ViewPort("gui-keyboard-navigation", new Camera(800, 600));
+        Node guiNode = new Node("GuiNode");
+        guiNode.setQueueBucket(Bucket.Gui);
+        vp.attachScene(guiNode);
+        GuiContext context = NGEGui.register(vp, true);
+
+        Node root = new Node("root");
+        Node first = pickable("first", 100f, 180f);
+        Node second = pickable("second", 100f, 100f);
+        List<String> events = new ArrayList<>();
+        addRecorder(second, events);
+        root.attachChild(first);
+        root.attachChild(second);
+        guiNode.attachChild(root);
+        guiNode.updateGeometricState();
+        context.getNavigator().pushLayer(root);
+
+        TestKeyInput keyInput = new TestKeyInput();
+        InputManager inputManager = newInputManager(new DummyMouseInput(), keyInput, null);
+        DefaultNavigatorInputHandler handler = new DefaultNavigatorInputHandler(vp);
+        AtomicInteger primaryActions = new AtomicInteger();
+        handler.setPrimaryAction(primaryActions::incrementAndGet);
+        handler.registerListener(inputManager);
+        handler.setInputDevice(inputManager, new Keyboard());
+
+        assertSame(first, context.getNavigator().getFocus());
+
+        keyInput.queue(new KeyInputEvent(KeyInput.KEY_DOWN, '\0', true, false));
+        inputManager.update(0.016f);
+        keyInput.queue(new KeyInputEvent(KeyInput.KEY_DOWN, '\0', false, false));
+        inputManager.update(0.016f);
+        keyInput.queue(new KeyInputEvent(KeyInput.KEY_RETURN, '\n', true, false));
+        inputManager.update(0.016f);
+        keyInput.queue(new KeyInputEvent(KeyInput.KEY_RETURN, '\n', false, false));
+        inputManager.update(0.016f);
+
+        assertSame(second, context.getNavigator().getFocus());
+        assertEquals(List.of(
+            "gained:second",
+            "action:second:true",
+            "action:second:false"
+        ), events);
+        assertEquals(0, primaryActions.get());
     }
 
     @Test
@@ -1010,6 +1062,57 @@ public class NavigatorLayerTest {
     }
 
     @Test
+    public void listBoxClickUsesWholeVisibleRowArea() {
+        initializeGui();
+
+        ViewPort vp = new ViewPort("gui-listbox-row-click", new Camera(800, 600));
+        Node guiNode = new Node("GuiNode");
+        guiNode.setQueueBucket(Bucket.Gui);
+        vp.attachScene(guiNode);
+        GuiContext context = NGEGui.register(vp, true);
+
+        Node root = new Node("root");
+        ListBox<String> listBox = new ListBox<>();
+        listBox.setName("list");
+        listBox.setVisibleItems(3);
+        listBox.setPreferredSize(300f, 120f);
+        listBox.setSize(new Vector3f(300f, 120f, 0f));
+        listBox.setLocalTranslation(100f, 260f, 0f);
+        listBox.getModel().add("One");
+        listBox.getModel().add("Two");
+        listBox.getModel().add("Three");
+        AtomicInteger clicks = new AtomicInteger();
+        listBox.addCommands(ListBox.ListAction.Click, src -> clicks.incrementAndGet());
+        root.attachChild(listBox);
+        guiNode.attachChild(root);
+        guiNode.updateLogicalState(0.016f);
+        guiNode.updateGeometricState();
+        context.getNavigator().pushLayer(root);
+
+        GridPanel grid = listBox.getGridPanel();
+        Vector3f gridSize = grid.getSize();
+        float rowHeight = gridSize.y / grid.getVisibleRows();
+        Vector3f click = grid.localToWorld(new Vector3f(gridSize.x - 5f, -(rowHeight * 1.5f), 0f), null);
+
+        TestMouseInput mouseInput = new TestMouseInput();
+        InputManager inputManager = newInputManager(mouseInput, null);
+        DefaultNavigatorInputHandler handler = new DefaultNavigatorInputHandler(vp);
+        handler.registerListener(inputManager);
+        handler.setInputDevice(inputManager, new Mouse());
+        inputManager.setCursorVisible(true);
+
+        mouseInput.queue(new MouseMotionEvent((int) click.x, (int) click.y, 0, 0, 0, 0));
+        inputManager.update(0.016f);
+        mouseInput.queue(new MouseButtonEvent(MouseInput.BUTTON_LEFT, true, (int) click.x, (int) click.y));
+        inputManager.update(0.016f);
+        mouseInput.queue(new MouseButtonEvent(MouseInput.BUTTON_LEFT, false, (int) click.x, (int) click.y));
+        inputManager.update(0.016f);
+
+        assertEquals(1, clicks.get());
+        assertEquals(1, listBox.getSelectionModel().getSelection());
+    }
+
+    @Test
     public void disabledCursorDoesNotBecomeActiveWhenPositionUpdates() {
         initializeGui();
 
@@ -1164,13 +1267,38 @@ public class NavigatorLayerTest {
     }
 
     private static InputManager newInputManager(MouseInput mouseInput, JoyInput joyInput) {
-        DummyKeyInput keys = new DummyKeyInput();
+        return newInputManager(mouseInput, new DummyKeyInput(), joyInput);
+    }
+
+    private static InputManager newInputManager(MouseInput mouseInput, DummyKeyInput keys, JoyInput joyInput) {
         mouseInput.initialize();
         keys.initialize();
         if (joyInput != null) {
             joyInput.initialize();
         }
         return new InputManager(mouseInput, keys, joyInput, null);
+    }
+
+    private static final class TestKeyInput extends DummyKeyInput {
+        private final Queue<KeyInputEvent> events = new ArrayDeque<>();
+        private RawInputListener listener;
+
+        private void queue(KeyInputEvent event) {
+            events.add(event);
+        }
+
+        @Override
+        public void update() {
+            super.update();
+            while (!events.isEmpty()) {
+                listener.onKeyEvent(events.remove());
+            }
+        }
+
+        @Override
+        public void setInputListener(RawInputListener listener) {
+            this.listener = listener;
+        }
     }
 
     private static final class TestMouseInput implements MouseInput {
