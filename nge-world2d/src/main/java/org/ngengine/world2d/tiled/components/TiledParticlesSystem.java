@@ -14,6 +14,7 @@ import org.ngengine.Components;
 import org.ngengine.components.AbstractComponent;
 import org.ngengine.components.Component;
 import org.ngengine.components.ComponentManager;
+import org.ngengine.components.ComponentManagerProvider;
 import org.ngengine.components.ReloadableComponent;
 import org.ngengine.network.components.NetcodeManagerComponent;
 import org.ngengine.network.components.NetcodeFragment;
@@ -25,6 +26,7 @@ import com.jme3.math.Vector2f;
 import com.jme3.util.TempVars;
 
 import org.ngengine.world2d.tiled.core.TiledBase;
+import org.ngengine.world2d.tiled.core.TiledEntity;
 import org.ngengine.world2d.tiled.core.TiledMap;
 import org.ngengine.world2d.tiled.core.TiledObjectLayer;
 import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
@@ -238,6 +240,33 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
         return null;
     }
 
+    private TiledEntity getSourceEntity(Object source) {
+        if (source instanceof TiledEntity) {
+            return (TiledEntity) source;
+        }
+        ComponentManager manager = null;
+        if (source instanceof TiledObjectEntity) {
+            manager = ((TiledObjectEntity) source).getComponentManager();
+        } else if (source instanceof Component) {
+            manager = ((Component) source).getComponentManager();
+        } else if (source instanceof ComponentManagerProvider) {
+            manager = ((ComponentManagerProvider) source).getComponentManager();
+        }
+        if (manager != null) {
+            TiledEntity entity = manager.getInstanceOf(TiledEntity.class);
+            if (entity != null) {
+                return entity;
+            }
+        }
+        if (source instanceof Component) {
+            Object entity = ((Component) source).getInstanceOf(TiledObjectEntity.class);
+            if (entity instanceof TiledEntity) {
+                return (TiledEntity) entity;
+            }
+        }
+        return null;
+    }
+
     private NetcodeFragment getSourceNetcodeFragment(Object source) {
         if (source instanceof NetcodeFragment) {
             return (NetcodeFragment) source;
@@ -377,6 +406,68 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
             return null;
         }
         return spawnInternal(source, tileset, name, layer, screenX, screenY, baseWidth, baseHeight, scale, onlyIfEmpty, networkSync);
+    }
+
+    public TiledObjectEntity spawnFollowingFrom(
+        Object source,
+        String tileset,
+        String name,
+        TiledObjectLayer layer,
+        float offsetX,
+        float offsetY,
+        float baseWidth,
+        float baseHeight,
+        float scale,
+        boolean onlyIfEmpty
+    ) {
+        BigInteger sourceId = getSourceNetworkId(source);
+        boolean networkSync = sourceId != null && sourceId.signum() >= 0;
+        return spawnFollowingFrom(source, tileset, name, layer, offsetX, offsetY, baseWidth, baseHeight, scale,
+            onlyIfEmpty, networkSync);
+    }
+
+    public TiledObjectEntity spawnFollowingFrom(
+        Object source,
+        String tileset,
+        String name,
+        TiledObjectLayer layer,
+        float offsetX,
+        float offsetY,
+        float baseWidth,
+        float baseHeight,
+        float scale,
+        boolean onlyIfEmpty,
+        boolean networkSync
+    ) {
+        TiledEntity sourceEntity = getSourceEntity(source);
+        if (sourceEntity == null || layer == null) {
+            return null;
+        }
+        if (networkSync && !isSourceLocallyAuthoritative(source)) {
+            return null;
+        }
+        CoordinateSystem cs = layer.getComponentManager().getInstanceOf(CoordinateSystem.class);
+        if (cs == null) {
+            return null;
+        }
+        try (TempVars vars = TempVars.get()) {
+            Vector2f grid = vars.vect2d;
+            cs.getCenterInGridSpace(sourceEntity, grid);
+            grid.x += offsetX;
+            grid.y += offsetY;
+
+            Vector2f world = vars.vect2d2;
+            cs.gridToWorldSpace(grid.x, grid.y, world);
+            TiledObjectEntity particle = spawnInternal(source, tileset, name, layer, world.x, world.y, baseWidth,
+                baseHeight, scale, onlyIfEmpty, networkSync);
+            TiledParticleComponent component = particle != null
+                ? Components.get(particle, TiledParticleComponent.class).get()
+                : null;
+            if (component != null) {
+                component.follow(sourceEntity, offsetX, offsetY);
+            }
+            return particle;
+        }
     }
 
     public TiledObjectEntity spawnIfEmpty(
