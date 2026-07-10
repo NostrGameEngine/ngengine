@@ -62,6 +62,28 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class NWindowManagerTest {
 
     @Test
+    public void closingWindowTwiceNotifiesHideOnce() {
+        TestWindowManager manager = newManager("gui-idempotent-close");
+        TestWindow window = manager.showWindow(TestWindow.class);
+        AtomicInteger hides = new AtomicInteger();
+        window.addWindowListener(new NWindowListener() {
+            @Override
+            public void onShow(NWindow<?> window) {
+            }
+
+            @Override
+            public void onHide(NWindow<?> window) {
+                hides.incrementAndGet();
+            }
+        });
+
+        window.close();
+        window.close();
+
+        assertEquals(1, hides.get());
+    }
+
+    @Test
     public void replacingOptionPanelClosesPreviousPopupThroughHandler() {
         initializeGui();
         TestPopupHandler handler = new TestPopupHandler();

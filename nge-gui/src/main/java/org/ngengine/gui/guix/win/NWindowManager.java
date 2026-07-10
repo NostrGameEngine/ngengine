@@ -476,6 +476,9 @@ public class NWindowManager {
 
     void closeWindow(NWindow<?> window, boolean showPrevious) {
         checkThread();
+        if (!windows.remove(window)) {
+            return;
+        }
         boolean wasInteractive = window.capturesInput();
         if (wasInteractive || window.receivesPointerInput()) {
             ctx.getNavigator().popLayer(window);
@@ -484,7 +487,6 @@ public class NWindowManager {
             window.removeFromParent();
         }
         window.onHide();
-        windows.remove(window);
         
         if (showPrevious && wasInteractive) {
             NWindow<?> lastWindow = getLastInteractiveWindow();
