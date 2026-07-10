@@ -250,7 +250,8 @@ public class TiledMap extends TiledBase  implements ComponentManagerProvider{
      */
     public void setLayer(int index, TiledLayer layer) {
         layer.setMap(this);
-        layers.set(index, layer);
+        TiledLayer previous = layers.set(index, layer);
+        layerMap.remove(previous.getName(), previous);
         layerMap.put(layer.getName(), layer);
         layer.setIndex(index);
     }
