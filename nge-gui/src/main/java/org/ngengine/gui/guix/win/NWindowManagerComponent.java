@@ -245,7 +245,7 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
     }
 
     private int getTargetCameraHeight() {
-        return relativeSize ? RELATIVE_CAMERA_SCALE : physicalHeight;
+        return relativeSize ? RELATIVE_CAMERA_SCALE : inputCoordinateHeight;
     }
 
     private float getRelativeLogicalWidth() {

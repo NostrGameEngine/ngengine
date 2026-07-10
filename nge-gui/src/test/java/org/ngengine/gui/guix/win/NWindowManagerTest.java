@@ -506,6 +506,22 @@ public class NWindowManagerTest {
         assertSame(component.createdGuiViewPort, vp);
     }
 
+    @Test
+    public void pixelManagerKeepsLogicalCameraSizeWithScaledRenderTarget() {
+        initializeGui();
+
+        TestViewportComponent component = new TestViewportComponent(false, 1280, 720, 2560, 1440);
+        NWindowManager manager = component.getManager(null, null);
+        ViewPort vp = manager.getViewPort();
+
+        assertEquals(1280, vp.getCamera().getWidth());
+        assertEquals(720, vp.getCamera().getHeight());
+        assertEquals(1280f, manager.getLogicalWidth(), 0.001f);
+        assertEquals(720f, manager.getLogicalHeight(), 0.001f);
+        assertEquals(2560, vp.getRenderTargetWidth());
+        assertEquals(1440, vp.getRenderTargetHeight());
+    }
+
     private static TestWindowManager newManager(String name) {
         initializeGui();
 
