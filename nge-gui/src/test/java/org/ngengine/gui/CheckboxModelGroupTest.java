@@ -34,6 +34,7 @@ package org.ngengine.gui;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -51,6 +52,20 @@ public class CheckboxModelGroupTest {
         assertFalse(red.isChecked());
         assertTrue(green.isChecked());
         assertFalse(blue.isChecked());
+        assertSame(green, group.getSelectedModel());
+    }
+
+    @Test
+    public void removingSelectedModelClearsSelection() {
+        DefaultCheckboxModel red = new DefaultCheckboxModel(true);
+        DefaultCheckboxModel green = new DefaultCheckboxModel(false);
+        CheckboxModelGroup group = new CheckboxModelGroup(red, green);
+        group.update();
+
+        group.removeModel(red);
+
+        assertNull(group.getSelectedModel());
+        group.setSelectedModel(green);
         assertSame(green, group.getSelectedModel());
     }
 }

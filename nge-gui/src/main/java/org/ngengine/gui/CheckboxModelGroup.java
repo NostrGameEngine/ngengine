@@ -82,8 +82,8 @@ public class CheckboxModelGroup {
     }
 
     public void removeModel( CheckboxModel model ) {
-        models.remove(model);
-        if( activeEntry == model ) {
+        ModelEntry removed = models.remove(model);
+        if( activeEntry == removed ) {
             // Clear the active model... the next check turned on will get to be active
             setActiveEntry(null);
         }
