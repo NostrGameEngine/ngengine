@@ -4,10 +4,12 @@
  */
 package org.ngengine.world2d.tiled.core;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.math.BigInteger;
+import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
 
@@ -40,5 +42,23 @@ class TestTiledMapLayers {
 
         assertSame(owner, object.getObjectGroup());
         assertSame(object, owner.getObjects().get(0));
+    }
+
+    @Test
+    void settingLayersRebuildsOwnershipAndIndexes() {
+        TiledMap map = new TiledMap(10, 10);
+        TiledObjectLayer first = new TiledObjectLayer();
+        first.setName("first");
+        TiledObjectLayer second = new TiledObjectLayer();
+        second.setName("second");
+
+        map.setLayers(Arrays.asList(first, second));
+
+        assertSame(map, first.getMap());
+        assertSame(map, second.getMap());
+        assertSame(first, map.getLayer("first"));
+        assertSame(second, map.getLayer("second"));
+        assertEquals(0, first.getIndex());
+        assertEquals(1, second.getIndex());
     }
 }

@@ -37,7 +37,6 @@ import java.util.Map.Entry;
 import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 import org.ngengine.components.ComponentManagerProvider;
 
@@ -325,11 +324,13 @@ public class TiledMap extends TiledBase  implements ComponentManagerProvider{
      * @param layers the new set of layers
      */
     public void setLayers(List<TiledLayer> layers) {
-        this.layers = layers;
-        if (layers == null || layers.isEmpty()) {
-            layerMap.clear();
-        } else {
-            this.layerMap = layers.stream().collect(Collectors.toMap(TiledLayer::getName, layer -> layer));
+        this.layers = layers == null ? new ArrayList<>() : layers;
+        layerMap.clear();
+        for (int i = 0; i < this.layers.size(); i++) {
+            TiledLayer layer = this.layers.get(i);
+            layer.setMap(this);
+            layer.setIndex(i);
+            layerMap.put(layer.getName(), layer);
         }
     }
 
