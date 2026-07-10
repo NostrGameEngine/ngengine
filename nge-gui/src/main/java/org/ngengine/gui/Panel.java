@@ -486,6 +486,8 @@ public class Panel extends Node {
                     }
                 }
             }
+        } else {
+            return (T)s;
         }
         return null;
     }
