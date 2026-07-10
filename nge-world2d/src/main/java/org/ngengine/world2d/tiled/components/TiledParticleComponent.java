@@ -71,8 +71,12 @@ public class TiledParticleComponent extends AbstractComponent implements TiledEn
         if (followTarget == null) {
             return;
         }
-        CoordinateSystem cs = getInstanceOf(CoordinateSystem.class);
-        TiledObjectEntity particle = getInstanceOf(TiledObjectEntity.class);
+        ComponentManager manager = getComponentManager();
+        if (manager == null) {
+            return;
+        }
+        CoordinateSystem cs = manager.getInstanceOf(CoordinateSystem.class);
+        TiledObjectEntity particle = manager.getInstanceOf(TiledObjectEntity.class);
         if (cs == null || particle == null) {
             return;
         }
