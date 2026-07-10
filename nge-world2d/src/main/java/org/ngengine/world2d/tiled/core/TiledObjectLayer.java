@@ -121,7 +121,9 @@ public class TiledObjectLayer extends TiledLayer {
     }
 
     public void remove(TiledObjectEntity o) {
-        objects.remove(o);
+        if (!objects.remove(o)) {
+            return;
+        }
         o.setObjectGroup(null);
         o.detached();
     }

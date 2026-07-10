@@ -7,7 +7,9 @@ package org.ngengine.world2d.tiled.core;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
+import java.math.BigInteger;
 import org.junit.jupiter.api.Test;
+import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
 
 class TestTiledMapLayers {
 
@@ -25,5 +27,18 @@ class TestTiledMapLayers {
         assertNull(map.getLayer("old"));
         assertSame(newLayer, map.getLayer("new"));
         assertSame(newLayer, map.getLayer(0));
+    }
+
+    @Test
+    void removingForeignObjectDoesNotDetachItFromItsLayer() {
+        TiledObjectLayer owner = new TiledObjectLayer();
+        TiledObjectLayer other = new TiledObjectLayer();
+        TiledObjectEntity object = new TiledObjectEntity(BigInteger.ONE, 0, 0, 1, 1);
+        owner.add(object);
+
+        other.remove(object);
+
+        assertSame(owner, object.getObjectGroup());
+        assertSame(object, owner.getObjects().get(0));
     }
 }
