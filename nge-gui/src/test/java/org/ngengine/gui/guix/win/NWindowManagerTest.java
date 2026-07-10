@@ -40,6 +40,7 @@ import org.ngengine.components.ComponentManager;
 import org.ngengine.gui.GuiContext;
 import org.ngengine.gui.NGEGui;
 import org.ngengine.gui.NGEStyle;
+import org.ngengine.gui.OptionPanel;
 import org.ngengine.gui.Panel;
 import org.ngengine.gui.ime.ImeCompositionEvent;
 import org.ngengine.gui.ime.JmeSoftKeyboardImeComposer;
@@ -55,6 +56,17 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class NWindowManagerTest {
+
+    @Test
+    public void clearingOptionPanelMessageRemovesItsLabel() {
+        initializeGui();
+        OptionPanel panel = new OptionPanel("Title", "Message");
+
+        panel.setMessage(null);
+
+        assertNull(panel.getMessageLabel());
+        assertTrue(panel.getContainer().getChildren().isEmpty());
+    }
 
     @Test
     public void passiveHudStaysAttachedWhenInteractiveWindowsChange() {

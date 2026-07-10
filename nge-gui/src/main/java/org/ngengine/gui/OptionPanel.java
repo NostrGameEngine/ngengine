@@ -134,7 +134,7 @@ public class OptionPanel extends Panel {
             messageLabel = new Label(message, getElementId().child("message.label"));
             container.addChild(messageLabel);
         } else if( messageLabel != null && message == null ) {
-            layout.removeChild(messageLabel);
+            container.removeChild(messageLabel);
             messageLabel = null;
         } else {
             messageLabel.setText(message);
