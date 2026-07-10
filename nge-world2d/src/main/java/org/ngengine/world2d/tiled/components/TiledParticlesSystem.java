@@ -470,6 +470,65 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
         }
     }
 
+    public TiledObjectEntity spawnFollowingFromEmitter(
+        Object source,
+        String emitterId,
+        String tileset,
+        String name,
+        TiledObjectLayer layer,
+        float baseWidth,
+        float baseHeight,
+        float scale,
+        boolean onlyIfEmpty
+    ) {
+        BigInteger sourceId = getSourceNetworkId(source);
+        boolean networkSync = sourceId != null && sourceId.signum() >= 0;
+        return spawnFollowingFromEmitter(source, emitterId, tileset, name, layer, baseWidth, baseHeight, scale,
+            onlyIfEmpty, networkSync);
+    }
+
+    public TiledObjectEntity spawnFollowingFromEmitter(
+        Object source,
+        String emitterId,
+        String tileset,
+        String name,
+        TiledObjectLayer layer,
+        float baseWidth,
+        float baseHeight,
+        float scale,
+        boolean onlyIfEmpty,
+        boolean networkSync
+    ) {
+        TiledEntity sourceEntity = getSourceEntity(source);
+        if (!(sourceEntity instanceof TiledObjectEntity) || layer == null) {
+            return null;
+        }
+        if (networkSync && !isSourceLocallyAuthoritative(source)) {
+            return null;
+        }
+        CoordinateSystem cs = layer.getComponentManager().getInstanceOf(CoordinateSystem.class);
+        if (cs == null) {
+            return null;
+        }
+        try (TempVars vars = TempVars.get()) {
+            Vector2f grid = vars.vect2d;
+            if (!TiledParticleEmitter.getPosition((TiledObjectEntity) sourceEntity, emitterId, cs, grid)) {
+                return null;
+            }
+            Vector2f world = vars.vect2d2;
+            cs.gridToWorldSpace(grid.x, grid.y, world);
+            TiledObjectEntity particle = spawnInternal(source, tileset, name, layer, world.x, world.y, baseWidth,
+                baseHeight, scale, onlyIfEmpty, networkSync);
+            TiledParticleComponent component = particle != null
+                ? Components.get(particle, TiledParticleComponent.class).get()
+                : null;
+            if (component != null) {
+                component.followEmitter(sourceEntity, emitterId);
+            }
+            return particle;
+        }
+    }
+
     public TiledObjectEntity spawnIfEmpty(
         String tileset,
         String name,

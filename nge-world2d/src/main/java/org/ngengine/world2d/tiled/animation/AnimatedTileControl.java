@@ -109,6 +109,18 @@ public class AnimatedTileControl extends AbstractControl {
         unusedTime = 0f;
     }
 
+    public Tile getCurrentTile() {
+        if (anim == null || anim.getTotalFrames() == 0 || tile.getTileset() == null) {
+            return tile;
+        }
+        Frame frame = anim.getFrame(currentFrameIndex);
+        if (frame == null) {
+            return tile;
+        }
+        Tile current = tile.getTileset().getTile(frame.getTileId());
+        return current != null ? current : tile;
+    }
+
     @Override
     protected void controlUpdate(float tpf) {
         // no animation
@@ -134,7 +146,7 @@ public class AnimatedTileControl extends AbstractControl {
             previousTileId = frame.getTileId();
             Geometry geom = (Geometry) spatial;
 
-            Tile t = tile.getTileset().getTile(frame.getTileId());
+            Tile t = getCurrentTile();
             Vector2f position = new Vector2f(t.getX(), t.getY());
             geom.getMaterial().setVector2(MaterialConst.TILE_POSITION, position);
         }

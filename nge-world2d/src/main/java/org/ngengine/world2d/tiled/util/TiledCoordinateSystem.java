@@ -309,10 +309,20 @@ public final class TiledCoordinateSystem implements CoordinateSystem {
 
     @Override
     public void getCollisionCenterInGridSpace(TiledObjectEntity parent, TiledObjectEntity coll, Vector2f out) {
+        getTileObjectCenterInGridSpace(parent, parent != null ? parent.getTile() : null, coll, out);
+    }
+
+    @Override
+    public void getTileObjectCenterInGridSpace(TiledObjectEntity parent, Tile tile, TiledObjectEntity coll,
+            Vector2f out) {
+        if (parent == null || tile == null || coll == null) {
+            out.set(0f, 0f);
+            return;
+        }
         if (orientation == Orientation.ISOMETRIC) {
-            getIsometricCollisionCenterInGridSpace(parent, coll, out);
+            getIsometricCollisionCenterInGridSpace(parent, tile, coll, out);
         } else {
-            getOrthogonalCollisionCenterInGridSpace(parent, coll, out);
+            getOrthogonalCollisionCenterInGridSpace(parent, tile, coll, out);
         }
     }
 
@@ -525,24 +535,16 @@ public final class TiledCoordinateSystem implements CoordinateSystem {
         }
     }
 
-    private void getOrthogonalCollisionCenterInGridSpace(TiledObjectEntity parent, TiledObjectEntity coll,
+    private void getOrthogonalCollisionCenterInGridSpace(TiledObjectEntity parent, Tile tile, TiledObjectEntity coll,
             Vector2f out) {
-        Tile tile = parent.getTile();
         float dx = (float) ((coll.getX() + coll.getWidth() / 2.) / (double) tile.getWidth());
         float dy = (float) ((coll.getY() + coll.getHeight() / 2.) / (double) tile.getHeight());
         out.x = (float) parent.getX() + dx * (float) parent.getWidth();
         out.y = (float) parent.getHeight() - dy * (float) parent.getHeight();
     }
 
-    private void getIsometricCollisionCenterInGridSpace(TiledObjectEntity parent, TiledObjectEntity coll,
+    private void getIsometricCollisionCenterInGridSpace(TiledObjectEntity parent, Tile tile, TiledObjectEntity coll,
             Vector2f out) {
-        Tile tile = parent.getTile();
-        if (tile == null) {
-            out.set((float) (parent.getX() + coll.getX() + coll.getWidth() * 0.5),
-                    (float) (parent.getY() + coll.getY() + coll.getHeight() * 0.5));
-            return;
-        }
-
         float wTile = (float) tile.getWidth();
         float hTile = (float) tile.getHeight();
         float wObj = (float) parent.getWidth();

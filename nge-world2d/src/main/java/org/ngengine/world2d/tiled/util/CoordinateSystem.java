@@ -40,6 +40,7 @@ import com.jme3.util.TempVars;
 import org.ngengine.world2d.tiled.core.TiledBase;
 import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
 import org.ngengine.world2d.tiled.core.entity.TiledTileEntity;
+import org.ngengine.world2d.tiled.core.tileset.Tile;
 import org.ngengine.world2d.tiled.math2d.Point;
 
 /**
@@ -163,6 +164,15 @@ public interface CoordinateSystem {
         TiledObjectEntity collisionObject,
         Vector2f out
     );
+
+    default void getTileObjectCenterInGridSpace(
+        TiledObjectEntity parentTileObject,
+        Tile tile,
+        TiledObjectEntity tileObject,
+        Vector2f out
+    ) {
+        getCollisionCenterInGridSpace(parentTileObject, tileObject, out);
+    }
     void getCenterInGridSpace(TiledBase obj, Vector2f out);
 
     default Vector2f getCenterInGridSpace(TiledBase entry){

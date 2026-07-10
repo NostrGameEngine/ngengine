@@ -16,6 +16,7 @@ public class TiledParticleComponent extends AbstractComponent implements TiledEn
     private float lifespan = -1f;
     private float age = 0f;
     private TiledEntity followTarget;
+    private String followEmitter;
     private float followOffsetX;
     private float followOffsetY;
     private final Vector2f tmpFollowGrid = new Vector2f();
@@ -55,14 +56,25 @@ public class TiledParticleComponent extends AbstractComponent implements TiledEn
 
     public TiledParticleComponent follow(TiledEntity target, float offsetX, float offsetY) {
         this.followTarget = target;
+        this.followEmitter = null;
         this.followOffsetX = offsetX;
         this.followOffsetY = offsetY;
         updateFollowTarget();
         return this;
     }
 
+    public TiledParticleComponent followEmitter(TiledEntity target, String emitterId) {
+        this.followTarget = target;
+        this.followEmitter = emitterId;
+        this.followOffsetX = 0f;
+        this.followOffsetY = 0f;
+        updateFollowTarget();
+        return this;
+    }
+
     public void clearFollowTarget() {
         this.followTarget = null;
+        this.followEmitter = null;
         this.followOffsetX = 0f;
         this.followOffsetY = 0f;
     }
@@ -78,6 +90,13 @@ public class TiledParticleComponent extends AbstractComponent implements TiledEn
         CoordinateSystem cs = manager.getInstanceOf(CoordinateSystem.class);
         TiledObjectEntity particle = manager.getInstanceOf(TiledObjectEntity.class);
         if (cs == null || particle == null) {
+            return;
+        }
+        if (followEmitter != null && followTarget instanceof TiledObjectEntity
+                && TiledParticleEmitter.getPosition((TiledObjectEntity) followTarget, followEmitter, cs,
+                    tmpFollowGrid)) {
+            particle.setX(tmpFollowGrid.x);
+            particle.setY(tmpFollowGrid.y);
             return;
         }
         cs.getCenterInGridSpace(followTarget, tmpFollowGrid);

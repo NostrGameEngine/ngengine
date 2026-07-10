@@ -2382,6 +2382,11 @@ public abstract class MapRenderer {
         coordinateSystem.getCollisionCenterInGridSpace(parentTileObject, collisionObject, out);
     }
 
+    public void getTileObjectCenterInGridSpace(TiledObjectEntity parentTileObject, Tile tile,
+            TiledObjectEntity tileObject, Vector2f out) {
+        coordinateSystem.getTileObjectCenterInGridSpace(parentTileObject, tile, tileObject, out);
+    }
+
     public void getCenterInGridSpace(TiledBase entry, Vector2f out) {
         coordinateSystem.getCenterInGridSpace(entry, out);
     }
