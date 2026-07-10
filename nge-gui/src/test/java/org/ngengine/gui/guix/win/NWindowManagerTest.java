@@ -14,11 +14,13 @@ import com.jme3.input.Mouse;
 import com.jme3.input.dummy.DummyKeyInput;
 import com.jme3.input.dummy.DummyMouseInput;
 import com.jme3.math.Vector3f;
+import com.jme3.math.Vector2f;
 import com.jme3.post.FilterPostProcessor;
 import com.jme3.renderer.Camera;
 import com.jme3.renderer.ViewPort;
 import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.Node;
+import com.jme3.scene.Spatial;
 import com.jme3.system.AppSettings;
 import com.jme3.system.JmeContext;
 import com.jme3.system.JmeSystem;
@@ -41,6 +43,7 @@ import org.ngengine.gui.GuiContext;
 import org.ngengine.gui.NGEGui;
 import org.ngengine.gui.NGEStyle;
 import org.ngengine.gui.OptionPanel;
+import org.ngengine.gui.OptionPanelState;
 import org.ngengine.gui.Panel;
 import org.ngengine.gui.ime.ImeCompositionEvent;
 import org.ngengine.gui.ime.JmeSoftKeyboardImeComposer;
@@ -48,6 +51,7 @@ import org.ngengine.gui.ime.PhysicalKeyboardImeComposer;
 import org.ngengine.gui.nav.FocusTarget;
 import org.ngengine.gui.nav.DefaultNavigatorInputHandler;
 import org.ngengine.gui.nav.Navigator;
+import org.ngengine.gui.nav.PopupHandler;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -56,6 +60,21 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class NWindowManagerTest {
+
+    @Test
+    public void replacingOptionPanelClosesPreviousPopupThroughHandler() {
+        initializeGui();
+        TestPopupHandler handler = new TestPopupHandler();
+        OptionPanelState state = new OptionPanelState(handler);
+        OptionPanel first = new OptionPanel("First", "Message");
+        OptionPanel second = new OptionPanel("Second", "Message");
+
+        state.show(first);
+        state.show(second);
+
+        assertSame(first, handler.closedPopup);
+        assertSame(second, handler.shownPopup);
+    }
 
     @Test
     public void clearingOptionPanelMessageRemovesItsLabel() {
@@ -515,6 +534,30 @@ public class NWindowManagerTest {
     public static class TestWindow extends NWindow<Void> {
         @Override
         protected void compose(Vector3f size, Void args) throws Throwable {
+        }
+    }
+
+    private static class TestPopupHandler extends PopupHandler {
+        private Spatial shownPopup;
+        private Spatial closedPopup;
+
+        TestPopupHandler() {
+            super(new Node("GuiNode"), new Camera(800, 600));
+        }
+
+        @Override
+        public Vector2f getGuiSize() {
+            return new Vector2f(800, 600);
+        }
+
+        @Override
+        public void showModalPopup(Spatial popup) {
+            shownPopup = popup;
+        }
+
+        @Override
+        public void closePopup(Spatial popup) {
+            closedPopup = popup;
         }
     }
 

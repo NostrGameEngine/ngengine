@@ -154,7 +154,7 @@ public class OptionPanelState  implements GuiContextHandler{
      */
     public void show( OptionPanel panel ) {
         if( this.current != null ) {
-            current.close();
+            handler.closePopup(current);
         }
         
         this.current = panel;
