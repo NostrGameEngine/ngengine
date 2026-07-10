@@ -275,6 +275,9 @@ public class SpringGridLayout extends AbstractGuiComponent
                 // All children expand proportional to their relation
                 // to the overall preferred size.  Bigger components get more
                 // share.
+                if( totalPref == 0 ) {
+                    return totalSize/count;
+                }
                 float relation = pref / totalPref;
                 return relation * totalSize;
         }
