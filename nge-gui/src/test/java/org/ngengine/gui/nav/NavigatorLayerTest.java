@@ -42,6 +42,7 @@ import com.jme3.input.Keyboard;
 import com.jme3.input.Mouse;
 import com.jme3.input.MouseInput;
 import com.jme3.input.RawInputListener;
+import com.jme3.input.RawInputListenerAdapter;
 import com.jme3.cursors.plugins.JmeCursor;
 import com.jme3.input.dummy.DummyKeyInput;
 import com.jme3.input.dummy.DummyMouseInput;
@@ -961,6 +962,39 @@ public class NavigatorLayerTest {
             "drag:target:140.0:130.0",
             "action:target:false"
         ), events);
+    }
+
+    @Test
+    public void visibleMouseClickOutsideGuiReachesLaterRawListeners() {
+        initializeGui();
+
+        ViewPort vp = new ViewPort("gui-mouse-passthrough", new Camera(800, 600));
+        Node guiNode = new Node("GuiNode");
+        guiNode.setQueueBucket(Bucket.Gui);
+        vp.attachScene(guiNode);
+        NGEGui.register(vp, true);
+
+        TestMouseInput mouseInput = new TestMouseInput();
+        InputManager inputManager = newInputManager(mouseInput, null);
+        DefaultNavigatorInputHandler handler = new DefaultNavigatorInputHandler(vp);
+        handler.registerListener(inputManager);
+        handler.setInputDevice(inputManager, new Mouse());
+        inputManager.setCursorVisible(true);
+
+        AtomicInteger downstreamEvents = new AtomicInteger();
+        inputManager.addRawInputListener(new RawInputListenerAdapter() {
+            @Override
+            public void onMouseButtonEvent(MouseButtonEvent event) {
+                downstreamEvents.incrementAndGet();
+            }
+        });
+
+        mouseInput.queue(new MouseButtonEvent(MouseInput.BUTTON_LEFT, true, 700, 500));
+        inputManager.update(0.016f);
+        mouseInput.queue(new MouseButtonEvent(MouseInput.BUTTON_LEFT, false, 700, 500));
+        inputManager.update(0.016f);
+
+        assertEquals(2, downstreamEvents.get());
     }
 
     @Test

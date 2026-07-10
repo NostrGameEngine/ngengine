@@ -705,12 +705,12 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
         double x = hasCursorMotion() ? cursorX : state.toGuiX(event.getX());
         double y = hasCursorMotion() ? cursorY : state.toGuiY(event.getY());
         navigator.updateCursorPosition(x, y);
-        if (event.isPressed()) {
-            pointerPressed(state, navigator, x, y);
-        } else {
-            pointerReleased(state, navigator, x, y);
+        boolean handled = event.isPressed()
+                ? pointerPressed(state, navigator, x, y)
+                : pointerReleased(state, navigator, x, y);
+        if (handled) {
+            consume(event);
         }
-        consume(event);
     }
 
     private boolean hasCursorMotion() {
@@ -822,7 +822,7 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
         }
     }
 
-    private void pointerPressed(GuiContext state, Navigator navigator, double x, double y) {
+    private boolean pointerPressed(GuiContext state, Navigator navigator, double x, double y) {
         pointerActionTarget = state.pick(x, y);
         if (pointerActionTarget != null) {
             navigator.focusPointer(pointerActionTarget);
@@ -835,6 +835,7 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
             navigator.clearPointerFocus();
             pointerActionPressed = false;
         }
+        return pointerActionPressed;
     }
 
     private void pointerDragged(double x, double y) {
@@ -847,11 +848,12 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
         }
     }
 
-    private void pointerReleased(GuiContext state, Navigator navigator, double x, double y) {
+    private boolean pointerReleased(GuiContext state, Navigator navigator, double x, double y) {
         Spatial pressedTarget = pointerActionTarget;
         Spatial releaseTarget = state.pick(x, y);
+        boolean handled = pressedTarget != null && pointerActionPressed;
         pointerActionTarget = null;
-        if (pressedTarget != null && pointerActionPressed) {
+        if (handled) {
             FocusTarget target = NGEGui.findFocusTarget(pressedTarget);
             if (target != null) {
                 target.focusAction(pressedTarget, false, (float) x, (float) y);
@@ -866,6 +868,7 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
         } else {
             navigator.clearPointerFocus();
         }
+        return handled;
     }
 
     private boolean isAxisAction(String name) {
