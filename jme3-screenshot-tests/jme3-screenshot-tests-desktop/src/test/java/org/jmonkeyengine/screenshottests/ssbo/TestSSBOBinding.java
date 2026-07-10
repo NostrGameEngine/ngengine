@@ -41,8 +41,9 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.shape.Quad;
 import com.jme3.shader.bufferobject.BufferObject;
 import com.jme3.util.BufferUtils;
-import org.jmonkeyengine.screenshottests.testframework.ScreenshotTestBase;
 import org.jmonkeyengine.screenshottests.testframework.TestType;
+import org.jmonkeyengine.screenshottests.testframework.desktop.DesktopRunner;
+import org.jmonkeyengine.screenshottests.testframework.desktop.ScreenshotTestDesktopBase;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -66,7 +67,7 @@ import java.util.stream.Stream;
  * as a single color. If all bindings are correct, the result is white.
  */
 @SuppressWarnings("OptionalGetWithoutIsPresent")
-public class TestSSBOBinding extends ScreenshotTestBase {
+public class TestSSBOBinding extends ScreenshotTestDesktopBase {
 
     private static Stream<Arguments> testParameters() {
         return Stream.of(
@@ -116,7 +117,7 @@ public class TestSSBOBinding extends ScreenshotTestBase {
         .setBaseImageFileName(imageName)
         .setTestType(testType)
         .setFramesToTakeScreenshotsOn(1)
-        .run();
+        .run(new DesktopRunner());
     }
 
     private static BufferObject createColorBuffer(float r, float g, float b, float a) {
