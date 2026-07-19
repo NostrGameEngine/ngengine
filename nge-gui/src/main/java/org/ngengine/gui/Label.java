@@ -131,11 +131,11 @@ public class Label extends Panel {
         // If they are the same then that might legitimately be the font name but we'll check to see
         // of the old-style direct BitmapFont has been overridden.
         if( Objects.equals(fontName, defaultFontName) ) {
-            log.fine("Checking for bitmap font override...");
+            log.finer("Checking for bitmap font override...");
             BitmapFont font = styles.getAttributes(elementId.getId()).get("font", BitmapFont.class);
             BitmapFont defaultFont = styles.getAttributes(Styles.DEFAULT_ELEMENT).get("font", BitmapFont.class);
             if( font != defaultFont ) {
-                log.fine("Bitmap font has been overridden.");
+                log.finer("Bitmap font has been overridden.");
                 // Need to somehow infer the font name... JME does not make this easy as the
                 // BitmapFont cannot tell us its asset key or anything.
                 return new TextComponent("", font);

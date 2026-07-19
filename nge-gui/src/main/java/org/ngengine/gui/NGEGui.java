@@ -252,8 +252,8 @@ public class NGEGui {
     private static class DefaultTextFactory implements Function<String, Text2d> {
 
         public Text2d apply(String fontName) {
-            if (log.isLoggable(Level.FINE)) {
-                log.fine("createText2d(" + fontName + ")");
+            if (log.isLoggable(Level.FINER)) {
+                log.finer("createText2d(" + fontName + ")");
             }
 
             BitmapFont font = loadFont(fontName);
