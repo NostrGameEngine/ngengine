@@ -12,6 +12,7 @@ import org.ngengine.world2d.tiled.core.TiledEntity;
 import org.ngengine.world2d.tiled.core.TiledMap;
 import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
 import org.ngengine.world2d.tiled.util.CoordinateSystem;
+import org.ngengine.world2d.tiled.util.TiledAnchorResolver;
 
 public class TiledParticleComponent extends AbstractComponent implements TiledEntityLogicFragment, TiledNetcodeFragment{
     private float lifespan = -1f;
@@ -104,7 +105,12 @@ public class TiledParticleComponent extends AbstractComponent implements TiledEn
             setAtAnchor(particle, cs, tmpFollowGrid);
             return;
         }
-        cs.getCenterInGridSpace(followTarget, tmpFollowGrid);
+        if (followTarget instanceof TiledObjectEntity) {
+            TiledObjectEntity source = (TiledObjectEntity) followTarget;
+            TiledAnchorResolver.resolve(source, source.getTile(), null, null, cs, tmpFollowGrid);
+        } else {
+            cs.getCenterInGridSpace(followTarget, tmpFollowGrid);
+        }
         tmpFollowGrid.addLocal(followOffsetX, followOffsetY);
         setAtAnchor(particle, cs, tmpFollowGrid);
     }

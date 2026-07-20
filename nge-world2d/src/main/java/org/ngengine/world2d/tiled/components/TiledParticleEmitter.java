@@ -6,10 +6,10 @@ import com.jme3.scene.Spatial;
 
 import org.ngengine.components.ComponentManager;
 import org.ngengine.world2d.tiled.animation.AnimatedTileControl;
-import org.ngengine.world2d.tiled.core.TiledObjectLayer;
 import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
 import org.ngengine.world2d.tiled.core.tileset.Tile;
 import org.ngengine.world2d.tiled.util.CoordinateSystem;
+import org.ngengine.world2d.tiled.util.TiledAnchorResolver;
 
 public final class TiledParticleEmitter {
     public static final String PROPERTY_EMITTER = "particles.emitter";
@@ -24,34 +24,20 @@ public final class TiledParticleEmitter {
         }
         Tile sourceTile = source.getTile();
         Tile currentTile = getCurrentTile(source);
-        TiledObjectEntity emitter = findEmitter(currentTile, emitterId);
-        Tile emitterTile = currentTile;
-        if (emitter == null && currentTile != sourceTile) {
-            emitter = findEmitter(sourceTile, emitterId);
-            emitterTile = sourceTile;
-        }
-        if (emitter == null || emitterTile == null) {
-            return false;
-        }
-        coordinates.getTileObjectCenterInGridSpace(source, emitterTile, emitter, out);
-        return true;
+        String expectedEmitter = emitterId == null || emitterId.isBlank() ? null : emitterId;
+        return TiledAnchorResolver.resolve(
+            source,
+            currentTile != null ? currentTile : sourceTile,
+            PROPERTY_EMITTER,
+            expectedEmitter,
+            coordinates,
+            out
+        );
     }
 
     public static TiledObjectEntity findEmitter(Tile tile, String emitterId) {
-        TiledObjectLayer objects = tile != null ? tile.getCollisions() : null;
-        if (objects == null) {
-            return null;
-        }
-        for (TiledObjectEntity object : objects.getObjects()) {
-            Object value = object.getProperty(PROPERTY_EMITTER);
-            if (value == null) {
-                continue;
-            }
-            if (emitterId == null || emitterId.isBlank() || emitterId.equals(String.valueOf(value).trim())) {
-                return object;
-            }
-        }
-        return null;
+        String expectedEmitter = emitterId == null || emitterId.isBlank() ? null : emitterId;
+        return TiledAnchorResolver.findMarker(tile, PROPERTY_EMITTER, expectedEmitter);
     }
 
     public static Tile getCurrentTile(TiledObjectEntity source) {

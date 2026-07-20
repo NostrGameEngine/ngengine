@@ -34,6 +34,7 @@ import org.ngengine.world2d.tiled.core.tileset.Tile;
 import org.ngengine.world2d.tiled.core.tileset.Tileset;
 import org.ngengine.world2d.tiled.enums.ObjectShape;
 import org.ngengine.world2d.tiled.util.CoordinateSystem;
+import org.ngengine.world2d.tiled.util.TiledAnchorResolver;
 
 public class TiledParticlesSystem extends AbstractComponent implements ReloadableComponent {
     private final Logger logger = Logger.getLogger(TiledParticlesSystem.class.getName());
@@ -452,7 +453,12 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
         }
         try (TempVars vars = TempVars.get()) {
             Vector2f grid = vars.vect2d;
-            cs.getCenterInGridSpace(sourceEntity, grid);
+            if (sourceEntity instanceof TiledObjectEntity) {
+                TiledObjectEntity sourceObject = (TiledObjectEntity) sourceEntity;
+                TiledAnchorResolver.resolve(sourceObject, sourceObject.getTile(), null, null, cs, grid);
+            } else {
+                cs.getCenterInGridSpace(sourceEntity, grid);
+            }
             grid.x += offsetX;
             grid.y += offsetY;
 
