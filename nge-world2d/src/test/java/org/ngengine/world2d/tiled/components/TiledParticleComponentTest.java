@@ -1,12 +1,14 @@
 package org.ngengine.world2d.tiled.components;
 
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.jme3.math.Vector2f;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.ngengine.world2d.tiled.animation.AnimatedTileControl;
 import org.ngengine.world2d.tiled.animation.Frame;
 import org.ngengine.world2d.tiled.core.TiledMap;
@@ -17,7 +19,7 @@ import org.ngengine.world2d.tiled.core.tileset.Tileset;
 import org.ngengine.world2d.tiled.enums.Orientation;
 import org.ngengine.world2d.tiled.util.TiledCoordinateSystem;
 
-public class TestTiledParticleComponent {
+public class TiledParticleComponentTest {
 
     @Test
     public void followCanBeConfiguredBeforeComponentIsAttached() {
@@ -40,6 +42,55 @@ public class TestTiledParticleComponent {
         assertSame(spray, TiledParticleEmitter.findEmitter(tile, "spray"));
         assertSame(leak, TiledParticleEmitter.findEmitter(tile, "leak"));
         assertNull(TiledParticleEmitter.findEmitter(tile, "missing"));
+    }
+
+    @Test
+    public void particleOriginAlignsAnArbitraryTilePointWithTheEmitter() {
+        TiledMap map = new TiledMap(10, 10);
+        map.setOrientation(Orientation.ORTHOGONAL);
+        map.setTileWidth(64);
+        map.setTileHeight(64);
+        TiledCoordinateSystem coordinates = TiledCoordinateSystem.create(map, 64);
+
+        Tileset tileset = new Tileset(100, 100, 0, 0);
+        tileset.setObjectAlignment("left");
+        Tile tile = new Tile(0, 0, 100, 100);
+        tile.setId(0);
+        TiledObjectLayer markers = new TiledObjectLayer();
+        TiledObjectEntity origin = new TiledObjectEntity(-1, 20, 50, 0, 0);
+        origin.putProperty(TiledParticleOrigin.PROPERTY_ORIGIN, true);
+        markers.add(origin);
+        tile.setCollisions(markers);
+        tileset.addTile(tile);
+
+        TiledObjectEntity particle = new TiledObjectEntity(-2, 0, 0, 100, 100);
+        particle.setTile(tile);
+        Vector2f anchor = new Vector2f(200, 300);
+
+        assertTrue(TiledParticleOrigin.alignToGridAnchor(
+            particle, anchor, coordinates, Orientation.ORTHOGONAL));
+        assertEquals(180f, particle.getX(), 0.001f);
+        assertEquals(300f, particle.getY(), 0.001f);
+
+        particle.setRotation(90d);
+        assertTrue(TiledParticleOrigin.alignToGridAnchor(
+            particle, anchor, coordinates, Orientation.ORTHOGONAL));
+        assertEquals(200f, particle.getX(), 0.001f);
+        assertEquals(280f, particle.getY(), 0.001f);
+    }
+
+    @Test
+    public void particleOriginFallsBackWhenNoMarkerIsDeclared() {
+        TiledMap map = new TiledMap(10, 10);
+        map.setOrientation(Orientation.ORTHOGONAL);
+        map.setTileWidth(64);
+        map.setTileHeight(64);
+        TiledObjectEntity particle = new TiledObjectEntity(-2, 0, 0, new Tile(0, 0, 100, 100));
+
+        assertFalse(TiledParticleOrigin.alignToGridAnchor(
+            particle, new Vector2f(200, 300), TiledCoordinateSystem.create(map, 64), Orientation.ORTHOGONAL));
+        assertEquals(0f, particle.getX(), 0.001f);
+        assertEquals(0f, particle.getY(), 0.001f);
     }
 
     @Test

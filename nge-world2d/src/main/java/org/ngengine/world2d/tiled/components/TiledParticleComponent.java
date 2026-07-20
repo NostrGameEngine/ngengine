@@ -9,6 +9,7 @@ import org.ngengine.world2d.tiled.components.fragments.TiledEntityLogicFragment;
 import org.ngengine.world2d.tiled.components.fragments.TiledNetcodeFragment;
 import org.ngengine.world2d.tiled.core.TiledBase;
 import org.ngengine.world2d.tiled.core.TiledEntity;
+import org.ngengine.world2d.tiled.core.TiledMap;
 import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
 import org.ngengine.world2d.tiled.util.CoordinateSystem;
 
@@ -79,6 +80,11 @@ public class TiledParticleComponent extends AbstractComponent implements TiledEn
         this.followOffsetY = 0f;
     }
 
+    /** Re-applies the current follow target after changing particle rotation or scale. */
+    public void refreshFollowPosition() {
+        updateFollowTarget();
+    }
+
     private void updateFollowTarget() {
         if (followTarget == null) {
             return;
@@ -95,13 +101,21 @@ public class TiledParticleComponent extends AbstractComponent implements TiledEn
         if (followEmitter != null && followTarget instanceof TiledObjectEntity
                 && TiledParticleEmitter.getPosition((TiledObjectEntity) followTarget, followEmitter, cs,
                     tmpFollowGrid)) {
-            particle.setX(tmpFollowGrid.x);
-            particle.setY(tmpFollowGrid.y);
+            setAtAnchor(particle, cs, tmpFollowGrid);
             return;
         }
         cs.getCenterInGridSpace(followTarget, tmpFollowGrid);
-        particle.setX(tmpFollowGrid.x + followOffsetX);
-        particle.setY(tmpFollowGrid.y + followOffsetY);
+        tmpFollowGrid.addLocal(followOffsetX, followOffsetY);
+        setAtAnchor(particle, cs, tmpFollowGrid);
+    }
+
+    private void setAtAnchor(TiledObjectEntity particle, CoordinateSystem cs, Vector2f anchor) {
+        TiledMap map = getInstanceOf(TiledMap.class);
+        if (!TiledParticleOrigin.alignToGridAnchor(particle, anchor, cs,
+                map != null ? map.getOrientation() : null)) {
+            particle.setX(anchor.x);
+            particle.setY(anchor.y);
+        }
     }
     
 }
