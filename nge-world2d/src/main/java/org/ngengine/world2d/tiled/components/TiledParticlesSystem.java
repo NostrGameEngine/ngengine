@@ -149,6 +149,13 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
             }
             obj.setWidth(obj.getWidth()*scale);
             obj.setHeight(obj.getHeight()*scale);
+            TiledMap tiledMap = layer.getComponentManager().getInstanceOf(TiledMap.class);
+            TiledParticleOrigin.alignToGridAnchor(
+                obj,
+                pos,
+                cs,
+                tiledMap != null ? tiledMap.getOrientation() : null
+            );
             layer.add(obj);
             Components.mount(obj, new TiledParticleComponent()).enable();
             return obj;
