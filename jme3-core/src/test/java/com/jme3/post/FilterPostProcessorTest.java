@@ -60,12 +60,23 @@ class FilterPostProcessorTest {
 
         assertEquals(640, filter.width);
         assertEquals(480, filter.height);
+        assertEquals(320, camera.getWidth());
+        assertEquals(240, camera.getHeight());
 
         renderManager.notifyReshape(320, 240, 800, 600);
 
         assertEquals(800, filter.width);
         assertEquals(600, filter.height);
+        assertEquals(320, camera.getWidth());
+        assertEquals(240, camera.getHeight());
         assertEquals(1, filter.cleanupCount);
+
+        filter.setEnabled(false);
+        camera.resize(800, 600, false);
+        processor.postFrame(null);
+
+        assertEquals(320, camera.getWidth());
+        assertEquals(240, camera.getHeight());
     }
 
     private static class RecordingFilter extends Filter {

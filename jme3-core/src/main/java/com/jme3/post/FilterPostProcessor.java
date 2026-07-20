@@ -102,6 +102,8 @@ public class FilterPostProcessor implements SceneProcessor, Savable {
     private float top;
     private int originalWidth;
     private int originalHeight;
+    private int cameraWidth;
+    private int cameraHeight;
     private boolean resizeWithDefaultFramebuffer;
     private int lastFilterIndex = -1;
     private boolean cameraInit = false;
@@ -431,23 +433,24 @@ public class FilterPostProcessor implements SceneProcessor, Savable {
 
     @Override
     public void postFrame(FrameBuffer out) {
+        try {
+            FrameBuffer sceneBuffer = renderFrameBuffer;
+            if (renderFrameBufferMS != null && !renderer.getCaps().contains(Caps.OpenGL32)) {
+                renderer.copyFrameBuffer(renderFrameBufferMS, renderFrameBuffer, true, true);
+            } else if (renderFrameBufferMS != null) {
+                sceneBuffer = renderFrameBufferMS;
+            }
 
-        FrameBuffer sceneBuffer = renderFrameBuffer;
-        if (renderFrameBufferMS != null && !renderer.getCaps().contains(Caps.OpenGL32)) {
-            renderer.copyFrameBuffer(renderFrameBufferMS, renderFrameBuffer, true, true);
-        } else if (renderFrameBufferMS != null) {
-            sceneBuffer = renderFrameBufferMS;
-        }
-
-        // Execute the filter chain
-        renderFilterChain(renderer, sceneBuffer);
-
-        // Restore the original output framebuffer for the viewport
-        renderer.setFrameBuffer(outputBuffer);
-
-        // viewport can be null if no filters are enabled
-        if (viewPort != null) {
-            renderManager.setCamera(viewPort.getCamera(), false);
+            // Execute the filter chain
+            renderFilterChain(renderer, sceneBuffer);
+        } finally {
+            // Filter passes use physical framebuffer dimensions. Never leak those
+            // dimensions back into the logical scene camera used by input and GUI.
+            renderer.setFrameBuffer(outputBuffer);
+            restoreCameraSize();
+            if (viewPort != null) {
+                renderManager.setCamera(viewPort.getCamera(), false);
+            }
         }
     }
 
@@ -457,8 +460,7 @@ public class FilterPostProcessor implements SceneProcessor, Savable {
             // If no filters are enabled, restore the camera's original viewport
             // and output framebuffer to bypass the post-processor.
             if (cameraInit) {
-                viewPort.getCamera().resize(originalWidth, originalHeight, true);
-                viewPort.getCamera().setViewPort(left, right, bottom, top);
+                restoreCameraSize();
                 viewPort.setOutputFrameBuffer(outputBuffer);
                 cameraInit = false;
             }
@@ -530,8 +532,7 @@ public class FilterPostProcessor implements SceneProcessor, Savable {
     public void cleanup() {
         if (viewPort != null) {
             // Reset the viewport camera and output framebuffer to their initial values
-            viewPort.getCamera().resize(originalWidth, originalHeight, true);
-            viewPort.getCamera().setViewPort(left, right, bottom, top);
+            restoreCameraSize();
             viewPort.setOutputFrameBuffer(outputBuffer);
             viewPort = null;
 
@@ -564,6 +565,8 @@ public class FilterPostProcessor implements SceneProcessor, Savable {
     @Override
     public void reshape(ViewPort vp, int w, int h) {
         Camera cam = vp.getCamera();
+        cameraWidth = cam.getWidth();
+        cameraHeight = cam.getHeight();
         // This sets the camera viewport to its full extent (0-1) for rendering to the FPP's internal buffer.
         cam.setViewPort(left, right, bottom, top);
         // Resizing the camera to fit the new viewport and saving original dimensions
@@ -645,6 +648,16 @@ public class FilterPostProcessor implements SceneProcessor, Savable {
             initFilter(filter, vp);
         }
         setupViewPortFrameBuffer();
+        restoreCameraSize();
+    }
+
+    private void restoreCameraSize() {
+        if (viewPort == null || cameraWidth <= 0 || cameraHeight <= 0) {
+            return;
+        }
+        Camera camera = viewPort.getCamera();
+        camera.resize(cameraWidth, cameraHeight, true);
+        camera.setViewPort(left, right, bottom, top);
     }
 
     private void cleanupFilterResources() {

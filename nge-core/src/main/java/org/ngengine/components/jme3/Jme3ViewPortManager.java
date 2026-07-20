@@ -94,7 +94,7 @@ public class Jme3ViewPortManager implements ViewPortManager {
         FilterPostProcessor fpp = Utils.getFilterPostProcessor(
             app.getContext().getSettings(),
             app.getAssetManager(),
-            app.getViewPort()
+            vp
         );
         return fpp;
     }

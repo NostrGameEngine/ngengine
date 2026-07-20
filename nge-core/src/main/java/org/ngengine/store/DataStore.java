@@ -132,19 +132,21 @@ public class DataStore {
      *             if reading fails
      */
     public <T extends Savable> T read(String key) throws IOException {
-        try {
-            String prefix = (isCache ? "cache/" : "data/") + name + "/";
-            AssetKey<Object> assetKey = new AssetKey<>(prefix + key + ".j3o");
-            AssetInfo assetInfo = assetManager.locateAsset(assetKey);
-            if (assetInfo != null) {
-                try (InputStream is = assetInfo.openStream()) {
-                    return readFromStream(is);
-                } catch (Throwable e) {
-                    log.log(Level.WARNING, "Failed to read bundled store data: " + key, e);
+        if (assetManager != null) {
+            try {
+                String prefix = (isCache ? "cache/" : "data/") + name + "/";
+                AssetKey<Object> assetKey = new AssetKey<>(prefix + key + ".j3o");
+                AssetInfo assetInfo = assetManager.locateAsset(assetKey);
+                if (assetInfo != null) {
+                    try (InputStream is = assetInfo.openStream()) {
+                        return readFromStream(is);
+                    } catch (Throwable e) {
+                        log.log(Level.WARNING, "Failed to read bundled store data: " + key, e);
+                    }
                 }
+            } catch (Exception e) {
+                log.log(Level.WARNING, "Failed to locate bundled store data: " + key, e);
             }
-        } catch (Exception e) {
-            log.log(Level.WARNING, "Failed to locate bundled store data: " + key, e);
         }
         try (InputStream is = store.read(key + ".j3o").await()) {
             return readFromStream(is);
