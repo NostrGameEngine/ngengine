@@ -72,9 +72,11 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
     private ViewPort guiViewPort;
     private TiledWorld2d registeredWorld;
     private final Vector3f targetCameraLoc = new Vector3f();
+    private final Vector3f smoothCameraLoc = new Vector3f();
     private boolean cameraTargetReady;
     private float maxDistBeforeSnap = -1;
     private float smoothing = DEFAULT_SMOOTHING;
+    private boolean pixelSnap;
 
     /**
      * Creates a component that resolves its scene and GUI viewports from the
@@ -105,6 +107,21 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
     }
 
     /**
+     * Enables camera quantization to the visible logical-pixel grid.
+     *
+     * <p>The smoothed camera position remains continuous internally; only the
+     * position submitted for rendering is snapped. This avoids sub-pixel
+     * shimmer without feeding quantization error back into camera following.</p>
+     *
+     * @param enabled true to render on the logical-pixel grid
+     * @return this component
+     */
+    public TiledViewRenderComponent setPixelSnap(boolean enabled) {
+        pixelSnap = enabled;
+        return this;
+    }
+
+    /**
      * Registers this POV with the current tiled world when the component is enabled.
      */
     @Override
@@ -131,6 +148,7 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
     @Override
     public Component newInstance() {
         TiledViewRenderComponent copy = new TiledViewRenderComponent(viewPort, guiViewPort, smoothing);
+        copy.pixelSnap = pixelSnap;
         return copy;
     }
 
@@ -259,17 +277,19 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
             }
             try (TempVars vars = TempVars.get()) {
                 Camera cam = viewPort.getCamera();
-                Vector3f loc = cam.getLocation();
-
                 Vector3f dir = vars.vect1;
-                dir.set(targetCameraLoc).subtractLocal(loc);
+                dir.set(targetCameraLoc).subtractLocal(smoothCameraLoc);
                 float dist = dir.length();
                 float settleDistance = cameraSettleDistance(cam);
                 if (shouldSnapCamera(smoothing, cameraTargetReady, dist, maxDistBeforeSnap, settleDistance)) {
-                    loc.set(targetCameraLoc);
+                    smoothCameraLoc.set(targetCameraLoc);
                     cameraTargetReady = true;
                 } else {
-                    moveCameraLocation(loc, targetCameraLoc, smoothing, tpf);
+                    moveCameraLocation(smoothCameraLoc, targetCameraLoc, smoothing, tpf);
+                }
+                Vector3f loc = vars.vect2.set(smoothCameraLoc);
+                if (pixelSnap) {
+                    snapCameraLocation(loc, cam);
                 }
                 cam.setLocation(loc);
             }
@@ -430,6 +450,19 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
         }
         float verticalWorldSpan = Math.abs(camera.getFrustumTop() - camera.getFrustumBottom());
         return verticalWorldSpan / camera.getHeight() * CAMERA_SETTLE_PIXELS;
+    }
+
+    static void snapCameraLocation(Vector3f location, Camera camera) {
+        if (location == null || camera == null || camera.getHeight() <= 0) {
+            return;
+        }
+        float verticalWorldSpan = Math.abs(camera.getFrustumTop() - camera.getFrustumBottom());
+        float worldUnitsPerPixel = verticalWorldSpan / camera.getHeight();
+        if (worldUnitsPerPixel <= 0f || !Float.isFinite(worldUnitsPerPixel)) {
+            return;
+        }
+        location.x = Math.round(location.x / worldUnitsPerPixel) * worldUnitsPerPixel;
+        location.z = Math.round(location.z / worldUnitsPerPixel) * worldUnitsPerPixel;
     }
 
     static float cameraFollowAlpha(float smoothing, float tpf) {

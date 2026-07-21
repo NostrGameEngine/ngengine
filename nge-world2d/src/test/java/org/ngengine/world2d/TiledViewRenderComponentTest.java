@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
 
 class TiledViewRenderComponentTest {
@@ -29,5 +30,20 @@ class TiledViewRenderComponentTest {
         assertTrue(TiledViewRenderComponent.shouldSnapCamera(0f, true, 10f, 1000f, 0.25f));
         assertTrue(TiledViewRenderComponent.shouldSnapCamera(12f, true, 1001f, 1000f, 0.25f));
         assertFalse(TiledViewRenderComponent.shouldSnapCamera(12f, true, 10f, 1000f, 0.25f));
+    }
+
+    @Test
+    void renderLocationSnapsToLogicalPixelWithoutChangingCameraScale() {
+        Camera camera = new Camera(1280, 720);
+        camera.setParallelProjection(true);
+        camera.setFrustum(-100f, 10f, -320f, 320f, 180f, -180f);
+        Vector3f location = new Vector3f(10.24f, 0f, -3.74f);
+
+        TiledViewRenderComponent.snapCameraLocation(location, camera);
+
+        assertEquals(10f, location.x, 0.0001f);
+        assertEquals(-3.5f, location.z, 0.0001f);
+        assertEquals(1280, camera.getWidth());
+        assertEquals(720, camera.getHeight());
     }
 }
