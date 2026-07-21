@@ -67,6 +67,7 @@ import org.ngengine.world2d.tiled.util.CoordinateSystem;
  */
 public class TiledViewRenderComponent extends AbstractComponent implements PovRenderer, TiledEntityLogicFragment {
     private static final float DEFAULT_SMOOTHING = 3f;
+    private static final float CAMERA_SETTLE_PIXELS = 0.5f;
     private ViewPort viewPort;
     private ViewPort guiViewPort;
     private TiledWorld2d registeredWorld;
@@ -263,7 +264,8 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
                 Vector3f dir = vars.vect1;
                 dir.set(targetCameraLoc).subtractLocal(loc);
                 float dist = dir.length();
-                if (shouldSnapCamera(smoothing, cameraTargetReady, dist, maxDistBeforeSnap)) {
+                float settleDistance = cameraSettleDistance(cam);
+                if (shouldSnapCamera(smoothing, cameraTargetReady, dist, maxDistBeforeSnap, settleDistance)) {
                     loc.set(targetCameraLoc);
                     cameraTargetReady = true;
                 } else {
@@ -414,13 +416,21 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
         }
     }
 
-    static boolean shouldSnapCamera(float smoothing, boolean targetReady, float distance, float maxDistanceBeforeSnap) {
+    static boolean shouldSnapCamera(float smoothing, boolean targetReady, float distance,
+            float maxDistanceBeforeSnap, float settleDistance) {
         return !targetReady
                 || smoothing <= 0f
-                || maxDistanceBeforeSnap >= 0f && distance > maxDistanceBeforeSnap;
+                || maxDistanceBeforeSnap >= 0f && distance > maxDistanceBeforeSnap
+                || distance <= settleDistance;
     }
 
- 
+    static float cameraSettleDistance(Camera camera) {
+        if (camera == null || camera.getHeight() <= 0) {
+            return 0f;
+        }
+        float verticalWorldSpan = Math.abs(camera.getFrustumTop() - camera.getFrustumBottom());
+        return verticalWorldSpan / camera.getHeight() * CAMERA_SETTLE_PIXELS;
+    }
 
     static float cameraFollowAlpha(float smoothing, float tpf) {
         if (smoothing <= 0f) {

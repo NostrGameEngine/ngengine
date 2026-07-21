@@ -1,6 +1,7 @@
 package org.ngengine.world2d.tiled.components;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,13 +34,16 @@ import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
 import org.ngengine.world2d.tiled.core.tileset.Tile;
 import org.ngengine.world2d.tiled.core.tileset.Tileset;
 import org.ngengine.world2d.tiled.enums.ObjectShape;
+import org.ngengine.world2d.tiled.enums.Orientation;
 import org.ngengine.world2d.tiled.util.CoordinateSystem;
 import org.ngengine.world2d.tiled.util.TiledAnchorResolver;
 
 public class TiledParticlesSystem extends AbstractComponent implements ReloadableComponent {
+    private static final float PARTICLE_ANCHOR_EPSILON_SQUARED = 0.0001f;
     private final Logger logger = Logger.getLogger(TiledParticlesSystem.class.getName());
     private Map<String, Map<String,Tile>> particles = new HashMap<>();
     private List<TiledObjectEntity> foundObjects= new ArrayList<>();
+    private final Vector2f foundParticleAnchor = new Vector2f();
     private static final AtomicLong LOCAL_PARTICLE_ID = new AtomicLong(-1L);
 
 
@@ -117,23 +121,10 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
             CoordinateSystem cs = layer.getComponentManager().getInstanceOf(CoordinateSystem.class);
             cs.worldToGridSpace(screenX, screenY, pos);
 
-            if(onlyIfEmpty){
-                foundObjects.clear();
-                layer.getObjectsAt(pos.x, pos.y, foundObjects);
-
-                // check if any of the found objects use the same tile
-                for(TiledObjectEntity o : foundObjects){
-                    Tile t1 = o.getTile();
-                    if(t1 == null) continue;
-                    // Tileset ts1 = t1.getTileset();
-                    for(Tile t2:map.values()){
-                        // Tileset ts2 = t2.getTileset();
-                        if(t1==t2){
-                            // found existing particle of the same type
-                            return null;
-                        }
-                    }
-                }
+            TiledMap tiledMap = layer.getComponentManager().getInstanceOf(TiledMap.class);
+            Orientation orientation = tiledMap != null ? tiledMap.getOrientation() : null;
+            if (onlyIfEmpty && hasParticleAt(layer, map.values(), pos, cs, orientation)) {
+                return null;
             }
 
 
@@ -149,7 +140,6 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
             }
             obj.setWidth(obj.getWidth()*scale);
             obj.setHeight(obj.getHeight()*scale);
-            TiledMap tiledMap = layer.getComponentManager().getInstanceOf(TiledMap.class);
             TiledParticleOrigin.alignToGridAnchor(
                 obj,
                 pos,
@@ -163,6 +153,28 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
         }
 
 
+    }
+
+    boolean hasParticleAt(TiledObjectLayer layer, Collection<Tile> particleTiles, Vector2f anchorGrid,
+            CoordinateSystem coordinates, Orientation orientation) {
+        foundObjects.clear();
+        layer.getObjectsAt(anchorGrid.x, anchorGrid.y, foundObjects);
+        for (TiledObjectEntity object : foundObjects) {
+            if (particleTiles.contains(object.getTile())) {
+                return true;
+            }
+        }
+
+        for (TiledObjectEntity object : layer.getObjects()) {
+            if (!particleTiles.contains(object.getTile())) {
+                continue;
+            }
+            if (TiledParticleOrigin.getGridAnchor(object, coordinates, orientation, foundParticleAnchor)
+                    && foundParticleAnchor.distanceSquared(anchorGrid) <= PARTICLE_ANCHOR_EPSILON_SQUARED) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private BigInteger nextObjectId(Object source, boolean networkSync) {

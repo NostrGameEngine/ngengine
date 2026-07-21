@@ -52,7 +52,55 @@ public final class TiledParticleOrigin {
         if (particle == null || anchorGrid == null || coordinates == null) {
             return false;
         }
-        Tile tile = particle.getTile();
+        Vector2f originOffset = new Vector2f();
+        if (!resolveOriginOffset(particle, orientation, originOffset)) {
+            return false;
+        }
+
+        Vector2f anchorWorld = new Vector2f();
+        coordinates.gridToWorldSpace(anchorGrid.x, anchorGrid.y, anchorWorld);
+        Vector2f particleGrid = new Vector2f();
+        coordinates.worldToGridSpace(
+                anchorWorld.x - originOffset.x,
+                anchorWorld.y - originOffset.y,
+                particleGrid
+        );
+        particle.setX(particleGrid.x);
+        particle.setY(particleGrid.y);
+        return true;
+    }
+
+    /**
+     * Resolves the grid-space anchor represented by a particle's custom origin.
+     *
+     * <p>This is the inverse of {@link #alignToGridAnchor}: it allows spatial
+     * lookups to compare the requested emitter position instead of the shifted
+     * top-left coordinate of the rendered particle object.</p>
+     *
+     * @param particle the particle object to inspect
+     * @param coordinates the map coordinate system
+     * @param orientation the map orientation, or null for orthogonal
+     * @param store storage for the resolved grid-space anchor
+     * @return true when the particle declares and resolves a custom origin
+     */
+    public static boolean getGridAnchor(TiledObjectEntity particle, CoordinateSystem coordinates,
+            Orientation orientation, Vector2f store) {
+        if (particle == null || coordinates == null || store == null) {
+            return false;
+        }
+        if (!resolveOriginOffset(particle, orientation, store)) {
+            return false;
+        }
+        float originOffsetX = store.x;
+        float originOffsetY = store.y;
+        coordinates.gridToWorldSpace((float) particle.getX(), (float) particle.getY(), store);
+        store.addLocal(originOffsetX, originOffsetY);
+        coordinates.worldToGridSpace(store.x, store.y, store);
+        return true;
+    }
+
+    private static boolean resolveOriginOffset(TiledObjectEntity particle, Orientation orientation, Vector2f store) {
+        Tile tile = particle != null ? particle.getTile() : null;
         TiledObjectEntity marker = findOrigin(tile);
         if (tile == null || marker == null || tile.getWidth() <= 0 || tile.getHeight() <= 0) {
             return false;
@@ -89,15 +137,10 @@ public final class TiledParticleOrigin {
         float angle = (float) (-particle.getRotation() * FastMath.DEG_TO_RAD);
         float cos = FastMath.cos(angle);
         float sin = FastMath.sin(angle);
-        float rotatedX = cos * localX + sin * localZ;
-        float rotatedZ = -sin * localX + cos * localZ;
-
-        Vector2f anchorWorld = new Vector2f();
-        coordinates.gridToWorldSpace(anchorGrid.x, anchorGrid.y, anchorWorld);
-        Vector2f particleGrid = new Vector2f();
-        coordinates.worldToGridSpace(anchorWorld.x - rotatedX, anchorWorld.y - rotatedZ, particleGrid);
-        particle.setX(particleGrid.x);
-        particle.setY(particleGrid.y);
+        store.set(
+                cos * localX + sin * localZ,
+                -sin * localX + cos * localZ
+        );
         return true;
     }
 }

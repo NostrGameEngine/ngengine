@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
+
 import com.jme3.math.Vector2f;
 
 import org.junit.jupiter.api.Test;
@@ -71,12 +73,51 @@ public class TiledParticleComponentTest {
             particle, anchor, coordinates, Orientation.ORTHOGONAL));
         assertEquals(180f, particle.getX(), 0.001f);
         assertEquals(300f, particle.getY(), 0.001f);
+        Vector2f resolvedAnchor = new Vector2f();
+        assertTrue(TiledParticleOrigin.getGridAnchor(
+            particle, coordinates, Orientation.ORTHOGONAL, resolvedAnchor));
+        assertEquals(anchor.x, resolvedAnchor.x, 0.001f);
+        assertEquals(anchor.y, resolvedAnchor.y, 0.001f);
 
         particle.setRotation(90d);
         assertTrue(TiledParticleOrigin.alignToGridAnchor(
             particle, anchor, coordinates, Orientation.ORTHOGONAL));
         assertEquals(200f, particle.getX(), 0.001f);
         assertEquals(280f, particle.getY(), 0.001f);
+        assertTrue(TiledParticleOrigin.getGridAnchor(
+            particle, coordinates, Orientation.ORTHOGONAL, resolvedAnchor));
+        assertEquals(anchor.x, resolvedAnchor.x, 0.001f);
+        assertEquals(anchor.y, resolvedAnchor.y, 0.001f);
+    }
+
+    @Test
+    public void onlyIfEmptyFindsParticleWhoseCustomOriginLiesOnExcludedBottomEdge() {
+        TiledMap map = new TiledMap(10, 10);
+        map.setOrientation(Orientation.ORTHOGONAL);
+        map.setTileWidth(64);
+        map.setTileHeight(64);
+        TiledCoordinateSystem coordinates = TiledCoordinateSystem.create(map, 64);
+
+        Tileset tileset = new Tileset(100, 100, 0, 0);
+        tileset.setObjectAlignment("left");
+        Tile tile = new Tile(0, 0, 100, 100);
+        TiledObjectLayer markers = new TiledObjectLayer();
+        TiledObjectEntity origin = new TiledObjectEntity(-1, 50, 100, 0, 0);
+        origin.putProperty(TiledParticleOrigin.PROPERTY_ORIGIN, true);
+        markers.add(origin);
+        tile.setCollisions(markers);
+        tileset.addTile(tile);
+
+        Vector2f anchor = new Vector2f(200, 300);
+        TiledObjectEntity particle = new TiledObjectEntity(-2, 0, 0, 100, 100);
+        particle.setTile(tile);
+        assertTrue(TiledParticleOrigin.alignToGridAnchor(
+            particle, anchor, coordinates, Orientation.ORTHOGONAL));
+        TiledObjectLayer layer = new TiledObjectLayer();
+        layer.getObjects().add(particle);
+
+        assertTrue(new TiledParticlesSystem().hasParticleAt(
+            layer, List.of(tile), anchor, coordinates, Orientation.ORTHOGONAL));
     }
 
     @Test
