@@ -44,6 +44,7 @@ import java.util.function.Consumer;
 
 public class NConfirmDialogOptions {
 
+    public String title = "Confirm";
     public String text;
     public String confirmButton = "Confirm";
     public String cancelButton = "Cancel";
@@ -51,6 +52,10 @@ public class NConfirmDialogOptions {
     public Consumer<NConfirmDialogWindow> cancelAction = win -> win.close();
 
     public NConfirmDialogOptions() {}
+
+    public String getTitle() {
+        return title;
+    }
 
     public String getConfirmButtonText() {
         return confirmButton;
@@ -74,6 +79,11 @@ public class NConfirmDialogOptions {
 
     public NConfirmDialogOptions setText(String text) {
         this.text = text;
+        return this;
+    }
+
+    public NConfirmDialogOptions setTitle(String title) {
+        this.title = title;
         return this;
     }
 

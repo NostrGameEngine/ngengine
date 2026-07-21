@@ -20,27 +20,47 @@ class TiledViewRenderComponentTest {
         float holdDistance = TiledViewRenderComponent.cameraHoldDistance(camera);
 
         assertEquals(0.125f, holdDistance, 0.0001f);
-        assertTrue(TiledViewRenderComponent.shouldHoldCamera(
-            12f, true, 0.12f, holdDistance, true, 0.5f, 1f / 60f
+        assertTrue(TiledViewRenderComponent.nextCameraHoldState(
+            false, 12f, true, 0.12f, holdDistance, holdDistance * 3f, true, 0f, 0.5f, 1f / 60f
         ));
-        assertFalse(TiledViewRenderComponent.shouldHoldCamera(
-            12f, true, 0.12f, holdDistance, false, 0.5f, 1f / 60f
+        assertFalse(TiledViewRenderComponent.nextCameraHoldState(
+            false, 12f, true, 0.12f, holdDistance, holdDistance * 3f, false, 0f, 0.5f, 1f / 60f
         ));
-        assertFalse(TiledViewRenderComponent.shouldHoldCamera(
-            12f, true, 0.13f, holdDistance, true, 0.5f, 1f / 60f
+        assertFalse(TiledViewRenderComponent.nextCameraHoldState(
+            false, 12f, true, 0.13f, holdDistance, holdDistance * 3f, true, 0f, 0.5f, 1f / 60f
         ));
-        assertFalse(TiledViewRenderComponent.shouldHoldCamera(
-            0f, true, 0.12f, holdDistance, true, 0.5f, 1f / 60f
+        assertFalse(TiledViewRenderComponent.nextCameraHoldState(
+            false, 0f, true, 0.12f, holdDistance, holdDistance * 3f, true, 0f, 0.5f, 1f / 60f
         ));
     }
 
     @Test
     void cameraDoesNotHoldWhileItsNextStepIsStillVisible() {
-        assertFalse(TiledViewRenderComponent.shouldHoldCamera(
-            12f, true, 0.12f, 0.125f, true, 0.5f, 1f / 30f
+        assertFalse(TiledViewRenderComponent.nextCameraHoldState(
+            false, 12f, true, 0.12f, 0.125f, 0.375f, true, 0f, 0.5f, 1f / 30f
         ));
-        assertTrue(TiledViewRenderComponent.shouldHoldCamera(
-            12f, true, 0.07f, 0.125f, true, 0.5f, 1f / 30f
+        assertTrue(TiledViewRenderComponent.nextCameraHoldState(
+            false, 12f, true, 0.07f, 0.125f, 0.375f, true, 0f, 0.5f, 1f / 30f
+        ));
+    }
+
+    @Test
+    void activeHoldUsesHysteresisInsteadOfChatteringAtEntryThreshold() {
+        assertTrue(TiledViewRenderComponent.nextCameraHoldState(
+            true, 12f, true, 0.13f, 0.125f, 0.375f, false, 5f, 0.5f, 1f / 60f
+        ));
+        assertTrue(TiledViewRenderComponent.nextCameraHoldState(
+            true, 12f, true, 0.30f, 0.125f, 0.375f, false, 7.9f, 0.5f, 1f / 60f
+        ));
+    }
+
+    @Test
+    void activeHoldReleasesForRealMovementOrLargeDisplacement() {
+        assertFalse(TiledViewRenderComponent.nextCameraHoldState(
+            true, 12f, true, 0.30f, 0.125f, 0.375f, false, 8.1f, 0.5f, 1f / 60f
+        ));
+        assertFalse(TiledViewRenderComponent.nextCameraHoldState(
+            true, 12f, true, 0.38f, 0.125f, 0.375f, true, 0f, 0.5f, 1f / 60f
         ));
     }
 

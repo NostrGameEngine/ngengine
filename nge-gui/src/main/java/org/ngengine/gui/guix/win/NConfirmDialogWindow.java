@@ -50,6 +50,7 @@ public class NConfirmDialogWindow extends NWindow<NConfirmDialogOptions> {
 
     @Override
     protected void compose(Vector3f size, NConfirmDialogOptions args) throws Throwable {
+        setTitle(args.getTitle());
         NButton confirmButton = new NButton(args.getConfirmButtonText());
         confirmButton.addClickCommands(b -> {
             args.getConfirmAction().accept(this);

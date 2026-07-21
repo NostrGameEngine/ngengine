@@ -32,6 +32,9 @@
 
 package org.ngengine.world2d;
 
+import java.util.Locale;
+import java.util.logging.Logger;
+
 import com.jme3.bounding.BoundingBox;
 import com.jme3.bounding.BoundingSphere;
 import com.jme3.bounding.BoundingVolume;
@@ -66,10 +69,14 @@ import org.ngengine.world2d.tiled.util.CoordinateSystem;
  * </p>
  */
 public class TiledViewRenderComponent extends AbstractComponent implements PovRenderer, TiledEntityLogicFragment {
+    private static final Logger LOGGER = Logger.getLogger(TiledViewRenderComponent.class.getName());
+    private static final boolean CAMERA_TRACE = Boolean.getBoolean("nge.cameraTrace");
     private static final float DEFAULT_SMOOTHING = 3f;
     private static final float CAMERA_HOLD_PIXELS = 0.25f;
+    private static final float CAMERA_HOLD_RELEASE_PIXELS = 0.75f;
     private static final float CAMERA_HOLD_MAX_STEP_PIXELS = 0.05f;
     private static final float CAMERA_TARGET_STABLE_SPEED_PIXELS_PER_SECOND = 2f;
+    private static final float CAMERA_HOLD_RELEASE_SPEED_PIXELS_PER_SECOND = 8f;
     private static final int CAMERA_TARGET_STABLE_FRAMES = 3;
     private ViewPort viewPort;
     private ViewPort guiViewPort;
@@ -79,6 +86,7 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
     private final Vector3f previousTargetCameraLoc = new Vector3f();
     private boolean cameraTargetReady;
     private boolean targetHistoryReady;
+    private boolean cameraHoldActive;
     private int stableTargetFrames;
     private float maxDistBeforeSnap = -1;
     private float smoothing = DEFAULT_SMOOTHING;
@@ -300,21 +308,34 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
 
                 float dist = cameraPlaneDistance(targetCameraLoc, smoothCameraLoc);
                 float holdDistance = visiblePixelSize * CAMERA_HOLD_PIXELS;
+                float holdReleaseDistance = visiblePixelSize * CAMERA_HOLD_RELEASE_PIXELS;
                 // Nearest-filtered art turns the very end of a sub-pixel tail
                 // into sparse visible steps. Preserve the configured smoothing
                 // until that tail is already imperceptible, then hold without
                 // copying the target and introducing a final phase change.
                 boolean targetStable = stableTargetFrames >= CAMERA_TARGET_STABLE_FRAMES;
-                boolean holdCamera = shouldHoldCamera(
+                boolean previousCameraHold = cameraHoldActive;
+                cameraHoldActive = nextCameraHoldState(
+                        cameraHoldActive,
                         smoothing,
                         cameraTargetReady,
                         dist,
                         holdDistance,
+                        holdReleaseDistance,
                         targetStable,
+                        targetSpeedPixels,
                         visiblePixelSize,
                         tpf
                 );
-                if (holdCamera) {
+                if (CAMERA_TRACE && previousCameraHold != cameraHoldActive) {
+                    LOGGER.info(String.format(Locale.ROOT,
+                            "Camera follow transition state=%s distancePx=%.4f targetSpeedPx=%.4f stableFrames=%d",
+                            cameraHoldActive ? "hold" : "follow",
+                            visiblePixelSize > 0f ? dist / visiblePixelSize : Float.POSITIVE_INFINITY,
+                            targetSpeedPixels,
+                            stableTargetFrames));
+                }
+                if (cameraHoldActive) {
                     // Keep the last continuous position. Copying the target here
                     // would reintroduce the final sub-pixel phase change.
                 } else if (shouldSnapCamera(
@@ -325,6 +346,7 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
                 )) {
                     smoothCameraLoc.set(targetCameraLoc);
                     cameraTargetReady = true;
+                    cameraHoldActive = false;
                 } else {
                     moveCameraLocation(
                         smoothCameraLoc,
@@ -482,14 +504,23 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
         }
     }
 
-    static boolean shouldHoldCamera(float smoothing, boolean targetReady, float distance,
-            float holdDistance, boolean targetStable, float visiblePixelSize, float tpf) {
+    static boolean nextCameraHoldState(boolean currentlyHolding, float smoothing, boolean targetReady,
+            float distance, float holdDistance, float releaseDistance, boolean targetStable,
+            float targetSpeedPixels, float visiblePixelSize, float tpf) {
+        if (smoothing <= 0f || !targetReady) {
+            return false;
+        }
+        if (currentlyHolding) {
+            // A wider exit threshold prevents tiny target-position noise from
+            // repeatedly toggling the camera at the end of physics braking.
+            // Real movement still releases immediately through target speed.
+            return distance <= Math.max(0f, releaseDistance)
+                    && targetSpeedPixels <= CAMERA_HOLD_RELEASE_SPEED_PIXELS_PER_SECOND;
+        }
         float nextStepPixels = visiblePixelSize > 0f
                 ? cameraFollowAlpha(smoothing, tpf) * distance / visiblePixelSize
                 : Float.POSITIVE_INFINITY;
-        return smoothing > 0f
-                && targetReady
-                && targetStable
+        return targetStable
                 && distance <= Math.max(0f, holdDistance)
                 && nextStepPixels <= CAMERA_HOLD_MAX_STEP_PIXELS;
     }
