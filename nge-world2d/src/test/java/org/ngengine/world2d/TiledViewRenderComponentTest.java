@@ -20,10 +20,28 @@ class TiledViewRenderComponentTest {
         float holdDistance = TiledViewRenderComponent.cameraHoldDistance(camera);
 
         assertEquals(0.125f, holdDistance, 0.0001f);
-        assertTrue(TiledViewRenderComponent.shouldHoldCamera(12f, true, 0.12f, holdDistance, true));
-        assertFalse(TiledViewRenderComponent.shouldHoldCamera(12f, true, 0.12f, holdDistance, false));
-        assertFalse(TiledViewRenderComponent.shouldHoldCamera(12f, true, 0.13f, holdDistance, true));
-        assertFalse(TiledViewRenderComponent.shouldHoldCamera(0f, true, 0.12f, holdDistance, true));
+        assertTrue(TiledViewRenderComponent.shouldHoldCamera(
+            12f, true, 0.12f, holdDistance, true, 0.5f, 1f / 60f
+        ));
+        assertFalse(TiledViewRenderComponent.shouldHoldCamera(
+            12f, true, 0.12f, holdDistance, false, 0.5f, 1f / 60f
+        ));
+        assertFalse(TiledViewRenderComponent.shouldHoldCamera(
+            12f, true, 0.13f, holdDistance, true, 0.5f, 1f / 60f
+        ));
+        assertFalse(TiledViewRenderComponent.shouldHoldCamera(
+            0f, true, 0.12f, holdDistance, true, 0.5f, 1f / 60f
+        ));
+    }
+
+    @Test
+    void cameraDoesNotHoldWhileItsNextStepIsStillVisible() {
+        assertFalse(TiledViewRenderComponent.shouldHoldCamera(
+            12f, true, 0.12f, 0.125f, true, 0.5f, 1f / 30f
+        ));
+        assertTrue(TiledViewRenderComponent.shouldHoldCamera(
+            12f, true, 0.07f, 0.125f, true, 0.5f, 1f / 30f
+        ));
     }
 
     @Test
@@ -47,15 +65,6 @@ class TiledViewRenderComponentTest {
 
         stableFrames = TiledViewRenderComponent.updateStableTargetFrames(stableFrames, 2.1f, 2f);
         assertEquals(0, stableFrames);
-    }
-
-    @Test
-    void cameraConvergesProgressivelyAsTargetSlowsDown() {
-        assertEquals(12f, TiledViewRenderComponent.cameraFollowSmoothing(12f, 12f), 0f);
-        assertEquals(42f, TiledViewRenderComponent.cameraFollowSmoothing(12f, 6f), 0.0001f);
-        assertEquals(72f, TiledViewRenderComponent.cameraFollowSmoothing(12f, 0f), 0f);
-        assertEquals(80f, TiledViewRenderComponent.cameraFollowSmoothing(80f, 0f), 0f);
-        assertEquals(0f, TiledViewRenderComponent.cameraFollowSmoothing(0f, 0f), 0f);
     }
 
     @Test
