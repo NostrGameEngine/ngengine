@@ -48,13 +48,17 @@ import java.util.List;
  */
 public class Ellipse extends Polyline {
     public Ellipse(float width, float height, int count, boolean fill) {
+        this(width, height, count, fill, DEFAULT_STROKE_WIDTH);
+    }
+
+    public Ellipse(float width, float height, int count, boolean fill, float strokeWidth) {
         if (count < 3) {
             throw new IllegalArgumentException("count must be greater than 3");
         }
         if (fill) {
             fill(width, height, count);
         } else {
-            border(width, height, count);
+            border(width, height, count, strokeWidth);
         }
     }
 
@@ -124,6 +128,10 @@ public class Ellipse extends Polyline {
      * @param count How many points you need?
      */
     public void border(double width, double height, int count) {
+        border(width, height, count, DEFAULT_STROKE_WIDTH);
+    }
+
+    public void border(double width, double height, int count, float strokeWidth) {
         float xc = (float) (width * 0.5);
         float yc = (float) (height * 0.5);
 
@@ -138,6 +146,6 @@ public class Ellipse extends Polyline {
             r += radian;
         }
 
-        polyline(points, true);
+        polyline(points, true, strokeWidth);
     }
 }

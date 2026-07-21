@@ -52,13 +52,17 @@ public class Polygon extends Polyline {
     }
 
     public Polygon(List<Vector2f> points, boolean fill) {
+        this(points, fill, DEFAULT_STROKE_WIDTH);
+    }
+
+    public Polygon(List<Vector2f> points, boolean fill, float strokeWidth) {
         if (points.size() < 2) {
             throw new IllegalArgumentException("An polygon must have 2 points at least.");
         }
         if (fill) {
             fill(points);
         } else {
-            polyline(points, true);
+            polyline(points, true, strokeWidth);
         }
     }
 

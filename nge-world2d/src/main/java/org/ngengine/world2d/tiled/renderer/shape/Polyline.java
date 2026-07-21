@@ -32,6 +32,8 @@
 
 package org.ngengine.world2d.tiled.renderer.shape;
 
+import org.ngengine.world2d.util.LineMeshTriangulator;
+
 import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
 import com.jme3.scene.Mesh;
@@ -47,41 +49,45 @@ import java.util.List;
  */
 public class Polyline extends Mesh {
 
+    public static final float DEFAULT_STROKE_WIDTH = 1f;
+
     public Polyline() {
     }
 
     public Polyline(List<Vector2f> points, boolean closePath) {
+        this(points, closePath, DEFAULT_STROKE_WIDTH);
+    }
+
+    public Polyline(List<Vector2f> points, boolean closePath, float strokeWidth) {
         if (points.size() < 2) {
             throw new IllegalArgumentException("An polygon must have 2 points at least.");
         }
-        polyline(points, closePath);
+        polyline(points, closePath, strokeWidth);
     }
 
     protected void polyline(List<Vector2f> points, boolean closePath) {
-        int len = points.size();
-        Vector3f[] vertex = new Vector3f[len];
-        Vector3f[] normal = new Vector3f[len];
-        short[] index = new short[closePath?len+1:len];
+        polyline(points, closePath, DEFAULT_STROKE_WIDTH);
+    }
 
-        // first one
-        Vector2f point = new Vector2f();
-        for(int i=0; i<len; i++) {
-            point.set(points.get(i));
-            vertex[i] = new Vector3f(point.x, 0, point.y);
-            normal[i] = new Vector3f(0f, 1f, 0f);
-            index[i] = (short) i;
+    protected void polyline(List<Vector2f> points, boolean closePath, float strokeWidth) {
+        Mesh source = new Mesh();
+        source.setMode(closePath ? Mode.LineLoop : Mode.LineStrip);
+        Vector3f[] vertices = new Vector3f[points.size()];
+        for (int i = 0; i < points.size(); i++) {
+            Vector2f point = points.get(i);
+            vertices[i] = new Vector3f(point.x, 0f, point.y);
         }
+        source.setBuffer(VertexBuffer.Type.Position, 3, BufferUtils.createFloatBuffer(vertices));
+        source.updateCounts();
 
-        if (closePath) {
-            index[len] = 0;
-        }
-
-        this.setMode(Mode.LineStrip);
-        this.setBuffer(VertexBuffer.Type.Position, 3, BufferUtils.createFloatBuffer(vertex));
-        this.setBuffer(VertexBuffer.Type.Normal, 3, BufferUtils.createFloatBuffer(normal));
-        this.setBuffer(VertexBuffer.Type.Index, 2, index);
-        this.updateBound();
-        this.updateCounts();
-        this.setStatic();
+        Mesh stroke = LineMeshTriangulator.triangulate(source, strokeWidth);
+        setMode(stroke.getMode());
+        setBuffer(stroke.getBuffer(VertexBuffer.Type.Position).clone());
+        setBuffer(stroke.getBuffer(VertexBuffer.Type.Normal).clone());
+        setBuffer(stroke.getBuffer(VertexBuffer.Type.TexCoord).clone());
+        setBuffer(stroke.getBuffer(VertexBuffer.Type.Index).clone());
+        updateBound();
+        updateCounts();
+        setStatic();
     }
 }

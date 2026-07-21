@@ -46,13 +46,17 @@ import java.util.List;
 public class Marker extends Polygon {
 
     public Marker(float radius, int count, boolean fill) {
+        this(radius, count, fill, DEFAULT_STROKE_WIDTH);
+    }
+
+    public Marker(float radius, int count, boolean fill, float strokeWidth) {
         if (count < 3) {
             throw new IllegalArgumentException("count must be greater than 3");
         }
         if (fill) {
             fill(radius, count);
         } else {
-            border(radius, count);
+            border(radius, count, strokeWidth);
         }
     }
 
@@ -61,7 +65,7 @@ public class Marker extends Polygon {
      * @param radius the radius of the marker
      * @param count how many points you need?
      */
-    private void border(float radius, int count) {
+    private void border(float radius, int count, float strokeWidth) {
         List<Vector2f> points = new ArrayList<>(count + 1);
         points.add(new Vector2f(0, 0));
 
@@ -77,7 +81,7 @@ public class Marker extends Polygon {
             r += radian;
         }
 
-        polyline(points, true);
+        polyline(points, true, strokeWidth);
     }
 
 

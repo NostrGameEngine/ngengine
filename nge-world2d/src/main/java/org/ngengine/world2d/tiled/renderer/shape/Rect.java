@@ -46,24 +46,28 @@ import java.util.List;
 public class Rect extends Polyline {
 
     public Rect(float width, float height, boolean fill) {
-        this(width, height, fill, 1f, 1f);
+        this(width, height, fill, 1f, 1f, DEFAULT_STROKE_WIDTH);
     }
 
     public Rect(float width, float height, boolean fill, float maxU, float maxV) {
+        this(width, height, fill, maxU, maxV, DEFAULT_STROKE_WIDTH);
+    }
+
+    public Rect(float width, float height, boolean fill, float maxU, float maxV, float strokeWidth) {
         if (fill) {
             fill(width, height, maxU, maxV);
         } else {
-            border(width, height);
+            border(width, height, strokeWidth);
         }
     }
 
-    private void border(float w, float h) {
+    private void border(float w, float h, float strokeWidth) {
         List<Vector2f> points = new ArrayList<>();
         points.add(new Vector2f(0,0));
         points.add(new Vector2f(w,0));
         points.add(new Vector2f(w, h));
         points.add(new Vector2f(0, h));
-        polyline(points, true);
+        polyline(points, true, strokeWidth);
     }
 
     private void fill(float w, float h, float maxU, float maxV) {
