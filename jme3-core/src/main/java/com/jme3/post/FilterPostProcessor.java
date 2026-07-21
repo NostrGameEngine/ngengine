@@ -96,6 +96,7 @@ public class FilterPostProcessor implements SceneProcessor, Savable {
     private FrameBuffer outputBuffer;
     private int width;
     private int height;
+    private final Camera processingCamera = new Camera(1, 1);
     private float bottom;
     private float left;
     private float right;
@@ -104,6 +105,7 @@ public class FilterPostProcessor implements SceneProcessor, Savable {
     private int originalHeight;
     private int cameraWidth;
     private int cameraHeight;
+    private boolean sceneCameraAdjusted;
     private boolean resizeWithDefaultFramebuffer;
     private int lastFilterIndex = -1;
     private boolean cameraInit = false;
@@ -266,9 +268,8 @@ public class FilterPostProcessor implements SceneProcessor, Savable {
     /**
      * Renders a filter's material onto a full-screen quad. This method
      * handles setting up the rendering context (framebuffer, camera, material)
-     * for a filter pass. It correctly resizes the camera and adjusts material
-     * states based on whether the target buffer is the final output buffer or an
-     * intermediate filter buffer.
+     * for a filter pass. It copies the scene camera into a dedicated processing
+     * camera, then adjusts only that copy for the target framebuffer.
      *
      * @param r The `Renderer` instance.
      * @param buff The `FrameBuffer` to render to.
@@ -277,10 +278,8 @@ public class FilterPostProcessor implements SceneProcessor, Savable {
     private void renderProcessing(Renderer r, FrameBuffer buff, Material mat) {
         // Adjust camera and viewport based on target framebuffer
         if (buff == outputBuffer) {
-            viewPort.getCamera().resize(originalWidth, originalHeight, false);
-            viewPort.getCamera().setViewPort(left, right, bottom, top);
-            // viewPort.getCamera().update(); // Redundant as resize and setViewPort call onXXXChange
-            renderManager.setCamera(viewPort.getCamera(), false);
+            Camera camera = prepareProcessingCamera(originalWidth, originalHeight, left, right, bottom, top);
+            renderManager.setCamera(camera, false, originalWidth, originalHeight);
             // Disable depth test/write for final pass to prevent artifacts
             if (mat.getAdditionalRenderState().isDepthWrite()) {
                 mat.getAdditionalRenderState().setDepthTest(false);
@@ -288,10 +287,8 @@ public class FilterPostProcessor implements SceneProcessor, Savable {
             }
         } else {
             // Rendering to an intermediate framebuffer for a filter pass
-            viewPort.getCamera().resize(buff.getWidth(), buff.getHeight(), false);
-            viewPort.getCamera().setViewPort(0, 1, 0, 1);
-            // viewPort.getCamera().update(); // Redundant as resize and setViewPort call onXXXChange
-            renderManager.setCamera(viewPort.getCamera(), false);
+            Camera camera = prepareProcessingCamera(buff.getWidth(), buff.getHeight(), 0f, 1f, 0f, 1f);
+            renderManager.setCamera(camera, false, buff.getWidth(), buff.getHeight());
             // Enable depth test/write for intermediate passes if material needs it
             mat.getAdditionalRenderState().setDepthTest(true);
             mat.getAdditionalRenderState().setDepthWrite(true);
@@ -444,12 +441,13 @@ public class FilterPostProcessor implements SceneProcessor, Savable {
             // Execute the filter chain
             renderFilterChain(renderer, sceneBuffer);
         } finally {
-            // Filter passes use physical framebuffer dimensions. Never leak those
-            // dimensions back into the logical scene camera used by input and GUI.
+            // Filter passes use a dedicated physical-sized camera. Restore any
+            // legacy multi-view scene-camera adjustment before later buckets.
             renderer.setFrameBuffer(outputBuffer);
-            restoreCameraSize();
+            restoreSceneCamera();
             if (viewPort != null) {
-                renderManager.setCamera(viewPort.getCamera(), false);
+                renderManager.setCamera(viewPort.getCamera(), false,
+                        viewPort.getRenderTargetWidth(), viewPort.getRenderTargetHeight());
             }
         }
     }
@@ -460,7 +458,7 @@ public class FilterPostProcessor implements SceneProcessor, Savable {
             // If no filters are enabled, restore the camera's original viewport
             // and output framebuffer to bypass the post-processor.
             if (cameraInit) {
-                restoreCameraSize();
+                restoreSceneCamera();
                 viewPort.setOutputFrameBuffer(outputBuffer);
                 cameraInit = false;
             }
@@ -473,6 +471,7 @@ public class FilterPostProcessor implements SceneProcessor, Savable {
                 viewPort.getCamera().setViewPort(0, 1, 0, 1);
                 viewPort.getCamera().update();
                 renderManager.setCamera(viewPort.getCamera(), false);
+                sceneCameraAdjusted = true;
             }
         }
 
@@ -532,7 +531,7 @@ public class FilterPostProcessor implements SceneProcessor, Savable {
     public void cleanup() {
         if (viewPort != null) {
             // Reset the viewport camera and output framebuffer to their initial values
-            restoreCameraSize();
+            restoreSceneCamera();
             viewPort.setOutputFrameBuffer(outputBuffer);
             viewPort = null;
 
@@ -567,10 +566,6 @@ public class FilterPostProcessor implements SceneProcessor, Savable {
         Camera cam = vp.getCamera();
         cameraWidth = cam.getWidth();
         cameraHeight = cam.getHeight();
-        // This sets the camera viewport to its full extent (0-1) for rendering to the FPP's internal buffer.
-        cam.setViewPort(left, right, bottom, top);
-        // Resizing the camera to fit the new viewport and saving original dimensions
-        cam.resize(w, h, true);
         left = cam.getViewPortLeft();
         right = cam.getViewPortRight();
         top = cam.getViewPortTop();
@@ -587,9 +582,7 @@ public class FilterPostProcessor implements SceneProcessor, Savable {
         // Test if original dimensions differ from actual viewport dimensions.
         // If they are different, we are in a multiview situation, and the
         // camera must be handled differently (e.g., resized to the sub-viewport).
-        if (originalWidth != width || originalHeight != height) {
-            multiView = true;
-        }
+        multiView = originalWidth != width || originalHeight != height;
 
         cameraInit = true;
         computeDepth = false;
@@ -648,16 +641,24 @@ public class FilterPostProcessor implements SceneProcessor, Savable {
             initFilter(filter, vp);
         }
         setupViewPortFrameBuffer();
-        restoreCameraSize();
     }
 
-    private void restoreCameraSize() {
-        if (viewPort == null || cameraWidth <= 0 || cameraHeight <= 0) {
+    Camera prepareProcessingCamera(int targetWidth, int targetHeight,
+            float viewportLeft, float viewportRight, float viewportBottom, float viewportTop) {
+        processingCamera.copyFrom(viewPort.getCamera());
+        processingCamera.resize(Math.max(targetWidth, 1), Math.max(targetHeight, 1), false);
+        processingCamera.setViewPort(viewportLeft, viewportRight, viewportBottom, viewportTop);
+        return processingCamera;
+    }
+
+    private void restoreSceneCamera() {
+        if (!sceneCameraAdjusted || viewPort == null || cameraWidth <= 0 || cameraHeight <= 0) {
             return;
         }
         Camera camera = viewPort.getCamera();
         camera.resize(cameraWidth, cameraHeight, true);
         camera.setViewPort(left, right, bottom, top);
+        sceneCameraAdjusted = false;
     }
 
     private void cleanupFilterResources() {

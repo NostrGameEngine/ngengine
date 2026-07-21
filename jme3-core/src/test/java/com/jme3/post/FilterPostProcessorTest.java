@@ -33,6 +33,9 @@ package com.jme3.post;
 
 import com.jme3.asset.AssetManager;
 import com.jme3.material.Material;
+import com.jme3.math.Matrix4f;
+import com.jme3.math.Quaternion;
+import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
 import com.jme3.renderer.RenderManager;
 import com.jme3.renderer.Renderer;
@@ -41,12 +44,48 @@ import com.jme3.system.NullRenderer;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 
 class FilterPostProcessorTest {
 
     @Test
-    void initializesFromViewportRenderTargetSize() {
+    void processingCameraCopiesSceneStateWithoutMutatingIt() {
         RenderManager renderManager = new RenderManager(new NullRenderer());
+        Camera sceneCamera = new Camera(320, 240);
+        sceneCamera.setParallelProjection(true);
+        sceneCamera.setFrustum(-5f, 40f, -7f, 9f, 6f, -4f);
+        sceneCamera.setLocation(new Vector3f(3f, 7f, 11f));
+        sceneCamera.setRotation(new Quaternion().fromAngles(0.2f, -0.4f, 0.1f));
+
+        ViewPort viewPort = renderManager.createMainView("main", sceneCamera);
+        FilterPostProcessor processor = new FilterPostProcessor(null);
+        viewPort.addProcessor(processor);
+        renderManager.notifyReshape(320, 240, 640, 480);
+
+        Matrix4f sceneView = sceneCamera.getViewMatrix().clone();
+        Matrix4f sceneProjection = sceneCamera.getProjectionMatrix().clone();
+        Camera processingCamera = processor.prepareProcessingCamera(800, 600, 0f, 1f, 0f, 1f);
+
+        assertNotSame(sceneCamera, processingCamera);
+        assertEquals(sceneCamera.getLocation(), processingCamera.getLocation());
+        assertEquals(sceneCamera.getRotation(), processingCamera.getRotation());
+        assertEquals(sceneView, processingCamera.getViewMatrix());
+        assertEquals(sceneProjection, processingCamera.getProjectionMatrix());
+        assertEquals(sceneCamera.getFrustumNear(), processingCamera.getFrustumNear());
+        assertEquals(sceneCamera.getFrustumFar(), processingCamera.getFrustumFar());
+        assertEquals(sceneCamera.isParallelProjection(), processingCamera.isParallelProjection());
+        assertEquals(800, processingCamera.getWidth());
+        assertEquals(600, processingCamera.getHeight());
+        assertEquals(320, sceneCamera.getWidth());
+        assertEquals(240, sceneCamera.getHeight());
+        assertEquals(sceneView, sceneCamera.getViewMatrix());
+        assertEquals(sceneProjection, sceneCamera.getProjectionMatrix());
+    }
+
+    @Test
+    void initializesFromViewportRenderTargetSize() {
+        RecordingRenderer renderer = new RecordingRenderer();
+        RenderManager renderManager = new RenderManager(renderer);
         Camera camera = new Camera(320, 240);
         ViewPort viewPort = renderManager.createMainView("main", camera);
         renderManager.notifyReshape(320, 240, 640, 480);
@@ -60,6 +99,8 @@ class FilterPostProcessorTest {
 
         assertEquals(640, filter.width);
         assertEquals(480, filter.height);
+        assertEquals(320, filter.cameraWidthDuringInit);
+        assertEquals(240, filter.cameraHeightDuringInit);
         assertEquals(320, camera.getWidth());
         assertEquals(240, camera.getHeight());
 
@@ -67,27 +108,45 @@ class FilterPostProcessorTest {
 
         assertEquals(800, filter.width);
         assertEquals(600, filter.height);
+        assertEquals(320, filter.cameraWidthDuringInit);
+        assertEquals(240, filter.cameraHeightDuringInit);
         assertEquals(320, camera.getWidth());
         assertEquals(240, camera.getHeight());
         assertEquals(1, filter.cleanupCount);
 
         filter.setEnabled(false);
-        camera.resize(800, 600, false);
         processor.postFrame(null);
 
         assertEquals(320, camera.getWidth());
         assertEquals(240, camera.getHeight());
+        assertEquals(800, renderer.viewPortWidth);
+        assertEquals(600, renderer.viewPortHeight);
+    }
+
+    private static class RecordingRenderer extends NullRenderer {
+        private int viewPortWidth;
+        private int viewPortHeight;
+
+        @Override
+        public void setViewPort(int x, int y, int width, int height) {
+            viewPortWidth = width;
+            viewPortHeight = height;
+        }
     }
 
     private static class RecordingFilter extends Filter {
         private int width;
         private int height;
+        private int cameraWidthDuringInit;
+        private int cameraHeightDuringInit;
         private int cleanupCount;
 
         @Override
         protected void initFilter(AssetManager manager, RenderManager renderManager, ViewPort vp, int w, int h) {
             width = w;
             height = h;
+            cameraWidthDuringInit = vp.getCamera().getWidth();
+            cameraHeightDuringInit = vp.getCamera().getHeight();
         }
 
         @Override

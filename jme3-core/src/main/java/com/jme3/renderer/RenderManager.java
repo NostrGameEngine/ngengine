@@ -1447,7 +1447,20 @@ public class RenderManager {
         setCamera(cam, ortho, cam.getWidth(), cam.getHeight());
     }
 
-    private void setCamera(Camera cam, boolean ortho, int targetWidth, int targetHeight) {
+    /**
+     * Sets the camera while applying its normalized viewport to an explicit
+     * render-target size.
+     *
+     * <p>This overload is intended for rendering paths where camera dimensions
+     * are logical coordinates but the framebuffer uses a different physical
+     * size, such as HiDPI, supersampling, and post-processing.</p>
+     *
+     * @param cam the camera to set
+     * @param ortho true to use GUI orthographic projection
+     * @param targetWidth physical render-target width
+     * @param targetHeight physical render-target height
+     */
+    public void setCamera(Camera cam, boolean ortho, int targetWidth, int targetHeight) {
         // Tell the light filter which camera to use for filtering.
         if (lightFilter != null) {
             lightFilter.setCamera(cam);
