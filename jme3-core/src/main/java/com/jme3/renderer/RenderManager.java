@@ -122,6 +122,8 @@ public class RenderManager {
     private Camera prevCam = null;
     private int prevViewportWidth = -1;
     private int prevViewportHeight = -1;
+    private int defaultFramebufferWidth = -1;
+    private int defaultFramebufferHeight = -1;
     private Material forcedMaterial = null;
     private String forcedTechnique = null;
     private RenderState forcedRenderState = null;
@@ -446,6 +448,7 @@ public class RenderManager {
      */
     public ViewPort createPreView(String viewName, Camera cam) {
         ViewPort vp = new ViewPort(viewName, cam);
+        applyDefaultFramebufferSize(vp);
         preViewPorts.add(vp);
         return vp;
     }
@@ -480,6 +483,7 @@ public class RenderManager {
      */
     public ViewPort createMainView(String viewName, Camera cam) {
         ViewPort vp = new ViewPort(viewName, cam);
+        applyDefaultFramebufferSize(vp);
         viewPorts.add(vp);
         return vp;
     }
@@ -515,8 +519,15 @@ public class RenderManager {
      */
     public ViewPort createPostView(String viewName, Camera cam) {
         ViewPort vp = new ViewPort(viewName, cam);
+        applyDefaultFramebufferSize(vp);
         postViewPorts.add(vp);
         return vp;
+    }
+
+    private void applyDefaultFramebufferSize(ViewPort vp) {
+        if (defaultFramebufferWidth > 0 && defaultFramebufferHeight > 0) {
+            vp.setRenderTargetSize(defaultFramebufferWidth, defaultFramebufferHeight);
+        }
     }
 
     /**
@@ -588,6 +599,8 @@ public class RenderManager {
         prevCam = null;
         int surfaceWidth = Math.max(framebufferWidth, 1);
         int surfaceHeight = Math.max(framebufferHeight, 1);
+        defaultFramebufferWidth = surfaceWidth;
+        defaultFramebufferHeight = surfaceHeight;
         reshapeViewPorts(preViewPorts, logicalWidth, logicalHeight, surfaceWidth, surfaceHeight);
         reshapeViewPorts(viewPorts, logicalWidth, logicalHeight, surfaceWidth, surfaceHeight);
         reshapeViewPorts(postViewPorts, logicalWidth, logicalHeight, surfaceWidth, surfaceHeight);
@@ -1447,7 +1460,20 @@ public class RenderManager {
         setCamera(cam, ortho, cam.getWidth(), cam.getHeight());
     }
 
-    private void setCamera(Camera cam, boolean ortho, int targetWidth, int targetHeight) {
+    /**
+     * Sets the camera while applying its normalized viewport to an explicit
+     * render-target size.
+     *
+     * <p>This overload is intended for rendering paths where camera dimensions
+     * are logical coordinates but the framebuffer uses a different physical
+     * size, such as HiDPI, supersampling, and post-processing.</p>
+     *
+     * @param cam the camera to set
+     * @param ortho true to use GUI orthographic projection
+     * @param targetWidth physical render-target width
+     * @param targetHeight physical render-target height
+     */
+    public void setCamera(Camera cam, boolean ortho, int targetWidth, int targetHeight) {
         // Tell the light filter which camera to use for filtering.
         if (lightFilter != null) {
             lightFilter.setCamera(cam);
