@@ -125,6 +125,7 @@ public class WebSystem extends JmeSystemDelegate {
         assetManager.registerLoader(com.jme3.material.plugins.J3MLoader.class, "j3m", "j3md");
         assetManager.registerLoader(com.jme3.material.plugins.ShaderNodeDefinitionLoader.class, "j3sn");
         assetManager.registerLoader(com.jme3.font.plugins.BitmapFontLoader.class, "fnt");
+        assetManager.registerLoader(com.jme3.font.plugins.TTFLoader.class, "ttf");
         assetManager.registerLoader(com.jme3.texture.plugins.DDSLoader.class, "dds");
         assetManager.registerLoader(com.jme3.texture.plugins.PFMLoader.class, "pfm");
         assetManager.registerLoader(com.jme3.texture.plugins.StbImageLoader.class, "jpg", "bmp", "gif", "png", "jpeg", "tga", "psd", "hdr");
