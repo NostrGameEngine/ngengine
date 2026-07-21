@@ -67,9 +67,11 @@ import org.ngengine.world2d.tiled.util.CoordinateSystem;
  */
 public class TiledViewRenderComponent extends AbstractComponent implements PovRenderer, TiledEntityLogicFragment {
     private static final float DEFAULT_SMOOTHING = 3f;
-    private static final float CAMERA_SETTLE_PIXELS = 0.01f;
-    private static final float CAMERA_TARGET_STABLE_PIXELS = 0.0001f;
+    private static final float CAMERA_HOLD_PIXELS = 0.25f;
+    private static final float CAMERA_TARGET_STABLE_SPEED_PIXELS_PER_SECOND = 2f;
     private static final int CAMERA_TARGET_STABLE_FRAMES = 3;
+    private static final float CAMERA_STABLE_SETTLE_SMOOTHING = 72f;
+    private static final float CAMERA_SETTLE_SPEED_PIXELS_PER_SECOND = 12f;
     private ViewPort viewPort;
     private ViewPort guiViewPort;
     private TiledWorld2d registeredWorld;
@@ -288,29 +290,45 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
                 float targetMotion = targetHistoryReady
                         ? cameraPlaneDistance(targetCameraLoc, previousTargetCameraLoc)
                         : Float.POSITIVE_INFINITY;
+                float targetSpeedPixels = targetSpeedInPixels(targetMotion, visiblePixelSize, tpf);
                 stableTargetFrames = updateStableTargetFrames(
                     stableTargetFrames,
-                    targetMotion,
-                    visiblePixelSize * CAMERA_TARGET_STABLE_PIXELS
+                    targetSpeedPixels,
+                    CAMERA_TARGET_STABLE_SPEED_PIXELS_PER_SECOND
                 );
                 previousTargetCameraLoc.set(targetCameraLoc);
                 targetHistoryReady = true;
 
                 float dist = cameraPlaneDistance(targetCameraLoc, smoothCameraLoc);
-                float settleDistance = visiblePixelSize * CAMERA_SETTLE_PIXELS;
+                float holdDistance = visiblePixelSize * CAMERA_HOLD_PIXELS;
+                // Nearest-filtered art turns a long sub-pixel tail into sparse
+                // visible steps, so converge progressively as the target slows.
                 boolean targetStable = stableTargetFrames >= CAMERA_TARGET_STABLE_FRAMES;
-                if (shouldSnapCamera(
+                boolean holdCamera = shouldHoldCamera(
                         smoothing,
                         cameraTargetReady,
                         dist,
-                        maxDistBeforeSnap,
-                        settleDistance,
+                        holdDistance,
                         targetStable
+                );
+                if (holdCamera) {
+                    // Keep the last continuous position. Copying the target here
+                    // would reintroduce the final sub-pixel phase change.
+                } else if (shouldSnapCamera(
+                        smoothing,
+                        cameraTargetReady,
+                        dist,
+                        maxDistBeforeSnap
                 )) {
                     smoothCameraLoc.set(targetCameraLoc);
                     cameraTargetReady = true;
                 } else {
-                    moveCameraLocation(smoothCameraLoc, targetCameraLoc, smoothing, tpf);
+                    moveCameraLocation(
+                        smoothCameraLoc,
+                        targetCameraLoc,
+                        cameraFollowSmoothing(smoothing, targetSpeedPixels),
+                        tpf
+                    );
                 }
                 Vector3f loc = vars.vect2.set(smoothCameraLoc);
                 if (pixelSnap) {
@@ -461,16 +479,23 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
         }
     }
 
-    static boolean shouldSnapCamera(float smoothing, boolean targetReady, float distance,
-            float maxDistanceBeforeSnap, float settleDistance, boolean targetStable) {
-        return !targetReady
-                || smoothing <= 0f
-                || maxDistanceBeforeSnap >= 0f && distance > maxDistanceBeforeSnap
-                || targetStable && distance <= settleDistance;
+    static boolean shouldHoldCamera(float smoothing, boolean targetReady, float distance,
+            float holdDistance, boolean targetStable) {
+        return smoothing > 0f
+                && targetReady
+                && targetStable
+                && distance <= Math.max(0f, holdDistance);
     }
 
-    static float cameraSettleDistance(Camera camera) {
-        return visiblePixelWorldSize(camera) * CAMERA_SETTLE_PIXELS;
+    static boolean shouldSnapCamera(float smoothing, boolean targetReady, float distance,
+            float maxDistanceBeforeSnap) {
+        return !targetReady
+                || smoothing <= 0f
+                || maxDistanceBeforeSnap >= 0f && distance > maxDistanceBeforeSnap;
+    }
+
+    static float cameraHoldDistance(Camera camera) {
+        return visiblePixelWorldSize(camera) * CAMERA_HOLD_PIXELS;
     }
 
     static float visiblePixelWorldSize(Camera camera) {
@@ -481,8 +506,9 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
         return verticalWorldSpan / camera.getHeight();
     }
 
-    static int updateStableTargetFrames(int currentFrames, float targetMotion, float stableDistance) {
-        if (!Float.isFinite(targetMotion) || targetMotion > Math.max(0f, stableDistance)) {
+    static int updateStableTargetFrames(int currentFrames, float targetSpeedPixels, float stableSpeedPixels) {
+        if (!Float.isFinite(targetSpeedPixels)
+                || targetSpeedPixels > Math.max(0f, stableSpeedPixels)) {
             return 0;
         }
         return currentFrames < CAMERA_TARGET_STABLE_FRAMES ? currentFrames + 1 : currentFrames;
@@ -518,6 +544,26 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
             return 0f;
         }
         return Math.min(1f, 1f - (float) Math.exp(-smoothing * tpf));
+    }
+
+    static float targetSpeedInPixels(float targetMotion, float visiblePixelSize, float tpf) {
+        if (!Float.isFinite(targetMotion) || visiblePixelSize <= 0f || tpf <= 0f) {
+            return Float.POSITIVE_INFINITY;
+        }
+        return targetMotion / visiblePixelSize / tpf;
+    }
+
+    static float cameraFollowSmoothing(float smoothing, float targetSpeedPixels) {
+        if (smoothing <= 0f || !Float.isFinite(targetSpeedPixels)) {
+            return smoothing;
+        }
+        float slowAmount = 1f - Math.min(
+            1f,
+            Math.max(0f, targetSpeedPixels) / CAMERA_SETTLE_SPEED_PIXELS_PER_SECOND
+        );
+        float smoothAmount = slowAmount * slowAmount * (3f - 2f * slowAmount);
+        float settleSmoothing = Math.max(smoothing, CAMERA_STABLE_SETTLE_SMOOTHING);
+        return smoothing + (settleSmoothing - smoothing) * smoothAmount;
     }
 
     static void moveCameraLocation(Vector3f location, Vector3f target, float smoothing, float tpf) {

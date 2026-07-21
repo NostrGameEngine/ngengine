@@ -12,40 +12,56 @@ import com.jme3.renderer.Camera;
 class TiledViewRenderComponentTest {
 
     @Test
-    void cameraSettlesOnlyWhenTargetIsStableAndErrorIsVisuallyNegligible() {
+    void cameraHoldsItsContinuousPositionInsideAStableSubPixelDeadband() {
         Camera camera = new Camera(1280, 720);
         camera.setParallelProjection(true);
         camera.setFrustum(-100f, 10f, -320f, 320f, 180f, -180f);
 
-        float settleDistance = TiledViewRenderComponent.cameraSettleDistance(camera);
+        float holdDistance = TiledViewRenderComponent.cameraHoldDistance(camera);
 
-        assertEquals(0.005f, settleDistance, 0.0001f);
-        assertTrue(TiledViewRenderComponent.shouldSnapCamera(12f, true, 0.004f, 1000f, settleDistance, true));
-        assertFalse(TiledViewRenderComponent.shouldSnapCamera(12f, true, 0.004f, 1000f, settleDistance, false));
-        assertFalse(TiledViewRenderComponent.shouldSnapCamera(12f, true, 0.006f, 1000f, settleDistance, true));
+        assertEquals(0.125f, holdDistance, 0.0001f);
+        assertTrue(TiledViewRenderComponent.shouldHoldCamera(12f, true, 0.12f, holdDistance, true));
+        assertFalse(TiledViewRenderComponent.shouldHoldCamera(12f, true, 0.12f, holdDistance, false));
+        assertFalse(TiledViewRenderComponent.shouldHoldCamera(12f, true, 0.13f, holdDistance, true));
+        assertFalse(TiledViewRenderComponent.shouldHoldCamera(0f, true, 0.12f, holdDistance, true));
     }
 
     @Test
     void existingImmediateAndLongDistanceSnapRulesRemainIntact() {
-        assertTrue(TiledViewRenderComponent.shouldSnapCamera(12f, false, 10f, 1000f, 0.005f, false));
-        assertTrue(TiledViewRenderComponent.shouldSnapCamera(0f, true, 10f, 1000f, 0.005f, false));
-        assertTrue(TiledViewRenderComponent.shouldSnapCamera(12f, true, 1001f, 1000f, 0.005f, false));
-        assertFalse(TiledViewRenderComponent.shouldSnapCamera(12f, true, 10f, 1000f, 0.005f, true));
+        assertTrue(TiledViewRenderComponent.shouldSnapCamera(12f, false, 10f, 1000f));
+        assertTrue(TiledViewRenderComponent.shouldSnapCamera(0f, true, 10f, 1000f));
+        assertTrue(TiledViewRenderComponent.shouldSnapCamera(12f, true, 1001f, 1000f));
+        assertFalse(TiledViewRenderComponent.shouldSnapCamera(12f, true, 10f, 1000f));
     }
 
     @Test
     void targetMustRemainStillForThreeFramesBeforeSettling() {
         int stableFrames = 0;
 
-        stableFrames = TiledViewRenderComponent.updateStableTargetFrames(stableFrames, 0f, 0.0001f);
-        stableFrames = TiledViewRenderComponent.updateStableTargetFrames(stableFrames, 0f, 0.0001f);
+        stableFrames = TiledViewRenderComponent.updateStableTargetFrames(stableFrames, 0f, 2f);
+        stableFrames = TiledViewRenderComponent.updateStableTargetFrames(stableFrames, 1f, 2f);
         assertEquals(2, stableFrames);
 
-        stableFrames = TiledViewRenderComponent.updateStableTargetFrames(stableFrames, 0f, 0.0001f);
+        stableFrames = TiledViewRenderComponent.updateStableTargetFrames(stableFrames, 2f, 2f);
         assertEquals(3, stableFrames);
 
-        stableFrames = TiledViewRenderComponent.updateStableTargetFrames(stableFrames, 0.001f, 0.0001f);
+        stableFrames = TiledViewRenderComponent.updateStableTargetFrames(stableFrames, 2.1f, 2f);
         assertEquals(0, stableFrames);
+    }
+
+    @Test
+    void cameraConvergesProgressivelyAsTargetSlowsDown() {
+        assertEquals(12f, TiledViewRenderComponent.cameraFollowSmoothing(12f, 12f), 0f);
+        assertEquals(42f, TiledViewRenderComponent.cameraFollowSmoothing(12f, 6f), 0.0001f);
+        assertEquals(72f, TiledViewRenderComponent.cameraFollowSmoothing(12f, 0f), 0f);
+        assertEquals(80f, TiledViewRenderComponent.cameraFollowSmoothing(80f, 0f), 0f);
+        assertEquals(0f, TiledViewRenderComponent.cameraFollowSmoothing(0f, 0f), 0f);
+    }
+
+    @Test
+    void targetSpeedInPixelsIsFrameRateIndependent() {
+        assertEquals(8f, TiledViewRenderComponent.targetSpeedInPixels(0.2f, 0.5f, 0.05f), 0.0001f);
+        assertEquals(8f, TiledViewRenderComponent.targetSpeedInPixels(0.1f, 0.5f, 0.025f), 0.0001f);
     }
 
     @Test
