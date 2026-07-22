@@ -176,8 +176,12 @@ tasks.named('assemble') {
     }
 }
  
+def isScreenshotTestProject = project.path == ':jme3-screenshot-tests' ||
+        project.path.startsWith(':jme3-screenshot-tests:')
+
 publishing {
     publications {
+        if (!isScreenshotTestProject) {
         mavenJava(MavenPublication) {
             artifact javadocJar
             artifact sourcesJar
@@ -220,6 +224,7 @@ publishing {
             }
             version = project.version
         }
+        }
     }
 
     repositories {
@@ -260,7 +265,9 @@ signing {
     useInMemoryPgpKeys(signingKey, signingPassword)
     sign configurations.archives
 
-    sign publishing.publications.mavenJava
+    if (!isScreenshotTestProject) {
+        sign publishing.publications.mavenJava
+    }
 }
 tasks.withType(Sign) {
     onlyIf { 
