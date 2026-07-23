@@ -62,9 +62,12 @@ public class TabbedPanel extends Panel {
     public static final ElementId ELEMENT_ID = new ElementId("tabbedPanel");
     
     private BorderLayout layout;
+    private Container tabHeader;
     private Container tabButtons;
+    private Panel tabDivider;
     private Container container;
     private List<Tab> tabs = new ArrayList<Tab>();
+    private boolean showSeparators;
     
     private VersionedHolder<Tab> selectionModel = new VersionedHolder<>();
     private VersionedReference<Tab> selectionRef = selectionModel.createReference();  
@@ -85,9 +88,17 @@ public class TabbedPanel extends Panel {
         this.layout = new BorderLayout();
         getControl(GuiControl.class).setLayout(layout);
  
+        this.tabHeader = new Container(new BorderLayout(), elementId.child("tabHeader"));
+        tabHeader.setBackground(null);
+        tabHeader.setInsets(new Insets3f(0, 0, 0, 0));
+
         this.tabButtons = new Container(new SpringGridLayout(Axis.X, Axis.Y, FillMode.None, FillMode.Even),
                                         elementId.child("tabButtons"));
-        layout.addChild(tabButtons, BorderLayout.Position.North);
+        tabHeader.addChild(tabButtons, BorderLayout.Position.Center);
+
+        this.tabDivider = new Panel(elementId.child("tab.divider"));
+        tabHeader.addChild(tabDivider, BorderLayout.Position.South);
+        layout.addChild(tabHeader, BorderLayout.Position.North);
  
         this.container = new Container(new BorderLayout(), elementId.child("container"));
         layout.addChild(container, BorderLayout.Position.Center);
@@ -158,6 +169,15 @@ public class TabbedPanel extends Panel {
     public List<Tab> getTabs() {
         return Collections.unmodifiableList(tabs);
     }
+
+    /**
+     * Returns the independently styled divider between the tab buttons and
+     * their content. It has zero height unless a skin gives it a preferred
+     * size, preserving the traditional presentation by default.
+     */
+    public Panel getTabDivider() {
+        return tabDivider;
+    }
  
     /** 
      *  Returns a versioned view of the currently selected tab.
@@ -193,14 +213,52 @@ public class TabbedPanel extends Panel {
     public ColorRGBA getActivationColor() {
         return activationColor;
     }
+
+    /**
+     * Enables or disables the independently styled separators between tabs.
+     * Separators are disabled by default to preserve the traditional
+     * {@code TabbedPanel} presentation.
+     */
+    @StyleAttribute(value="showSeparators", lookupDefault=false)
+    public void setShowSeparators( boolean showSeparators ) {
+        if( this.showSeparators == showSeparators ) {
+            return;
+        }
+        this.showSeparators = showSeparators;
+        refreshTabs();
+    }
+
+    public boolean isShowSeparators() {
+        return showSeparators;
+    }
         
     protected void refreshTabs() {
         // Clean out any existing buttons
         tabButtons.getLayout().clearChildren();
-        
-        for( Tab tab : tabs ) {
+
+        for( int i = 0; i < tabs.size(); i++ ) {
+            if( showSeparators && i > 0 ) {
+                tabButtons.addChild(createTabSeparator());
+            }
+            Tab tab = tabs.get(i);
             tabButtons.addChild(tab.title);
-        }       
+        }
+    }
+
+    /**
+     * Creates the visual separator placed between adjacent tab buttons.
+     *
+     * <p>The separator is a real layout element instead of being part of a
+     * tab's label. This keeps tab titles semantic, lets skins position the
+     * separator exactly between buttons, and allows its typography, color,
+     * and spacing to be styled independently through
+     * {@code tab.separator}.</p>
+     */
+    protected Panel createTabSeparator() {
+        Label separator = new Label("|", getElementId().child("tab.separator"));
+        separator.setTextHAlignment(HAlignment.Center);
+        separator.setTextVAlignment(VAlignment.Center);
+        return separator;
     }
  
     /**

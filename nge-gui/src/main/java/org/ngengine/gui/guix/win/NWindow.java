@@ -66,6 +66,7 @@ public abstract class NWindow<T> extends Container implements GuiUpdateListener,
 
     private static final Logger log = Logger.getLogger(NWindow.class.getName());
     public static final String ELEMENT_ID = "window";
+    public static final String BACK_BUTTON_ELEMENT_ID = "window.back.button";
     private Container titleBar;
     private Container backGroup;
     private NIconButton backButton;
@@ -127,7 +128,10 @@ public abstract class NWindow<T> extends Container implements GuiUpdateListener,
         titleBar = new Container( new BorderLayout(), new ElementId("window.titleBar"));
 
         backGroup = new Container(new BorderLayout(), new ElementId("window.backGroup"));
-        backButton = new NIconButton("org/ngengine/gui/icons/outline/chevron-left.svg");
+        backButton = new NIconButton(
+            "org/ngengine/gui/icons/outline/chevron-left.svg",
+            BACK_BUTTON_ELEMENT_ID
+        );
         backButton.getControl(GuiControl.class).setFocusable(FocusTarget.FOCUS_POINTER);
         backButton.addClickCommands(src -> {
             if (this.backAction != null) {
@@ -136,7 +140,10 @@ public abstract class NWindow<T> extends Container implements GuiUpdateListener,
         });
         backGroup.addChild(backButton, BorderLayout.Position.West);
 
-        placeHolderButton = new NIconButton("org/ngengine/gui/icons/outline/chevron-left.svg");
+        placeHolderButton = new NIconButton(
+            "org/ngengine/gui/icons/outline/chevron-left.svg",
+            BACK_BUTTON_ELEMENT_ID
+        );
         placeHolderButton.setCullHint(CullHint.Always);
 
         title = new Label("", new ElementId("window.title"));
