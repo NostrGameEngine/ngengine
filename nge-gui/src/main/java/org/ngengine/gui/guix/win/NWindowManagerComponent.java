@@ -70,6 +70,8 @@ import org.ngengine.ViewPortManager;
 import org.ngengine.components.AbstractComponent;
 import org.ngengine.components.Component;
 import org.ngengine.components.ComponentManager;
+import org.ngengine.components.jme3.audio.GlobalSoundsComponent;
+import org.ngengine.components.jme3.audio.Sound;
 import org.ngengine.components.ReloadableComponent;
 import org.ngengine.components.fragments.InputHandlerFragment;
 import org.ngengine.components.fragments.LogicFragment;
@@ -93,6 +95,7 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
     private boolean physicalCursorVisible = false;
     private boolean appliedPhysicalCursorVisible = false;
     private boolean physicalCursorVisibleDirty = true;
+    private GlobalSoundsComponent uiSounds;
     private InputDevice lastInputDevice;
     private final boolean relativeSize;
     private ViewPort defaultGuiViewPort;
@@ -490,6 +493,18 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
     public void onEnable(ComponentManager mng,
             boolean firstTime ) {
         enabled = true;
+        uiSounds = mng.getComponent(GlobalSoundsComponent.class);
+        if (uiSounds == null) {
+            uiSounds = new GlobalSoundsComponent();
+            mng.addComponent(uiSounds);
+            mng.enableComponent(uiSounds);
+        }
+        NGEGui.setUiSoundPlayer((assetPath, volume) -> {
+            Sound sound = uiSounds.get(assetPath);
+            sound.setPositional(false);
+            sound.setVolume(volume);
+            sound.playInstance();
+        });
         NWindowManager m = getManager(null);
         NGEStyle.installAndUse(m.getLogicalWidth(), m.getLogicalHeight());
 
@@ -499,6 +514,8 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
     @Override
     public void onDisable(ComponentManager mng) {
         enabled = false;
+        NGEGui.setUiSoundPlayer(null);
+        uiSounds = null;
         interactionEnabled = false;
         interactionActive = false;
         lastInputDevice = null;

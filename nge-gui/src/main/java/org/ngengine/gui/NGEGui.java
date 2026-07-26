@@ -77,6 +77,7 @@ public class NGEGui {
             .withInitial(IdentityHashMap::new);
     private static final ThreadLocal<Styles> stylesThreadLocal = ThreadLocal.withInitial(Styles::new);
     private static final ThreadLocal<Function<String, Text2d>> textFactoryThreadLocal = new ThreadLocal<>();
+    private static final ThreadLocal<UiSoundPlayer> uiSoundPlayerThreadLocal = new ThreadLocal<>();
     private static String iconBase;
     private static final ThreadLocal<AssetManager> assetManagerThreadLocal = new ThreadLocal<>();
 
@@ -155,6 +156,33 @@ public class NGEGui {
 
     public static Function<String, Text2d> getTextFactory() {
         return textFactoryThreadLocal.get();
+    }
+
+    @FunctionalInterface
+    public interface UiSoundPlayer {
+        void play(String assetPath, float volume);
+    }
+
+    /**
+     * Installs the sound output used by GUI controls on the current render
+     * thread. Passing {@code null} silences GUI sounds.
+     */
+    public static void setUiSoundPlayer(UiSoundPlayer player) {
+        if (player == null) {
+            uiSoundPlayerThreadLocal.remove();
+        } else {
+            uiSoundPlayerThreadLocal.set(player);
+        }
+    }
+
+    public static void playUiSound(String assetPath, float volume) {
+        if (assetPath == null || assetPath.isBlank() || volume <= 0f) {
+            return;
+        }
+        UiSoundPlayer player = uiSoundPlayerThreadLocal.get();
+        if (player != null) {
+            player.play(assetPath, volume);
+        }
     }
 
     public static void lightFont(BitmapFont font) {

@@ -83,6 +83,8 @@ public class Button extends Label implements FocusListener {
     private boolean highlightOn;
     private boolean focusOn;
     private boolean pressed;
+    private String clickSound;
+    private float clickSoundVolume = 1f;
     private CommandMap<Button, ButtonAction> commandMap = new CommandMap<Button, ButtonAction>(this);
 
   
@@ -263,6 +265,24 @@ public class Button extends Label implements FocusListener {
         return getControl(GuiControl.class).isFocused();
     }
 
+    @StyleAttribute(value = "clickSound", lookupDefault = false)
+    public void setClickSound(String clickSound) {
+        this.clickSound = clickSound;
+    }
+
+    public String getClickSound() {
+        return clickSound;
+    }
+
+    @StyleAttribute(value = "clickSoundVolume", lookupDefault = false)
+    public void setClickSoundVolume(float volume) {
+        this.clickSoundVolume = Math.max(0f, volume);
+    }
+
+    public float getClickSoundVolume() {
+        return clickSoundVolume;
+    }
+
     protected void showHighlight(boolean f) {
         highlightOn = f;
         resetColors();
@@ -326,6 +346,7 @@ public class Button extends Label implements FocusListener {
 
     protected void runClick() {
         if (!isEnabled()) return;
+        NGEGui.playUiSound(clickSound, clickSoundVolume);
         commandMap.runCommands(ButtonAction.Click);
         runEffect(EFFECT_CLICK);
     }
