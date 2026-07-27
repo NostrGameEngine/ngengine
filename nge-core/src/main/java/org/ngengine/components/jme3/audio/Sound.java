@@ -79,6 +79,7 @@ public class Sound implements AudioSource, JmeCloneable, Savable {
     public static final int SAVABLE_VERSION = 1;
     private boolean loop = false;
     private float volume = 1;
+    private AudioCategory audioCategory = AudioCategory.SOUND_EFFECT;
     private float pitch = 1;
     private float timeOffset = 0;
     private Filter dryFilter;
@@ -106,10 +107,12 @@ public class Sound implements AudioSource, JmeCloneable, Savable {
     
 
     Sound() {
+        AudioMixer.register(this);
     }
    
    
     Sound(AssetManager assetManager, AudioKey audioKey) {
+        AudioMixer.register(this);
         setAudioData(null, audioKey);
         this.assetManager = assetManager;
     }
@@ -383,6 +386,13 @@ public class Sound implements AudioSource, JmeCloneable, Savable {
      */
     @Override
     public final float getVolume() {
+        return AudioMixer.apply(audioCategory, volume);
+    }
+
+    /**
+     * Returns the source gain before the mixer category is applied.
+     */
+    public final float getSourceVolume() {
         return volume;
     }
 
@@ -402,6 +412,23 @@ public class Sound implements AudioSource, JmeCloneable, Savable {
         this.volume = volume;
         if (channel >= 0)
             getRenderer().updateSourceParam(this, AudioParam.Volume);
+    }
+
+    public final AudioCategory getAudioCategory() {
+        return audioCategory;
+    }
+
+    public final void setAudioCategory(AudioCategory audioCategory) {
+        this.audioCategory = audioCategory != null ? audioCategory : AudioCategory.SOUND_EFFECT;
+        if (channel >= 0) {
+            getRenderer().updateSourceParam(this, AudioParam.Volume);
+        }
+    }
+
+    void refreshMixerVolume() {
+        if (channel >= 0 && rendererProvider != null) {
+            getRenderer().updateSourceParam(this, AudioParam.Volume);
+        }
     }
 
     /**
@@ -771,6 +798,7 @@ public class Sound implements AudioSource, JmeCloneable, Savable {
         oc.write(audioKey, "audio_key", null);
         oc.write(loop, "looping", false);
         oc.write(volume, "volume", 1);
+        oc.write(audioCategory.name(), "audio_category", AudioCategory.SOUND_EFFECT.name());
         oc.write(pitch, "pitch", 1);
         oc.write(timeOffset, "time_offset", 0);
         oc.write(dryFilter, "dry_filter", null);
@@ -798,6 +826,14 @@ public class Sound implements AudioSource, JmeCloneable, Savable {
         audioKey = (AudioKey) ic.readSavable("audio_key", null);
         loop = ic.readBoolean("looping", false);
         volume = ic.readFloat("volume", 1);
+        String categoryName = ic.readString("audio_category", AudioCategory.SOUND_EFFECT.name());
+        try {
+            audioCategory = AudioCategory.valueOf(
+                categoryName != null ? categoryName : AudioCategory.SOUND_EFFECT.name()
+            );
+        } catch (IllegalArgumentException ignored) {
+            audioCategory = AudioCategory.SOUND_EFFECT;
+        }
         pitch = ic.readFloat("pitch", 1);
         timeOffset = ic.readFloat("time_offset", 0);
         dryFilter = (Filter) ic.readSavable("dry_filter", null);

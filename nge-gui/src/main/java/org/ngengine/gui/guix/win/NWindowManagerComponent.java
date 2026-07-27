@@ -71,6 +71,7 @@ import org.ngengine.components.AbstractComponent;
 import org.ngengine.components.Component;
 import org.ngengine.components.ComponentManager;
 import org.ngengine.components.jme3.audio.GlobalSoundsComponent;
+import org.ngengine.components.jme3.audio.AudioCategory;
 import org.ngengine.components.jme3.audio.Sound;
 import org.ngengine.components.ReloadableComponent;
 import org.ngengine.components.fragments.InputHandlerFragment;
@@ -502,6 +503,7 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
         NGEGui.setUiSoundPlayer((assetPath, volume) -> {
             Sound sound = uiSounds.get(assetPath);
             sound.setPositional(false);
+            sound.setAudioCategory(AudioCategory.UI);
             sound.setVolume(volume);
             sound.playInstance();
         });

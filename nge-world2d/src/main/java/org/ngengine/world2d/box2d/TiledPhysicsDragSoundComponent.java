@@ -31,7 +31,7 @@ import com.jme3.math.FastMath;
  * <p>Configuration is read from the owner through these properties:</p>
  * <ul>
  *   <li>{@code physics.sound.drag}: comma/newline-separated asset paths</li>
- *   <li>{@code physics.sound.dragVolume}: gain, default {@code 0.22}</li>
+ *   <li>{@code physics.sound.dragVolume}: gain, default {@code 0.50}</li>
  *   <li>{@code physics.sound.dragMinSpeed}: m/s, default {@code 0.35}</li>
  *   <li>{@code physics.sound.dragInterval}: seconds, default {@code 1.35}</li>
  *   <li>{@code physics.sound.dragPitchVariation}: default {@code 0.08}</li>
@@ -60,7 +60,7 @@ public class TiledPhysicsDragSoundComponent extends AbstractComponent implements
     protected void onEnable(ComponentManager mng, boolean firstTime) {
         TiledBase owner = getInstanceOf(TiledBase.class);
         parsePaths(stringProperty(owner, "physics.sound.drag", DEFAULT_SOUNDS));
-        volume = Math.max(0f, floatProperty(owner, "physics.sound.dragVolume", 0.22f));
+        volume = Math.max(0f, floatProperty(owner, "physics.sound.dragVolume", 0.50f));
         float minSpeed = Math.max(0f, floatProperty(owner, "physics.sound.dragMinSpeed", 0.35f));
         minSpeedSquared = minSpeed * minSpeed;
         interval = Math.max(0.1f, floatProperty(owner, "physics.sound.dragInterval", 1.35f));
@@ -114,7 +114,7 @@ public class TiledPhysicsDragSoundComponent extends AbstractComponent implements
     private Sound configure(Sound sound) {
         sound.setPositional(true);
         sound.setVolume(volume);
-        sound.setRefDistance(2.5f);
+        sound.setRefDistance(4f);
         sound.setMaxDistance(80f);
         return sound;
     }

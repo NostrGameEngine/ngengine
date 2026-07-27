@@ -198,6 +198,7 @@ public class RandomBackgroundMusicComponent extends AbstractAudioComponent {
             selectedSound = newSound;
             selectedSound.setLooping(true);
             selectedSound.setVolume(0.1f);
+            selectedSound.setAudioCategory(AudioCategory.MUSIC);
             selectedSound.setPositional(false);
             selectedSound.play();
         }

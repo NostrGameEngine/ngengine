@@ -301,7 +301,7 @@ public class NGEStyle {
             // attrs.set("focusColor", ColorRGBA.Green, false);       // green should not need srgb conversion
             attrs.set("shadowColor", NGEGui.srgbaColor(new ColorRGBA(0, 0, 0, 0.5f), true), false);
             attrs.set("clickSound", "org/ngengine/gui/sounds/button-click.ogg", false);
-            attrs.set("clickSoundVolume", 0.25f, false);
+            attrs.set("clickSoundVolume", 0.10f, false);
         }
 
          {
