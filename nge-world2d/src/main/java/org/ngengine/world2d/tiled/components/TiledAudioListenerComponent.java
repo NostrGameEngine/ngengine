@@ -9,6 +9,7 @@ package org.ngengine.world2d.tiled.components;
 
 import org.ngengine.components.AbstractComponent;
 import org.ngengine.components.ComponentManager;
+import org.ngengine.world2d.box2d.TiledPhysicsComponent;
 import org.ngengine.world2d.tiled.components.fragments.TiledEntityLogicFragment;
 import org.ngengine.world2d.tiled.core.TiledBase;
 import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
@@ -20,6 +21,7 @@ import com.jme3.audio.Listener;
 import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
+import org.jbox2d.common.Vec2;
 
 /**
  * Anchors the application audio listener to a Tiled object in physics space.
@@ -77,17 +79,23 @@ public class TiledAudioListenerComponent extends AbstractComponent
             return;
         }
 
-        coordinates.getCenterInGridSpace(entity, gridPosition);
-        coordinates.gridToWorldSpace(
-            gridPosition.x,
-            gridPosition.y,
-            physicsPosition
-        );
-        coordinates.worldToPhysicsSpace(
-            physicsPosition.x,
-            physicsPosition.y,
-            physicsPosition
-        );
+        TiledPhysicsComponent physics = getInstanceOf(TiledPhysicsComponent.class);
+        if (physics != null && physics.getBody() != null) {
+            Vec2 center = physics.getBody().getWorldCenter();
+            physicsPosition.set(center.x, center.y);
+        } else {
+            coordinates.getCenterInGridSpace(entity, gridPosition);
+            coordinates.gridToWorldSpace(
+                gridPosition.x,
+                gridPosition.y,
+                physicsPosition
+            );
+            coordinates.worldToPhysicsSpace(
+                physicsPosition.x,
+                physicsPosition.y,
+                physicsPosition
+            );
+        }
         listenerPosition.set(physicsPosition.x, 0f, physicsPosition.y);
 
         if (positionInitialized && tpf > 0f) {

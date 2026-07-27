@@ -522,6 +522,33 @@ public class NWindowManagerTest {
         assertEquals(1440, vp.getRenderTargetHeight());
     }
 
+    @Test
+    public void resizeReinstallsTheConfiguredSkinInsteadOfTheDefaultStyle() {
+        initializeGui();
+        ViewPort vp = new ViewPort("gui-custom-resize-style", new Camera(800, 600));
+        Node guiNode = new Node("GuiNode");
+        guiNode.setQueueBucket(Bucket.Gui);
+        vp.attachScene(guiNode);
+        GuiContext context = NGEGui.register(vp, true);
+
+        TestWindowManagerComponent component = new TestWindowManagerComponent();
+        AtomicInteger installs = new AtomicInteger();
+        float[] installedSize = new float[2];
+        component.setStyleInstaller((width, height) -> {
+            installs.incrementAndGet();
+            installedSize[0] = width;
+            installedSize[1] = height;
+        });
+        TestWindowManager manager = new TestWindowManager(component, context);
+
+        vp.getCamera().resize(1200, 700, true);
+        manager.update(0f);
+
+        assertEquals(1, installs.get());
+        assertEquals(1200f, installedSize[0], 0.001f);
+        assertEquals(700f, installedSize[1], 0.001f);
+    }
+
     private static TestWindowManager newManager(String name) {
         initializeGui();
 

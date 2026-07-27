@@ -62,6 +62,7 @@ import org.ngengine.gui.nav.NavigatorInputHandler;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -105,6 +106,7 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
     private int physicalHeight = 1;
     private int inputCoordinateWidth = 1;
     private int inputCoordinateHeight = 1;
+    private BiConsumer<Float, Float> styleInstaller = NGEStyle::installAndUse;
 
     
 
@@ -119,6 +121,29 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
 
     public boolean isRelativeSize() {
         return relativeSize;
+    }
+
+    /**
+     * Sets the style installer that must be used both initially and whenever
+     * the logical GUI size changes.
+     *
+     * <p>Custom skins should install their base style and overrides from this
+     * callback. This prevents a resize from silently restoring the engine
+     * default style over the active game skin.</p>
+     */
+    public void setStyleInstaller(BiConsumer<Float, Float> styleInstaller) {
+        this.styleInstaller = styleInstaller != null
+            ? styleInstaller
+            : NGEStyle::installAndUse;
+    }
+
+    public void reinstallStyle() {
+        NWindowManager manager = getManager(null);
+        installStyle(manager.getLogicalWidth(), manager.getLogicalHeight());
+    }
+
+    void installStyle(float logicalWidth, float logicalHeight) {
+        styleInstaller.accept(logicalWidth, logicalHeight);
     }
 
     public static boolean isRelativeSize(Camera camera) {
@@ -508,7 +533,7 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
             sound.playInstance();
         });
         NWindowManager m = getManager(null);
-        NGEStyle.installAndUse(m.getLogicalWidth(), m.getLogicalHeight());
+        installStyle(m.getLogicalWidth(), m.getLogicalHeight());
 
         setPhysicalCursorVisible(false);
     }

@@ -216,7 +216,7 @@ public class NWindowManager {
         if (oldWidth != logicalWidth || oldHeight != logicalHeight) {
             oldWidth = logicalWidth;
             oldHeight = logicalHeight;
-            NGEStyle.installAndUse(logicalWidth, logicalHeight);
+            mng.installStyle(logicalWidth, logicalHeight);
             for (NWindow<?> window : windows) {
                 window.invalidate();
             }
