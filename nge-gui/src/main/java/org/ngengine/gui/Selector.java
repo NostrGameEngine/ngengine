@@ -274,6 +274,21 @@ public class Selector<T> extends Panel {
         }
     }
 
+    /**
+     * Commits the value currently selected by the popup list immediately.
+     *
+     * <p>The popup is detached from the selector hierarchy while it is open.
+     * Pointer focus processing can therefore consume the selection model
+     * version before the closed selector gets another logical update. Reading
+     * the list value directly here keeps both the public value reference and
+     * the rendered closed view in sync with the row that was clicked.</p>
+     */
+    protected void commitListSelection() {
+        selectedItem.setObject(getSelectedListValue());
+        selectionRef.update();
+        resetView();
+    }
+
     @Override
     public void updateLogicalState( float tpf ) {
         if( expanded ) {
@@ -443,7 +458,7 @@ public class Selector<T> extends Panel {
             // The list lives in a detached popup. Once it is collapsed it may
             // no longer receive another logical update, so commit the selected
             // value and refresh the closed selector before removing the popup.
-            updateSelection();
+            commitListSelection();
             collapse();
         }
     }

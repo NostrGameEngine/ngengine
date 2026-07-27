@@ -45,6 +45,32 @@ public class SelectorTest {
         assertEquals("1600 x 900", selected.get());
     }
 
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public void popupClickCommitsEvenWhenSelectionVersionWasAlreadyObserved() {
+        JmeSystem.setSystemDelegate(new TestSystemDelegate());
+        AssetManager assets = JmeSystem.newAssetManager(
+            SelectorTest.class.getResource("/com/jme3/asset/Desktop.cfg")
+        );
+        NGEGui.initialize(assets);
+
+        TestSelector selector = new TestSelector(
+            new VersionedList<>(List.of("1280 x 720", "1600 x 900"))
+        );
+        VersionedReference<String> selected = selector.createSelectedItemReference();
+
+        selector.getSelectionModel().setSelection(1);
+        // Reproduce the detached-popup ordering: another observer sees the
+        // selection model change before the popup click command is dispatched.
+        assertEquals("1600 x 900", selector.getSelectedItem());
+        for (Object command : selector.getListBox().getCommands(ListAction.Click)) {
+            ((Command) command).execute(selector.getListBox());
+        }
+
+        assertTrue(selected.update());
+        assertEquals("1600 x 900", selected.get());
+    }
+
     private static final class TestSelector extends Selector<String> {
         private TestSelector(VersionedList<String> model) {
             super(model);
