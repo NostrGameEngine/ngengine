@@ -111,6 +111,30 @@ public interface CoordinateSystem {
         return out;
     }
 
+    /**
+     * Converts a distance expressed in map cells to the physics-space distance
+     * used by Box2D and positional audio.
+     *
+     * <p>For non-square cells, the returned scale is the average length of the
+     * two tile axes. This keeps attenuation independent from pixels-per-meter,
+     * render resolution, and map projection.</p>
+     *
+     * @param tiles distance in map cells
+     * @return the corresponding non-negative physics-space distance
+     */
+    default float tileDistanceToPhysics(float tiles) {
+        Vector2f origin = tileToWorldSpace(0f, 0f);
+        Vector2f axisX = tileToWorldSpace(1f, 0f);
+        Vector2f axisY = tileToWorldSpace(0f, 1f);
+        worldToPhysicsSpace(origin.x, origin.y, origin);
+        worldToPhysicsSpace(axisX.x, axisX.y, axisX);
+        worldToPhysicsSpace(axisY.x, axisY.y, axisY);
+        float averageTileSize = (
+            axisX.distance(origin) + axisY.distance(origin)
+        ) * 0.5f;
+        return Math.abs(tiles) * averageTileSize;
+    }
+
     default Vector2f worldToGridSpace(float x, float y) {
         Vector2f out = new Vector2f();
         worldToGridSpace(x, y, out);
