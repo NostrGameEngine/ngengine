@@ -75,7 +75,7 @@ spotbugsPlugin = "6.5.5"
 spotlessPlugin = "8.4.0"
 # Next 2 uses the NostrGameEngine TeaVM fork rather than upstream TeaVM.
 teavm = "0.16.0-SNAPSHOT"
-googleMaterial = "1.4.0"
+googleMaterial = "1.14.0"
 androidx-fragment-testing = "1.8.9"
 
 [libraries]
