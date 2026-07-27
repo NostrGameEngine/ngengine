@@ -440,6 +440,10 @@ public class Selector<T> extends Panel {
 
     private class SelectListener implements Command<ListBox> {
         public void execute( ListBox list ) {
+            // The list lives in a detached popup. Once it is collapsed it may
+            // no longer receive another logical update, so commit the selected
+            // value and refresh the closed selector before removing the popup.
+            updateSelection();
             collapse();
         }
     }
