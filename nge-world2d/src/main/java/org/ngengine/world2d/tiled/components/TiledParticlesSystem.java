@@ -310,6 +310,8 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
             manager = ((TiledObjectEntity) source).getComponentManager();
         } else if (source instanceof Component) {
             manager = ((Component) source).getComponentManager();
+        } else if (source instanceof ComponentManagerProvider) {
+            manager = ((ComponentManagerProvider) source).getComponentManager();
         }
         if (manager != null) {
             NetcodeFragment fragment = manager.getComponent(TiledObjectSyncComponent.class);
@@ -337,19 +339,11 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
         }
         return null;
     }
-    public TiledObjectEntity spawn(
-        String tileset,
-        String name,
-        TiledObjectLayer layer,
-        float screenX,
-        float screenY,
-        float baseWidth,
-        float baseHeight,
-        float scale
-    ) {
-        return spawn(tileset, name, layer, screenX, screenY, baseWidth, baseHeight, scale, false, false);
-    }
-
+    /**
+     * Spawns a local particle at explicit world coordinates.
+     *
+     * @param onlyIfEmpty when true, skips an occupied particle anchor
+     */
     public TiledObjectEntity spawn(
         String tileset,
         String name,
@@ -361,37 +355,26 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
         float scale,
         boolean onlyIfEmpty
     ) {
-        return spawn(tileset, name, layer, screenX, screenY, baseWidth, baseHeight, scale, onlyIfEmpty, false);
+        return spawnInternal(
+            null,
+            tileset,
+            name,
+            layer,
+            screenX,
+            screenY,
+            baseWidth,
+            baseHeight,
+            scale,
+            onlyIfEmpty,
+            false
+        );
     }
 
-    public TiledObjectEntity spawn(
-        String tileset,
-        String name,
-        TiledObjectLayer layer,
-        float screenX,
-        float screenY,
-        float baseWidth,
-        float baseHeight,
-        float scale,
-        boolean onlyIfEmpty,
-        boolean networkSync
-    ) {
-        return spawnInternal(null, tileset, name, layer, screenX, screenY, baseWidth, baseHeight, scale, onlyIfEmpty, networkSync);
-    }
-
-    public TiledObjectEntity spawnNetworked(
-        String tileset,
-        String name,
-        TiledObjectLayer layer,
-        float screenX,
-        float screenY,
-        float baseWidth,
-        float baseHeight,
-        float scale
-    ) {
-        return spawnNetworked(tileset, name, layer, screenX, screenY, baseWidth, baseHeight, scale, false);
-    }
-
+    /**
+     * Spawns a network-synchronized particle at explicit world coordinates.
+     *
+     * @param onlyIfEmpty when true, skips an occupied particle anchor
+     */
     public TiledObjectEntity spawnNetworked(
         String tileset,
         String name,
@@ -403,9 +386,33 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
         float scale,
         boolean onlyIfEmpty
     ) {
-        return spawn(tileset, name, layer, screenX, screenY, baseWidth, baseHeight, scale, onlyIfEmpty, true);
+        return spawnInternal(
+            null,
+            tileset,
+            name,
+            layer,
+            screenX,
+            screenY,
+            baseWidth,
+            baseHeight,
+            scale,
+            onlyIfEmpty,
+            true
+        );
     }
 
+    /**
+     * Spawns at explicit world coordinates and derives network ownership from
+     * {@code source}.
+     *
+     * <p>When {@code followSource} is true, the initial world position becomes a
+     * persistent offset from the source anchor.
+     *
+     * @param source tiled entity, component, or component-manager provider used
+     *               for authority and optional following
+     * @param onlyIfEmpty when true, skips an occupied particle anchor
+     * @param followSource whether the particle should continue following the source
+     */
     public TiledObjectEntity spawnFrom(
         Object source,
         String tileset,
@@ -416,140 +423,72 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
         float baseWidth,
         float baseHeight,
         float scale,
-        boolean onlyIfEmpty
+        boolean onlyIfEmpty,
+        boolean followSource
     ) {
         BigInteger sourceId = getSourceNetworkId(source);
         boolean networkSync = sourceId != null && sourceId.signum() >= 0;
-        return spawnFrom(source, tileset, name, layer, screenX, screenY, baseWidth, baseHeight, scale, onlyIfEmpty, networkSync);
-    }
-
-    public TiledObjectEntity spawnFrom(
-        Object source,
-        String tileset,
-        String name,
-        TiledObjectLayer layer,
-        float screenX,
-        float screenY,
-        float baseWidth,
-        float baseHeight,
-        float scale,
-        boolean onlyIfEmpty,
-        boolean networkSync
-    ) {
         if (networkSync && !isSourceLocallyAuthoritative(source)) {
             return null;
         }
-        return spawnInternal(source, tileset, name, layer, screenX, screenY, baseWidth, baseHeight, scale, onlyIfEmpty, networkSync);
-    }
-
-    public TiledObjectEntity spawnFollowingFrom(
-        Object source,
-        String tileset,
-        String name,
-        TiledObjectLayer layer,
-        float offsetX,
-        float offsetY,
-        float baseWidth,
-        float baseHeight,
-        float scale,
-        boolean onlyIfEmpty
-    ) {
-        BigInteger sourceId = getSourceNetworkId(source);
-        boolean networkSync = sourceId != null && sourceId.signum() >= 0;
-        return spawnFollowingFrom(source, tileset, name, layer, offsetX, offsetY, baseWidth, baseHeight, scale,
-            onlyIfEmpty, networkSync);
-    }
-
-    public TiledObjectEntity spawnFollowingFrom(
-        Object source,
-        String tileset,
-        String name,
-        TiledObjectLayer layer,
-        float offsetX,
-        float offsetY,
-        float baseWidth,
-        float baseHeight,
-        float scale,
-        boolean onlyIfEmpty,
-        boolean networkSync
-    ) {
         TiledEntity sourceEntity = getSourceEntity(source);
-        if (sourceEntity == null || layer == null) {
+        if (followSource && (sourceEntity == null || layer == null)) {
             return null;
         }
-        if (networkSync && !isSourceLocallyAuthoritative(source)) {
-            return null;
+        TiledObjectEntity particle = spawnInternal(
+            source,
+            tileset,
+            name,
+            layer,
+            screenX,
+            screenY,
+            baseWidth,
+            baseHeight,
+            scale,
+            onlyIfEmpty,
+            networkSync
+        );
+        if (!followSource || particle == null) {
+            return particle;
         }
+
         CoordinateSystem cs = layer.getComponentManager().getInstanceOf(CoordinateSystem.class);
         if (cs == null) {
+            particle.removeFromLayer();
             return null;
         }
         try (TempVars vars = TempVars.get()) {
-            Vector2f grid = vars.vect2d;
+            Vector2f sourceGrid = vars.vect2d;
             if (sourceEntity instanceof TiledObjectEntity) {
                 TiledObjectEntity sourceObject = (TiledObjectEntity) sourceEntity;
-                TiledAnchorResolver.resolve(sourceObject, sourceObject.getTile(), null, null, cs, grid);
+                TiledAnchorResolver.resolve(sourceObject, sourceObject.getTile(), null, null, cs, sourceGrid);
             } else {
-                cs.getCenterInGridSpace(sourceEntity, grid);
+                cs.getCenterInGridSpace(sourceEntity, sourceGrid);
             }
-            grid.x += offsetX;
-            grid.y += offsetY;
-
-            Vector2f world = vars.vect2d2;
-            cs.gridToWorldSpace(grid.x, grid.y, world);
-            TiledObjectEntity particle = spawnInternal(source, tileset, name, layer, world.x, world.y, baseWidth,
-                baseHeight, scale, onlyIfEmpty, networkSync);
-            TiledParticleComponent component = particle != null
-                ? Components.get(particle, TiledParticleComponent.class).get()
-                : null;
+            Vector2f particleGrid = vars.vect2d2;
+            cs.worldToGridSpace(screenX, screenY, particleGrid);
+            TiledParticleComponent component = Components.get(particle, TiledParticleComponent.class).get();
             if (component != null) {
-                component.follow(sourceEntity, offsetX, offsetY);
+                component.follow(
+                    sourceEntity,
+                    particleGrid.x - sourceGrid.x,
+                    particleGrid.y - sourceGrid.y
+                );
             }
             return particle;
         }
     }
 
-    public TiledObjectEntity spawnFollowingFromEmitter(
-        Object source,
-        String emitterId,
-        String tileset,
-        String name,
-        float baseWidth,
-        float baseHeight,
-        float scale,
-        boolean onlyIfEmpty
-    ) {
-        return spawnFollowingFromEmitter(
-            source,
-            emitterId,
-            tileset,
-            name,
-            null,
-            baseWidth,
-            baseHeight,
-            scale,
-            onlyIfEmpty
-        );
-    }
-
-    public TiledObjectEntity spawnFollowingFromEmitter(
-        Object source,
-        String emitterId,
-        String tileset,
-        String name,
-        TiledObjectLayer layer,
-        float baseWidth,
-        float baseHeight,
-        float scale,
-        boolean onlyIfEmpty
-    ) {
-        BigInteger sourceId = getSourceNetworkId(source);
-        boolean networkSync = sourceId != null && sourceId.signum() >= 0;
-        return spawnFollowingFromEmitter(source, emitterId, tileset, name, layer, baseWidth, baseHeight, scale,
-            onlyIfEmpty, networkSync);
-    }
-
-    public TiledObjectEntity spawnFollowingFromEmitter(
+    /**
+     * Spawns at a named emitter and derives network ownership from {@code source}.
+     *
+     * @param source tiled object or owning component containing the emitter
+     * @param emitterId value of the emitter marker's {@code particles.emitter} property
+     * @param layer target layer, or {@code null} to resolve it from the emitter owner
+     * @param onlyIfEmpty when true, skips an occupied particle anchor
+     * @param followSource whether the particle should continue following the emitter
+     */
+    public TiledObjectEntity spawnFromEmitter(
         Object source,
         String emitterId,
         String tileset,
@@ -559,8 +498,10 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
         float baseHeight,
         float scale,
         boolean onlyIfEmpty,
-        boolean networkSync
+        boolean followSource
     ) {
+        BigInteger sourceId = getSourceNetworkId(source);
+        boolean networkSync = sourceId != null && sourceId.signum() >= 0;
         TiledEntity sourceEntity = getSourceEntity(source);
         TiledObjectLayer resolvedLayer = layer != null
             ? layer
@@ -582,9 +523,20 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
             }
             Vector2f world = vars.vect2d2;
             cs.gridToWorldSpace(grid.x, grid.y, world);
-            TiledObjectEntity particle = spawnInternal(source, tileset, name, resolvedLayer, world.x, world.y, baseWidth,
-                baseHeight, scale, onlyIfEmpty, networkSync);
-            TiledParticleComponent component = particle != null
+            TiledObjectEntity particle = spawnInternal(
+                source,
+                tileset,
+                name,
+                resolvedLayer,
+                world.x,
+                world.y,
+                baseWidth,
+                baseHeight,
+                scale,
+                onlyIfEmpty,
+                networkSync
+            );
+            TiledParticleComponent component = followSource && particle != null
                 ? Components.get(particle, TiledParticleComponent.class).get()
                 : null;
             if (component != null) {
@@ -615,6 +567,7 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
         );
     }
 
+    /** Spawns a local particle only when its resolved anchor is empty. */
     public TiledObjectEntity spawnIfEmpty(
         String tileset,
         String name,
@@ -625,9 +578,10 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
         float baseHeight,
         float scale
     ) {
-        return spawn(tileset, name, layer, screenX, screenY, baseWidth, baseHeight, scale, true, false);
+        return spawn(tileset, name, layer, screenX, screenY, baseWidth, baseHeight, scale, true);
     }
 
+    /** Spawns a network-synchronized particle only when its resolved anchor is empty. */
     public TiledObjectEntity spawnIfEmptyNetworked(
         String tileset,
         String name,
@@ -638,9 +592,14 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
         float baseHeight,
         float scale
     ) {
-        return spawn(tileset, name, layer, screenX, screenY, baseWidth, baseHeight, scale, true, true);
+        return spawnNetworked(tileset, name, layer, screenX, screenY, baseWidth, baseHeight, scale, true);
     }
 
+    /**
+     * Spawns from a source only when the resolved anchor is empty.
+     *
+     * @param followSource whether the particle should continue following the source
+     */
     public TiledObjectEntity spawnIfEmptyFrom(
         Object source,
         String tileset,
@@ -650,11 +609,25 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
         float screenY,
         float baseWidth,
         float baseHeight,
-        float scale
+        float scale,
+        boolean followSource
     ) {
-        return spawnFrom(source, tileset, name, layer, screenX, screenY, baseWidth, baseHeight, scale, true);
+        return spawnFrom(
+            source,
+            tileset,
+            name,
+            layer,
+            screenX,
+            screenY,
+            baseWidth,
+            baseHeight,
+            scale,
+            true,
+            followSource
+        );
     }
 
+    /** Preloads and registers all particle tiles from a tileset. */
     public void load(String tileset) {
         if(particles.containsKey(tileset))return;
         AsyncAssetManager am = getInstanceOf(AsyncAssetManager.class);
