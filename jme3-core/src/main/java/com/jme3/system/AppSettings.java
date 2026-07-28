@@ -1081,7 +1081,11 @@ public final class AppSettings extends HashMap<String, Object> {
      * Note that a bug in Java 6 (bug ID 6445278, currently hidden but available in Google cache) currently prevents
      * the icon working for alt-tab on the settings dialog in Windows.
      *
-     * @param value An array of BufferedImages to use as icons.
+     * The SDL backend accepts classpath asset paths, Texture instances, Image
+     * instances, and BufferedImage instances. It accesses BufferedImage entries
+     * reflectively so its window path does not link AWT.
+     *
+     * @param value the icon sources, with the most preferred first
      * (Default: not set)
      */
     public void setIcons(Object[] value) {

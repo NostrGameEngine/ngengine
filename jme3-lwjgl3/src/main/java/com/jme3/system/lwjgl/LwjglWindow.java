@@ -64,12 +64,8 @@ import com.jme3.texture.Texture;
 import com.jme3.texture.Texture2D;
 import com.jme3.texture.image.ColorSpace;
 import com.jme3.ui.Picture;
-import com.jme3.util.BufferUtils;
 import com.jme3.util.SafeArrayList;
 
-import java.awt.Graphics2D;
-import java.awt.image.BufferedImage;
-import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -83,7 +79,6 @@ import org.lwjgl.sdl.SDL;
 import org.lwjgl.sdl.SDL_DisplayMode;
 import org.lwjgl.sdl.SDL_Event;
 import org.lwjgl.sdl.SDL_Rect;
-import org.lwjgl.sdl.SDL_Surface;
 import org.lwjgl.sdl.SDLStdinc;
 import org.lwjgl.system.Configuration;
 import org.lwjgl.system.MemoryStack;
@@ -648,40 +643,9 @@ public abstract class LwjglWindow extends LwjglContext implements Runnable {
             return;
         }
 
-        BufferedImage image = (BufferedImage) icons[0];
-        SDL_Surface surface = imageToSdlSurface(image);
-        if (surface != null) {
-            SDL_SetWindowIcon(window, surface);
-            SDL_DestroySurface(surface);
-        }
-    }
-
-    private SDL_Surface imageToSdlSurface(BufferedImage image) {
-        if (image.getType() != BufferedImage.TYPE_INT_ARGB_PRE) {
-            BufferedImage convertedImage = new BufferedImage(
-                    image.getWidth(),
-                    image.getHeight(),
-                    BufferedImage.TYPE_INT_ARGB_PRE
-            );
-            Graphics2D graphics = convertedImage.createGraphics();
-            graphics.drawImage(image, 0, 0, image.getWidth(), image.getHeight(), null);
-            graphics.dispose();
-            image = convertedImage;
-        }
-
-        ByteBuffer buffer = BufferUtils.createByteBuffer(image.getWidth() * image.getHeight() * 4);
-        for (int y = 0; y < image.getHeight(); y++) {
-            for (int x = 0; x < image.getWidth(); x++) {
-                int color = image.getRGB(x, y);
-                buffer.put((byte) ((color >> 16) & 0xFF));
-                buffer.put((byte) ((color >> 8) & 0xFF));
-                buffer.put((byte) (color & 0xFF));
-                buffer.put((byte) ((color >> 24) & 0xFF));
-            }
-        }
-        buffer.flip();
-        return SDL_CreateSurfaceFrom(image.getWidth(), image.getHeight(), SDL_PIXELFORMAT_RGBA32, buffer,
-                image.getWidth() * 4);
+        Application application = getApplicationListener();
+        AssetManager assetManager = application == null ? null : application.getAssetManager();
+        SdlWindowIcon.set(window, icons, assetManager);
     }
 
     protected void destroyContext() {
@@ -780,6 +744,9 @@ public abstract class LwjglWindow extends LwjglContext implements Runnable {
         }
 
         listener.initialize();
+        if (SdlWindowIcon.hasAssetPaths(settings.getIcons())) {
+            setWindowIcon(settings);
+        }
         updateSizes();
         return true;
     }

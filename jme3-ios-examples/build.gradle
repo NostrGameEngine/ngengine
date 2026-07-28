@@ -40,6 +40,7 @@ def iosChooserExcludedPrefixes = [
 ]
 def iosChooserExcludedNames = [
     'jme3test.app.TestChangeAppIcon',
+    'jme3test.app.TestChangeAppIconByPath',
     'jme3test.app.TestContextRestart',
     'jme3test.app.TestMonitorApp',
     'jme3test.app.TestResizableApp',

@@ -421,7 +421,15 @@ public final class AWTSettingsDialog extends JFrame {
 
         Object[] sourceIcons = source.getIcons();
         if (sourceIcons != null && sourceIcons.length > 0) {
-            safeSetIconImages(Arrays.asList((BufferedImage[]) sourceIcons));
+            List<BufferedImage> dialogIcons = new ArrayList<>();
+            for (Object sourceIcon : sourceIcons) {
+                if (sourceIcon instanceof BufferedImage) {
+                    dialogIcons.add((BufferedImage) sourceIcon);
+                }
+            }
+            if (!dialogIcons.isEmpty()) {
+                safeSetIconImages(dialogIcons);
+            }
         }
 
         setTitle(MessageFormat.format(resourceBundle.getString("frame.title"), source.getTitle()));
