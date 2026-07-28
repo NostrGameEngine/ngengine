@@ -56,6 +56,7 @@ import com.jme3.renderer.ViewPort;
 import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.Node;
 import com.jme3.system.AppSettings;
+import com.jme3.texture.Texture;
 
 import org.ngengine.gui.nav.DefaultNavigatorInputHandler;
 import org.ngengine.gui.nav.NavigatorInputHandler;
@@ -330,6 +331,7 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
 
     public NWindowManager closeManager(NWindowManager manager) {
         manager.closeAll();
+        manager.clearBackground();
         NGEGui.unregister(manager.getViewPort());
         manager.setInputHandler(null);
         windowManagers.remove(manager);
@@ -432,6 +434,18 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
 
     public float getLogicalHeight() {
         return getManager(null).getLogicalHeight();
+    }
+
+    public void setBackground(String assetPath) {
+        getManager(null).setBackground(assetPath);
+    }
+
+    public void setBackground(Texture texture) {
+        getManager(null).setBackground(texture);
+    }
+
+    public void clearBackground() {
+        getManager(null).clearBackground();
     }
 
     public int getPhysicalWidth() {
@@ -555,6 +569,7 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
         setPhysicalCursorVisible(false);
         for(NWindowManager manager : windowManagers) {
             manager.closeAll();
+            manager.clearBackground();
             manager.setInputHandler(null);
             NGEGui.unregister(manager.getViewPort());
         }

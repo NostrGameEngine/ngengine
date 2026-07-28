@@ -21,10 +21,14 @@ import com.jme3.renderer.ViewPort;
 import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
+import com.jme3.scene.Geometry;
+import com.jme3.scene.shape.Quad;
 import com.jme3.system.AppSettings;
 import com.jme3.system.JmeContext;
 import com.jme3.system.JmeSystem;
 import com.jme3.system.JmeSystemDelegate;
+import com.jme3.texture.Image;
+import com.jme3.texture.Texture2D;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URL;
@@ -40,6 +44,7 @@ import org.junit.jupiter.api.Test;
 import org.ngengine.ViewPortManager;
 import org.ngengine.components.ComponentManager;
 import org.ngengine.gui.GuiContext;
+import org.ngengine.gui.LayerComparator;
 import org.ngengine.gui.NGEGui;
 import org.ngengine.gui.NGEStyle;
 import org.ngengine.gui.OptionPanel;
@@ -149,6 +154,58 @@ public class NWindowManagerTest {
 
         assertEquals(0, guiNode.getChildIndex(hud));
         assertTrue(guiNode.getChildIndex(window) > guiNode.getChildIndex(hud));
+    }
+
+    @Test
+    public void persistentBackgroundStaysBehindHudAndWindowStackUntilExplicitlyCleared() {
+        TestWindowManager manager = newManager("gui-background-stack");
+        Node guiNode = (Node) manager.getContext().getGuiNode();
+
+        manager.setBackground(new Texture2D(1, 1, Image.Format.RGBA8));
+        Geometry background = manager.getBackground();
+        NHud hud = manager.showWindow(NHud.class);
+        TestWindow first = manager.showWindow(TestWindow.class);
+        TestWindow second = manager.showWindow(TestWindow.class);
+
+        assertSame(guiNode, background.getParent());
+        assertEquals(-100, LayerComparator.getLayer((Spatial) background));
+        assertEquals(0, guiNode.getChildIndex(background));
+        assertTrue(guiNode.getChildIndex(hud) > guiNode.getChildIndex(background));
+        assertTrue(guiNode.getChildIndex(second) > guiNode.getChildIndex(hud));
+        assertNull(first.getParent());
+
+        manager.getViewPort().getCamera().resize(1200, 700, true);
+        manager.update(0f);
+
+        assertNull(first.getParent());
+        assertSame(guiNode, second.getParent());
+        assertSame(guiNode, background.getParent());
+
+        manager.closeAllWindows();
+
+        assertSame(guiNode, background.getParent());
+        manager.clearBackground();
+        assertNull(background.getParent());
+        assertNull(manager.getBackground());
+    }
+
+    @Test
+    public void persistentBackgroundTracksLogicalGuiResize() {
+        TestWindowManager manager = newManager("gui-background-resize");
+        Camera camera = manager.getViewPort().getCamera();
+
+        manager.setBackground(new Texture2D(1, 1, Image.Format.RGBA8));
+        Geometry background = manager.getBackground();
+        Quad quad = (Quad) background.getMesh();
+        assertEquals(800f, quad.getWidth(), 0.001f);
+        assertEquals(600f, quad.getHeight(), 0.001f);
+
+        camera.resize(1200, 700, true);
+        manager.update(0f);
+
+        assertSame(background, manager.getBackground());
+        assertEquals(1200f, quad.getWidth(), 0.001f);
+        assertEquals(700f, quad.getHeight(), 0.001f);
     }
 
     @Test

@@ -68,11 +68,15 @@ import com.jme3.input.InputDevice;
 import com.jme3.input.InputManager;
 import com.jme3.input.Joystick;
 import com.jme3.input.Keyboard;
+import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
 import com.jme3.renderer.ViewPort;
+import com.jme3.scene.Geometry;
 import com.jme3.scene.Spatial.CullHint;
+import com.jme3.scene.shape.Quad;
+import com.jme3.texture.Texture;
 import org.ngengine.gui.component.BorderLayout;
 import org.ngengine.gui.component.SpringGridLayout;
 import org.ngengine.gui.guix.win.NToast.ToastType;
@@ -83,12 +87,15 @@ import org.ngengine.gui.nav.NavigatorInputHandler;
 
 public class NWindowManager {
     private static final Logger log = Logger.getLogger(NWindowManager.class.getName());
+    private static final int BACKGROUND_LAYER = -100;
+    private static final int WINDOW_LAYER = 100;
     private static final float TOAST_LAYER_Z = 2f;
 
     private final GuiContext ctx;
     private final NWindowManagerComponent mng;
     private final ArrayList<NWindow<?>> windows = new ArrayList<>();
     private final ArrayList<NToast> toastsStack = new ArrayList<>();
+    private Geometry background;
     private Container containerToast;
     private float oldWidth, oldHeight;
     private NavigatorInputHandler inputHandler;
@@ -218,6 +225,7 @@ public class NWindowManager {
             oldWidth = logicalWidth;
             oldHeight = logicalHeight;
             mng.installStyle(logicalWidth, logicalHeight);
+            updateBackgroundSize();
             for (NWindow<?> window : windows) {
                 window.invalidate();
             }
@@ -309,6 +317,63 @@ public class NWindowManager {
 
     public float getLogicalHeight() {
         return ctx.getLogicalHeight();
+    }
+
+    /**
+     * Sets a persistent bitmap behind the complete GUI. It is independent from
+     * the window stack and remains visible while windows are replaced.
+     */
+    public void setBackground(String assetPath) {
+        if (assetPath == null) {
+            throw new IllegalArgumentException("Background asset path cannot be null");
+        }
+        setBackground(NGEGui.loadTexture(assetPath, false, false));
+    }
+
+    /**
+     * Sets a persistent bitmap behind the complete GUI. The bitmap is stretched
+     * to the current logical GUI size and follows later logical resizes.
+     */
+    public void setBackground(Texture texture) {
+        checkThread();
+        if (texture == null) {
+            throw new IllegalArgumentException("Background texture cannot be null");
+        }
+        clearBackground();
+
+        background = new Geometry("NGE GUI Background", new Quad(getLogicalWidth(), getLogicalHeight()));
+        background.setMaterial(NGEGui.createMaterial(texture, false).getMaterial());
+        background.getMaterial().getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
+        LayerComparator.resetLayer(background, BACKGROUND_LAYER);
+        ctx.getGuiNode().attachChildAt(background, 0);
+    }
+
+    /**
+     * Removes the persistent GUI background, if one is set.
+     */
+    public void clearBackground() {
+        checkThread();
+        if (background != null) {
+            background.removeFromParent();
+            background = null;
+        }
+    }
+
+    Geometry getBackground() {
+        return background;
+    }
+
+    private void updateBackgroundSize() {
+        if (background == null) {
+            return;
+        }
+        Quad quad = (Quad) background.getMesh();
+        float width = getLogicalWidth();
+        float height = getLogicalHeight();
+        if (quad.getWidth() != width || quad.getHeight() != height) {
+            quad.updateGeometry(width, height);
+            quad.clearCollisionData();
+        }
     }
 
     void invalidateAll() {
@@ -418,11 +483,11 @@ public class NWindowManager {
         // HUD is persistent chrome, not a modal surface.  Keep it beneath every
         // application window even when it is reattached after one is already open.
         if (window instanceof NHud) {
-            ctx.getGuiNode().attachChildAt(window, 0);
+            ctx.getGuiNode().attachChildAt(window, background == null ? 0 : 1);
             LayerComparator.resetLayer(window, 0);
         } else {
             ctx.getGuiNode().attachChild(window);
-            LayerComparator.resetLayer(window, 100);
+            LayerComparator.resetLayer(window, WINDOW_LAYER);
         }
         window.onShow();
     }

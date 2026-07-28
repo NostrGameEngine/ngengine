@@ -43,6 +43,7 @@ import java.util.logging.Logger;
 
 import org.ngengine.gui.Command;
 import org.ngengine.gui.GuiContext;
+import org.ngengine.gui.LayerComparator;
 import org.ngengine.gui.NGEGui;
 import org.ngengine.gui.Panel;
 import org.ngengine.gui.GuiContext.GuiContextHandler;
@@ -71,6 +72,10 @@ import org.ngengine.gui.core.GuiMaterial;
  * @author Riccardo Balbo
  */
 public class PopupHandler implements GuiContextHandler {
+
+    static final int POPUP_BASE_LAYER = 200;
+    static final int CURSOR_LAYER = 1000;
+    static final int MAX_POPUP_STACK_SIZE = (CURSOR_LAYER - POPUP_BASE_LAYER) / 2;
 
     private final Node guiNode;
     private final Camera camera;
@@ -115,10 +120,14 @@ public class PopupHandler implements GuiContextHandler {
 
     public void showPopup(Spatial popup,  Command<? super PopupHandler> closeCommand,
             ColorRGBA backgroundColor) {
+        if (stack.size() >= MAX_POPUP_STACK_SIZE) {
+            throw new IllegalStateException("Popup stack is full");
+        }
         PopupEntry entry = new PopupEntry(popup, closeCommand, backgroundColor);
         stack.add(entry);
         current = entry;
         current.show();
+        refreshLayers();
     }
 
     public boolean isPopup(Spatial s) {
@@ -146,6 +155,7 @@ public class PopupHandler implements GuiContextHandler {
         } else {
             current = null;
         }
+        refreshLayers();
     }
 
     protected PopupEntry getEntry(Spatial popup) {
@@ -296,6 +306,15 @@ public class PopupHandler implements GuiContextHandler {
         if (current != null && !current.isVisible()) {
             close(current);
         }
+        for (PopupEntry entry : stack) {
+            entry.updateBlockerSize();
+        }
+    }
+
+    private void refreshLayers() {
+        for (int i = 0; i < stack.size(); i++) {
+            stack.get(i).setLayers(i);
+        }
     }
 
     private class PopupEntry {
@@ -305,6 +324,8 @@ public class PopupHandler implements GuiContextHandler {
 
         private final float zBase;
         private final Geometry blocker;
+        private final Integer originalPopupLayer;
+        private final float originalPopupZ;
 
         // Cached while popup is guaranteed to be attached/registered.
         private GuiContext ctx;
@@ -318,6 +339,8 @@ public class PopupHandler implements GuiContextHandler {
 
             this.zBase = getMaxGuiZ() + 1;
             this.blocker = createBlocker(zBase, this.backgroundColor);
+            this.originalPopupLayer = LayerComparator.getLayer(popup);
+            this.originalPopupZ = popup.getLocalTranslation().z;
         }
 
         public boolean isVisible() {
@@ -336,7 +359,11 @@ public class PopupHandler implements GuiContextHandler {
             }
 
             // Make sure popup is above blocker.
-            popup.move(0, 0, zPopup);
+            popup.setLocalTranslation(
+                popup.getLocalTranslation().x,
+                popup.getLocalTranslation().y,
+                zPopup
+            );
 
             if (popup instanceof Panel) {
                 ((Panel) popup).runEffect(Panel.EFFECT_OPEN);
@@ -354,7 +381,22 @@ public class PopupHandler implements GuiContextHandler {
             navigator.pushLayer(popup, ()->{
 
             });
-           
+
+        }
+
+        void setLayers(int stackIndex) {
+            int blockerLayer = POPUP_BASE_LAYER + stackIndex * 2;
+            LayerComparator.resetLayer(blocker, blockerLayer);
+            LayerComparator.resetLayer(popup, blockerLayer + 1);
+        }
+
+        void updateBlockerSize() {
+            Vector2f size = getGuiSize();
+            Quad quad = (Quad) blocker.getMesh();
+            if (quad.getWidth() != size.x || quad.getHeight() != size.y) {
+                quad.updateGeometry(size.x, size.y);
+                quad.clearCollisionData();
+            }
         }
 
         public void release() {
@@ -380,6 +422,12 @@ public class PopupHandler implements GuiContextHandler {
                 ((Panel) popup).runEffect(Panel.EFFECT_CLOSE);
             } else {
                 popup.removeFromParent();
+                popup.setLocalTranslation(
+                    popup.getLocalTranslation().x,
+                    popup.getLocalTranslation().y,
+                    originalPopupZ
+                );
+                LayerComparator.resetLayer(popup, originalPopupLayer != null ? originalPopupLayer : 0);
             }
             blocker.removeFromParent();
 

@@ -36,6 +36,7 @@ import com.jme3.input.InputManager;
 import com.jme3.input.KeyInput;
 import com.jme3.input.controls.ActionListener;
 import com.jme3.input.controls.KeyTrigger;
+import com.jme3.math.FastMath;
 import com.jme3.post.SceneProcessor;
 import com.jme3.profile.AppProfiler;
 import com.jme3.renderer.Camera;
@@ -43,8 +44,10 @@ import com.jme3.renderer.RenderManager;
 import com.jme3.renderer.Renderer;
 import com.jme3.renderer.ViewPort;
 import com.jme3.renderer.queue.RenderQueue;
+import com.jme3.system.AppSettings;
 import com.jme3.system.JmeSystem;
 import com.jme3.texture.FrameBuffer;
+import com.jme3.texture.Image;
 import com.jme3.util.BufferUtils;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -64,9 +67,11 @@ public class ScreenshotAppState extends AbstractAppState implements ActionListen
     private Renderer renderer;
     private RenderManager rm;
     private ByteBuffer outBuf;
+    private ByteBuffer halfFloatBuf;
     private String shotName;
     private long shotIndex = 0;
     private int width, height;
+    private boolean gammaCorrection = true;
     /**
      * InputManager to which the ActionListener and the mapping are added
      */
@@ -183,6 +188,8 @@ public class ScreenshotAppState extends AbstractAppState implements ActionListen
             inputManager = app.getInputManager();
             inputManager.addMapping("ScreenShot", new KeyTrigger(KeyInput.KEY_SYSRQ));
             inputManager.addListener(this, "ScreenShot");
+            AppSettings settings = app.getSettings();
+            gammaCorrection = settings == null || settings.isGammaCorrection();
 
             List<ViewPort> vps = app.getRenderManager().getPostViews();
             last = vps.get(vps.size() - 1);
@@ -247,7 +254,7 @@ public class ScreenshotAppState extends AbstractAppState implements ActionListen
     public void initialize(RenderManager rm, ViewPort vp) {
         renderer = rm.getRenderer();
         this.rm = rm;
-        reshape(vp, vp.getCamera().getWidth(), vp.getCamera().getHeight());
+        reshape(vp, vp.getRenderTargetWidth(), vp.getRenderTargetHeight());
     }
 
     @Override
@@ -278,14 +285,26 @@ public class ScreenshotAppState extends AbstractAppState implements ActionListen
             capture = false;
 
             Camera curCamera = rm.getCurrentCamera();
-            int viewX = (int) (curCamera.getViewPortLeft() * curCamera.getWidth());
-            int viewY = (int) (curCamera.getViewPortBottom() * curCamera.getHeight());
-            int viewWidth = (int) ((curCamera.getViewPortRight() - curCamera.getViewPortLeft()) * curCamera.getWidth());
-            int viewHeight = (int) ((curCamera.getViewPortTop() - curCamera.getViewPortBottom()) * curCamera.getHeight());
+            int viewX = (int) (curCamera.getViewPortLeft() * width);
+            int viewY = (int) (curCamera.getViewPortBottom() * height);
+            int viewX2 = (int) (curCamera.getViewPortRight() * width);
+            int viewY2 = (int) (curCamera.getViewPortTop() * height);
 
             renderer.setViewPort(0, 0, width, height);
-            renderer.readFrameBuffer(out, outBuf);
-            renderer.setViewPort(viewX, viewY, viewWidth, viewHeight);
+            FrameBuffer target = out != null ? out : renderer.getCurrentFrameBuffer();
+            if (target != null && target.getColorTarget() != null
+                    && target.getColorTarget().getFormat() == Image.Format.RGBA16F) {
+                int bufferSize = width * height * 8;
+                if (halfFloatBuf == null || halfFloatBuf.capacity() != bufferSize) {
+                    halfFloatBuf = BufferUtils.createByteBuffer(bufferSize);
+                }
+                halfFloatBuf.clear();
+                renderer.readFrameBufferWithFormat(target, halfFloatBuf, Image.Format.RGBA16F);
+                convertRgba16fToRgba8(halfFloatBuf, outBuf, out == null && gammaCorrection);
+            } else {
+                renderer.readFrameBuffer(target, outBuf);
+            }
+            renderer.setViewPort(viewX, viewY, viewX2 - viewX, viewY2 - viewY);
 
             File file;
             String filename;
@@ -312,6 +331,24 @@ public class ScreenshotAppState extends AbstractAppState implements ActionListen
                 logger.log(Level.SEVERE, "Error while saving screenshot", ex);
             }
         }
+    }
+
+    static void convertRgba16fToRgba8(ByteBuffer source, ByteBuffer target, boolean encodeSrgb) {
+        source.rewind();
+        target.clear();
+        while (source.remaining() >= 8) {
+            for (int channel = 0; channel < 4; channel++) {
+                float value = FastMath.convertHalfToFloat(source.getShort());
+                if (encodeSrgb && channel < 3) {
+                    value = Math.max(value, 0f);
+                    value = value < 0.0031308f
+                            ? value * 12.92f
+                            : 1.055f * (float) Math.pow(value, 1f / 2.4f) - 0.055f;
+                }
+                target.put((byte) Math.round(FastMath.clamp(value, 0f, 1f) * 255f));
+            }
+        }
+        target.flip();
     }
 
     @Override
