@@ -414,8 +414,12 @@ public class Selector<T> extends Panel {
     }
 
     protected void collapse() {
-        PopupHandler state =   NGEGui.get(this).getPopupHandler();
-        if( state.isPopup(popup) ) {
+        // A display/monitor change can detach the selector while its popup is
+        // being closed.  Its GuiContext is no longer discoverable at that
+        // point, but the popup listener still needs to be cleaned up.
+        GuiContext context = NGEGui.get(this);
+        PopupHandler state = context != null ? context.getPopupHandler() : null;
+        if( state != null && state.isPopup(popup) ) {
             state.closePopup(popup);
         }
         popup.getControl(GuiControl.class).removeListener(reshapeListener);

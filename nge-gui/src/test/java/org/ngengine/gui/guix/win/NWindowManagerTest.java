@@ -140,6 +140,18 @@ public class NWindowManagerTest {
     }
 
     @Test
+    public void hudAlwaysRendersBelowExistingWindows() {
+        TestWindowManager manager = newManager("gui-hud-order");
+        Node guiNode = (Node) manager.getContext().getGuiNode();
+
+        TestWindow window = manager.showWindow(TestWindow.class);
+        NHud hud = manager.showWindow(NHud.class);
+
+        assertEquals(0, guiNode.getChildIndex(hud));
+        assertTrue(guiNode.getChildIndex(window) > guiNode.getChildIndex(hud));
+    }
+
+    @Test
     public void backDoesNotClosePassiveHud() {
         TestWindowManager manager = newManager("gui-hud-back");
         Node guiNode = (Node) manager.getContext().getGuiNode();

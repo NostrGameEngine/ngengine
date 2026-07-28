@@ -59,6 +59,7 @@ import com.jme3.system.AppSettings;
 
 import org.ngengine.gui.nav.DefaultNavigatorInputHandler;
 import org.ngengine.gui.nav.NavigatorInputHandler;
+import org.ngengine.gui.LayerComparator;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -255,6 +256,11 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
             cam.resize(targetWidth, targetHeight, !relativeSize);
             configureGuiCamera(cam, targetWidth, targetHeight);
             configureGuiNodeScale();
+            // GUI geometry caches its effective layer.  A resize can rebuild
+            // text/background geometry under a different scene hierarchy;
+            // clear that cache before each active window relayout so modal
+            // windows cannot retain stale ordering until reopened.
+            LayerComparator.clearEffectiveLayer(defaultGuiNode);
             for (NWindowManager manager : windowManagers) {
                 if (manager.getViewPort() == defaultGuiViewPort) {
                     manager.invalidateAll();

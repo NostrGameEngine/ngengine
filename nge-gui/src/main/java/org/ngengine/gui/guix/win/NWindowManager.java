@@ -57,6 +57,7 @@ import org.ngengine.gui.FillMode;
 import org.ngengine.gui.GuiContext;
 import org.ngengine.gui.Insets3f;
 import org.ngengine.gui.Label;
+import org.ngengine.gui.LayerComparator;
 import org.ngengine.gui.NGEGui;
 import org.ngengine.gui.NGEStyle;
 import org.ngengine.gui.component.QuadBackgroundComponent;
@@ -414,7 +415,15 @@ public class NWindowManager {
             window.removeFromParent();
         }
         window.invalidate();
-        ctx.getGuiNode().attachChild(window);
+        // HUD is persistent chrome, not a modal surface.  Keep it beneath every
+        // application window even when it is reattached after one is already open.
+        if (window instanceof NHud) {
+            ctx.getGuiNode().attachChildAt(window, 0);
+            LayerComparator.resetLayer(window, 0);
+        } else {
+            ctx.getGuiNode().attachChild(window);
+            LayerComparator.resetLayer(window, 100);
+        }
         window.onShow();
     }
 
