@@ -1206,6 +1206,9 @@ public abstract class MapRenderer {
         if (obj.getShape() != ObjectShape.TILE || !obj.isVisible()) {
             return false;
         }
+        if (objectOpacity(obj) < 0.9999f) {
+            return false;
+        }
         Object instanced = obj.getProperty("render.instanced");
         if (instanced != null && !org.ngengine.platform.NGEUtils.safeBool(instanced)) {
             return false;
@@ -2165,6 +2168,7 @@ public abstract class MapRenderer {
                         materialFactory.setLayerOpacity(geometry.getMaterial(), (float) layer.getOpacity());
                         materialFactory.setBlendMode(geometry.getMaterial(), layer.getBlendMode());
                     }
+                    materialFactory.setOpacity(spatial, objectOpacity(obj));
 
                     ref.clearUpdateNeeded(objectUpdateId);
                 }
@@ -2184,8 +2188,9 @@ public abstract class MapRenderer {
                     }
                     spriteFactory.applyProperties(layer, spatial);
                     spriteFactory.applyProperties(layer, layerNode);
+                    materialFactory.setOpacity(spatial, objectOpacity(obj));
                     ref.clearPropertiesUpdateNeeded(objectPropertyUpdateId);
-                }      
+                }
                 listener.afterEntityRender(tpf,tiledMap, layer, obj, spatial);
 
             }
@@ -2209,6 +2214,14 @@ public abstract class MapRenderer {
         layerRef.clearPropertiesUpdateNeeded(layerPropertyUpdateId);
 
         return layerNode;
+    }
+
+    static float objectOpacity(TiledObjectEntity object) {
+        Object value = object != null ? object.getProperty("render.opacity") : null;
+        if (!(value instanceof Number)) {
+            return 1f;
+        }
+        return FastMath.clamp(((Number) value).floatValue(), 0f, 1f);
     }
 
 

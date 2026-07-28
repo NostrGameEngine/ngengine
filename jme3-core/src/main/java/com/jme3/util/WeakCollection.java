@@ -59,6 +59,27 @@ public final class WeakCollection<T> extends AbstractCollection<T> {
     }
 
     @Override
+    public boolean remove(Object o) {
+        cleanup();
+        for (int i = 0; i < refs.size(); i++) {
+            T value = refs.get(i).get();
+            if (value != null && Objects.equals(value, o)) {
+                refs.remove(i);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public void clear() {
+        refs.clear();
+        while (queue.poll() != null) {
+            // Drain references that were enqueued before the collection was cleared.
+        }
+    }
+
+    @Override
     public Iterator<T> iterator() {
         return new Iterator<>() {
             int i = 0;

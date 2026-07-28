@@ -40,6 +40,26 @@ public final class TiledParticleEmitter {
         return TiledAnchorResolver.findMarker(tile, PROPERTY_EMITTER, expectedEmitter);
     }
 
+    /**
+     * Returns the object-layer name configured directly on the active emitter marker.
+     *
+     * @param source source object whose current tile owns the emitter
+     * @param emitterId optional emitter identifier
+     * @return configured layer name, or {@code null} when the emitter has no override
+     */
+    public static String getLayerName(TiledObjectEntity source, String emitterId) {
+        if (source == null) {
+            return null;
+        }
+        TiledObjectEntity emitter = findEmitter(getCurrentTile(source), emitterId);
+        Object value = emitter != null
+            ? emitter.getProperty(TiledParticleLayerResolver.PROPERTY_LAYER)
+            : null;
+        return value != null && !String.valueOf(value).isBlank()
+            ? String.valueOf(value).trim()
+            : null;
+    }
+
     public static Tile getCurrentTile(TiledObjectEntity source) {
         if (source == null) {
             return null;

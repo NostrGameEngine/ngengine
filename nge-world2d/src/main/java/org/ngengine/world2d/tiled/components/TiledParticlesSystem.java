@@ -132,6 +132,7 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
             obj.setVisible(true);
             obj.setShape(ObjectShape.TILE);
             obj.setTile(tile);
+            applyParticleRenderProperties(tile, obj);
             if(baseWidth>0){
                 obj.setWidth(baseWidth);
             }
@@ -153,6 +154,19 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
         }
 
 
+    }
+
+    static void applyParticleRenderProperties(Tile tile, TiledObjectEntity object) {
+        if (tile == null || object == null) {
+            return;
+        }
+        Object particleOpacity = tile.getProperty("particle.opacity");
+        if (particleOpacity instanceof Number) {
+            object.putProperty(
+                "render.opacity",
+                Math.max(0f, Math.min(1f, ((Number) particleOpacity).floatValue()))
+            );
+        }
     }
 
     boolean hasParticleAt(TiledObjectLayer layer, Collection<Tile> particleTiles, Vector2f anchorGrid,
@@ -500,6 +514,29 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
         String emitterId,
         String tileset,
         String name,
+        float baseWidth,
+        float baseHeight,
+        float scale,
+        boolean onlyIfEmpty
+    ) {
+        return spawnFollowingFromEmitter(
+            source,
+            emitterId,
+            tileset,
+            name,
+            null,
+            baseWidth,
+            baseHeight,
+            scale,
+            onlyIfEmpty
+        );
+    }
+
+    public TiledObjectEntity spawnFollowingFromEmitter(
+        Object source,
+        String emitterId,
+        String tileset,
+        String name,
         TiledObjectLayer layer,
         float baseWidth,
         float baseHeight,
@@ -525,13 +562,16 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
         boolean networkSync
     ) {
         TiledEntity sourceEntity = getSourceEntity(source);
-        if (!(sourceEntity instanceof TiledObjectEntity) || layer == null) {
+        TiledObjectLayer resolvedLayer = layer != null
+            ? layer
+            : resolveParticleLayer(source, emitterId);
+        if (!(sourceEntity instanceof TiledObjectEntity) || resolvedLayer == null) {
             return null;
         }
         if (networkSync && !isSourceLocallyAuthoritative(source)) {
             return null;
         }
-        CoordinateSystem cs = layer.getComponentManager().getInstanceOf(CoordinateSystem.class);
+        CoordinateSystem cs = resolvedLayer.getComponentManager().getInstanceOf(CoordinateSystem.class);
         if (cs == null) {
             return null;
         }
@@ -542,7 +582,7 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
             }
             Vector2f world = vars.vect2d2;
             cs.gridToWorldSpace(grid.x, grid.y, world);
-            TiledObjectEntity particle = spawnInternal(source, tileset, name, layer, world.x, world.y, baseWidth,
+            TiledObjectEntity particle = spawnInternal(source, tileset, name, resolvedLayer, world.x, world.y, baseWidth,
                 baseHeight, scale, onlyIfEmpty, networkSync);
             TiledParticleComponent component = particle != null
                 ? Components.get(particle, TiledParticleComponent.class).get()
@@ -552,6 +592,27 @@ public class TiledParticlesSystem extends AbstractComponent implements Reloadabl
             }
             return particle;
         }
+    }
+
+    /**
+     * Resolves the default layer for a particle emitter from its configured marker
+     * and tiled owner.
+     *
+     * @param source emitter owner or component
+     * @param emitterId optional emitter marker identifier
+     * @param fallbackLayerNames optional ordered map-level fallback layer names
+     * @return resolved object layer, or {@code null} when none exists
+     */
+    public TiledObjectLayer resolveParticleLayer(
+            Object source,
+            String emitterId,
+            String... fallbackLayerNames) {
+        return TiledParticleLayerResolver.resolve(
+            source,
+            emitterId,
+            getInstanceOf(TiledMap.class),
+            fallbackLayerNames
+        );
     }
 
     public TiledObjectEntity spawnIfEmpty(

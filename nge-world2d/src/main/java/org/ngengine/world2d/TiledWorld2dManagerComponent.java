@@ -66,6 +66,7 @@ import org.ngengine.network.quantization.TransformQuantizer;
 import org.ngengine.world2d.box2d.Box2dUserData;
 import org.ngengine.world2d.debug.Box2dDebugger;
 
+import com.jme3.asset.AssetKey;
 import com.jme3.asset.AssetManager;
 import com.jme3.renderer.RenderManager;
 import com.jme3.scene.Node;
@@ -432,17 +433,62 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
     public void unloadWorld(String name) {
         String mapNameAndPath[] = getMapNameAndPath(name);
         name = mapNameAndPath[0];
+        String mapPath = mapNameAndPath[1];
 
         TiledWorld2d map = loadedMaps.remove(name);
         if (map != null) {
             transformQuantizers.remove(name);
             map.clearPhysicsStepState();
+            disableWorldComponentManagers(map.getMap());
             map.detachRenderTargets();
+        }
+        AsyncAssetManager assetManager = getInstanceOf(AsyncAssetManager.class);
+        if (assetManager != null) {
+            assetManager.deleteFromCache(new AssetKey<TiledMap>(mapPath));
         }
     }
 
     public void unloadWorld(TiledWorld2d l) {
         unloadWorld(l.getName());
+    }
+
+    /**
+     * Fully tears down every loaded world and cancels any pending asynchronous
+     * world load. A later load therefore creates a fresh map graph instead of
+     * resuming components and mutable entities from the previous session.
+     */
+    public void unloadAllWorlds() {
+        worldLoadGeneration++;
+        loadingMaps.clear();
+        ArrayList<TiledWorld2d> mapsToUnload = new ArrayList<>(loadedMaps.values());
+        for (TiledWorld2d world : mapsToUnload) {
+            unloadWorld(world);
+        }
+        transformQuantizers.clear();
+    }
+
+    static void disableWorldComponentManagers(TiledMap map) {
+        if (map == null) {
+            return;
+        }
+        for (TiledLayer layer : map.getLayersFlat()) {
+            if (layer instanceof TiledObjectLayer objectLayer) {
+                for (TiledObjectEntity entity : objectLayer.getObjects()) {
+                    entity.getComponentManager().setEnabled(false);
+                }
+            } else if (layer instanceof TiledTileLayer tileLayer) {
+                for (int x = 0; x < tileLayer.getWidth(); x++) {
+                    for (int y = 0; y < tileLayer.getHeight(); y++) {
+                        TiledTileEntity entity = tileLayer.getTileAt(x, y);
+                        if (entity != null) {
+                            entity.getComponentManager().setEnabled(false);
+                        }
+                    }
+                }
+            }
+            layer.getComponentManager().setEnabled(false);
+        }
+        map.getComponentManager().setEnabled(false);
     }
 
     public TiledWorld2d loadWorld( String mapPath) {
@@ -494,6 +540,7 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
     // }
 
     private List<String> loadingMaps = new ArrayList<>();
+    private long worldLoadGeneration;
 
     public void loadWorldIfNeededAsync(String path) {
         String mapNameAndPath[] = getMapNameAndPath(path);
@@ -509,10 +556,11 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
             return;
         }
         loadingMaps.add(mapPath);
+        long loadGeneration = worldLoadGeneration;
         AsyncAssetManager assetManager = getInstanceOf(AsyncAssetManager.class);
         assetManager.loadAssetAsync(mapPath, (Object mapObj, Throwable exc) -> {
             loadingMaps.remove(mapPath);
-            if(exc==null){
+            if(exc==null && loadGeneration == worldLoadGeneration){
                 loadWorld(mapName, (TiledMap) mapObj);
             }
         });
@@ -526,11 +574,7 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
 
     @Override
     public void onDisable(ComponentManager mng) {
-        ArrayList<TiledWorld2d> mapsToUnload = new ArrayList<>(loadedMaps.values());
-        for (TiledWorld2d l : mapsToUnload) {
-            unloadWorld(l);
-        }
-        transformQuantizers.clear();
+        unloadAllWorlds();
     }
 
     private TransformQuantizer buildTransformQuantizer(TiledMap map) {
