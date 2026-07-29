@@ -46,7 +46,8 @@ public interface ActionBasedFragment<T extends ComponentActionEvent> extends Fra
             getComponentId(),
             action,
             ComponentActionOrigin.LOCAL,
-            () -> checkAuthority()
+            this::checkAuthority,
+            () -> true
         );
         if (best == null) {
             return;

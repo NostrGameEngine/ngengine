@@ -59,11 +59,17 @@ public class NetcodeManagerSnapshotFlowTest {
     public static class TestAuthorityActionMessage extends ActionMessage {
     }
 
+    @NetworkSafe
+    public static class TestRemoteAuthorityActionMessage extends ActionMessage {
+    }
+
     private static final class TestHandler implements NetcodeFragment {
         private int value;
         private int authorityActionCount;
+        private int remoteAuthorityActionCount;
         private final BigInteger id = BigInteger.valueOf(42);
         private boolean authoritative = true;
+        private boolean remoteAuthoritative;
 
         @Override
         public BigInteger getNetworkId() {
@@ -87,15 +93,23 @@ public class NetcodeManagerSnapshotFlowTest {
 
         @Override
         public boolean checkAuthority(RemotePeer peer) {
-            return false;
+            return remoteAuthoritative;
         }
 
         @ComponentAction(
             type = TestAuthorityActionMessage.class,
-            filter = ComponentActionFilter.REMOTE | ComponentActionFilter.WITH_AUTHORITY
+            filter = ComponentActionFilter.REMOTE | ComponentActionFilter.LOCAL_PEER_HAS_AUTHORITY
         )
         private void onAuthorityAction(TestAuthorityActionMessage action) {
             authorityActionCount++;
+        }
+
+        @ComponentAction(
+            type = TestRemoteAuthorityActionMessage.class,
+            filter = ComponentActionFilter.REMOTE | ComponentActionFilter.REMOTE_PEER_HAS_AUTHORITY
+        )
+        private void onRemoteAuthorityAction(TestRemoteAuthorityActionMessage action) {
+            remoteAuthorityActionCount++;
         }
 
         @Override
@@ -178,6 +192,36 @@ public class NetcodeManagerSnapshotFlowTest {
         manager.updateAppLogic(null, 0f);
 
         assertEquals(1, handler.authorityActionCount);
+    }
+
+    @Test
+    public void localAuthorityConstraintRejectsOnNonAuthorityReplica() throws Exception {
+        TestAuthorityActionMessage action = new TestAuthorityActionMessage();
+        action.setComponentId(handler.getComponentId());
+        action.setNetworkId(handler.getNetworkId());
+        handler.authoritative = false;
+
+        enqueueInbound(manager, action);
+        manager.updateAppLogic(null, 0f);
+
+        assertEquals(0, handler.authorityActionCount);
+    }
+
+    @Test
+    public void remoteAuthorityConstraintRejectsAndThenAcceptsBySenderAuthority() throws Exception {
+        TestRemoteAuthorityActionMessage action = new TestRemoteAuthorityActionMessage();
+        action.setComponentId(handler.getComponentId());
+        action.setNetworkId(handler.getNetworkId());
+        handler.authoritative = false;
+
+        enqueueInbound(manager, action);
+        manager.updateAppLogic(null, 0f);
+        assertEquals(0, handler.remoteAuthorityActionCount);
+
+        handler.remoteAuthoritative = true;
+        enqueueInbound(manager, action);
+        manager.updateAppLogic(null, 0f);
+        assertEquals(1, handler.remoteAuthorityActionCount);
     }
 
     @SuppressWarnings("unchecked")

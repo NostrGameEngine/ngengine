@@ -599,7 +599,8 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
                     actionMessage.getComponentId(),
                     actionMessage,
                     ComponentActionOrigin.REMOTE,
-                    candidate::checkAuthority
+                    candidate::checkAuthority,
+                    () -> candidate.checkAuthority(inbound.getFromPeer())
                 );
                 if(best!=null){
                     best.getHandler().invoke(candidate, actionMessage);

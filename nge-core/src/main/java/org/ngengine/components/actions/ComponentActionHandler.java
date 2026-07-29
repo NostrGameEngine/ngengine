@@ -27,6 +27,11 @@ public final class ComponentActionHandler {
         boolean hasAuthority();
     }
 
+    @FunctionalInterface
+    public interface RemoteAuthorityResolver {
+        boolean hasAuthority();
+    }
+
     public static final class Selection {
         private final ActionBasedFragment component;
         private final ComponentActionHandler handler;
@@ -99,7 +104,8 @@ public final class ComponentActionHandler {
         @Nullable ActionBasedFragment preferredSource,
         T message,
         ComponentActionOrigin origin,
-        AuthorityResolver authorityResolver
+        AuthorityResolver localAuthorityResolver,
+        RemoteAuthorityResolver remoteAuthorityResolver
     ) {
         ActionBasedFragment source = preferredSource;
         if (source == null && components != null) {
@@ -111,7 +117,7 @@ public final class ComponentActionHandler {
                 }
             }
         }
-        return selectBest(source, requiredComponentId, message, origin, authorityResolver);
+        return selectBest(source, requiredComponentId, message, origin, localAuthorityResolver, remoteAuthorityResolver);
     }
 
     public static @Nullable <T extends ComponentActionEvent> Selection selectBest(
@@ -119,7 +125,8 @@ public final class ComponentActionHandler {
         @Nullable String requiredComponentId,
         T message,
         ComponentActionOrigin origin,
-        AuthorityResolver authorityResolver
+        AuthorityResolver localAuthorityResolver,
+        RemoteAuthorityResolver remoteAuthorityResolver
     ) {
         if (source == null) {
             return null;
@@ -132,7 +139,7 @@ public final class ComponentActionHandler {
 
         Candidate best = null;
         for (ComponentActionHandler handler : handlersOf(source.getClass())) {
-            int score = handler.score(source, message, origin, authorityResolver);
+            int score = handler.score(source, message, origin, localAuthorityResolver, remoteAuthorityResolver);
             if (score < 0) {
                 continue;
             }
@@ -160,7 +167,8 @@ public final class ComponentActionHandler {
         ActionBasedFragment candidate,
         ComponentActionEvent message,
         ComponentActionOrigin origin,
-        AuthorityResolver authorityResolver
+        AuthorityResolver localAuthorityResolver,
+        RemoteAuthorityResolver remoteAuthorityResolver
     ) {
         Class<?> messageClass = message.getClass();
         if (!annotationActionType.isAssignableFrom(messageClass)) {
@@ -179,13 +187,12 @@ public final class ComponentActionHandler {
             return -1;
         }
 
-        boolean hasWithAuth = (filter & ComponentActionFilter.WITH_AUTHORITY) != 0;
-        boolean hasWithoutAuth = (filter & ComponentActionFilter.WITHOUT_AUTHORITY) != 0;
-        boolean hasAuthority = authorityResolver.hasAuthority();
-        if (hasWithAuth && !hasWithoutAuth && !hasAuthority) {
+        boolean requiresLocalAuthority = (filter & ComponentActionFilter.LOCAL_PEER_HAS_AUTHORITY) != 0;
+        if (requiresLocalAuthority && !localAuthorityResolver.hasAuthority()) {
             return -1;
         }
-        if (!hasWithAuth && hasWithoutAuth && hasAuthority) {
+        boolean requiresRemoteAuthority = (filter & ComponentActionFilter.REMOTE_PEER_HAS_AUTHORITY) != 0;
+        if (origin == ComponentActionOrigin.REMOTE && requiresRemoteAuthority && !remoteAuthorityResolver.hasAuthority()) {
             return -1;
         }
 
@@ -203,7 +210,10 @@ public final class ComponentActionHandler {
         if (allowLocal ^ allowRemote) {
             score += 20;
         }
-        if (hasWithAuth ^ hasWithoutAuth) {
+        if (requiresLocalAuthority) {
+            score += 10;
+        }
+        if (origin == ComponentActionOrigin.REMOTE && requiresRemoteAuthority) {
             score += 10;
         }
         return score;

@@ -10,8 +10,8 @@ public final class ComponentActionFilter {
     public static final int LOCAL = 1;
     /** Handler accepts remotely-originated actions. */
     public static final int REMOTE = 1 << 1;
-    /** Handler requires authority on the target entry. */
-    public static final int WITH_AUTHORITY = 1 << 2;
-    /** Handler requires no authority on the target entry. */
-    public static final int WITHOUT_AUTHORITY = 1 << 3;
+    /** Handler requires authority on the local target entry. */
+    public static final int LOCAL_PEER_HAS_AUTHORITY = 1 << 2;
+    /** Remotely-originated actions are accepted only from an authoritative peer. */
+    public static final int REMOTE_PEER_HAS_AUTHORITY = 1 << 3;
 }
