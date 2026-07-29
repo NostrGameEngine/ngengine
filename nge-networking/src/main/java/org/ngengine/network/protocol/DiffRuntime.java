@@ -34,6 +34,7 @@ final class DiffRuntime {
     private static final long RECEIVER_GROUP_IDLE_TTL_MS = 30_000L;
     private static final int RELIABLE_INTERVAL_UPDATES = 10;
     private static final int RELIABLE_FULL_CHECKPOINT_EVERY = 6;
+    static final long RELIABLE_FULL_RECOVERY_INTERVAL_MS = 5_000L;
 
     enum EncodeOutcome {
         HANDLED,
@@ -94,6 +95,7 @@ final class DiffRuntime {
         private Object reliableBaseSnapshot;
         private int updatesSinceReliable = 0;
         private int reliableSendsSinceFull = 0;
+        private long lastReliableFullAt = Long.MIN_VALUE;
         private final LinkedHashMap<Long, SnapshotEntry> reliableHistory = new LinkedHashMap<>();
     }
 
@@ -192,10 +194,15 @@ final class DiffRuntime {
         state.updatesSinceReliable = 0;
         boolean checkpointFull = protocol.isReliableFullCheckpointEnabled()
             && state.reliableSendsSinceFull >= RELIABLE_FULL_CHECKPOINT_EVERY;
+        boolean recoveryFull = protocol.isReliableFullCheckpointEnabled()
+            && state.reliableBaseSnapshot != null
+            && state.reliableBasePacketId >= 0
+            && now - state.lastReliableFullAt >= RELIABLE_FULL_RECOVERY_INTERVAL_MS;
         boolean mustSendFull =
             state.reliableBaseSnapshot == null
                 || state.reliableBasePacketId < 0
-                || checkpointFull;
+                || checkpointFull
+                || recoveryFull;
 
         if (mustSendFull) {
             long packetId = state.nextPacketId++;
@@ -204,8 +211,16 @@ final class DiffRuntime {
             Object cloned = protocol.cloneWithSerializer(normalizedCurrent, serializer, message.getClass());
             updateReliableBase(state, packetId, cloned, now, true);
             state.reliableSendsSinceFull = 0;
+            state.lastReliableFullAt = now;
             if (protocol.logEnabled(Level.FINEST)) {
-                protocol.logFinest("DIFF[SEND] FULL lane=reliable group=" + group + " packet=" + packetId + " reason=base");
+                String reason = recoveryFull
+                    ? "recovery-ttl"
+                    : checkpointFull ? "checkpoint" : "base";
+                protocol.logFinest(
+                    "DIFF[SEND] FULL lane=reliable group=" + group
+                        + " packet=" + packetId
+                        + " reason=" + reason
+                );
             }
             return EncodeOutcome.HANDLED;
         }

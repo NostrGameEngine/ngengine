@@ -158,10 +158,7 @@ public class TiledObjectSyncComponent extends AbstractComponent implements Tiled
         transformInterpolator.addTransformPoint(nowMillis, snapshotTransformScratch);
 
         if (transformInterpolator.size() == 1) {
-            entity.setX(snapshotTransformScratch.getTranslation().x);
-            entity.setY(snapshotTransformScratch.getTranslation().z);
-            sampledAnglesScratch = snapshotTransformScratch.getRotation().toAngles(sampledAnglesScratch);
-            entity.setRotation(Math.toDegrees(sampledAnglesScratch[2]));
+            applyTransform(entity, snapshotTransformScratch);
         }
         entity.setName(snapshot.getName());
         entity.setClazz(snapshot.getClazz());
@@ -199,14 +196,26 @@ public class TiledObjectSyncComponent extends AbstractComponent implements Tiled
         TiledObjectEntity entity = (TiledObjectEntity) entry;
         ensureInterpolatorState(entity.getObjectGroup() != null ? entity.getObjectGroup().getMap() : null);
         TransformInterpolatorAndPredictor.SampleResult sample = transformInterpolator.sample(System.currentTimeMillis(), sampledTransformScratch);
-        if (sample.status == TransformInterpolatorAndPredictor.Status.EMPTY
-            || sample.status == TransformInterpolatorAndPredictor.Status.LAG) {
+        if (sample.status == TransformInterpolatorAndPredictor.Status.EMPTY) {
+            return;
+        }
+        if (sample.status == TransformInterpolatorAndPredictor.Status.LAG) {
+            // Reliable transform snapshots may be suppressed while an entity is idle.
+            // If the next authoritative update arrives beyond the interpolation gap,
+            // recover to that latest absolute transform instead of freezing forever.
+            applyTransform(entity, snapshotTransformScratch);
+            transformInterpolator.clear();
+            lastSnapshotPointMillis = Long.MIN_VALUE;
             return;
         }
 
-        entity.setX(sampledTransformScratch.getTranslation().x);
-        entity.setY(sampledTransformScratch.getTranslation().z);
-        sampledAnglesScratch = sampledTransformScratch.getRotation().toAngles(sampledAnglesScratch);
+        applyTransform(entity, sampledTransformScratch);
+    }
+
+    private void applyTransform(TiledObjectEntity entity, Transform transform) {
+        entity.setX(transform.getTranslation().x);
+        entity.setY(transform.getTranslation().z);
+        sampledAnglesScratch = transform.getRotation().toAngles(sampledAnglesScratch);
         entity.setRotation(Math.toDegrees(sampledAnglesScratch[2]));
     }
 

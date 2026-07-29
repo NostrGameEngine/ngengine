@@ -1,6 +1,7 @@
 package org.ngengine.network.components;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -41,6 +42,37 @@ public class NetcodeAuthorityAssignmentTest {
                 NetcodeAuthorityAssignment.getPeerWithAuthority(
                     sharedId,
                     new LinkedHashSet<>(peers),
+                    localPerspective
+                )
+            );
+        }
+    }
+
+    @Test
+    public void sharedAuthorityConvergesWhenMembershipChangesFromThreeToFourPeers() {
+        List<NostrPublicKey> allPeers = peers(4);
+        Set<NostrPublicKey> threePeers = new LinkedHashSet<>(allPeers.subList(0, 3));
+        Set<NostrPublicKey> fourPeers = new LinkedHashSet<>(allPeers);
+        BigInteger sharedId = new BigInteger("484C434F4F5052454C4159", 16);
+
+        NostrPublicKey ownerWithThree = NetcodeAuthorityAssignment.getPeerWithAuthority(
+            sharedId,
+            threePeers,
+            allPeers.get(0)
+        );
+        NostrPublicKey ownerWithFour = NetcodeAuthorityAssignment.getPeerWithAuthority(
+            sharedId,
+            fourPeers,
+            allPeers.get(0)
+        );
+
+        assertNotEquals(ownerWithThree, ownerWithFour);
+        for (NostrPublicKey localPerspective : allPeers) {
+            assertEquals(
+                ownerWithFour,
+                NetcodeAuthorityAssignment.getPeerWithAuthority(
+                    sharedId,
+                    fourPeers,
                     localPerspective
                 )
             );

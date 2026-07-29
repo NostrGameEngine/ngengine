@@ -19,6 +19,23 @@ import org.junit.Test;
 
 public class TestDynamicSerializerProtocolDiff {
 
+    private static final class MutableClockProtocol extends DynamicSerializerProtocol {
+        private long nowMillis = 1_000L;
+
+        private MutableClockProtocol() {
+            super(true, id -> {}, 0, true);
+        }
+
+        @Override
+        long nowMillis() {
+            return nowMillis;
+        }
+
+        private void advance(long millis) {
+            nowMillis += millis;
+        }
+    }
+
     @NetworkSafe
     public static class DiffableStateMessage extends AbstractMessage implements DiffableMessage {
         public String componentId;
@@ -197,6 +214,43 @@ public class TestDynamicSerializerProtocolDiff {
         ByteBuffer b = sender.toByteBuffer(same, null);
         assertNotNull(b);
         assertFalse(b.hasRemaining());
+    }
+
+    @Test
+    public void unchangedReliableStateRecoversAfterApplicationRejectsFirstFull() {
+        MutableClockProtocol recoveringSender = new MutableClockProtocol();
+        DynamicSerializerProtocol transportReceiver =
+            new DynamicSerializerProtocol(true, id -> {}, 0, true);
+        DiffableStateMessage authoritative =
+            new DiffableStateMessage("coop-relay", "mapA", "players", 4);
+
+        ByteBuffer rejectedByApplication = recoveringSender.toByteBuffer(authoritative, null);
+        RuntimeHeader firstHeader = parseRuntimeHeader(rejectedByApplication);
+        assertEquals(DiffRuntime.MODE_FULL, firstHeader.mode);
+        DiffableStateMessage decodedButRejected =
+            (DiffableStateMessage) transportReceiver.toMessage(rejectedByApplication.duplicate());
+        assertEquals(authoritative, decodedButRejected);
+        // The transport decoded and cached the FULL, but the application-level
+        // authority gate intentionally rejects it during peer-set churn.
+
+        ByteBuffer immediateRetry = recoveringSender.toByteBuffer(
+            new DiffableStateMessage("coop-relay", "mapA", "players", 4),
+            null
+        );
+        assertFalse("unchanged snapshots stay suppressed before the recovery TTL", immediateRetry.hasRemaining());
+
+        recoveringSender.advance(DiffRuntime.RELIABLE_FULL_RECOVERY_INTERVAL_MS + 1L);
+        ByteBuffer recovery = recoveringSender.toByteBuffer(
+            new DiffableStateMessage("coop-relay", "mapA", "players", 4),
+            null
+        );
+        RuntimeHeader recoveryHeader = parseRuntimeHeader(recovery);
+        assertEquals(DiffRuntime.MODE_FULL, recoveryHeader.mode);
+        assertTrue(recoveryHeader.packetId > firstHeader.packetId);
+
+        DiffableStateMessage acceptedAfterMembershipConverges =
+            (DiffableStateMessage) transportReceiver.toMessage(recovery.duplicate());
+        assertEquals(authoritative, acceptedAfterMembershipConverges);
     }
 
     @Test
