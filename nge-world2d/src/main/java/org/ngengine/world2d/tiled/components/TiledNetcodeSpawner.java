@@ -15,6 +15,7 @@ import org.ngengine.components.Component;
 import org.ngengine.components.ComponentManager;
 import org.ngengine.network.components.NetcodeFragment;
 import org.ngengine.network.components.NetcodeManagerComponent;
+import org.ngengine.network.components.NetcodePartitioning;
 import org.ngengine.network.components.NetcodeSpawner;
 import org.ngengine.network.components.SnapshotMessage;
 import org.ngengine.network.quantization.TransformQuantizer;
@@ -203,6 +204,26 @@ public class TiledNetcodeSpawner implements NetcodeSpawner {
     ) {
         String key = bufferedKey(mapScope, layerName, entityId);
         List<BufferedComponentSnapshot> buffered = bufferedComponentSnapshots.remove(key);
+        if ((buffered == null || buffered.isEmpty())
+                && (NetcodePartitioning.isReservedId(entityId)
+                    || NetcodePartitioning.isPersistentId(entityId))) {
+            Iterator<Map.Entry<String, List<BufferedComponentSnapshot>>> iterator =
+                bufferedComponentSnapshots.entrySet().iterator();
+            while (iterator.hasNext()) {
+                Map.Entry<String, List<BufferedComponentSnapshot>> candidate = iterator.next();
+                List<BufferedComponentSnapshot> snapshots = candidate.getValue();
+                boolean sameGloballyUniqueEntity = snapshots != null && snapshots.stream()
+                    .anyMatch(item -> entityId.equals(parseEntityId(item.snapshot.getEntityId())));
+                if (sameGloballyUniqueEntity) {
+                    buffered = snapshots;
+                    iterator.remove();
+                    log.log(Level.FINE,
+                        "Recovered buffered component snapshots by globally unique entity id=" + entityId
+                            + " requestedKey=" + key + " bufferedKey=" + candidate.getKey());
+                    break;
+                }
+            }
+        }
         if (buffered == null || buffered.isEmpty()) {
             return;
         }
@@ -210,6 +231,9 @@ public class TiledNetcodeSpawner implements NetcodeSpawner {
             try {
                 NetcodeFragment handler = applyComponentSnapshot(entity, item.snapshot);
                 if (handler != null) {
+                    if (manager != null) {
+                        manager.registerActionHandler(handler);
+                    }
                     handler.onSnapshot(item.snapshot);
                 }
             } catch (Throwable ex) {

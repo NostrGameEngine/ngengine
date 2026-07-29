@@ -32,6 +32,7 @@
 
 package org.ngengine.network;
 
+import com.jme3.network.AbstractMessage;
 import com.jme3.network.ConnectionListener;
 import com.jme3.network.Filter;
 import com.jme3.network.HostedConnection;
@@ -50,18 +51,22 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 import org.ngengine.network.protocol.DynamicSerializerProtocol;
+import org.ngengine.network.protocol.NetworkSafe;
 import org.ngengine.network.protocol.messages.ClassRegistrationAckMessage;
 import org.ngengine.nostr4j.NostrPool;
 import org.ngengine.nostr4j.RTCSettings;
 import org.ngengine.nostr4j.keypair.NostrKeyPair;
 import org.ngengine.nostr4j.keypair.NostrPrivateKey;
 import org.ngengine.nostr4j.rtc.NostrRTCRoom;
+import org.ngengine.nostr4j.rtc.NostrRTCSocket;
 import org.ngengine.nostr4j.rtc.NostrTURNPool;
 import org.ngengine.nostr4j.rtc.listeners.NostrRTCRoomPeerDiscoveredListener;
+import org.ngengine.nostr4j.rtc.listeners.NostrRTCSocketListener;
 import org.ngengine.nostr4j.rtc.signal.NostrRTCLocalPeer;
 import org.ngengine.nostr4j.rtc.signal.NostrRTCPeer;
 import org.ngengine.nostr4j.signer.NostrSigner;
 import org.ngengine.platform.NGEPlatform;
+import org.ngengine.platform.transport.RTCTransportIceCandidate;
 import org.ngengine.runner.Runner;
 
 public class P2PConnection implements Server {
@@ -69,10 +74,34 @@ public class P2PConnection implements Server {
     private static final Logger log = Logger.getLogger(P2PConnection.class.getName());
     private boolean isStarted = false;
 
+    /**
+     * Internal reliable round-trip used before exposing a peer to application
+     * code. A socket can exist before its RTC/TURN path is bidirectionally usable.
+     */
+    @NetworkSafe
+    public static final class PeerReadyMessage extends AbstractMessage {
+
+        private boolean acknowledgement;
+
+        public PeerReadyMessage() {
+            super(true);
+        }
+
+        PeerReadyMessage(boolean acknowledgement) {
+            super(true);
+            this.acknowledgement = acknowledgement;
+        }
+
+        boolean isAcknowledgement() {
+            return acknowledgement;
+        }
+    }
+
     private final String gameName;
     private final int version;
     private final HostedServiceManager services;
     private final Map<Integer, RemotePeer> connections = new ConcurrentHashMap<>();
+    private final Map<String, RemotePeer> pendingConnections = new ConcurrentHashMap<>();
     private final MessageListenerRegistry<HostedConnection> messageListeners = new MessageListenerRegistry<>();
     private final List<ConnectionListener> connectionListeners = new CopyOnWriteArrayList<>();
     private final List<NostrRTCRoomPeerDiscoveredListener> peerDiscoveredListeners = new CopyOnWriteArrayList<>();
@@ -96,11 +125,19 @@ public class P2PConnection implements Server {
     }
 
     private RemotePeer findConnectionByPeer(NostrRTCPeer peer) {
+        return findConnectionByPeer(connections.values(), peer);
+    }
+
+    private RemotePeer findPendingConnectionByPeer(NostrRTCPeer peer) {
+        return findConnectionByPeer(pendingConnections.values(), peer);
+    }
+
+    private static RemotePeer findConnectionByPeer(Collection<RemotePeer> candidates, NostrRTCPeer peer) {
         String key = peerSessionKeyOf(peer);
         if (key == null) {
             return null;
         }
-        for (RemotePeer connection : connections.values()) {
+        for (RemotePeer connection : candidates) {
             if (connection == null) {
                 continue;
             }
@@ -122,11 +159,19 @@ public class P2PConnection implements Server {
     }
 
     private RemotePeer findConnectionByPubkey(NostrRTCPeer peer) {
+        return findConnectionByPubkey(connections.values(), peer);
+    }
+
+    private RemotePeer findPendingConnectionByPubkey(NostrRTCPeer peer) {
+        return findConnectionByPubkey(pendingConnections.values(), peer);
+    }
+
+    private static RemotePeer findConnectionByPubkey(Collection<RemotePeer> candidates, NostrRTCPeer peer) {
         String key = peerKeyOf(peer);
         if (key == null) {
             return null;
         }
-        for (RemotePeer connection : connections.values()) {
+        for (RemotePeer connection : candidates) {
             if (connection == null) {
                 continue;
             }
@@ -136,6 +181,19 @@ public class P2PConnection implements Server {
             }
         }
         return null;
+    }
+
+    private void promotePendingConnection(RemotePeer connection) {
+        String sessionKey = peerSessionKeyOf(connection.getRemotePeer());
+        if (sessionKey == null || !pendingConnections.remove(sessionKey, connection)) {
+            return;
+        }
+        connections.put(connection.getId(), connection);
+        this.dispatcher.run(() -> {
+            for (ConnectionListener listener : connectionListeners) {
+                listener.connectionAdded(this, connection);
+            }
+        });
     }
 
     public P2PConnection(
@@ -189,6 +247,9 @@ public class P2PConnection implements Server {
       
             log.fine("New connection from: " + peerKey);
             RemotePeer existingConnection = findConnectionByPeer(socket.getRemotePeer());
+            if (existingConnection == null) {
+                existingConnection = findPendingConnectionByPeer(socket.getRemotePeer());
+            }
             if (existingConnection != null) {
                 log.fine("Socket available for existing peer session: " + peerSessionKeyOf(socket.getRemotePeer()));
                 return;
@@ -203,18 +264,49 @@ public class P2PConnection implements Server {
                     }
                 });
             }
+            RemotePeer existingPendingConnection = findPendingConnectionByPubkey(socket.getRemotePeer());
+            if (existingPendingConnection != null) {
+                pendingConnections.remove(
+                    peerSessionKeyOf(existingPendingConnection.getRemotePeer()),
+                    existingPendingConnection
+                );
+            }
             RemotePeer connection = new RemotePeer(nextConnectionId.getAndIncrement(), rtcRoom, socket.getLocalPeer(), socket.getRemotePeer(), this);
-            connections.put(connection.getId(), connection);
-            RemotePeer finalConnection = connection;
-            this.dispatcher.run(() -> {
-                for (ConnectionListener listener : connectionListeners) {
-                    listener.connectionAdded(this, finalConnection);
+            pendingConnections.put(peerSessionKeyOf(connection.getRemotePeer()), connection);
+            socket.addListener(
+                new NostrRTCSocketListener() {
+                    @Override
+                    public void onRTCSocketRouteUpdate(
+                        org.ngengine.nostr4j.rtc.NostrRTCSocket source,
+                        Collection<RTCTransportIceCandidate> candidates,
+                        String turnServer
+                    ) {}
+
+                    @Override
+                    public void onRTCSocketClose(org.ngengine.nostr4j.rtc.NostrRTCSocket source) {}
+
+                    @Override
+                    public void onRTCChannelReady(org.ngengine.nostr4j.rtc.NostrRTCChannel channel) {
+                        if (
+                            NostrRTCSocket.DEFAULT_CHANNEL_NAME.equals(channel.getName()) &&
+                            findPendingConnectionByPeer(connection.getRemotePeer()) == connection
+                        ) {
+                            connection.send(new PeerReadyMessage(false));
+                        }
+                    }
+
+                    @Override
+                    public void onRTCChannel(org.ngengine.nostr4j.rtc.NostrRTCChannel channel) {}
                 }
-            });
+            );
         });
 
         rtcRoom.addDisconnectionListener((peerKey, socket) -> {
             log.fine("Connection closed: " + peerKey);
+            RemotePeer pendingConnection = findPendingConnectionByPeer(socket.getRemotePeer());
+            if (pendingConnection != null) {
+                pendingConnections.remove(peerSessionKeyOf(pendingConnection.getRemotePeer()), pendingConnection);
+            }
             RemotePeer connection = findConnectionByPeer(socket.getRemotePeer());
             if (connection == null) {
                 return;
@@ -231,7 +323,13 @@ public class P2PConnection implements Server {
             try{
                 RemotePeer connection = findConnectionByPeer(socket.getRemotePeer());
                 if (connection == null) {
+                    connection = findPendingConnectionByPeer(socket.getRemotePeer());
+                }
+                if (connection == null) {
                     connection = findConnectionByPubkey(socket.getRemotePeer());
+                }
+                if (connection == null) {
+                    connection = findPendingConnectionByPubkey(socket.getRemotePeer());
                 }
                 if (connection == null) {
                     log.finer("Message received for unknown peer: " + peerKeyOf(socket.getRemotePeer()));
@@ -244,13 +342,27 @@ public class P2PConnection implements Server {
                     log.finer("Class registration acknowledged by remote peer for id: " + id);
                     DynamicSerializerProtocol dyn = (DynamicSerializerProtocol)protocol;
                     dyn.markClassRegistered(id);
+                    return;
                 }
                 if (message instanceof OpenChannelMessage) {
-                    connection.confirmOpenChannel(((OpenChannelMessage) message).getChannel());
+                    connection.handleOpenChannel((OpenChannelMessage) message);
+                    return;
+                }
+                if (message instanceof PeerReadyMessage) {
+                    PeerReadyMessage ready = (PeerReadyMessage) message;
+                    if (ready.isAcknowledgement()) {
+                        promotePendingConnection(connection);
+                    } else {
+                        connection.send(new PeerReadyMessage(true));
+                    }
                     return;
                 }
                 if (message == null) {
                     log.warning("Received null message from: " + peerKey);
+                    return;
+                }
+                if (findPendingConnectionByPeer(connection.getRemotePeer()) != null) {
+                    log.finer("Dropping application message until peer-ready round-trip completes: " + peerKey);
                     return;
                 }
             
@@ -362,6 +474,7 @@ public class P2PConnection implements Server {
     @Override
     public void close() {
         rtcRoom.close();
+        pendingConnections.clear();
         isStarted = false;
     }
 

@@ -11,11 +11,20 @@ import java.util.Objects;
 @NetworkSafe
 public class OpenChannelMessage extends AbstractMessage {
     private int channel;
+    private boolean acknowledgement;
 
-    public OpenChannelMessage() {}
+    public OpenChannelMessage() {
+        super(true);
+    }
 
     public OpenChannelMessage(int channel) {
+        this(channel, false);
+    }
+
+    public OpenChannelMessage(int channel, boolean acknowledgement) {
+        super(true);
         this.channel = channel;
+        this.acknowledgement = acknowledgement;
     }
 
     public int getChannel() {
@@ -26,9 +35,17 @@ public class OpenChannelMessage extends AbstractMessage {
         this.channel = channel;
     }
 
+    public boolean isAcknowledgement() {
+        return acknowledgement;
+    }
+
+    public void setAcknowledgement(boolean acknowledgement) {
+        this.acknowledgement = acknowledgement;
+    }
+
     @Override
     public int hashCode() {
-        return Objects.hash(Integer.valueOf(channel));
+        return Objects.hash(Integer.valueOf(channel), Boolean.valueOf(acknowledgement));
     }
 
     @Override
@@ -36,6 +53,6 @@ public class OpenChannelMessage extends AbstractMessage {
         if (this == obj) return true;
         if (!(obj instanceof OpenChannelMessage)) return false;
         OpenChannelMessage other = (OpenChannelMessage) obj;
-        return channel == other.channel;
+        return channel == other.channel && acknowledgement == other.acknowledgement;
     }
 }

@@ -1,19 +1,27 @@
 package org.ngengine.network.components;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Constructor;
 import java.math.BigInteger;
 import java.time.Duration;
+import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.ngengine.components.actions.ComponentAction;
+import org.ngengine.components.actions.ComponentActionFilter;
 import org.ngengine.network.RemotePeer;
 import org.ngengine.network.protocol.NetworkSafe;
 
-public class TestNetcodeManagerSnapshotFlow {
+import com.jme3.network.Message;
+
+public class NetcodeManagerSnapshotFlowTest {
 
     @NetworkSafe
     public static class TestSnapshotMessage extends SnapshotMessage {
@@ -47,8 +55,13 @@ public class TestNetcodeManagerSnapshotFlow {
         }
     }
 
+    @NetworkSafe
+    public static class TestAuthorityActionMessage extends ActionMessage {
+    }
+
     private static final class TestHandler implements NetcodeFragment {
         private int value;
+        private int authorityActionCount;
         private final BigInteger id = BigInteger.valueOf(42);
         private boolean authoritative = true;
 
@@ -70,6 +83,19 @@ public class TestNetcodeManagerSnapshotFlow {
         @Override
         public boolean checkAuthority() {
             return authoritative;
+        }
+
+        @Override
+        public boolean checkAuthority(RemotePeer peer) {
+            return false;
+        }
+
+        @ComponentAction(
+            type = TestAuthorityActionMessage.class,
+            filter = ComponentActionFilter.REMOTE | ComponentActionFilter.WITH_AUTHORITY
+        )
+        private void onAuthorityAction(TestAuthorityActionMessage action) {
+            authorityActionCount++;
         }
 
         @Override
@@ -102,27 +128,32 @@ public class TestNetcodeManagerSnapshotFlow {
     private TestManager manager;
     private TestHandler handler;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         manager = new TestManager();
         handler = new TestHandler();
         manager.registerActionHandler(handler);
-        setField(manager, "connectedPeers", Collections.singletonList((RemotePeer) null));
-        setField(manager, "connectedPeersRO", Collections.unmodifiableList(Collections.singletonList((RemotePeer) null)));
+        List<RemotePeer> replicas = Arrays.asList(
+            (RemotePeer) null,
+            (RemotePeer) null,
+            (RemotePeer) null
+        );
+        setField(manager, "connectedPeers", replicas);
+        setField(manager, "connectedPeersRO", Collections.unmodifiableList(replicas));
     }
 
     @Test
-    public void managerSendsSnapshotOnEveryTickWhenAuthoritative() {
+    public void managerSendsSnapshotToAllThreeReplicasOnEveryAuthoritativeTick() {
         handler.setValue(10);
         manager.updateAppLogic(null, 0f);
-        assertEquals(1, manager.sentCount);
+        assertEquals(3, manager.sentCount);
 
         manager.updateAppLogic(null, 0f);
-        assertEquals(2, manager.sentCount);
+        assertEquals(6, manager.sentCount);
 
         handler.setValue(11);
         manager.updateAppLogic(null, 0f);
-        assertEquals(3, manager.sentCount);
+        assertEquals(9, manager.sentCount);
     }
 
     @Test
@@ -134,7 +165,33 @@ public class TestNetcodeManagerSnapshotFlow {
 
         handler.setAuthoritative(true);
         manager.updateAppLogic(null, 0f);
-        assertEquals(1, manager.sentCount);
+        assertEquals(3, manager.sentCount);
+    }
+
+    @Test
+    public void remoteNonAuthorityRequestExecutesOnTheLocalAuthority() throws Exception {
+        TestAuthorityActionMessage action = new TestAuthorityActionMessage();
+        action.setComponentId(handler.getComponentId());
+        action.setNetworkId(handler.getNetworkId());
+        enqueueInbound(manager, action);
+
+        manager.updateAppLogic(null, 0f);
+
+        assertEquals(1, handler.authorityActionCount);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void enqueueInbound(NetcodeManagerComponent manager, Message message) throws Exception {
+        Class<?> inboundType = Arrays.stream(NetcodeManagerComponent.class.getDeclaredClasses())
+            .filter(type -> "InboundMessage".equals(type.getSimpleName()))
+            .findFirst()
+            .orElseThrow();
+        Constructor<?> constructor = inboundType.getDeclaredConstructor(RemotePeer.class, Message.class);
+        constructor.setAccessible(true);
+        Object inbound = constructor.newInstance(null, message);
+        Field field = findField(manager.getClass(), "inboundMessages");
+        field.setAccessible(true);
+        ((ArrayDeque<Object>) field.get(manager)).addLast(inbound);
     }
 
     private static void setField(Object target, String field, Object value) throws Exception {

@@ -166,6 +166,7 @@ public class TiledObjectEntity extends TiledEntity {
         this.y = y;
         this.tile = tile;
         if (tile != null) {
+            this.gid = tile.getGid();
             this.width = tile.getWidth();
             this.height = tile.getHeight();
         }

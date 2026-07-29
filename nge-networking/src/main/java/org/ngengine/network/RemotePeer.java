@@ -115,21 +115,45 @@ public class RemotePeer implements HostedConnection {
 
  
 
-    private void autoOpen(AutoChannel achan) {
+    private void sendControl(Message message) {
         try{
-            OpenChannelMessage msg = new OpenChannelMessage(achan.channel);
-            ByteBuffer buffer = protocol.toByteBuffer(msg, null);
+            ByteBuffer buffer = protocol.toByteBuffer(message, null);
             if (buffer == null || !buffer.hasRemaining()) {
                 return;
             }
             room.send(remotePeer, buffer);
         } catch (Throwable ex) {
-            log.log(Level.SEVERE, "Failed to auto-open channel " + achan.channel + " to peer " + remotePeer.getPubkey().asHex(), ex);
+            log.log(Level.SEVERE, "Failed to send control message to peer " + remotePeer.getPubkey().asHex(), ex);
+            throw new IllegalStateException("Failed to send P2P control message", ex);
+        }
+    }
+
+    private void autoOpen(AutoChannel achan) {
+        try {
+            sendControl(new OpenChannelMessage(achan.channel, false));
+        } catch (Throwable ex) {
             achan.fail.accept(ex);
         }
     }
 
-    void confirmOpenChannel(int channel) {
+    void handleOpenChannel(OpenChannelMessage message) {
+        int channel = message.getChannel();
+        if (message.isAcknowledgement()) {
+            confirmOpenChannel(channel);
+            return;
+        }
+        room.createChannel(
+            remotePeer,
+            channelName(channel, true),
+            true,
+            true,
+            Integer.valueOf(0),
+            null
+        );
+        sendControl(new OpenChannelMessage(channel, true));
+    }
+
+    private void confirmOpenChannel(int channel) {
         AutoChannel achan = openChannels.get(channel);
         if(achan != null){
             log.fine("Channel " + channel + " to peer " + remotePeer.getPubkey().asHex() + " is now open");

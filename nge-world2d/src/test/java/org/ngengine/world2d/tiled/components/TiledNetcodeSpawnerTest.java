@@ -1,18 +1,19 @@
 package org.ngengine.world2d.tiled.components;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.lang.reflect.Method;
 import java.math.BigInteger;
 import java.util.Objects;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.ngengine.Components;
 import org.ngengine.components.AbstractComponent;
 import org.ngengine.components.ComponentManager;
 import org.ngengine.network.components.NetcodeManagerComponent;
+import org.ngengine.network.components.NetcodePartitioning;
 import org.ngengine.network.components.SnapshotMessage;
 import org.ngengine.network.protocol.NetworkSafe;
 
@@ -58,6 +59,47 @@ public class TiledNetcodeSpawnerTest {
         RecordingNetcodeComponent component = entity.getComponentManager().getComponent(RecordingNetcodeComponent.class);
         assertNotNull(component);
         assertEquals(123, component.getLastValue());
+    }
+
+    @Test
+    public void globallyUniqueDynamicEntityRecoversBufferedPayloadAcrossScopeKeyRace() throws Exception {
+        TiledNetcodeSpawner spawner = new TiledNetcodeSpawner();
+        BigInteger entityId = NetcodePartitioning.RESERVED_BASE.add(BigInteger.valueOf(77));
+        TiledObjectEntity entity = new TiledObjectEntity(entityId, 0, 0, 16, 16);
+        RecordingSnapshotMessage snapshot = new RecordingSnapshotMessage();
+        snapshot.setMapScope("scope-before-object");
+        snapshot.setLayerName("objects");
+        snapshot.setEntityId(entityId.toString());
+        snapshot.setComponentType(RecordingNetcodeComponent.class.getName());
+        snapshot.setValue(456);
+
+        invoke(
+            spawner,
+            "bufferComponentSnapshot",
+            new Class<?>[] { TiledComponentSnapshotMessage.class, BigInteger.class },
+            snapshot,
+            entityId
+        );
+        invoke(
+            spawner,
+            "applyBufferedComponentSnapshots",
+            new Class<?>[] {
+                org.ngengine.network.components.NetcodeManagerComponent.class,
+                TiledObjectEntity.class,
+                String.class,
+                String.class,
+                BigInteger.class
+            },
+            null,
+            entity,
+            "scope-after-object",
+            "objects",
+            entityId
+        );
+
+        RecordingNetcodeComponent component = entity.getComponentManager().getComponent(RecordingNetcodeComponent.class);
+        assertNotNull(component);
+        assertEquals(456, component.getLastValue());
     }
 
     @Test

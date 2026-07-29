@@ -124,8 +124,11 @@ public class TiledObjectLayer extends TiledLayer {
         if (!objects.remove(o)) {
             return;
         }
-        o.setObjectGroup(null);
+        // Keep the layer/map scope available while lifecycle cleanup runs.
+        // Netcode cleanup uses that scope to address the same remote handler
+        // that was registered while the object was attached.
         o.detached();
+        o.setObjectGroup(null);
     }
 
     /**
