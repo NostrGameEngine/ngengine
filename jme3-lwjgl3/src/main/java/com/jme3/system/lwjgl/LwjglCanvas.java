@@ -41,6 +41,7 @@ import com.jme3.input.lwjgl.SdlJoystickInput;
 import com.jme3.system.AppSettings;
 import com.jme3.system.Displays;
 import com.jme3.system.JmeCanvasContext;
+import com.jme3.system.JmeSystem;
 import com.jme3.system.lwjglx.LwjglxGLPlatform;
 
 import java.awt.AWTException;
