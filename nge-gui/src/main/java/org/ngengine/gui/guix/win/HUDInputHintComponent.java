@@ -325,8 +325,8 @@ public class HUDInputHintComponent extends AbstractComponent implements LogicFra
 
     private NChip createInputHintChip(InputHintView hint) {
         float chipHeight = NGEStyle.px(40f);
-        float paddingX = NGEStyle.px(10f);
-        float paddingY = NGEStyle.px(5f);
+        float paddingX = NChip.defaultPaddingX();
+        float paddingY = NChip.defaultPaddingY();
         float keyHeight = NGEStyle.px(25f);
         Container keys = createInputHintKeys(hint.keys, inputHintKeysWidth(hint.keys, keyHeight), chipHeight - paddingY * 2f, keyHeight);
         NChip chip = new NChip(hint.hint, keys);

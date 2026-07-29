@@ -44,17 +44,22 @@ import java.util.EnumMap;
 import java.util.Map;
 
 import org.ngengine.gui.Container;
+import org.ngengine.gui.Insets3f;
 import org.ngengine.gui.Panel;
 
 import com.jme3.scene.Node;
 import org.ngengine.gui.component.BorderLayout;
+import org.ngengine.gui.component.InsetsComponent;
+import org.ngengine.gui.core.GuiControl;
 import org.ngengine.gui.style.ElementId;
+import org.ngengine.gui.style.StyleAttribute;
 
 /**
  * A container that can be split into rows and columns.
  */
 public class NPanel extends NContainer {
     public static final ElementId ELEMENT_ID = new ElementId("n-panel." + Panel.ELEMENT_ID);
+    public static final String LAYER_CONTENT_INSETS = "contentInsets";
 
     private Map<BorderLayout.Position, Container> containers = new EnumMap<>(BorderLayout.Position.class);
 
@@ -65,7 +70,46 @@ public class NPanel extends NContainer {
 
     public NPanel(ElementId id) {
         super(new BorderLayout(), id);
+        getControl(GuiControl.class).setLayerOrder(
+            Panel.LAYER_INSETS,
+            Panel.LAYER_BORDER,
+            Panel.LAYER_BACKGROUND,
+            LAYER_CONTENT_INSETS
+        );
         applyElementStyles();
+    }
+
+    /**
+     * Sets insets between this panel's background frame and its child content.
+     *
+     * <p>{@link Panel#setInsets(Insets3f)} remains available for an outer
+     * transparent margin. Content insets use a separate component layer after
+     * the background, so both kinds of spacing can coexist.</p>
+     *
+     * @param insets internal content padding, or {@code null} to remove it
+     */
+    @StyleAttribute(value = "contentInsets", lookupDefault = false)
+    public void setContentInsets(Insets3f insets) {
+        InsetsComponent component = getContentInsetsComponent();
+        if (insets != null) {
+            if (component == null) {
+                component = new InsetsComponent(insets);
+            } else {
+                component.setInsets(insets);
+            }
+        } else {
+            component = null;
+        }
+        getControl(GuiControl.class).setComponent(LAYER_CONTENT_INSETS, component);
+    }
+
+    public Insets3f getContentInsets() {
+        InsetsComponent component = getContentInsetsComponent();
+        return component == null ? null : component.getInsets();
+    }
+
+    private InsetsComponent getContentInsetsComponent() {
+        return getControl(GuiControl.class).getComponent(LAYER_CONTENT_INSETS);
     }
 
     @Override

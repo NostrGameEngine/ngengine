@@ -54,13 +54,16 @@ public class NChip extends NPanel {
     public static final ElementId LABEL_ID = new ElementId("chip.label");
     public static final ElementId ICON_ID = new ElementId("chip.icon");
 
+    private static final float DEFAULT_PADDING_X = 14f;
+    private static final float DEFAULT_PADDING_Y = 7f;
+
     private final ElementId labelId;
     private String text;
     private Node leading;
     private NLabel label;
     private float height = NGEStyle.px(32f);
-    private float paddingX = NGEStyle.px(10f);
-    private float paddingY = NGEStyle.px(5f);
+    private float paddingX = defaultPaddingX();
+    private float paddingY = defaultPaddingY();
     private float gap = NGEStyle.px(8f);
     private float minTextWidth = 0f;
     private HAlignment textHAlignment = HAlignment.Left;
@@ -83,6 +86,14 @@ public class NChip extends NPanel {
 
     public NLabel getLabel() {
         return label;
+    }
+
+    public static float defaultPaddingX() {
+        return NGEStyle.px(DEFAULT_PADDING_X);
+    }
+
+    public static float defaultPaddingY() {
+        return NGEStyle.px(DEFAULT_PADDING_Y);
     }
 
     public void setText(String text) {
@@ -125,7 +136,7 @@ public class NChip extends NPanel {
     private void rebuild() {
         clearChildren();
         setPreferredSize(null);
-        setInsets(new Insets3f(paddingY, paddingX, paddingY, paddingX));
+        setContentInsets(new Insets3f(paddingY, paddingX, paddingY, paddingX));
 
         label = new NLabel(text, labelId);
         label.setInsets(new Insets3f(0f, leading != null ? gap : 0f, 0f, 0f));
