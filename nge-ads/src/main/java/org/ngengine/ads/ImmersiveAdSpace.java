@@ -223,7 +223,7 @@ public class ImmersiveAdSpace {
                     String url = bid.getPayload();
                     NGEPlatform
                         .get()
-                        .httpRequest("GET", url, null, null, null)
+                        .httpRequest("GET", url, null, null)
                         .then(res -> {
                             byte[] data = res.body();
                             try (ByteArrayInputStream bais = new ByteArrayInputStream(data)) {

@@ -58,15 +58,12 @@ import org.ngengine.nostr4j.RTCSettings;
 import org.ngengine.nostr4j.keypair.NostrKeyPair;
 import org.ngengine.nostr4j.keypair.NostrPrivateKey;
 import org.ngengine.nostr4j.rtc.NostrRTCRoom;
-import org.ngengine.nostr4j.rtc.NostrRTCSocket;
 import org.ngengine.nostr4j.rtc.NostrTURNPool;
 import org.ngengine.nostr4j.rtc.listeners.NostrRTCRoomPeerDiscoveredListener;
-import org.ngengine.nostr4j.rtc.listeners.NostrRTCSocketListener;
 import org.ngengine.nostr4j.rtc.signal.NostrRTCLocalPeer;
 import org.ngengine.nostr4j.rtc.signal.NostrRTCPeer;
 import org.ngengine.nostr4j.signer.NostrSigner;
 import org.ngengine.platform.NGEPlatform;
-import org.ngengine.platform.transport.RTCTransportIceCandidate;
 import org.ngengine.runner.Runner;
 
 public class P2PConnection implements Server {
@@ -273,32 +270,8 @@ public class P2PConnection implements Server {
             }
             RemotePeer connection = new RemotePeer(nextConnectionId.getAndIncrement(), rtcRoom, socket.getLocalPeer(), socket.getRemotePeer(), this);
             pendingConnections.put(peerSessionKeyOf(connection.getRemotePeer()), connection);
-            socket.addListener(
-                new NostrRTCSocketListener() {
-                    @Override
-                    public void onRTCSocketRouteUpdate(
-                        org.ngengine.nostr4j.rtc.NostrRTCSocket source,
-                        Collection<RTCTransportIceCandidate> candidates,
-                        String turnServer
-                    ) {}
-
-                    @Override
-                    public void onRTCSocketClose(org.ngengine.nostr4j.rtc.NostrRTCSocket source) {}
-
-                    @Override
-                    public void onRTCChannelReady(org.ngengine.nostr4j.rtc.NostrRTCChannel channel) {
-                        if (
-                            NostrRTCSocket.DEFAULT_CHANNEL_NAME.equals(channel.getName()) &&
-                            findPendingConnectionByPeer(connection.getRemotePeer()) == connection
-                        ) {
-                            connection.send(new PeerReadyMessage(false));
-                        }
-                    }
-
-                    @Override
-                    public void onRTCChannel(org.ngengine.nostr4j.rtc.NostrRTCChannel channel) {}
-                }
-            );
+            // The room queues default-channel messages until the channel is ready.
+            connection.send(new PeerReadyMessage(false));
         });
 
         rtcRoom.addDisconnectionListener((peerKey, socket) -> {

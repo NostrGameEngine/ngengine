@@ -103,7 +103,7 @@ public class NGEAppSettings {
     private Map<Object,Object> readConfig(String path){
         try{
             if(path.startsWith("http://") || path.startsWith("https://")){
-                NGEHttpResponse resp  = NGEPlatform.get().httpRequest("GET", NGEUtils.safeURI(path).toString(), null, null, null).await();
+                NGEHttpResponse resp  = NGEPlatform.get().httpRequest("GET", NGEUtils.safeURI(path).toString(), null, null).await();
                 if(!resp.status) throw new Exception("Failed to fetch config from "+path);
                 String content = new String(resp.body, StandardCharsets.UTF_8);
                 return NGEPlatform.get().fromJSON(content, Map.class);
