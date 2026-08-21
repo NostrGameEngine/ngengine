@@ -1,7 +1,6 @@
 package org.ngengine.network.components;
 
 import java.math.BigInteger;
-import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -13,6 +12,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.logging.Level;
@@ -78,6 +78,8 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
     private long cachedKnownPeerSetVersion = -1;
     private @Nullable NostrPublicKey cachedKnownPeerLocalPublicKey;
     private @Nullable Set<NostrPublicKey> cachedKnownPeerPublicKeys;
+    private @Nullable List<NostrPublicKey> cachedSortedKnownPeerPublicKeys;
+    private final Map<BigInteger, NostrPublicKey> cachedActiveOwners = new WeakHashMap<>();
 
     public void registerActionHandler(NetcodeFragment handler) {
         registeredActionHandlers.putIfAbsent(handler, new RegisteredHandler());
@@ -88,7 +90,7 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
     }
 
     private static final class RegisteredHandler {
-        public Instant lastSnapshot = Instant.MIN;
+        public long lastSnapshotNanos = Long.MIN_VALUE;
     }
 
    
@@ -381,7 +383,18 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
         cachedKnownPeerSetVersion = connectedPeerSetVersion;
         cachedKnownPeerLocalPublicKey = local;
         cachedKnownPeerPublicKeys = Collections.unmodifiableSet(peers);
+        List<NostrPublicKey> sortedPeers = new ArrayList<>(peers);
+        sortedPeers.sort((left, right) -> left.asHex().compareTo(right.asHex()));
+        cachedSortedKnownPeerPublicKeys = Collections.unmodifiableList(sortedPeers);
+        cachedActiveOwners.clear();
         return cachedKnownPeerPublicKeys;
+    }
+
+    private List<NostrPublicKey> getSortedKnownPeerPublicKeys() {
+        getKnownPeerPublicKeys();
+        return cachedSortedKnownPeerPublicKeys != null
+            ? cachedSortedKnownPeerPublicKeys
+            : Collections.emptyList();
     }
 
  
@@ -406,7 +419,19 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
     }
 
     public @Nullable NostrPublicKey resolveActiveOwnerPeerPublicKey(@Nullable BigInteger networkId) {
-        return NetcodeAuthorityAssignment.getPeerWithAuthority(networkId, getKnownPeerPublicKeys(), getLocalPeerPublicKey());
+        if (networkId == null || networkId.signum() < 0) {
+            return null;
+        }
+        List<NostrPublicKey> sortedPeers = getSortedKnownPeerPublicKeys();
+        if (cachedActiveOwners.containsKey(networkId)) {
+            return cachedActiveOwners.get(networkId);
+        }
+        NostrPublicKey owner = NetcodeAuthorityAssignment.getPeerWithAuthorityFromSortedPeers(
+            networkId,
+            sortedPeers
+        );
+        cachedActiveOwners.put(networkId, owner);
+        return owner;
     }
 
     public BigInteger getNextTemporaryNetworkUID() {
@@ -464,19 +489,21 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
             dispatchMessage(inbound);
         }
 
+        long nowNanos = System.nanoTime();
         for(Entry<NetcodeFragment, RegisteredHandler> entry : registeredActionHandlers.entrySet()){
             NetcodeFragment handler = entry.getKey();
             RegisteredHandler data = entry.getValue();
             NetcodeBehavior behavior = handler.getNetworkBehavior();
-            Instant now = Instant.now();
-            boolean needsSnapshot = now.isAfter(data.lastSnapshot.plus(behavior.getSnapshotInterval()));
-            boolean hasAuthority = handler.checkAuthority();
+            long intervalNanos = behavior.getSnapshotInterval().toNanos();
+            boolean needsSnapshot = data.lastSnapshotNanos == Long.MIN_VALUE
+                || nowNanos - data.lastSnapshotNanos >= intervalNanos;
 
-            if (!needsSnapshot || !hasAuthority) {
+            if (!needsSnapshot || !handler.checkAuthority()) {
                 continue;
             }
 
-            for(RemotePeer peer : connectedPeersRO){
+            for (int i = 0; i < connectedPeersRO.size(); i++) {
+                RemotePeer peer = connectedPeersRO.get(i);
                 SnapshotMessage snapshot = handler.requestSnapshot(peer);
                 if(snapshot!=null){
                     snapshot.setComponentId(handler.getComponentId());
@@ -485,7 +512,7 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
                     sendMessageToPeer(peer, snapshot, snapshot.getChannel(), snapshot.isReliable());
                 }
             }
-            data.lastSnapshot = now;
+            data.lastSnapshotNanos = nowNanos;
         }
 
     }
@@ -657,6 +684,8 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
         cachedKnownPeerSetVersion = -1;
         cachedKnownPeerLocalPublicKey = null;
         cachedKnownPeerPublicKeys = null;
+        cachedSortedKnownPeerPublicKeys = null;
+        cachedActiveOwners.clear();
     }
 
    

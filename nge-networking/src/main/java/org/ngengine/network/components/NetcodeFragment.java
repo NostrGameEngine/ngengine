@@ -30,12 +30,8 @@ public interface NetcodeFragment  extends ActionBasedFragment<ActionMessage> {
             return true;
         }
         NostrPublicKey localPeer = net.getLocalPeerPublicKey();
-        return NetcodeAuthorityAssignment.hasAuthority(
-            localPeer,
-            networkId,
-            net.getKnownPeerPublicKeys(),
-            localPeer
-        );
+        NostrPublicKey owner = net.resolveActiveOwnerPeerPublicKey(networkId);
+        return owner != null && owner.equals(localPeer);
     }
 
     default boolean checkAuthority(RemotePeer peer){

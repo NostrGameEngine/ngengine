@@ -146,6 +146,34 @@ public class NetcodeAuthorityAssignmentTest {
         );
     }
 
+    @Test
+    public void preSortedFastPathMatchesGeneralAuthorityResolution() {
+        List<NostrPublicKey> sortedPeers = peers(4).stream()
+            .sorted((left, right) -> left.asHex().compareTo(right.asHex()))
+            .toList();
+        NostrPublicKey owner = sortedPeers.get(2);
+        BigInteger ownerKey = new BigInteger(owner.asHex(), 16);
+        List<BigInteger> networkIds = List.of(
+            BigInteger.valueOf(42),
+            NetcodePartitioning.nextLocalReservedId(ownerKey, 3L),
+            NetcodePartitioning.nextLocalPersistentReservedId(ownerKey, 7L)
+        );
+
+        for (BigInteger networkId : networkIds) {
+            assertEquals(
+                NetcodeAuthorityAssignment.getPeerWithAuthority(
+                    networkId,
+                    sortedPeers,
+                    sortedPeers.get(0)
+                ),
+                NetcodeAuthorityAssignment.getPeerWithAuthorityFromSortedPeers(
+                    networkId,
+                    sortedPeers
+                )
+            );
+        }
+    }
+
     private static List<NostrPublicKey> peers(int count) {
         return java.util.stream.IntStream.rangeClosed(1, count)
             .mapToObj(value -> NostrPublicKey.fromHex(String.format("%064x", value)))

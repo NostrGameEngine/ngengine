@@ -398,7 +398,10 @@ public class GuiControl extends AbstractNodeControl<GuiControl>
         if( pref != null && (pref.x < 0 || pref.y < 0 || pref.z < 0) ) {
             throw new IllegalArgumentException("Preferred size cannot be negative:" + pref);
         }
-        this.preferredSizeOverride = pref;
+        if( Objects.equals(this.preferredSizeOverride, pref) ) {
+            return;
+        }
+        this.preferredSizeOverride = pref != null ? pref.clone() : null;
         invalidate();
     }
 

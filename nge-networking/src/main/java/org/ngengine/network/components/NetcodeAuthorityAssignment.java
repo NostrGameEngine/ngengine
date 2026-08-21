@@ -74,6 +74,43 @@ public final class NetcodeAuthorityAssignment {
         return resolveByRendezvous(networkId, known);
     }
 
+    /**
+     * Allocation-free variant used by {@link NetcodeManagerComponent} after it
+     * has cached the sorted online-peer topology. The list must contain the
+     * local peer, when available, and be sorted by hexadecimal public key.
+     */
+    static @Nullable NostrPublicKey getPeerWithAuthorityFromSortedPeers(
+        @Nullable BigInteger networkId,
+        List<NostrPublicKey> sortedPeerIds
+    ) {
+        if (networkId == null || networkId.signum() < 0) {
+            return null;
+        }
+        if (sortedPeerIds == null || sortedPeerIds.isEmpty()) {
+            return null;
+        }
+
+        NostrPublicKey preferred;
+        if (NetcodePartitioning.isReservedId(networkId)) {
+            BigInteger ownerKey = NetcodePartitioning.decodeReservedOwnerKey(networkId);
+            preferred = ownerKey != null ? findPeerByKey(sortedPeerIds, null, ownerKey) : null;
+        } else if (NetcodePartitioning.isPersistentId(networkId)) {
+            BigInteger ownerKey = NetcodePartitioning.decodePersistentOwnerKey(networkId);
+            preferred = ownerKey != null ? findPeerByKey(sortedPeerIds, null, ownerKey) : null;
+        } else {
+            int index = Math.floorMod(networkId.hashCode(), sortedPeerIds.size());
+            preferred = sortedPeerIds.get(index);
+        }
+
+        if (preferred != null) {
+            return preferred;
+        }
+        if (NetcodePartitioning.isReservedId(networkId)) {
+            return null;
+        }
+        return resolveByRendezvous(networkId, sortedPeerIds);
+    }
+
     private static @Nullable NostrPublicKey resolveDeterministicOwner(
         @Nullable BigInteger networkId,
         Collection<NostrPublicKey> knownPeerIds,

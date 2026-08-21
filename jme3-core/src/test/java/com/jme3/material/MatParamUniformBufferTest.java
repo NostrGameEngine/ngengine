@@ -94,6 +94,32 @@ public class MatParamUniformBufferTest {
     }
 
     @Test
+    public void sharesParsedLayoutAcrossMaterialsUsingTheSameShader() {
+        Shader shader = new Shader();
+        shader.addSource(Shader.ShaderType.Fragment, "mat-param-cache-test.frag", shaderSource(), null, "GLSL330");
+
+        MatParamUniformBuffer firstMaterial = new MatParamUniformBuffer();
+        MatParamUniformBuffer secondMaterial = new MatParamUniformBuffer();
+        firstMaterial.begin(shader);
+        secondMaterial.begin(shader);
+
+        assertSame(firstMaterial.getActiveLayout(), secondMaterial.getActiveLayout());
+        assertSame(firstMaterial.getActiveLayout(), MatParamUniformBuffer.getOrParseLayout(shader));
+        assertTrue(firstMaterial.isActive());
+        assertTrue(secondMaterial.isActive());
+    }
+
+    @Test
+    public void cachesShadersWithoutSupportedMaterialBlocks() {
+        Shader shader = new Shader();
+        shader.addSource(Shader.ShaderType.Fragment, "no-mat-param-cache-test.frag",
+                "#version 330\nvoid main() {}\n", null, "GLSL330");
+
+        assertNull(MatParamUniformBuffer.getOrParseLayout(shader));
+        assertNull(MatParamUniformBuffer.getOrParseLayout(shader));
+    }
+
+    @Test
     public void ignoresBlocksWithUnsupportedMembers() {
         MatParamUniformBuffer.Layout layout = MatParamUniformBuffer.parseLayout("#version 330\n"
                 + "layout(std140) uniform m_MatParams {\n"

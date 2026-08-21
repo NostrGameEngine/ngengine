@@ -32,10 +32,10 @@
 
 package org.ngengine.world2d.box2d;
 
+import java.util.List;
+
 import org.jbox2d.dynamics.World;
-import org.ngengine.ComponentRef;
 import org.ngengine.Components;
-import org.ngengine.world2d.TiledWorld2dManagerComponent;
 
 import org.ngengine.world2d.tiled.core.TiledLayer;
 import org.ngengine.world2d.tiled.core.TiledObjectLayer;
@@ -64,7 +64,9 @@ public class Box2dHelper {
         if (tile == null || tile.getCollisions() == null) {
             return false;
         }
-        for (TiledObjectEntity collision : tile.getCollisions().getObjects()) {
+        List<TiledObjectEntity> collisions = tile.getCollisions().getObjects();
+        for (int i = 0; i < collisions.size(); i++) {
+            TiledObjectEntity collision = collisions.get(i);
             if (isPhysicsEnabled(collision)) {
                 return true;
             }
@@ -73,8 +75,7 @@ public class Box2dHelper {
     }
 
     public static void applyControl(TiledEntity entity,  World phy) {
-        ComponentRef component = Components.get(entity, TiledPhysicsComponent.class);
-        if (component == null || component.isEmpty()) {
+        if (!Components.has(entity, TiledPhysicsComponent.class)) {
             TiledPhysicsComponent phyComp = new TiledPhysicsComponent();
             Components.mount(entity, phyComp).enable();
         }
@@ -98,7 +99,9 @@ public class Box2dHelper {
             }
         } else if (entity instanceof TiledObjectLayer) {
             TiledObjectLayer group = (TiledObjectLayer) entity;
-            for (TiledObjectEntity obj : group.getObjects()) {
+            List<TiledObjectEntity> objects = group.getObjects();
+            for (int i = 0; i < objects.size(); i++) {
+                TiledObjectEntity obj = objects.get(i);
                 if(obj.getShape()==ObjectShape.TILE && !hasPhysicalCollisions(obj.getTile())) {
                     continue;
                 }
@@ -114,7 +117,9 @@ public class Box2dHelper {
 
         if (phy != null) {
             if (entity instanceof TiledMap) {
-                for (TiledLayer layer : ((TiledMap) entity).getLayers()) {
+                List<TiledLayer> layers = ((TiledMap) entity).getLayers();
+                for (int i = 0; i < layers.size(); i++) {
+                    TiledLayer layer = layers.get(i);
                     // if (layer.getName().equalsIgnoreCase("collisions")) {
                         applyToLayer(layer, phy);
                     // }

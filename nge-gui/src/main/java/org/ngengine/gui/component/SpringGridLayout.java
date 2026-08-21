@@ -72,11 +72,19 @@ public class SpringGridLayout extends AbstractGuiComponent
     private int columnCount;
     private float[] rowPrefs;
     private float[] colPrefs;
+    private float[] rowSizes;
+    private float[] colSizes;
+    private float[] rowOffsets;
+    private float[] colOffsets;
 
     private Map<Integer,Map<Integer,Entry>> children = new HashMap<Integer, Map<Integer,Entry>>();
     private Map<Node, Entry> lookup = new LinkedHashMap<Node, Entry>();
 
     private Vector3f lastPreferredSize = new Vector3f();
+    private final Vector3f preferredSizeScratch = new Vector3f();
+    private final Vector3f childOffsetScratch = new Vector3f();
+    private final Vector3f childTranslationScratch = new Vector3f();
+    private final Vector3f childSizeScratch = new Vector3f();
 
     public SpringGridLayout() {
         this(Axis.Y, Axis.X, FillMode.Even, FillMode.Even);
@@ -194,16 +202,11 @@ public class SpringGridLayout extends AbstractGuiComponent
         }
 
         float maxAlternate = 0;
-        for( Map.Entry<Integer, Map<Integer,Entry>> rowEntry : children.entrySet() ) {
-            int row = rowEntry.getKey();
-            for( Map.Entry<Integer, Entry> colEntry : rowEntry.getValue().entrySet() ) {
-                int col = colEntry.getKey();
-                Entry e = colEntry.getValue();
-                Vector3f v = e.getPreferredSize();
-                rowPrefs[row] = Math.max(rowPrefs[row], getMajor(v));
-                colPrefs[col] = Math.max(colPrefs[col], getMinor(v));
-                maxAlternate = Math.max(getAlternate(v), maxAlternate);
-            }
+        for( Entry e : lookup.values() ) {
+            Vector3f v = e.getPreferredSize();
+            rowPrefs[e.row] = Math.max(rowPrefs[e.row], getMajor(v));
+            colPrefs[e.col] = Math.max(colPrefs[e.col], getMinor(v));
+            maxAlternate = Math.max(getAlternate(v), maxAlternate);
         }
         return maxAlternate;
     }
@@ -296,25 +299,29 @@ public class SpringGridLayout extends AbstractGuiComponent
         // process them in order.  Ah... can just precalculate
         // the sizes and positions, I guess.
 
-        // Make sure the preferred size book-keeping is up to date.
-        calculatePreferredSize(new Vector3f());
+        // Make sure the preferred-size book-keeping is current. The scratch
+        // vector avoids allocating during legitimate revalidation.
+        preferredSizeScratch.set(0, 0, 0);
+        calculatePreferredSize(preferredSizeScratch);
 
-        // We could keep these arrays around but I think the GC churn
-        // pales in comparison to the distribute calls if reshape is called a lot.
-        float[] rowSizes = new float[rowCount];
+        if( rowSizes == null || rowSizes.length != rowCount ) {
+            rowSizes = new float[rowCount];
+            rowOffsets = new float[rowCount];
+        }
+        if( colSizes == null || colSizes.length != columnCount ) {
+            colSizes = new float[columnCount];
+            colOffsets = new float[columnCount];
+        }
         distribute(rowSizes, rowPrefs, getMajor(size), getMajor(lastPreferredSize), mainFill, mainAxis);
 
-        float[] colSizes = new float[columnCount];
         distribute(colSizes, colPrefs, getMinor(size), getMinor(lastPreferredSize), minorFill, minorAxis);
 
-        float[] rowOffsets = new float[rowCount];
         float f = 0;
         for( int i = 0; i < rowOffsets.length; i++ ) {
             rowOffsets[i] = f;
             f += rowSizes[i];
         }
 
-        float[] colOffsets = new float[columnCount];
         f = 0;
         for( int i = 0; i < colOffsets.length; i++ ) {
             colOffsets[i] = f;
@@ -322,20 +329,19 @@ public class SpringGridLayout extends AbstractGuiComponent
         }
 
         // Now we can process the actual children
-        for( Map<Integer, Entry> r : children.values() ) {
-            for( Entry e : r.values() ) {
-                Vector3f offset = new Vector3f();
-                addMajor(offset, rowOffsets[e.row]);
-                addMinor(offset, colOffsets[e.col]);
-                offset.y *= -1;
-                e.setTranslation(pos.add(offset));
+        for( Entry e : lookup.values() ) {
+            childOffsetScratch.set(0, 0, 0);
+            addMajor(childOffsetScratch, rowOffsets[e.row]);
+            addMinor(childOffsetScratch, colOffsets[e.col]);
+            childOffsetScratch.y *= -1;
+            childTranslationScratch.set(pos).addLocal(childOffsetScratch);
+            e.setTranslation(childTranslationScratch);
 
-                Vector3f childSize = size.clone();
-                setMajor(childSize, rowSizes[e.row]);
-                setMinor(childSize, colSizes[e.col]);
+            childSizeScratch.set(size);
+            setMajor(childSizeScratch, rowSizes[e.row]);
+            setMinor(childSizeScratch, colSizes[e.col]);
 
-                e.setSize(childSize);
-            }
+            e.setSize(childSizeScratch);
         }
     }
 

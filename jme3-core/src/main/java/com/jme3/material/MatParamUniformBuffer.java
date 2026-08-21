@@ -46,9 +46,11 @@ import com.jme3.util.BufferUtils;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -76,6 +78,8 @@ final class MatParamUniformBuffer {
     private static final Pattern MEMBER_PATTERN = Pattern.compile(
             "(?s)(?:layout\\s*\\([^)]*\\)\\s*)?(?:highp\\s+|mediump\\s+|lowp\\s+)?(float|int|bool|vec2|vec3|vec4|mat3|mat4)\\s+(.+)");
     private static final Pattern DECLARATOR_PATTERN = Pattern.compile("(\\w+)\\s*(?:\\[\\s*(\\d+)\\s*\\])?\\s*");
+    private static final Map<Shader, Layout> LAYOUT_CACHE =
+            Collections.synchronizedMap(new WeakHashMap<>());
 
     private final BufferObject bufferObject = new BufferObject();
     private Layout layout;
@@ -97,24 +101,25 @@ final class MatParamUniformBuffer {
     /**
      * Starts collecting values for the specified shader.
      * <p>
-     * The parsed layout is cached per shader instance. When the same shader is
-     * used again, only the collected values are reset for the next material
-     * update.
+     * The immutable parsed layout is shared by all materials that use the same
+     * shader instance. The collection arrays remain owned by this material and
+     * are reused even when rendering alternates between shader variants.
      *
      * @param shader the active shader being updated
      */
     void begin(Shader shader) {
         if (this.shader != shader) {
             this.shader = shader;
-            this.layout = parseLayout(shader);
+            this.layout = getOrParseLayout(shader);
             if (layout != null) {
-                this.values = new Object[layout.members.size()];
-                this.set = new boolean[layout.members.size()];
-            } else {
-                this.values = null;
-                this.set = null;
+                int memberCount = layout.members.size();
+                if (values == null || values.length < memberCount) {
+                    this.values = new Object[memberCount];
+                    this.set = new boolean[memberCount];
+                }
             }
-        } else if (set != null) {
+        }
+        if (set != null) {
             for (int i = 0; i < set.length; i++) {
                 set[i] = false;
                 values[i] = null;
@@ -130,6 +135,10 @@ final class MatParamUniformBuffer {
      */
     boolean isActive() {
         return layout != null;
+    }
+
+    Layout getActiveLayout() {
+        return layout;
     }
 
     /**
@@ -254,6 +263,24 @@ final class MatParamUniformBuffer {
             }
         }
         return null;
+    }
+
+    /**
+     * Returns the immutable parsed layout associated with a shader instance.
+     *
+     * <p>The weak keys avoid extending the lifetime of shaders discarded by
+     * asset reloads. A cached {@code null} is significant: shaders without a
+     * supported material block must not be reparsed for every material draw.
+     */
+    static Layout getOrParseLayout(Shader shader) {
+        synchronized (LAYOUT_CACHE) {
+            if (LAYOUT_CACHE.containsKey(shader)) {
+                return LAYOUT_CACHE.get(shader);
+            }
+            Layout parsed = parseLayout(shader);
+            LAYOUT_CACHE.put(shader, parsed);
+            return parsed;
+        }
     }
 
     /**
