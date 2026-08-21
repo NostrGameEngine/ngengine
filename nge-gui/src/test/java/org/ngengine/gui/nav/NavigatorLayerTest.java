@@ -1147,6 +1147,58 @@ public class NavigatorLayerTest {
     }
 
     @Test
+    public void listBoxDoesNotSelectOrActivateUnavailableRows() {
+        initializeGui();
+
+        ViewPort vp = new ViewPort("gui-listbox-disabled-row", new Camera(800, 600));
+        Node guiNode = new Node("GuiNode");
+        guiNode.setQueueBucket(Bucket.Gui);
+        vp.attachScene(guiNode);
+        GuiContext context = NGEGui.register(vp, true);
+
+        Node root = new Node("root");
+        ListBox<String> listBox = new ListBox<>();
+        listBox.setVisibleItems(3);
+        listBox.setPreferredSize(300f, 120f);
+        listBox.setSize(new Vector3f(300f, 120f, 0f));
+        listBox.setLocalTranslation(100f, 260f, 0f);
+        listBox.getModel().add("Available");
+        listBox.getModel().add("Locked");
+        listBox.getModel().add("Also available");
+        listBox.getSelectionModel().setSelection(0);
+        listBox.setSelectableItemPredicate(value -> !"Locked".equals(value));
+        AtomicInteger clicks = new AtomicInteger();
+        listBox.addCommands(ListBox.ListAction.Click, src -> clicks.incrementAndGet());
+        root.attachChild(listBox);
+        guiNode.attachChild(root);
+        guiNode.updateLogicalState(0.016f);
+        guiNode.updateGeometricState();
+        context.getNavigator().pushLayer(root);
+
+        GridPanel grid = listBox.getGridPanel();
+        Vector3f gridSize = grid.getSize();
+        float rowHeight = gridSize.y / grid.getVisibleRows();
+        Vector3f click = grid.localToWorld(new Vector3f(gridSize.x - 5f, -(rowHeight * 1.5f), 0f), null);
+
+        TestMouseInput mouseInput = new TestMouseInput();
+        InputManager inputManager = newInputManager(mouseInput, null);
+        DefaultNavigatorInputHandler handler = new DefaultNavigatorInputHandler(vp);
+        handler.registerListener(inputManager);
+        handler.setInputDevice(inputManager, new Mouse());
+        inputManager.setCursorVisible(true);
+
+        mouseInput.queue(new MouseMotionEvent((int) click.x, (int) click.y, 0, 0, 0, 0));
+        inputManager.update(0.016f);
+        mouseInput.queue(new MouseButtonEvent(MouseInput.BUTTON_LEFT, true, (int) click.x, (int) click.y));
+        inputManager.update(0.016f);
+        mouseInput.queue(new MouseButtonEvent(MouseInput.BUTTON_LEFT, false, (int) click.x, (int) click.y));
+        inputManager.update(0.016f);
+
+        assertEquals(0, clicks.get());
+        assertEquals(0, listBox.getSelectionModel().getSelection());
+    }
+
+    @Test
     public void disabledCursorDoesNotBecomeActiveWhenPositionUpdates() {
         initializeGui();
 

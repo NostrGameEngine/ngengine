@@ -39,6 +39,7 @@ package org.ngengine.gui;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.logging.Logger;
 
 import com.jme3.math.Vector2f;
@@ -84,6 +85,7 @@ public class Selector<T> extends Panel {
     private boolean expanded;
     private int maximumVisibleItems;
     private long expandedFrames;
+    private PopupHandler expandedPopupHandler;
 
     private VersionedReference<Integer> selectionRef;
     private VersionedHolder<T> selectedItem = new VersionedHolder<>();
@@ -193,8 +195,18 @@ public class Selector<T> extends Panel {
         return valueRenderer;
     }
 
-    public ListBox getListBox() {
+    public ListBox<T> getListBox() {
         return listBox;
+    }
+
+    public void setSelectableItemPredicate(Predicate<? super T> predicate) {
+        listBox.setSelectableItemPredicate(predicate);
+        boundSelection();
+        updateSelection();
+    }
+
+    public Predicate<? super T> getSelectableItemPredicate() {
+        return listBox.getSelectableItemPredicate();
     }
 
     public Button getExpanderButton() {
@@ -222,12 +234,15 @@ public class Selector<T> extends Panel {
         if( i < 0 ) {
             log.warning("No item in list:" + item);
             listBox.getSelectionModel().clear();
+        } else if( !listBox.isSelectableItem(item) ) {
+            return;
         } else {
             listBox.getSelectionModel().setSelection(i);
 
-            // Make sure that the selected item reference reflects
-            // the value right away.
-            updateSelection();
+            // A direct setter is an explicit commit even while the popup is
+            // open. Pointer focus changes inside the list are handled as a
+            // temporary preview until activation.
+            commitListSelection();
         }
     }
 
@@ -256,6 +271,13 @@ public class Selector<T> extends Panel {
     }
 
     protected void updateSelection() {
+        if( isExpanded() ) {
+            // ListBox follows pointer focus so that hovered rows can be
+            // highlighted. Do not publish that temporary selection through
+            // the Selector value reference until the row is activated.
+            selectionRef.update();
+            return;
+        }
         // Even if our selection index hasn't moved the model may have
         // changed and invalidated our actual selection value.  This 
         // is extra work we need to do because of the keeping of codependent
@@ -394,14 +416,19 @@ public class Selector<T> extends Panel {
     }
 
     protected void expand() {
+        GuiContext context = NGEGui.get(this);
+        if (context == null) {
+            return;
+        }
+        PopupHandler handler = context.getPopupHandler();
         listBox.setVisibleItems(calculateListSize());
         popup.setLocalTranslation(calculatePopupLocation(getWorldTranslation().clone()));
 
         // Make sure we keep it on screen even if it resizes itself
         popup.getControl(GuiControl.class).addListener(reshapeListener);
 
-        NGEGui.get(this).getPopupHandler()
-                .showPopup(popup, new Command<PopupHandler>() {
+        expandedPopupHandler = handler;
+        handler.showPopup(popup, new Command<PopupHandler>() {
                         public void execute( PopupHandler state ) {
                             collapse();
                         }
@@ -414,16 +441,28 @@ public class Selector<T> extends Panel {
     }
 
     protected void collapse() {
-        // A display/monitor change can detach the selector while its popup is
-        // being closed.  Its GuiContext is no longer discoverable at that
-        // point, but the popup listener still needs to be cleaned up.
-        GuiContext context = NGEGui.get(this);
-        PopupHandler state = context != null ? context.getPopupHandler() : null;
+        // Keep the handler used by expand(): the owning selector may already
+        // have been detached by a window transition when this runs.
+        PopupHandler state = expandedPopupHandler;
+        expandedPopupHandler = null;
+        this.expanded = false;
+        restoreCommittedListSelection();
+        if (state == null) {
+            GuiContext context = NGEGui.get(this);
+            state = context != null ? context.getPopupHandler() : null;
+        }
         if( state != null && state.isPopup(popup) ) {
             state.closePopup(popup);
         }
         popup.getControl(GuiControl.class).removeListener(reshapeListener);
-        this.expanded = false;
+    }
+
+    private void restoreCommittedListSelection() {
+        T committed = selectedItem.getObject();
+        int index = listBox.getModel().indexOf(committed);
+        if (index >= 0 && listBox.isSelectableItem(committed)) {
+            listBox.getSelectionModel().setSelection(index);
+        }
     }
 
     private class ClickListener  implements FocusListener, Command<Button> {

@@ -89,6 +89,21 @@ public class NWindowManagerTest {
     }
 
     @Test
+    public void closingInteractiveWindowClosesItsOpenPopup() {
+        TestWindowManager manager = newManager("gui-window-popup-close");
+        TestWindow window = manager.showWindow(TestWindow.class);
+        Panel popup = new Panel();
+        PopupHandler popupHandler = manager.getContext().getPopupHandler();
+        popupHandler.showPopup(popup);
+
+        assertTrue(popupHandler.hasActivePopups());
+        manager.back();
+
+        assertFalse(popupHandler.hasActivePopups());
+        assertNull(window.getParent());
+    }
+
+    @Test
     public void replacingOptionPanelClosesPreviousPopupThroughHandler() {
         initializeGui();
         TestPopupHandler handler = new TestPopupHandler();

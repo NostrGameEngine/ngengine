@@ -37,6 +37,7 @@
 package org.ngengine.gui;
 
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.logging.Logger;
 
 import org.ngengine.gui.ListBox.GridModelDelegate;
@@ -99,6 +100,8 @@ public class ListBox<T> extends Panel  {
     private VersionedReference<Double> indexRef;
     private int maxIndex;
     private float touchScrollSlop = 8f;
+    private boolean autoHideScrollBar = true;
+    private Predicate<? super T> selectableItemPredicate = item -> true;
     
  
     /**
@@ -268,6 +271,26 @@ public class ListBox<T> extends Panel  {
     public Slider getSlider() {
         return slider;
     }
+
+    /**
+     * Controls whether the vertical scrollbar is removed from the layout when
+     * every model row is already visible. Enabled by default.
+     *
+     * @param autoHide {@code true} to reclaim the scrollbar width when it is
+     *                 not needed
+     */
+    @StyleAttribute(value="autoHideScrollBar", lookupDefault=false)
+    public void setAutoHideScrollBar(boolean autoHide) {
+        if (autoHideScrollBar == autoHide) {
+            return;
+        }
+        autoHideScrollBar = autoHide;
+        updateScrollBarVisibility();
+    }
+
+    public boolean isAutoHideScrollBar() {
+        return autoHideScrollBar;
+    }
     
     public GridPanel getGridPanel() {
         return grid;
@@ -279,6 +302,52 @@ public class ListBox<T> extends Panel  {
 
     public float getTouchScrollSlop() {
         return touchScrollSlop;
+    }
+
+    /**
+     * Controls which model values can receive selection or activation.
+     * Renderers remain responsible for giving unavailable rows a distinct
+     * visual treatment.
+     */
+    public void setSelectableItemPredicate(Predicate<? super T> predicate) {
+        selectableItemPredicate = predicate != null ? predicate : item -> true;
+        Integer selected = selection != null ? selection.getSelection() : null;
+        if (selected != null && !isSelectableIndex(selected)) {
+            int replacement = firstSelectableIndex();
+            if (replacement >= 0) {
+                selection.setSelection(replacement);
+            } else {
+                selection.clear();
+            }
+        }
+        refreshSelector();
+    }
+
+    public Predicate<? super T> getSelectableItemPredicate() {
+        return selectableItemPredicate;
+    }
+
+    public boolean isSelectableItem(T item) {
+        return selectableItemPredicate.test(item);
+    }
+
+    boolean isSelectableIndex(int index) {
+        return model != null
+                && index >= 0
+                && index < model.size()
+                && isSelectableItem(model.get(index));
+    }
+
+    private int firstSelectableIndex() {
+        if (model == null) {
+            return -1;
+        }
+        for (int i = 0; i < model.size(); i++) {
+            if (isSelectableIndex(i)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     public Panel getSelector() {
@@ -319,7 +388,7 @@ public class ListBox<T> extends Panel  {
      */   
     public void setSelectedItem( T item ) {
         int index = getModel().indexOf(item);
-        if( index < 0 ) {
+        if( index < 0 || !isSelectableIndex(index) ) {
             return;
         }
         selection.setSelection(index);
@@ -442,7 +511,21 @@ public class ListBox<T> extends Panel  {
         
         baseIndex.setMinimum(0);
         baseIndex.setMaximum(maxIndex);
-        baseIndex.setValue(maxIndex - snapToVisibleIndex(val));        
+        baseIndex.setValue(maxIndex - snapToVisibleIndex(val));
+        updateScrollBarVisibility();
+    }
+
+    private void updateScrollBarVisibility() {
+        if (layout == null || slider == null) {
+            return;
+        }
+        boolean shouldShow = !autoHideScrollBar || maxIndex > 0;
+        boolean isShown = layout.getChild(BorderLayout.Position.East) == slider;
+        if (shouldShow && !isShown) {
+            layout.addChild(BorderLayout.Position.East, slider);
+        } else if (!shouldShow && isShown) {
+            layout.removeChild(slider);
+        }
     }
 
     protected int snapToVisibleIndex(double index) {
@@ -536,7 +619,7 @@ public class ListBox<T> extends Panel  {
             if (cell == -1 && target == ListBox.this && grid.getVisibleRows() > 0 && getModel().size() > 0) {
                 cell = grid.getRow();
             }
-            if (cell != -1) {
+            if (isSelectableIndex(cell)) {
                 selection.setSelection(cell);
                 refreshSelector();
             }
@@ -666,23 +749,29 @@ public class ListBox<T> extends Panel  {
             
             
             if(isLastVisible&&dir==TraversalDirection.Down && cell < model.size() - 1){
-                selectVisibleCell(cell + 1);
+                selectVisibleCell(cell + 1, 1);
                 return false;
             }
 
             if(isFirstVisible&&dir==TraversalDirection.Up && cell > 0){
-                selectVisibleCell(cell - 1);
+                selectVisibleCell(cell - 1, -1);
                 return false;
             }
 
             return true;
         }
 
-        private void selectVisibleCell(int cell) {
+        private void selectVisibleCell(int cell, int direction) {
             if (model == null || model.isEmpty()) {
                 return;
             }
             int selected = Math.max(0, Math.min(model.size() - 1, cell));
+            while (!isSelectableIndex(selected)) {
+                selected += direction;
+                if (selected < 0 || selected >= model.size()) {
+                    return;
+                }
+            }
             int firstVisible = grid.getRow();
             int visibleRows = Math.max(1, grid.getVisibleRows());
             if (selected < firstVisible) {
@@ -703,7 +792,7 @@ public class ListBox<T> extends Panel  {
         }
 
         private void activateCell(int cell) {
-            if (cell == -1) {
+            if (!isSelectableIndex(cell)) {
                 return;
             }
             selection.add(cell);

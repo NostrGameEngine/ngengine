@@ -42,6 +42,7 @@ import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 
 import org.ngengine.gui.core.GuiControl;
+import org.ngengine.gui.component.InsetsComponent;
 import org.ngengine.gui.component.Text2d;
 import org.ngengine.gui.component.TextComponent;
 import org.ngengine.gui.core.GuiComponent;
@@ -64,6 +65,7 @@ public class Label extends Panel {
     public static final String LAYER_ICON = "icon";
     public static final String LAYER_TEXT = "text";
     public static final String LAYER_SHADOW_TEXT = "shadowText";
+    public static final String LAYER_CONTENT_INSETS = "contentInsets";
 
     private String fontName;
     private Text2d text;
@@ -92,6 +94,7 @@ public class Label extends Panel {
         getControl(GuiControl.class).setLayerOrder(LAYER_INSETS,
                                                    LAYER_BORDER,
                                                    LAYER_BACKGROUND,
+                                                   LAYER_CONTENT_INSETS,
                                                    LAYER_ICON,
                                                    LAYER_SHADOW_TEXT,
                                                    LAYER_TEXT);
@@ -157,6 +160,37 @@ public class Label extends Panel {
 
     public String getText() {
         return text == null ? null : text.getText();
+    }
+
+    /**
+     * Sets the padding between this label's background frame and its icon and
+     * text. {@link Panel#setInsets(Insets3f)} remains the outer transparent
+     * margin around the whole label.
+     *
+     * @param insets internal content padding, or {@code null} to remove it
+     */
+    @StyleAttribute(value="contentInsets", lookupDefault=false)
+    public void setContentInsets(Insets3f insets) {
+        InsetsComponent component = getContentInsetsComponent();
+        if (insets != null) {
+            if (component == null) {
+                component = new InsetsComponent(insets);
+            } else {
+                component.setInsets(insets);
+            }
+        } else {
+            component = null;
+        }
+        getControl(GuiControl.class).setComponent(LAYER_CONTENT_INSETS, component);
+    }
+
+    public Insets3f getContentInsets() {
+        InsetsComponent component = getContentInsetsComponent();
+        return component == null ? null : component.getInsets();
+    }
+
+    private InsetsComponent getContentInsetsComponent() {
+        return getControl(GuiControl.class).getComponent(LAYER_CONTENT_INSETS);
     }
 
     @StyleAttribute(value="textVAlignment", lookupDefault=false)

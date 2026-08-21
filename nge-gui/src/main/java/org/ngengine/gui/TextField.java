@@ -41,6 +41,7 @@ import com.jme3.font.BitmapFont;
 import com.jme3.math.ColorRGBA;
 import com.jme3.scene.Spatial;
 
+import org.ngengine.gui.component.InsetsComponent;
 import org.ngengine.gui.component.TextEntryComponent;
 import org.ngengine.gui.core.GuiControl;
 import org.ngengine.gui.nav.FocusListener;
@@ -62,6 +63,7 @@ public class TextField extends Panel implements FocusListener {
     public static final String ELEMENT_ID = "textField";
 
     public static final String LAYER_TEXT = "text";
+    public static final String LAYER_CONTENT_INSETS = "contentInsets";
 
     private final TextEntryComponent text;
 
@@ -85,6 +87,7 @@ public class TextField extends Panel implements FocusListener {
         getControl(GuiControl.class).setLayerOrder(LAYER_INSETS, 
                                                    LAYER_BORDER, 
                                                    LAYER_BACKGROUND,
+                                                   LAYER_CONTENT_INSETS,
                                                    LAYER_TEXT);
         Styles styles = NGEGui.getStyles();
         BitmapFont font = styles.getAttributes(getElementId().getId()).get("font", BitmapFont.class);
@@ -122,6 +125,37 @@ public class TextField extends Panel implements FocusListener {
 
     public String getDisplayText(){
         return text == null ? null : text.getDisplayText();
+    }
+
+    /**
+     * Sets the padding between this field's background frame and its editable
+     * text. {@link Panel#setInsets(Insets3f)} remains the outer transparent
+     * margin around the whole field.
+     *
+     * @param insets internal text padding, or {@code null} to remove it
+     */
+    @StyleAttribute(value="contentInsets", lookupDefault=false)
+    public void setContentInsets(Insets3f insets) {
+        InsetsComponent component = getContentInsetsComponent();
+        if (insets != null) {
+            if (component == null) {
+                component = new InsetsComponent(insets);
+            } else {
+                component.setInsets(insets);
+            }
+        } else {
+            component = null;
+        }
+        getControl(GuiControl.class).setComponent(LAYER_CONTENT_INSETS, component);
+    }
+
+    public Insets3f getContentInsets() {
+        InsetsComponent component = getContentInsetsComponent();
+        return component == null ? null : component.getInsets();
+    }
+
+    private InsetsComponent getContentInsetsComponent() {
+        return getControl(GuiControl.class).getComponent(LAYER_CONTENT_INSETS);
     }
 
     @StyleAttribute(value="textVAlignment", lookupDefault=false)

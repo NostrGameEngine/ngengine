@@ -765,8 +765,7 @@ public class TextEntryComponent extends AbstractGuiComponent implements FocusTar
                 x = maxWidth - x;
             }
 
-            float y = -visibleLine * bitmapText.getLineHeight();
-            y -= bitmapText.getLineHeight();
+            float y = cursorY(visibleLine);
 
             // If caret is out of horizontal bounds, scroll right (works in singleLine and multiline)
             if (textBox != null && x > textBox.width && textOffset < caretColumn) {
@@ -804,6 +803,21 @@ public class TextEntryComponent extends AbstractGuiComponent implements FocusTar
         resetAlignment();
     }
 
+    float cursorY(int visibleLine) {
+        float lineHeight = bitmapText.getLineHeight();
+        float y = -(visibleLine + 1) * lineHeight;
+        if (!singleLine || textBox == null) {
+            return y;
+        }
+
+        float remainingHeight = Math.max(0f, textBox.height - lineHeight);
+        return switch (vAlign) {
+            case Top -> y;
+            case Center -> y - remainingHeight * 0.5f;
+            case Bottom -> y - remainingHeight;
+        };
+    }
+
     public HAlignment getHAlignment() {
         return hAlign;
     }
@@ -812,6 +826,7 @@ public class TextEntryComponent extends AbstractGuiComponent implements FocusTar
         if (vAlign == a) return;
         vAlign = a;
         resetAlignment();
+        resetCursorPosition();
     }
 
     public VAlignment getVAlignment() {

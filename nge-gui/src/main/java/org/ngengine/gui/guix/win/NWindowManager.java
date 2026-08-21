@@ -493,6 +493,7 @@ public class NWindowManager {
     }
 
     private void hideInteractiveWindows() {
+        closeActivePopups();
         for (NWindow<?> window : windows) {
             if (window.capturesInput() && window.getParent() != null) {
                 window.removeFromParent();
@@ -555,6 +556,9 @@ public class NWindowManager {
         }
         boolean wasInteractive = window.capturesInput();
         if (wasInteractive || window.receivesPointerInput()) {
+            closeActivePopups();
+        }
+        if (wasInteractive || window.receivesPointerInput()) {
             ctx.getNavigator().popLayer(window);
         }
         if (window.getParent() != null) {
@@ -572,6 +576,12 @@ public class NWindowManager {
             }
         }
         mng.onWindowStackChanged();
+    }
+
+    private void closeActivePopups() {
+        if (ctx.getPopupHandler().hasActivePopups()) {
+            ctx.getPopupHandler().close();
+        }
     }
 
     public NToast showToast(Throwable exc) {
