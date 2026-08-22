@@ -34,6 +34,9 @@ package org.ngengine.world2d.tiled.renderer;
 
 import com.jme3.bounding.BoundingBox;
 import com.jme3.asset.AssetManager;
+import com.jme3.font.BitmapFont;
+import com.jme3.font.BitmapText;
+import com.jme3.font.LineWrapMode;
 import com.jme3.material.MatParamOverride;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState;
@@ -352,6 +355,11 @@ public abstract class MapRenderer {
     private BiFunction<TiledLayer, TiledBase, Spatial> objectSpatialGenerator = (layer, base)->{
         TiledObjectEntity obj = (TiledObjectEntity) base;
         MaterialFactory materialFactory = spriteFactory.getMaterialFactory();
+        if (obj.getShape() == ObjectShape.TEXT) {
+            Spatial text = newTextSpatial(materialFactory.getAssetManager(), obj);
+            configureTextSpatial(text, obj, layer);
+            return text;
+        }
         String spatialPath = TiledSpatialObjectNode.spatialPath(obj);
         if (spatialPath != null) {
             try {
@@ -379,6 +387,56 @@ public abstract class MapRenderer {
         }
         return v;
     };
+
+    static Spatial newTextSpatial(AssetManager assetManager, TiledObjectEntity object) {
+        if (assetManager == null) {
+            throw new IllegalStateException("No AssetManager available for Tiled text object");
+        }
+        BitmapText bitmapText = new BitmapText(assetManager.loadFont("Interface/Fonts/Default.fnt"));
+        bitmapText.setQueueBucket(RenderQueue.Bucket.Transparent);
+        bitmapText.setLocalRotation(new Quaternion().fromAngles(-FastMath.HALF_PI, 0f, 0f));
+
+        Node root = new Node(object.getName());
+        root.setUserData("ngengine.world2d.shape", object.getShape().ordinal());
+        root.setUserData("ngengine.world2d.gid", -1);
+        root.attachChild(bitmapText);
+        return root;
+    }
+
+    static void configureTextSpatial(Spatial spatial, TiledObjectEntity object, TiledLayer layer) {
+        if (!(spatial instanceof Node node) || node.getQuantity() == 0
+                || !(node.getChild(0) instanceof BitmapText bitmapText)) {
+            return;
+        }
+        TiledObjectText text = object.getTextData();
+        if (text == null) {
+            bitmapText.setText("");
+            return;
+        }
+        bitmapText.setText(text.getText() != null ? text.getText() : "");
+        bitmapText.setSize(Math.max(1, text.getPixelSize()));
+        bitmapText.setBox(new com.jme3.font.Rectangle(
+            0f, 0f, Math.max(0f, (float) object.getWidth()), Math.max(0f, (float) object.getHeight())
+        ));
+        bitmapText.setLineWrapMode(text.isWrap() ? LineWrapMode.Word : LineWrapMode.NoWrap);
+        String horizontalAlignment = text.getHorizontalAlignment();
+        bitmapText.setAlignment("center".equals(horizontalAlignment) ? BitmapFont.Align.Center
+            : "right".equals(horizontalAlignment) ? BitmapFont.Align.Right : BitmapFont.Align.Left);
+        String verticalAlignment = text.getVerticalAlignment();
+        bitmapText.setVerticalAlignment("center".equals(verticalAlignment) ? BitmapFont.VAlign.Center
+            : "bottom".equals(verticalAlignment) ? BitmapFont.VAlign.Bottom : BitmapFont.VAlign.Top);
+
+        ColorRGBA source = text.getColor() != null ? text.getColor() : ColorRGBA.Black;
+        ColorRGBA tint = layer != null && layer.getTintColor() != null
+            ? layer.getTintColor() : ColorRGBA.White;
+        float layerOpacity = layer != null ? (float) layer.getOpacity() : 1f;
+        bitmapText.setColor(new ColorRGBA(
+            source.r * tint.r,
+            source.g * tint.g,
+            source.b * tint.b,
+            source.a * tint.a * layerOpacity * objectOpacity(object)
+        ));
+    }
 
     public CoordinateSystem getCoordinateSystem(){
         return coordinateSystem;
@@ -2157,6 +2215,9 @@ public abstract class MapRenderer {
                     }
 
                     spriteFactory.setAnimation(spatial, obj);
+                    if (obj.getShape() == ObjectShape.TEXT) {
+                        configureTextSpatial(spatial, obj, layer);
+                    }
 
                     if (spatial instanceof TiledSpatialObjectNode) {
                         ((TiledSpatialObjectNode) spatial).configure(tiledMap, worldY, sortOrder);
@@ -2174,7 +2235,9 @@ public abstract class MapRenderer {
                 }
 
                 if(layerPropertiesUpdateNeeded||ref.isPropertiesUpdateNeeded(objectPropertyUpdateId)){
-                    if (layerPropertiesUpdateNeeded) {
+                    if (obj.getShape() == ObjectShape.TEXT) {
+                        configureTextSpatial(spatial, obj, layer);
+                    } else if (layerPropertiesUpdateNeeded) {
                         if (spatial instanceof Geometry) {
                             Geometry geometry = (Geometry) spatial;
                             materialFactory.setTintColor(geometry.getMaterial(), layer.getTintColor());

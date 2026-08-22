@@ -103,7 +103,7 @@ public class TiledObjectText {
         strikeout = false;
         kerning = true;
         wrap = false;
-        color = new ColorRGBA(0, 0, 0, 0);
+        color = new ColorRGBA(0, 0, 0, 1);
         fontFamily = "sans-serif";
         pixelSize = 16;
         horizontalAlignment = "left";

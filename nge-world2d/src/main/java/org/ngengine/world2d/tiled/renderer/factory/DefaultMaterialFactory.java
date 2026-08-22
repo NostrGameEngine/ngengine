@@ -53,7 +53,6 @@ import org.ngengine.world2d.tiled.util.ColorUtil;
 import static org.ngengine.world2d.tiled.renderer.MaterialConst.*;
 
 import java.util.function.Consumer;
-import java.util.logging.Logger;
 
 /**
  * desc:
@@ -61,7 +60,6 @@ import java.util.logging.Logger;
  * @author yanmaoyuan
  */
 public class DefaultMaterialFactory implements MaterialFactory {
-    private static final Logger logger = Logger.getLogger(DefaultMaterialFactory.class.getName());
     private final AssetManager assetManager;
 
     public DefaultMaterialFactory(AssetManager assetManager) {
@@ -250,8 +248,6 @@ public class DefaultMaterialFactory implements MaterialFactory {
                 break;
             }
             case TEXT: {
-                // TODO not supported yet
-                logger.warning("Text object is not supported yet.");
                 break;
             }
             default: {
