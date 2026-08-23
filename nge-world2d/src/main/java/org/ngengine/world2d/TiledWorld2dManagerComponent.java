@@ -596,6 +596,7 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
     @Override
     public void updateAppLogic(ComponentManager mng, float tpf) {
         Collection<TiledWorld2d> worlds = loadedMaps.values();
+        RenderManager renderManager = getInstanceOf(RenderManager.class);
 
         // run logic update
         for (TiledWorld2d world : worlds) {
@@ -646,6 +647,7 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
             activeRenderTargets.clear();
             map.collectActiveRenderTargets(activeRenderTargets);
             for (TiledWorld2dRenderTarget target : activeRenderTargets) {
+                target.getRenderer().setRendererCapabilities(renderManager.getRenderer().getCaps());
                 target.syncViewPorts();
                 // Component render callbacks are world-level side effects. Run
                 // them once; TiledGuiUpdater fans GUI fragments out to every

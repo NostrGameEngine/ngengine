@@ -14,7 +14,7 @@ attribute vec4 inTexCoord2;
 attribute vec4 inTexCoord3;
 attribute vec4 inTexCoord4;
 attribute vec2 inTexCoord5;
-#ifdef HAS_DECAL_MAP
+#if defined(HAS_DECAL_MAP) || defined(HAS_DECAL_ARRAY)
 attribute vec4 inTexCoord6;
 attribute vec4 inTexCoord7;
 attribute vec4 inTexCoord8;
@@ -28,7 +28,7 @@ attribute vec3 inTexCoord2;
 varying vec4 v_TileData;
 varying vec2 v_UvSize;
 varying vec2 v_ImageSize;
-#ifdef HAS_DECAL_MAP
+#if defined(HAS_DECAL_MAP) || defined(HAS_DECAL_ARRAY)
 varying vec4 v_Decal0;
 varying vec4 v_Decal1;
 varying vec4 v_Decal2;
@@ -40,13 +40,13 @@ varying vec2 v_TilePos;
 #endif
 
 varying vec2 v_TexCoord;
-#ifdef HAS_DECAL_MAP
+#if defined(HAS_DECAL_MAP) || defined(HAS_DECAL_ARRAY)
 varying vec2 v_DecalTexCoord;
 #endif
 
 void main() {
     v_TexCoord = inTexCoord;
-#ifdef HAS_DECAL_MAP
+#if defined(HAS_DECAL_MAP) || defined(HAS_DECAL_ARRAY)
     v_DecalTexCoord = inTexCoord;
 #endif
 
@@ -55,7 +55,7 @@ void main() {
     v_TileData = inTexCoord2;
     v_UvSize = inTexCoord5.xy;
     v_ImageSize = inTexCoord4.zw;
-#ifdef HAS_DECAL_MAP
+#if defined(HAS_DECAL_MAP) || defined(HAS_DECAL_ARRAY)
     v_Decal0 = inTexCoord6;
     v_Decal1 = inTexCoord7;
     v_Decal2 = inTexCoord8;

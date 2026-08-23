@@ -55,6 +55,8 @@ public class AnimatedTileControl extends AbstractControl {
     private int previousTileId;
     private int currentFrameIndex;
     private float unusedTime;
+    private final Vector2f tilePosition = new Vector2f();
+    private Float[] textureArrayLayers;
 
     public AnimatedTileControl(Tile tile) {
         this.tile = tile;
@@ -109,6 +111,16 @@ public class AnimatedTileControl extends AbstractControl {
         unusedTime = 0f;
     }
 
+    /**
+     * Supplies the immutable tile-id to texture-array-layer lookup prepared by
+     * the map renderer. The lookup is shared by all controls for the tileset.
+     *
+     * @param layers tile-id indexed, pre-boxed layer lookup, or {@code null}
+     */
+    public void setTextureArrayLayers(Float[] layers) {
+        textureArrayLayers = layers;
+    }
+
     public Tile getCurrentTile() {
         if (anim == null || anim.getTotalFrames() == 0 || tile.getTileset() == null) {
             return tile;
@@ -147,8 +159,15 @@ public class AnimatedTileControl extends AbstractControl {
             Geometry geom = (Geometry) spatial;
 
             Tile t = getCurrentTile();
-            Vector2f position = new Vector2f(t.getX(), t.getY());
-            geom.getMaterial().setVector2(MaterialConst.TILE_POSITION, position);
+            Float layer = textureArrayLayers != null && t.getId() >= 0
+                    && t.getId() < textureArrayLayers.length
+                    ? textureArrayLayers[t.getId()] : null;
+            if (layer != null && geom.getMaterial().getParam(MaterialConst.COLOR_ARRAY) != null) {
+                geom.getMaterial().setFloat(MaterialConst.TILE_LAYER, layer);
+            } else {
+                geom.getMaterial().setVector2(MaterialConst.TILE_POSITION,
+                        tilePosition.set(t.getX(), t.getY()));
+            }
         }
     }
 

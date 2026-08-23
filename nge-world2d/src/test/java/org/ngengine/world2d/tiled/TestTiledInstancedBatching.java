@@ -45,6 +45,7 @@ import com.jme3.material.plugins.J3MLoader;
 import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
+import com.jme3.renderer.Caps;
 import com.jme3.renderer.ViewPort;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
@@ -62,6 +63,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.FloatBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.ngengine.world2d.PovRenderer;
@@ -117,6 +119,23 @@ class TestTiledInstancedBatching {
         assertNotNull(layerNode);
         assertEquals(177f, layerNode.getLocalTranslation().x, 0.001f);
         assertEquals(247f, layerNode.getLocalTranslation().z, 0.001f);
+    }
+
+    @Test void textureArrayPreferenceChangeRebuildsExistingBatches() {
+        TiledMap map = loadOrthogonalMap();
+        Node root = new Node("map");
+        MapRenderer renderer = createRenderer(map, root);
+        TestPovRenderer pov = new TestPovRenderer(wideCamera());
+
+        renderer.render(new EmptyMapRenderListener(), 0f, pov);
+        Geometry arrayBatch = batchGeometry(root, "Ground");
+        assertNotNull(arrayBatch.getMaterial().getTextureParam(MaterialConst.COLOR_ARRAY_0));
+
+        renderer.setPreferTextureArraysForTilesets(false);
+        renderer.render(new EmptyMapRenderListener(), 0f, pov);
+
+        assertTrue(hasBatchTextureParam(root, "Ground", MaterialConst.COLOR_MAP_0),
+                "the rebuilt active batch must use the atlas texture");
     }
 
     @Test void imageLayerUsesImageSizeAndRepeatTextureCoordinates() {
@@ -854,6 +873,30 @@ class TestTiledInstancedBatching {
         assertEquals(3, countDirectGeometries(layerNode));
     }
 
+    @Test void autoTileLayerFallsBackWhenImageCollectionCannotUseTextureArrays() {
+        TiledMap map = imageCollectionMap(RenderingMode.AUTO);
+        Node root = new Node("map");
+        MapRenderer renderer = createRenderer(map, root);
+        renderer.setRendererCapabilities(Collections.<Caps>emptySet());
+
+        renderer.render(new EmptyMapRenderListener(), 0f, new TestPovRenderer(wideCamera()));
+
+        assertEquals(0, countInstancedBatchGeometries(root, "Collection"));
+        assertTrue(hasSpatialNamePrefix(root, "tile#0#0#"));
+    }
+
+    @Test void explicitInstancingReportsImageCollectionArrayFailure() {
+        TiledMap map = imageCollectionMap(RenderingMode.INSTANCED_CULLED);
+        MapRenderer renderer = createRenderer(map, new Node("map"));
+        renderer.setRendererCapabilities(Collections.<Caps>emptySet());
+
+        IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> renderer.render(new EmptyMapRenderListener(), 0f,
+                        new TestPovRenderer(wideCamera())));
+
+        assertTrue(error.getMessage().contains("does not support texture arrays"));
+    }
+
     @Test void autoIsometricTopDownObjectLayerUsesMultidraw() {
         TiledMap map = loadIsometricMap();
         TiledTileLayer tileLayer = (TiledTileLayer) map.getLayer("Ground");
@@ -1224,6 +1267,29 @@ class TestTiledInstancedBatching {
         return (TiledMap) assetManager.loadAsset("tmx/Orthogonal/01.tmx");
     }
 
+    private TiledMap imageCollectionMap(RenderingMode renderingMode) {
+        TiledMap map = new TiledMap(1, 1);
+        map.setTileWidth(4);
+        map.setTileHeight(4);
+        Tileset tileset = new Tileset(4, 4, 0, 0);
+        tileset.setName("Collection images");
+        tileset.setFirstGid(1);
+        TiledImageEntity image = new TiledImageEntity("generated", null, null, 4, 4);
+        image.setTexture(new Texture2D(new Image(Image.Format.RGBA8, 4, 4,
+                BufferUtils.createByteBuffer(4 * 4 * 4), ColorSpace.sRGB)));
+        Tile tile = new Tile(0, 0, 4, 4);
+        tile.setImage(image);
+        tileset.addTile(tile);
+        map.addTileset(tileset);
+
+        TiledTileLayer layer = new TiledTileLayer(1, 1);
+        layer.setName("Collection");
+        layer.setRenderingMode(renderingMode);
+        layer.placeTileAt(0, 0, tile);
+        map.addLayer(layer);
+        return map;
+    }
+
     private TiledMap loadIsometricMap() {
         return (TiledMap) assetManager.loadAsset("tmx/Isometric/01.tmx");
     }
@@ -1427,11 +1493,38 @@ class TestTiledInstancedBatching {
         return count;
     }
 
+    private boolean hasBatchTextureParam(Node node, String layerName, String parameter) {
+        for (Spatial child : node.getChildren()) {
+            if (child instanceof Geometry && ("tiles#" + layerName).equals(child.getName())
+                    && ((Geometry) child).getMaterial().getTextureParam(parameter) != null) {
+                return true;
+            }
+            if (child instanceof Node && hasBatchTextureParam((Node) child, layerName, parameter)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void assertTileData(Geometry geometry, int instance, Tile expected) {
         FloatBuffer data = instanceBuffer(geometry, VertexBuffer.Type.TexCoord2);
-        assertEquals((float)expected.getX(), data.get(instance * 4), 0f);
-        assertEquals((float)expected.getY(), data.get(instance * 4 + 1), 0f);
-        assertTrue(data.get(instance * 4 + 2) >= 0f, "edited tile should be visible in instanced data");
+        int textureSlot = Math.round(data.get(instance * 4 + 2));
+        boolean arrayBased = geometry.getMaterial().getTextureParam(colorArrayParam(textureSlot)) != null;
+        assertEquals(arrayBased ? (float) expected.getId() : (float) expected.getX(),
+                data.get(instance * 4), 0f);
+        assertEquals(arrayBased ? 0f : (float) expected.getY(),
+                data.get(instance * 4 + 1), 0f);
+        assertTrue(textureSlot >= 0, "edited tile should be visible in instanced data");
+    }
+
+    private String colorArrayParam(int slot) {
+        switch (slot) {
+            case 0: return MaterialConst.COLOR_ARRAY_0;
+            case 1: return MaterialConst.COLOR_ARRAY_1;
+            case 2: return MaterialConst.COLOR_ARRAY_2;
+            case 3: return MaterialConst.COLOR_ARRAY_3;
+            default: throw new AssertionError("Unsupported test texture slot: " + slot);
+        }
     }
 
     private void assertTileDataAt(Geometry geometry, float x, float z, Tile expected) {

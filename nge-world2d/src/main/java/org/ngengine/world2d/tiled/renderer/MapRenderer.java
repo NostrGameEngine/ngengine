@@ -47,6 +47,7 @@ import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
 import com.jme3.math.Vector4f;
 import com.jme3.renderer.Camera;
+import com.jme3.renderer.Caps;
 import com.jme3.renderer.ViewPort;
 import com.jme3.renderer.queue.RenderQueue;
 import com.jme3.scene.Geometry;
@@ -58,6 +59,7 @@ import com.jme3.texture.Image;
 import com.jme3.texture.Texture;
 import com.jme3.texture.TextureArray;
 import com.jme3.texture.image.ColorSpace;
+import com.jme3.texture.image.ImageRegionSlicer;
 import com.jme3.texture.image.ImageRaster;
 import com.jme3.util.BufferUtils;
 import com.jme3.util.TempVars;
@@ -184,9 +186,16 @@ public abstract class MapRenderer {
     final Map<Spatial, TiledBase> entryMap = new WeakHashMap<>();
     private final TiledCoordinateSystem coordinateSystem;
     private final Map<Tileset, InstancedTilesetSource> instancedSourceCache = new IdentityHashMap<>();
+    private final Set<Tileset> filteredImageCollections =
+            Collections.newSetFromMap(new IdentityHashMap<Tileset, Boolean>());
     private final ViewCull viewCull = new ViewCull();
     private final Quaternion objectRotation = new Quaternion();
     private final InstancedBatchingPolicy instancedBatchingPolicy = new InstancedBatchingPolicy();
+    private boolean preferTextureArraysForTilesets = true;
+    private boolean textureArraysSupported = true;
+    private boolean s3tcSupported = true;
+    private boolean etc1Supported = true;
+    private boolean etc2Supported = true;
     private final IdentityHashMap<TiledBase, Integer> transientCooldowns = new IdentityHashMap<>();
     private final IdentityHashMap<TiledBase, TransientSignature> transientSignatures = new IdentityHashMap<>();
     private final IdentityHashMap<TiledBase, String> transientReasons = new IdentityHashMap<>();
@@ -666,6 +675,66 @@ public abstract class MapRenderer {
     }
 
     /**
+     * Returns whether atlas tilesets and compatible image collections prefer
+     * texture-array storage. Texture arrays isolate every tile into its own
+     * layer, allowing mipmapped filtering without atlas bleeding.
+     *
+     * @return true when texture arrays are preferred
+     */
+    public boolean isPreferTextureArraysForTilesets() {
+        return preferTextureArraysForTilesets;
+    }
+
+    /**
+     * Selects whether compatible tilesets should use texture arrays. The
+     * default is {@code true}. Image collections that stay as independent
+     * textures still receive mipmapped filtering when their format supports it.
+     *
+     * @param prefer true to prefer texture arrays for tilesets
+     */
+    public void setPreferTextureArraysForTilesets(boolean prefer) {
+        if (preferTextureArraysForTilesets == prefer) {
+            return;
+        }
+        preferTextureArraysForTilesets = prefer;
+        instancedSourceCache.clear();
+        filteredImageCollections.clear();
+        invalidateTexturePreparedVisuals();
+    }
+
+    /**
+     * Updates texture-array and compressed-format support from the active
+     * renderer. Cached prepared sources are rebuilt only when a capability
+     * actually changes.
+     *
+     * @param caps active renderer capabilities
+     */
+    public void setRendererCapabilities(Collection<Caps> caps) {
+        boolean arrays = caps != null && caps.contains(Caps.TextureArray);
+        boolean s3tc = caps != null && caps.contains(Caps.TextureCompressionS3TC);
+        boolean etc1 = caps != null && (caps.contains(Caps.TextureCompressionETC1)
+                || caps.contains(Caps.TextureCompressionETC2));
+        boolean etc2 = caps != null && caps.contains(Caps.TextureCompressionETC2);
+        if (textureArraysSupported == arrays && s3tcSupported == s3tc
+                && etc1Supported == etc1 && etc2Supported == etc2) {
+            return;
+        }
+        textureArraysSupported = arrays;
+        s3tcSupported = s3tc;
+        etc1Supported = etc1;
+        etc2Supported = etc2;
+        instancedSourceCache.clear();
+        invalidateTexturePreparedVisuals();
+    }
+
+    private void invalidateTexturePreparedVisuals() {
+        for (RenderRef ref : lrefs.values()) {
+            clearInstancedBatches(ref);
+        }
+        visitLayers(TiledBase::setUpdateNeeded);
+    }
+
+    /**
      * Returns the maximum number of tileset sources packed into one instanced
      * geometry.
      *
@@ -1098,14 +1167,24 @@ public abstract class MapRenderer {
         RenderRef ref = getTrackedLayerRef(layer, true);
         Node layerNode = (Node) ref.sp;
         RenderingMode renderingMode = instancedBatchingPolicy.resolve(layer, false, tiledMap.getOrientation());
+        boolean instancingSupported = renderingMode != RenderingMode.MULTI_DRAW
+                && canRenderTilesInstanced(layer);
 
-        if (renderingMode != RenderingMode.MULTI_DRAW && canRenderTilesInstanced(layer)) {
+        if (instancingSupported) {
             if (!ref.instancedTiles) {
                 clearLayerNodeChildren(layerNode, layer);
                 ref.clearTiles();
                 ref.instancedBatches = null;
             }
             return renderTilesInstanced(listener, layer, tpf, ref, layerNode, renderingMode);
+        }
+        if (renderingMode != RenderingMode.MULTI_DRAW
+                && layer.getRenderingMode() != RenderingMode.AUTO) {
+            String failure = findRequiredTextureArrayFailure(layer);
+            if (failure != null) {
+                throw new IllegalStateException("Cannot render explicitly instanced Tiled layer '"
+                        + layer.getName() + "': " + failure);
+            }
         }
 
         if (ref.instancedTiles) {
@@ -1177,11 +1256,13 @@ public abstract class MapRenderer {
 
                     Material mat = visual.getMaterial();
                     materialFactory.setTile(mat, tile);
+                    applyPreferredTextureArray(mat, tile);
                     materialFactory.setTintColor(mat, layer.getTintColor());
                     materialFactory.setLayerOpacity(mat, (float) layer.getOpacity());
                     materialFactory.setBlendMode(mat, layer.getBlendMode());
                 
                     spriteFactory.setAnimation(visual, tile);
+                    configureAnimatedTextureArray(visual, tile);
 
 
                     if(visual.getParent()!=layerNode){
@@ -1248,16 +1329,32 @@ public abstract class MapRenderer {
             return false;
         }
         Tileset tileset = tile.getTileset();
-        if (tileset.isImageBased()) {
-            TiledImageEntity image = tileset.getImage();
-            return image != null && image.getTexture() != null && image.getTrans() == null;
+        TiledImageEntity image = tileset.isImageBased() ? tileset.getImage() : tile.getImage();
+        if (image == null || image.getTexture() == null || image.getTrans() != null) {
+            return false;
         }
-        TiledImageEntity image = tile.getImage();
-        return image != null
-                && image.getTexture() != null
-                && image.getTexture().getImage() != null
-                && image.getTrans() == null
-                && ImageRaster.isSupported(image.getTexture().getImage().getFormat());
+        InstancedTilesetSource source = getInstancedTilesetSource(tileset);
+        return source.imageBased ? source.texture != null : source.arrayBased;
+    }
+
+    private String findRequiredTextureArrayFailure(TiledTileLayer layer) {
+        final String[] failure = { null };
+        visitTiles((x, y, z) -> {
+            if (failure[0] != null) {
+                return;
+            }
+            Tile tile = layer.getTileAt(x, y).getTile();
+            failure[0] = requiredTextureArrayFailure(tile);
+        });
+        return failure[0];
+    }
+
+    private String requiredTextureArrayFailure(Tile tile) {
+        if (tile == null || tile.getTileset() == null || tile.getTileset().isImageBased()) {
+            return null;
+        }
+        InstancedTilesetSource source = getInstancedTilesetSource(tile.getTileset());
+        return source.arrayBased ? null : source.arrayFailureReason;
     }
 
     private boolean canRenderObjectInstanced(TiledObjectEntity obj) {
@@ -1288,6 +1385,7 @@ public abstract class MapRenderer {
 
     private void applyObjectDecals(Material material, Tile tile) {
         material.clearParam(MaterialConst.DECAL_MAP);
+        material.clearParam(MaterialConst.DECAL_ARRAY);
         material.clearParam(MaterialConst.DECAL_IMAGE_SIZE);
         material.clearParam(MaterialConst.DECAL_TILE_SIZE);
         material.clearParam(MaterialConst.DECAL_0);
@@ -1320,7 +1418,7 @@ public abstract class MapRenderer {
             String tilesetName = String.valueOf(decalObject.getPropertyOrDefault(
                     DECAL_TILESET_PROPERTY, DEFAULT_DECAL_TILESET)).trim();
             Tileset tileset = tiledMap.getTileset(tilesetName);
-            if (tileset == null || !tileset.isImageBased()) {
+            if (tileset == null) {
                 continue;
             }
             int decalTileId = safeInt(decalTileValue, -1);
@@ -1329,6 +1427,9 @@ public abstract class MapRenderer {
                 continue;
             }
             InstancedTilesetSource source = getInstancedTilesetSource(tileset);
+            if (!source.arrayBased && source.texture == null) {
+                continue;
+            }
             if (decalSource == null) {
                 decalSource = source;
             } else if (decalSource != source) {
@@ -1345,7 +1446,11 @@ public abstract class MapRenderer {
             float defaultScale = (float) (Math.max(decalObject.getWidth(), decalObject.getHeight()) / tileWidth);
             float scale = safeFloat(decalObject.getProperty(DECAL_SCALE_PROPERTY),
                     safeFloat(decalObject.getProperty(DECAL_SIZE_PROPERTY), defaultScale * tileWidth) / tileWidth);
-            decals[layer].set(decalTile.getId(), decalCenter.x, decalCenter.y, scale);
+            int textureLayer = source.arrayBased ? source.getLayer(decalTile.getId()) : decalTile.getId();
+            if (textureLayer < 0) {
+                continue;
+            }
+            decals[layer].set(textureLayer, decalCenter.x, decalCenter.y, scale);
             layer++;
         }
 
@@ -1353,7 +1458,11 @@ public abstract class MapRenderer {
             return;
         }
 
-        material.setTexture(MaterialConst.DECAL_MAP, decalSource.texture);
+        if (decalSource.arrayBased) {
+            material.setTexture(MaterialConst.DECAL_ARRAY, decalSource.textureArray);
+        } else {
+            material.setTexture(MaterialConst.DECAL_MAP, decalSource.texture);
+        }
         material.setVector2(MaterialConst.DECAL_IMAGE_SIZE,
                 new Vector2f(decalSource.imageWidth, decalSource.imageHeight));
         material.setVector4(MaterialConst.DECAL_TILE_SIZE,
@@ -1682,10 +1791,12 @@ public abstract class MapRenderer {
 
         Material mat = visual.getMaterial();
         materialFactory.setTile(mat, tile);
+        applyPreferredTextureArray(mat, tile);
         materialFactory.setTintColor(mat, layer.getTintColor());
         materialFactory.setLayerOpacity(mat, (float) layer.getOpacity());
         materialFactory.setBlendMode(mat, layer.getBlendMode());
         spriteFactory.setAnimation(visual, tile);
+        configureAnimatedTextureArray(visual, tile);
         spriteFactory.applyProperties(tile, visual);
 
         transientSpatials.put(entry, visual);
@@ -1794,8 +1905,20 @@ public abstract class MapRenderer {
     }
 
     InstancedTilesetSource getInstancedTilesetSource(Tileset tileset) {
+        return getTilesetSource(tileset, true);
+    }
+
+    InstancedTilesetSource getPreferredTilesetSource(Tileset tileset) {
+        return getTilesetSource(tileset, false);
+    }
+
+    private InstancedTilesetSource getTilesetSource(Tileset tileset, boolean arrayRequired) {
         InstancedTilesetSource source = instancedSourceCache.get(tileset);
         if (source != null) {
+            if (arrayRequired && !source.imageBased && !source.arrayBased
+                    && !source.normalizationAttempted) {
+                prepareImageCollectionSource(source, true);
+            }
             return source;
         }
 
@@ -1803,56 +1926,301 @@ public abstract class MapRenderer {
         source.tileset = tileset;
         source.imageBased = tileset.isImageBased();
         if (source.imageBased) {
-            TiledImageEntity image = tileset.getImage();
-            source.imageWidth = image.getWidth();
-            source.imageHeight = image.getHeight();
-            source.texture = image.getTexture();
+            prepareAtlasTilesetSource(source);
         } else {
-            ArrayList<Image> images = new ArrayList<>();
-            int maxWidth = 1;
-            int maxHeight = 1;
-            ColorSpace colorSpace = ColorSpace.sRGB;
-            for (Tile tile : tileset) {
-                if (tile == null || tile.getImage() == null || tile.getImage().getTexture() == null) {
-                    continue;
-                }
-                Image image = tile.getImage().getTexture().getImage();
-                if (image == null || !ImageRaster.isSupported(image.getFormat())) {
-                    continue;
-                }
-                maxWidth = Math.max(maxWidth, image.getWidth());
-                maxHeight = Math.max(maxHeight, image.getHeight());
-                colorSpace = image.getColorSpace();
-            }
-            for (Tile tile : tileset) {
-                if (tile == null || tile.getImage() == null || tile.getImage().getTexture() == null) {
-                    continue;
-                }
-                Image srcImage = tile.getImage().getTexture().getImage();
-                if (srcImage == null || !ImageRaster.isSupported(srcImage.getFormat())) {
-                    continue;
-                }
-                Image padded = new Image(Image.Format.RGBA8, maxWidth, maxHeight,
-                        BufferUtils.createByteBuffer(maxWidth * maxHeight * 4), colorSpace);
-                ImageRaster src = ImageRaster.create(srcImage);
-                ImageRaster dst = ImageRaster.create(padded);
-                ColorRGBA color = new ColorRGBA();
-                for (int y = 0; y < srcImage.getHeight(); y++) {
-                    for (int x = 0; x < srcImage.getWidth(); x++) {
-                        dst.setPixel(x, y, src.getPixel(x, y, color));
-                    }
-                }
-                source.collectionLayerByTileId.put(tile.getId(), images.size());
-                images.add(padded);
-            }
-            source.imageWidth = maxWidth;
-            source.imageHeight = maxHeight;
-            source.textureArray = new TextureArray(images);
-            source.textureArray.setWrap(Texture.WrapMode.EdgeClamp);
-            source.textureArray.setMagFilter(Texture.MagFilter.Nearest);
+            prepareImageCollectionSource(source, arrayRequired);
         }
         instancedSourceCache.put(tileset, source);
         return source;
+    }
+
+    private void prepareAtlasTilesetSource(InstancedTilesetSource source) {
+        TiledImageEntity tiledImage = source.tileset.getImage();
+        source.texture = tiledImage == null ? null : tiledImage.getTexture();
+        if (source.texture == null || source.texture.getImage() == null) {
+            source.arrayFailureReason = "Tileset atlas has no loaded image";
+            return;
+        }
+
+        Image atlas = source.texture.getImage();
+        source.imageWidth = atlas.getWidth();
+        source.imageHeight = atlas.getHeight();
+        configureAtlasTexture(source.texture);
+        if (!preferTextureArraysForTilesets) {
+            source.arrayFailureReason = "Texture arrays are disabled for tilesets";
+            return;
+        }
+        if (!textureArraysSupported) {
+            source.arrayFailureReason = "The active renderer does not support texture arrays";
+            return;
+        }
+
+        int maxTileId = maxTileId(source.tileset);
+        source.initializeLayerMap(maxTileId);
+        ArrayList<Image> layers = new ArrayList<>(source.tileset.size());
+        for (Tile tile : source.tileset) {
+            if (tile == null) {
+                continue;
+            }
+            int sourceY = atlas.getHeight() - tile.getY() - tile.getHeight();
+            if (!ImageRegionSlicer.canSlice(atlas, tile.getX(), sourceY, tile.getWidth(), tile.getHeight())) {
+                source.arrayFailureReason = "Atlas tile " + tile.getId()
+                        + " is not aligned for " + atlas.getFormat() + " slicing";
+                return;
+            }
+            source.setLayer(tile.getId(), layers.size());
+            layers.add(ImageRegionSlicer.slice(atlas, tile.getX(), sourceY, tile.getWidth(), tile.getHeight()));
+        }
+        if (layers.isEmpty()) {
+            source.arrayFailureReason = "Tileset atlas has no tiles";
+            return;
+        }
+        if (!compatibleArrayImages(layers)) {
+            source.arrayFailureReason = "Atlas tiles do not share one texture-array layout";
+            return;
+        }
+        if (!supportsArrayFormat(layers.get(0).getFormat())) {
+            source.arrayFailureReason = "The active renderer does not support atlas format "
+                    + layers.get(0).getFormat();
+            return;
+        }
+
+        if (layers.get(0).getFormat().isCompressed() && !layers.get(0).hasMipmaps()) {
+            source.arrayFailureReason = "Compressed atlas tiles cannot generate independent mipmaps";
+            return;
+        }
+        TextureArray array = new TextureArray(layers);
+        configureArrayTexture(array);
+        source.textureArray = array;
+        source.arrayBased = true;
+        source.imageWidth = layers.get(0).getWidth();
+        source.imageHeight = layers.get(0).getHeight();
+    }
+
+    private void prepareImageCollectionSource(InstancedTilesetSource source, boolean allowNormalization) {
+        source.arrayBased = false;
+        source.textureArray = null;
+        source.arrayFailureReason = null;
+        source.normalizationAttempted = allowNormalization;
+        int maxTileId = maxTileId(source.tileset);
+        source.initializeLayerMap(maxTileId);
+        ArrayList<Image> images = new ArrayList<>(source.tileset.size());
+        int maxWidth = 1;
+        int maxHeight = 1;
+        for (Tile tile : source.tileset) {
+            if (tile == null) {
+                continue;
+            }
+            Texture texture = tileTexture(tile);
+            if (texture == null || !hasReadableBaseImage(texture.getImage())) {
+                source.arrayFailureReason = "Image collection tile " + tile.getId() + " has no loaded image";
+                return;
+            }
+            configureIndependentTexture(texture);
+            Image image = texture.getImage();
+            maxWidth = Math.max(maxWidth, image.getWidth());
+            maxHeight = Math.max(maxHeight, image.getHeight());
+            source.setLayer(tile.getId(), images.size());
+            images.add(image);
+        }
+        if (images.isEmpty()) {
+            source.arrayFailureReason = "Image collection has no tiles";
+            return;
+        }
+
+        if (!textureArraysSupported) {
+            source.arrayFailureReason = "The active renderer does not support texture arrays";
+            return;
+        }
+
+        if (compatibleArrayImages(images) && supportsArrayFormat(images.get(0).getFormat())) {
+            source.textureArray = new TextureArray(images);
+            configureArrayTexture(source.textureArray);
+            source.arrayBased = true;
+            source.imageWidth = maxWidth;
+            source.imageHeight = maxHeight;
+            return;
+        }
+
+        if (!allowNormalization) {
+            source.arrayFailureReason = "Image collection does not directly share one texture-array layout";
+            return;
+        }
+
+        ArrayList<Image> normalized = normalizeCollectionImages(
+                source.tileset, maxWidth, maxHeight, images.get(0).getColorSpace());
+        if (normalized == null) {
+            source.arrayFailureReason = "Image collection cannot be normalized to one texture-array format";
+            return;
+        }
+        source.textureArray = new TextureArray(normalized);
+        configureArrayTexture(source.textureArray);
+        source.arrayBased = true;
+        source.imageWidth = maxWidth;
+        source.imageHeight = maxHeight;
+    }
+
+    private ArrayList<Image> normalizeCollectionImages(
+            Tileset tileset, int width, int height, ColorSpace colorSpace) {
+        ArrayList<Image> normalized = new ArrayList<>(tileset.size());
+        ColorRGBA color = new ColorRGBA();
+        for (Tile tile : tileset) {
+            if (tile == null) {
+                continue;
+            }
+            Texture texture = tileTexture(tile);
+            Image image = texture == null ? null : texture.getImage();
+            if (!hasReadableBaseImage(image) || !ImageRaster.isSupported(image.getFormat())) {
+                return null;
+            }
+            Image padded = new Image(Image.Format.RGBA8, width, height,
+                    BufferUtils.createByteBuffer(width * height * 4), colorSpace);
+            ImageRaster src = ImageRaster.create(image);
+            ImageRaster dst = ImageRaster.create(padded);
+            for (int y = 0; y < image.getHeight(); y++) {
+                for (int x = 0; x < image.getWidth(); x++) {
+                    dst.setPixel(x, y, src.getPixel(x, y, color));
+                }
+            }
+            normalized.add(padded);
+        }
+        return compatibleArrayImages(normalized) ? normalized : null;
+    }
+
+    private static Texture tileTexture(Tile tile) {
+        if (tile == null || tile.getImage() == null) {
+            return null;
+        }
+        return tile.getImage().getTexture();
+    }
+
+    private static boolean hasReadableBaseImage(Image image) {
+        return image != null && image.getData() != null && image.getData().size() == 1
+                && image.getData(0) != null;
+    }
+
+    private static int maxTileId(Tileset tileset) {
+        int maxTileId = -1;
+        for (Tile tile : tileset) {
+            if (tile != null) {
+                maxTileId = Math.max(maxTileId, tile.getId());
+            }
+        }
+        return maxTileId;
+    }
+
+    private static boolean compatibleArrayImages(List<Image> images) {
+        if (images.isEmpty()) {
+            return false;
+        }
+        Image first = images.get(0);
+        for (int i = 1; i < images.size(); i++) {
+            Image image = images.get(i);
+            if (image.getWidth() != first.getWidth()
+                    || image.getHeight() != first.getHeight()
+                    || image.getFormat() != first.getFormat()
+                    || image.getColorSpace() != first.getColorSpace()
+                    || !Arrays.equals(image.getMipMapSizes(), first.getMipMapSizes())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean supportsArrayFormat(Image.Format format) {
+        switch (format) {
+            case DXT1:
+            case DXT1A:
+            case DXT3:
+            case DXT5:
+                return s3tcSupported;
+            case ETC1:
+                return etc1Supported;
+            case ETC2:
+            case ETC2_ALPHA1:
+                return etc2Supported;
+            default:
+                return true;
+        }
+    }
+
+    private static void configureAtlasTexture(Texture texture) {
+        texture.setWrap(Texture.WrapMode.EdgeClamp);
+        texture.setMinFilter(Texture.MinFilter.BilinearNoMipMaps);
+        texture.setMagFilter(Texture.MagFilter.Bilinear);
+    }
+
+    private static void configureIndependentTexture(Texture texture) {
+        texture.setWrap(Texture.WrapMode.EdgeClamp);
+        Image image = texture.getImage();
+        boolean mipmapsSupported = image != null && (!image.getFormat().isCompressed() || image.hasMipmaps());
+        texture.setMinFilter(mipmapsSupported
+                ? Texture.MinFilter.Trilinear
+                : Texture.MinFilter.BilinearNoMipMaps);
+        texture.setMagFilter(Texture.MagFilter.Bilinear);
+    }
+
+    private static void configureArrayTexture(TextureArray texture) {
+        texture.setWrap(Texture.WrapMode.EdgeClamp);
+        Image image = texture.getImage();
+        boolean mipmapsSupported = !image.getFormat().isCompressed() || image.hasMipmaps();
+        texture.setMinFilter(mipmapsSupported
+                ? Texture.MinFilter.Trilinear
+                : Texture.MinFilter.BilinearNoMipMaps);
+        texture.setMagFilter(Texture.MagFilter.Bilinear);
+    }
+
+    private void applyPreferredTextureArray(Material material, Tile tile) {
+        material.clearParam(MaterialConst.COLOR_ARRAY);
+        material.clearParam(MaterialConst.TILE_LAYER);
+        if (tile == null || tile.getTileset() == null) {
+            return;
+        }
+
+        Tileset tileset = tile.getTileset();
+        if (!preferTextureArraysForTilesets) {
+            configureImageCollectionTextures(tileset);
+            return;
+        }
+
+        InstancedTilesetSource source = getPreferredTilesetSource(tileset);
+        int layer = source.getLayer(tile.getId());
+        if (!source.arrayBased || layer < 0) {
+            return;
+        }
+
+        material.clearParam(MaterialConst.COLOR_MAP);
+        material.setTexture(MaterialConst.COLOR_ARRAY, source.textureArray);
+        material.setFloat(MaterialConst.TILE_LAYER, source.getLayerValue(tile.getId()));
+        material.setBoolean(MaterialConst.USE_TILESET_IMAGE, true);
+        material.setVector2(MaterialConst.IMAGE_SIZE,
+                new Vector2f(source.imageWidth, source.imageHeight));
+        material.setVector4(MaterialConst.TILE_SIZE,
+                new Vector4f(tile.getWidth(), tile.getHeight(), 0f, 0f));
+    }
+
+    private void configureImageCollectionTextures(Tileset tileset) {
+        if (tileset.isImageBased() || !filteredImageCollections.add(tileset)) {
+            return;
+        }
+        for (Tile collectionTile : tileset) {
+            Texture texture = tileTexture(collectionTile);
+            if (texture != null) {
+                configureIndependentTexture(texture);
+            }
+        }
+    }
+
+    private void configureAnimatedTextureArray(Spatial spatial, Tile tile) {
+        AnimatedTileControl control = spatial.getControl(AnimatedTileControl.class);
+        if (control == null || !preferTextureArraysForTilesets
+                || tile == null || tile.getTileset() == null) {
+            return;
+        }
+        InstancedTilesetSource source = getPreferredTilesetSource(tile.getTileset());
+        if (source.arrayBased) {
+            control.setTextureArrayLayers(source.getLayerValues());
+        }
     }
 
     protected static class ViewCull {
@@ -2140,6 +2508,15 @@ public abstract class MapRenderer {
                     continue;
                 }
 
+                if (useInstancing && layer.getRenderingMode() != RenderingMode.AUTO
+                        && obj.getShape() == ObjectShape.TILE) {
+                    String failure = requiredTextureArrayFailure(obj.getTile());
+                    if (failure != null) {
+                        throw new IllegalStateException("Cannot render explicitly instanced Tiled object layer '"
+                                + layer.getName() + "': " + failure);
+                    }
+                }
+
                 if (useInstancing && canRenderObjectInstanced(obj)) {
                     Vector2f screenCoord = vars.vect2d;
                     gridToWorldSpace((float) obj.getX(), (float) obj.getY(), screenCoord);
@@ -2215,6 +2592,7 @@ public abstract class MapRenderer {
                     }
 
                     spriteFactory.setAnimation(spatial, obj);
+                    configureAnimatedTextureArray(spatial, obj.getTile());
                     if (obj.getShape() == ObjectShape.TEXT) {
                         configureTextSpatial(spatial, obj, layer);
                     }
@@ -2224,6 +2602,7 @@ public abstract class MapRenderer {
                     } else if (spatial instanceof Geometry) {
                         Geometry geometry = (Geometry) spatial;
                         materialFactory.setMapObject(geometry.getMaterial(), obj);
+                        applyPreferredTextureArray(geometry.getMaterial(), obj.getTile());
                         applyObjectDecals(geometry.getMaterial(), obj.getTile());
                         materialFactory.setTintColor(geometry.getMaterial(), layer.getTintColor());
                         materialFactory.setLayerOpacity(geometry.getMaterial(), (float) layer.getOpacity());

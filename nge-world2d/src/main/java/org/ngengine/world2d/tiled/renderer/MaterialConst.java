@@ -52,11 +52,13 @@ public final class MaterialConst {
     public static final String COLOR_MAP_1 = "ColorMap1";
     public static final String COLOR_MAP_2 = "ColorMap2";
     public static final String COLOR_MAP_3 = "ColorMap3";
+    public static final String COLOR_ARRAY = "ColorArray";
     public static final String COLOR_ARRAY_0 = "ColorArray0";
     public static final String COLOR_ARRAY_1 = "ColorArray1";
     public static final String COLOR_ARRAY_2 = "ColorArray2";
     public static final String COLOR_ARRAY_3 = "ColorArray3";
     public static final String DECAL_MAP = "DecalMap";
+    public static final String DECAL_ARRAY = "DecalArray";
     public static final String DECAL_IMAGE_SIZE = "DecalImageSize";
     public static final String DECAL_TILE_SIZE = "DecalTileSize";
     public static final String DECAL_0 = "Decal0";
@@ -75,6 +77,7 @@ public final class MaterialConst {
     public static final String USE_TILESET_IMAGE = "UseTilesetImage";
     public static final String USE_INSTANCING = "UseInstancing";
     public static final String TILE_POSITION = "TilePosition";
+    public static final String TILE_LAYER = "TileLayer";
     public static final String USE_TILE_POSITION = "UseTilePosition";
 
     public static final String OPACITY = "Opacity";

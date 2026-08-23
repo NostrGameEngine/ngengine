@@ -171,11 +171,11 @@ final class InstancedTileBatch {
         int textureSlot = getTextureSlot(source);
         float tileDataX;
         float tileDataY;
-        if (source.imageBased) {
+        if (!source.arrayBased) {
             tileDataX = (float) tile.getX();
             tileDataY = (float) tile.getY();
         } else {
-            tileDataX = (float) source.collectionLayerByTileId.get(tile.getId());
+            tileDataX = (float) source.getLayer(tile.getId());
             tileDataY = 0f;
         }
         int flipFlags = getInstancedFlipFlags(tile);
@@ -216,11 +216,11 @@ final class InstancedTileBatch {
         int textureSlot = getTextureSlot(source);
         float tileDataX;
         float tileDataY;
-        if (source.imageBased) {
+        if (!source.arrayBased) {
             tileDataX = (float) tile.getX();
             tileDataY = (float) tile.getY();
         } else {
-            tileDataX = (float) source.collectionLayerByTileId.get(tile.getId());
+            tileDataX = (float) source.getLayer(tile.getId());
             tileDataY = 0f;
         }
         int flipFlags = getInstancedFlipFlags(tile);
@@ -284,7 +284,7 @@ final class InstancedTileBatch {
             String tilesetName = String.valueOf(decalObject.getPropertyOrDefault(
                     DECAL_TILESET_PROPERTY, DEFAULT_DECAL_TILESET)).trim();
             Tileset tileset = renderer.tiledMap.getTileset(tilesetName);
-            if (tileset == null || !tileset.isImageBased()) {
+            if (tileset == null) {
                 continue;
             }
             int decalTileId = NGEUtils.safeInt(decalTileValue);
@@ -293,6 +293,9 @@ final class InstancedTileBatch {
                 continue;
             }
             InstancedTilesetSource source = renderer.getInstancedTilesetSource(tileset);
+            if (!source.arrayBased && source.texture == null) {
+                continue;
+            }
             if (decalSource == null) {
                 decalSource = source;
                 materialDirty = true;
@@ -302,7 +305,11 @@ final class InstancedTileBatch {
 
             float tileWidth = Math.max((float) tile.getWidth(), 1f);
             float tileHeight = Math.max((float) tile.getHeight(), 1f);
-            tmpDecalTile[layer] = decalTile.getId();
+            int textureLayer = source.arrayBased ? source.getLayer(decalTile.getId()) : decalTile.getId();
+            if (textureLayer < 0) {
+                continue;
+            }
+            tmpDecalTile[layer] = textureLayer;
             float centerX = (float) ((decalObject.getX() + decalObject.getWidth() * 0.5) / tileWidth)
                     + NGEUtils.safeFloat(decalObject.getProperty(DECAL_OFFSET_X_PROPERTY));
             float centerY = (float) ((decalObject.getY() + decalObject.getHeight() * 0.5) / tileHeight)
@@ -660,20 +667,25 @@ final class InstancedTileBatch {
         material.clearParam(MaterialConst.COLOR_MAP_2);
         material.clearParam(MaterialConst.COLOR_MAP_3);
         material.clearParam(MaterialConst.DECAL_MAP);
+        material.clearParam(MaterialConst.DECAL_ARRAY);
         material.clearParam(MaterialConst.COLOR_ARRAY_0);
         material.clearParam(MaterialConst.COLOR_ARRAY_1);
         material.clearParam(MaterialConst.COLOR_ARRAY_2);
         material.clearParam(MaterialConst.COLOR_ARRAY_3);
         for (int i = 0; i < sources.size(); i++) {
             InstancedTilesetSource source = sources.get(i);
-            if (source.imageBased) {
+            if (!source.arrayBased) {
                 material.setTexture(getColorMapParam(i), source.texture);
             } else {
                 material.setTexture(getColorArrayParam(i), source.textureArray);
             }
         }
-        if (decalSource != null && decalSource.imageBased) {
-            material.setTexture(MaterialConst.DECAL_MAP, decalSource.texture);
+        if (decalSource != null) {
+            if (decalSource.arrayBased) {
+                material.setTexture(MaterialConst.DECAL_ARRAY, decalSource.textureArray);
+            } else {
+                material.setTexture(MaterialConst.DECAL_MAP, decalSource.texture);
+            }
             material.setVector2(MaterialConst.DECAL_IMAGE_SIZE,
                     new Vector2f(decalSource.imageWidth, decalSource.imageHeight));
             material.setVector4(MaterialConst.DECAL_TILE_SIZE,

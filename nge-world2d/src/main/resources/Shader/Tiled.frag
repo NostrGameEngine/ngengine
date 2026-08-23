@@ -1,6 +1,6 @@
 #import "Common/ShaderLib/GLSLCompat.glsllib"
 
-#if defined(HAS_COLOR_ARRAY0) || defined(HAS_COLOR_ARRAY1) || defined(HAS_COLOR_ARRAY2) || defined(HAS_COLOR_ARRAY3)
+#if defined(HAS_COLOR_ARRAY) || defined(HAS_COLOR_ARRAY0) || defined(HAS_COLOR_ARRAY1) || defined(HAS_COLOR_ARRAY2) || defined(HAS_COLOR_ARRAY3) || defined(HAS_DECAL_ARRAY)
 #extension GL_EXT_texture_array : enable
 #endif
 
@@ -36,6 +36,13 @@ uniform float m_TileAlphaOcclusionRadius;
 #ifdef HAS_COLOR_MAP
 uniform sampler2D m_ColorMap;
 #endif
+#ifdef HAS_COLOR_ARRAY
+#if !defined(GL_EXT_texture_array) && __VERSION__ < 130
+#error Texture arrays are not supported, but required for this Tiled tileset.
+#endif
+uniform sampler2DArray m_ColorArray;
+uniform float m_TileLayer;
+#endif
 
 #ifdef HAS_COLOR_MAP0
 uniform sampler2D m_ColorMap0;
@@ -51,6 +58,14 @@ uniform sampler2D m_ColorMap3;
 #endif
 #ifdef HAS_DECAL_MAP
 uniform sampler2D m_DecalMap;
+#endif
+#ifdef HAS_DECAL_ARRAY
+#if !defined(GL_EXT_texture_array) && __VERSION__ < 130
+#error Texture arrays are not supported, but required for Tiled decals.
+#endif
+uniform sampler2DArray m_DecalArray;
+#endif
+#if defined(HAS_DECAL_MAP) || defined(HAS_DECAL_ARRAY)
 uniform vec2 m_DecalImageSize;
 uniform vec4 m_DecalTileSize;
 uniform vec4 m_Decal0;
@@ -85,7 +100,7 @@ uniform sampler2DArray m_ColorArray2;
 uniform sampler2DArray m_ColorArray3;
 #endif
 
-#ifdef HAS_DECAL_MAP
+#if defined(HAS_DECAL_MAP) || defined(HAS_DECAL_ARRAY)
 varying vec2 v_DecalTexCoord;
 #endif
 
@@ -94,7 +109,7 @@ varying vec2 v_DecalTexCoord;
 varying vec4 v_TileData;
 varying vec2 v_UvSize;
 varying vec2 v_ImageSize;
-#ifdef HAS_DECAL_MAP
+#if defined(HAS_DECAL_MAP) || defined(HAS_DECAL_ARRAY)
 varying vec4 v_Decal0;
 varying vec4 v_Decal1;
 varying vec4 v_Decal2;
@@ -122,7 +137,7 @@ vec2 getTileUVClamped(vec2 tilePos, vec2 tileSize, vec2 imageSize) {
     return getTileUVClampedAt(v_TexCoord, tilePos, tileSize, imageSize);
 }
 
-#ifdef HAS_DECAL_MAP
+#if defined(HAS_DECAL_MAP) || defined(HAS_DECAL_ARRAY)
 vec2 unflipDecalUv(vec2 decalUv) {
 #ifndef INSTANCING
     float flags = m_DecalFlipFlags;
@@ -150,10 +165,14 @@ vec4 sampleInstancedDecal(vec4 decal) {
         return vec4(0.0);
     }
 
+    float tileId = floor(decal.x + 0.5);
+#ifdef HAS_DECAL_ARRAY
+    vec2 uv = getTileUVClampedAt(decalUv, vec2(0.0), m_DecalTileSize.xy, m_DecalImageSize);
+    return texture2DArray(m_DecalArray, vec3(uv, tileId));
+#else
     float strideX = m_DecalTileSize.x + m_DecalTileSize.w;
     float strideY = m_DecalTileSize.y + m_DecalTileSize.w;
     float columns = max(1.0, floor((m_DecalImageSize.x - m_DecalTileSize.z * 2.0 + m_DecalTileSize.w) / strideX));
-    float tileId = floor(decal.x + 0.5);
     float col = mod(tileId, columns);
     float row = floor(tileId / columns);
     vec2 tilePos = vec2(
@@ -166,6 +185,7 @@ vec4 sampleInstancedDecal(vec4 decal) {
     vec2 uv = clamp(pixel, minPixel, maxPixel) / m_DecalImageSize;
     uv.y = 1.0 - uv.y;
     return texture2D(m_DecalMap, uv);
+#endif
 }
 
 vec4 alphaOver(vec4 under, vec4 over) {
@@ -226,7 +246,7 @@ vec4 sampleInstancedTile(vec2 tileUv) {
 }
 #endif
 
-#if defined(USE_TILE_ALPHA_OCCLUSION) && (defined(HAS_COLOR_MAP) || defined(INSTANCING))
+#if defined(USE_TILE_ALPHA_OCCLUSION) && (defined(HAS_COLOR_MAP) || defined(HAS_COLOR_ARRAY) || defined(INSTANCING))
 float alphaFromSample(vec4 sampleColor) {
 #ifdef HAS_TRANS_COLOR
     if (sampleColor.rgb == m_TransColor.rgb) {
@@ -241,7 +261,11 @@ vec4 sampleBaseColor(vec2 texCoord) {
     return sampleInstancedTile(texCoord);
 #else
 #ifdef USE_TILESET_IMAGE
+#ifdef HAS_COLOR_ARRAY
+    return texture2DArray(m_ColorArray, vec3(getTileUVClampedAt(texCoord, vec2(0.0), m_TileSize.xy, m_ImageSize.xy), m_TileLayer));
+#else
     return texture2D(m_ColorMap, getTileUVClampedAt(texCoord, v_TilePos, m_TileSize.xy, m_ImageSize.xy));
+#endif
 #else
     return texture2D(m_ColorMap, texCoord);
 #endif
@@ -332,22 +356,27 @@ vec3 hueShift(vec3 color, float shift) {
 void main(){
     vec4 color = vec4(1.0);
 
-#if defined(HAS_COLOR_MAP) || defined(INSTANCING)
+#if defined(HAS_COLOR_MAP) || defined(HAS_COLOR_ARRAY) || defined(INSTANCING)
     vec2 uv = v_TexCoord;
 
     #ifdef USE_TILESET_IMAGE
     #ifdef INSTANCING
     color = sampleInstancedTile(uv);
-    #ifdef HAS_DECAL_MAP
+    #if defined(HAS_DECAL_MAP) || defined(HAS_DECAL_ARRAY)
     color = alphaOver(color, sampleInstancedDecal(v_Decal0));
     color = alphaOver(color, sampleInstancedDecal(v_Decal1));
     color = alphaOver(color, sampleInstancedDecal(v_Decal2));
     color = alphaOver(color, sampleInstancedDecal(v_Decal3));
     #endif
     #else
+#ifdef HAS_COLOR_ARRAY
+    uv = getTileUVClampedAt(v_TexCoord, vec2(0.0), m_TileSize.xy, m_ImageSize.xy);
+    color = texture2DArray(m_ColorArray, vec3(uv, m_TileLayer));
+#else
     uv = getTileUVClamped(v_TilePos, m_TileSize.xy, m_ImageSize.xy);
     color = texture2D(m_ColorMap, uv);
-    #ifdef HAS_DECAL_MAP
+#endif
+    #if defined(HAS_DECAL_MAP) || defined(HAS_DECAL_ARRAY)
     color = alphaOver(color, sampleInstancedDecal(m_Decal0));
     color = alphaOver(color, sampleInstancedDecal(m_Decal1));
     color = alphaOver(color, sampleInstancedDecal(m_Decal2));
@@ -365,7 +394,7 @@ void main(){
     }
     #endif
 
-    #if defined(USE_TILE_ALPHA_OCCLUSION) && (defined(HAS_COLOR_MAP) || defined(INSTANCING))
+    #if defined(USE_TILE_ALPHA_OCCLUSION) && (defined(HAS_COLOR_MAP) || defined(HAS_COLOR_ARRAY) || defined(INSTANCING))
     color = applyTileAlphaOcclusion(color, v_TexCoord);
     #endif
 

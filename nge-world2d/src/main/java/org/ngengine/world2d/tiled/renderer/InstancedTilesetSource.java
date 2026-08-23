@@ -34,19 +34,55 @@ package org.ngengine.world2d.tiled.renderer;
 
 import com.jme3.texture.Texture;
 import com.jme3.texture.TextureArray;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Arrays;
 import org.ngengine.world2d.tiled.core.tileset.Tileset;
 
 /**
- * Texture state for one tileset source bound into an instanced batch slot.
+ * Prepared texture state for one tileset. Instanced batches and preferred
+ * multi-draw materials share the same load-time conversion cache.
  */
 final class InstancedTilesetSource {
     Tileset tileset;
     boolean imageBased;
+    boolean arrayBased;
     int imageWidth;
     int imageHeight;
     Texture texture;
     TextureArray textureArray;
-    Map<Integer, Integer> collectionLayerByTileId = new HashMap<>();
+    String arrayFailureReason;
+    boolean normalizationAttempted;
+    private int[] layerByTileId = new int[0];
+    private Float[] layerValueByTileId = new Float[0];
+
+    void initializeLayerMap(int maxTileId) {
+        layerByTileId = new int[Math.max(maxTileId + 1, 0)];
+        Arrays.fill(layerByTileId, -1);
+        layerValueByTileId = new Float[layerByTileId.length];
+    }
+
+    void setLayer(int tileId, int layer) {
+        if (tileId < 0 || tileId >= layerByTileId.length) {
+            return;
+        }
+        layerByTileId[tileId] = layer;
+        layerValueByTileId[tileId] = Float.valueOf(layer);
+    }
+
+    int getLayer(int tileId) {
+        if (tileId < 0 || tileId >= layerByTileId.length) {
+            return -1;
+        }
+        return layerByTileId[tileId];
+    }
+
+    Float getLayerValue(int tileId) {
+        if (tileId < 0 || tileId >= layerValueByTileId.length) {
+            return null;
+        }
+        return layerValueByTileId[tileId];
+    }
+
+    Float[] getLayerValues() {
+        return layerValueByTileId;
+    }
 }
