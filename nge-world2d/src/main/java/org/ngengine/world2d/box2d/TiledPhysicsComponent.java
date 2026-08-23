@@ -171,6 +171,25 @@ public class TiledPhysicsComponent extends AbstractComponent
         this.needsUpdate = true;
     }
 
+    /**
+     * Rebuilds this entity's fixtures as soon as the Box2D world is safe to
+     * mutate. Use this after changing collision-bearing Tiled state at runtime,
+     * such as swapping an open door tile for its closed variant.
+     */
+    public void refreshPhysics() {
+        setUpdateNeeded();
+        ComponentManager manager = getComponentManager();
+        if (manager == null) {
+            return;
+        }
+        TiledWorld2d world = getInstanceOf(TiledWorld2d.class);
+        TiledEntity entity = getInstanceOf(TiledEntity.class);
+        if (world == null || entity == null || world.getPhysics() == null) {
+            return;
+        }
+        world.runAfterPhysicsStep(() -> updatePhysics(manager, world.getPhysics(), entity));
+    }
+
     private final Vector2f linearVelocity = new Vector2f();
 
     public Vector2f getLinearVelocity() {
