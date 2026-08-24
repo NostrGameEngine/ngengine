@@ -34,10 +34,16 @@ package org.ngengine.world2d.tiled.renderer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.jme3.renderer.Caps;
+import com.jme3.asset.AssetManager;
+import com.jme3.material.MatParam;
+import com.jme3.material.Material;
 import com.jme3.scene.Node;
+import com.jme3.system.JmeSystem;
 import com.jme3.texture.Image;
 import com.jme3.texture.Texture;
 import com.jme3.texture.Texture2D;
@@ -46,11 +52,15 @@ import com.jme3.util.BufferUtils;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.Arrays;
 import org.junit.jupiter.api.Test;
+import org.ngengine.world2d.tiled.animation.Frame;
 import org.ngengine.world2d.tiled.core.TiledMap;
 import org.ngengine.world2d.tiled.core.entity.TiledImageEntity;
+import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
 import org.ngengine.world2d.tiled.core.tileset.Tile;
 import org.ngengine.world2d.tiled.core.tileset.Tileset;
+import org.ngengine.world2d.tiled.renderer.factory.DefaultMaterialFactory;
 
 public class TilesetTexturePreparationTest {
 
@@ -138,6 +148,67 @@ public class TilesetTexturePreparationTest {
         assertFalse(source.arrayBased);
         assertNotNull(source.arrayFailureReason);
         assertEquals(Texture.MinFilter.Trilinear, tile.getImage().getTexture().getMinFilter());
+    }
+
+    @Test
+    public void instancedRecordUsesRenderedAnimationLayerWithoutSwappingLogicalTile() {
+        Tileset tileset = atlasTileset();
+        Tile firstFrame = tileset.getTile(0);
+        Tile logicalTile = tileset.getTile(1);
+        logicalTile.addAnimation("Default", Arrays.asList(
+                new Frame(0, 100), new Frame(1, 100)));
+        TiledObjectEntity entity = new TiledObjectEntity(1, 0, 0, logicalTile);
+        MapRenderer renderer = renderer();
+        InstancedTilesetSource source = renderer.getInstancedTilesetSource(tileset);
+        InstancedTileBatch batch = new InstancedTileBatch(renderer, "animated", 0, false);
+
+        entity.updateTileAnimation(0f);
+        batch.beginUpdate();
+        batch.putObject(entity, logicalTile, entity.getRenderedTile(), source, 0f, 0f, 0f);
+
+        assertSame(logicalTile, entity.getTile());
+        assertSame(firstFrame, entity.getRenderedTile());
+        assertEquals(0f, batch.records.get(0).tileDataX);
+
+        entity.updateTileAnimation(0.101f);
+        batch.beginUpdate();
+        batch.putObject(entity, logicalTile, entity.getRenderedTile(), source, 0f, 0f, 0f);
+
+        assertSame(logicalTile, entity.getRenderedTile());
+        assertEquals(1f, batch.records.get(0).tileDataX);
+    }
+
+    @Test
+    public void multidrawAnimationUpdatesOnlyTheExistingArrayLayerParameter() {
+        Tileset tileset = atlasTileset();
+        Tile firstFrame = tileset.getTile(0);
+        Tile logicalTile = tileset.getTile(1);
+        logicalTile.addAnimation("Default", Arrays.asList(
+                new Frame(0, 100), new Frame(1, 100)));
+        TiledObjectEntity entity = new TiledObjectEntity(1, 0, 0, logicalTile);
+        MapRenderer renderer = renderer();
+        AssetManager assets = JmeSystem.newAssetManager(
+                TilesetTexturePreparationTest.class.getResource("/com/jme3/asset/Desktop.cfg"));
+        DefaultMaterialFactory materials = new DefaultMaterialFactory(assets);
+        Material material = materials.newMaterial();
+
+        entity.updateTileAnimation(0f);
+        renderer.applyRenderedTileMaterial(materials, material, logicalTile, entity.getRenderedTile());
+        MatParam arrayParam = material.getParam(MaterialConst.COLOR_ARRAY);
+        MatParam layerParam = material.getParam(MaterialConst.TILE_LAYER);
+
+        assertSame(firstFrame, entity.getRenderedTile());
+        assertNotNull(arrayParam);
+        assertEquals(0f, layerParam.getValue());
+        assertNull(material.getParam(MaterialConst.COLOR_MAP));
+
+        entity.updateTileAnimation(0.101f);
+        renderer.applyRenderedTileMaterial(materials, material, logicalTile, entity.getRenderedTile());
+
+        assertSame(arrayParam, material.getParam(MaterialConst.COLOR_ARRAY));
+        assertSame(layerParam, material.getParam(MaterialConst.TILE_LAYER));
+        assertEquals(1f, material.getParam(MaterialConst.TILE_LAYER).getValue());
+        assertNull(material.getParam(MaterialConst.COLOR_MAP));
     }
 
     private static MapRenderer renderer() {

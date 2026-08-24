@@ -113,7 +113,11 @@ public class TiledTileEntity extends TiledEntity {
     }
 
     public void setTile(Tile tile) {
+        if (this.tile == tile) {
+            return;
+        }
         this.tile = tile;
+        logicalTileChanged();
         this.setUpdateNeeded();
     }
   

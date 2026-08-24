@@ -40,6 +40,9 @@ import org.ngengine.world2d.tiled.components.TiledComponentManager;
 import org.ngengine.world2d.tiled.components.TiledObjectSyncComponent;
 import org.ngengine.world2d.tiled.components.TiledComponentReflectionMounting;
 import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
+import org.ngengine.world2d.tiled.animation.Animation;
+import org.ngengine.world2d.tiled.animation.Frame;
+import org.ngengine.world2d.tiled.core.tileset.Tile;
 
 /**
  * An entry that can be placed on a map
@@ -47,6 +50,13 @@ import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
  */
 public abstract class TiledEntity extends TiledBase implements ComponentManagerProvider {
     private TiledComponentManager componentManager;
+    private Tile renderedTileOverride;
+    private Tile animatedRenderedTile;
+    private Tile animationTile;
+    private Animation tileAnimation;
+    private int animationFrameIndex;
+    private float unusedAnimationTime;
+    private int renderedTileUpdateNeeded = nextUpdateId();
 
     @Override
     public TiledComponentManager getComponentManager() {
@@ -95,4 +105,115 @@ public abstract class TiledEntity extends TiledBase implements ComponentManagerP
     public abstract double getX();
     public abstract String getClazz();
     public abstract BigInteger getId();
+    public abstract Tile getTile();
+
+    /**
+     * Returns the tile currently selected for rendering. This is independent
+     * from the logical tile used for properties, components, and physics.
+     *
+     * @return the explicit visual override, current animation frame, or logical
+     *         tile, in that order
+     */
+    public final Tile getRenderedTile() {
+        if (renderedTileOverride != null) {
+            return renderedTileOverride;
+        }
+        return animatedRenderedTile != null ? animatedRenderedTile : getTile();
+    }
+
+    /**
+     * Overrides only the tile used for rendering. Passing the logical tile or
+     * {@code null} clears the explicit override and reveals the current
+     * animation frame, without changing the entity GID, inherited properties,
+     * components, or collision source.
+     *
+     * @param tile tile to display, or {@code null} to display the logical tile
+     */
+    public final void setRenderedTile(Tile tile) {
+        Tile previous = getRenderedTile();
+        Tile logicalTile = getTile();
+        Tile override = tile == null || tile == logicalTile ? null : tile;
+        if (renderedTileOverride == override) {
+            return;
+        }
+        renderedTileOverride = override;
+        if (previous != getRenderedTile()) {
+            renderedTileUpdateNeeded = nextUpdateId();
+        }
+    }
+
+    /** @return update ID for render-tile-only changes */
+    public final int getRenderedTileUpdateId() {
+        return renderedTileUpdateNeeded;
+    }
+
+    /**
+     * Advances the logical tile's default Tiled animation without changing the
+     * logical tile. World management calls this once per simulation tick so
+     * every render target observes the same frame.
+     *
+     * @param tpf elapsed seconds
+     */
+    public final void updateTileAnimation(float tpf) {
+        Tile logicalTile = getTile();
+        if (animationTile != logicalTile) {
+            animationTile = logicalTile;
+            tileAnimation = logicalTile != null && !logicalTile.getAnimations().isEmpty()
+                    ? logicalTile.getAnimations().get(0) : null;
+            animationFrameIndex = 0;
+            unusedAnimationTime = 0f;
+            applyAnimationFrame();
+        }
+        if (tileAnimation == null || tileAnimation.getTotalFrames() == 0) {
+            setAnimatedRenderedTile(null);
+            return;
+        }
+
+        Frame frame = tileAnimation.getFrame(animationFrameIndex);
+        if (frame == null) {
+            setAnimatedRenderedTile(null);
+            return;
+        }
+        unusedAnimationTime += Math.max(0f, tpf) * 1000f;
+        int remainingFrames = tileAnimation.getTotalFrames();
+        while (frame.getDuration() > 0 && unusedAnimationTime >= frame.getDuration()
+                && remainingFrames-- > 0) {
+            unusedAnimationTime -= frame.getDuration();
+            animationFrameIndex = (animationFrameIndex + 1) % tileAnimation.getTotalFrames();
+            frame = tileAnimation.getFrame(animationFrameIndex);
+            if (frame == null) {
+                break;
+            }
+        }
+        applyAnimationFrame();
+    }
+
+    /** Resets visual animation state after an actual logical tile swap. */
+    protected final void logicalTileChanged() {
+        renderedTileOverride = null;
+        animatedRenderedTile = null;
+        animationTile = null;
+        tileAnimation = null;
+        animationFrameIndex = 0;
+        unusedAnimationTime = 0f;
+        renderedTileUpdateNeeded = nextUpdateId();
+    }
+
+    private void applyAnimationFrame() {
+        if (tileAnimation == null || animationTile == null || animationTile.getTileset() == null) {
+            setAnimatedRenderedTile(null);
+            return;
+        }
+        Frame frame = tileAnimation.getFrame(animationFrameIndex);
+        Tile frameTile = frame != null ? animationTile.getTileset().getTile(frame.getTileId()) : null;
+        setAnimatedRenderedTile(frameTile);
+    }
+
+    private void setAnimatedRenderedTile(Tile tile) {
+        Tile previous = getRenderedTile();
+        animatedRenderedTile = tile == getTile() ? null : tile;
+        if (previous != getRenderedTile()) {
+            renderedTileUpdateNeeded = nextUpdateId();
+        }
+    }
 }

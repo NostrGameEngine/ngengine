@@ -37,6 +37,7 @@ import com.jme3.asset.AssetManager;
 import com.jme3.font.BitmapFont;
 import com.jme3.font.BitmapText;
 import com.jme3.font.LineWrapMode;
+import com.jme3.material.MatParam;
 import com.jme3.material.MatParamOverride;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState;
@@ -210,7 +211,6 @@ public abstract class MapRenderer {
     private static final int TRANSIENT_COOLDOWN_FRAMES = 30;
     static final int BATCH_COOLDOWN_FRAMES = 45;
     private static final int DECAL_LAYERS = 4;
-    private static final String DECAL_TILE_PROPERTY = "decal.tile";
     private static final String DECAL_TILESET_PROPERTY = "decal.tileset";
     private static final String DECAL_SCALE_PROPERTY = "decal.scale";
     private static final String DECAL_SIZE_PROPERTY = "decal.size";
@@ -235,6 +235,7 @@ public abstract class MapRenderer {
         Map<TiledBase, RenderRef> refs = new HashMap<>();
         long updateId;
         long propertyUpdateId;
+        long renderedTileUpdateId;
         boolean instancedTiles;
         ArrayList<InstancedTileBatch> instancedBatches;
         int visibleTileSignature = Integer.MIN_VALUE;
@@ -260,6 +261,14 @@ public abstract class MapRenderer {
 
         public void clearPropertiesUpdateNeeded(long propertyUpdateId){
             this.propertyUpdateId = propertyUpdateId;
+        }
+
+        public boolean isRenderedTileUpdateNeeded(long renderedTileUpdateId) {
+            return this.renderedTileUpdateId != renderedTileUpdateId;
+        }
+
+        public void clearRenderedTileUpdateNeeded(long renderedTileUpdateId) {
+            this.renderedTileUpdateId = renderedTileUpdateId;
         }
 
         RenderRef getTile(int index){
@@ -306,6 +315,24 @@ public abstract class MapRenderer {
                 return;
             }
             ref.clearUpdateNeeded(updateId);
+        }
+
+        public boolean isTileRenderedTileUpdateNeeded(int index, long renderedTileUpdateId) {
+            if (tiles == null || index < 0 || index >= tiles.length) {
+                return false;
+            }
+            RenderRef ref = tiles[index];
+            return ref != null && ref.isRenderedTileUpdateNeeded(renderedTileUpdateId);
+        }
+
+        public void clearTileRenderedTileUpdateNeeded(int index, long renderedTileUpdateId) {
+            if (tiles == null || index < 0 || index >= tiles.length) {
+                return;
+            }
+            RenderRef ref = tiles[index];
+            if (ref != null) {
+                ref.clearRenderedTileUpdateNeeded(renderedTileUpdateId);
+            }
         }
 
         public boolean isTilePropertiesUpdateNeeded(int index, long propertyUpdateId){
@@ -1225,9 +1252,12 @@ public abstract class MapRenderer {
                     return;
                 }
                 listener.beforeEntityRender(tpf,tiledMap, layer, entry);
-                long tileUpdateId = (((long)layerUpdateId) << 32) | (layer.getUpdateIdAt(x, y) & 0xFFFFFFFFL);
+                long tileUpdateId = (((long)layerUpdateId) << 32)
+                        | (entry.getUpdateId() & 0xFFFFFFFFL);
+                int renderedTileUpdateId = entry.getRenderedTileUpdateId();
                 long propertyUpdateId = tile.getPropertiesUpdateId();
                 boolean tileUpdateNeeded = ref.isTileUpdateNeeded(index, tileUpdateId);
+                boolean renderedTileUpdateNeeded = ref.isTileRenderedTileUpdateNeeded(index, renderedTileUpdateId);
                 boolean tilePropertiesUpdateNeeded = ref.isTilePropertiesUpdateNeeded(index, propertyUpdateId);
                 
                 Geometry visual = oldTile!=null?(Geometry)oldTile.sp:null;
@@ -1255,21 +1285,25 @@ public abstract class MapRenderer {
                     visual.setUserData(YAxisComparator.SORT_ORDER_USER_DATA, getWorldSortOrder(layer, z));
 
                     Material mat = visual.getMaterial();
-                    materialFactory.setTile(mat, tile);
-                    applyPreferredTextureArray(mat, tile);
+                    applyRenderedTileMaterial(materialFactory, mat, tile, entry.getRenderedTile());
                     materialFactory.setTintColor(mat, layer.getTintColor());
                     materialFactory.setLayerOpacity(mat, (float) layer.getOpacity());
                     materialFactory.setBlendMode(mat, layer.getBlendMode());
                 
                     spriteFactory.setAnimation(visual, tile);
-                    configureAnimatedTextureArray(visual, tile);
+                    configureAnimatedTile(visual, entry, tile);
 
 
                     if(visual.getParent()!=layerNode){
                         layerNode.attachChild(visual);
                     }
                     ref.clearTileUpdateNeeded(index, tileUpdateId);
-                }  
+                    ref.clearTileRenderedTileUpdateNeeded(index, renderedTileUpdateId);
+                } else if (renderedTileUpdateNeeded) {
+                    MaterialFactory materialFactory = spriteFactory.getMaterialFactory();
+                    applyRenderedTileMaterial(materialFactory, visual.getMaterial(), tile, entry.getRenderedTile());
+                    ref.clearTileRenderedTileUpdateNeeded(index, renderedTileUpdateId);
+                }
 
                 if(tilePropertiesUpdateNeeded||layerPropertiesUpdateNeeded){
                     if (layerPropertiesUpdateNeeded) {
@@ -1378,7 +1412,6 @@ public abstract class MapRenderer {
         Tile tile = obj.getTile();
         return tile != null
                 && tile.getTileset() != null
-                && !tile.isAnimated()
                 && !hasUnsupportedInstancedFlip(tile)
                 && canRenderInstancedTile(tile);
     }
@@ -1410,7 +1443,7 @@ public abstract class MapRenderer {
             if (layer >= DECAL_LAYERS) {
                 break;
             }
-            Object decalTileValue = decalObject.getProperty(DECAL_TILE_PROPERTY);
+            Object decalTileValue = ObjectDecalPlacement.tileValueForFlip(decalObject, tile);
             if (decalTileValue == null) {
                 continue;
             }
@@ -1552,7 +1585,8 @@ public abstract class MapRenderer {
                 }
 
                 listener.beforeEntityRender(tpf,tiledMap, layer, entry);
-                long tileUpdateId = (((long)layerUpdateId) << 32) | (layer.getUpdateIdAt(x, y) & 0xFFFFFFFFL);
+                long tileUpdateId = (((long)entry.getUpdateId()) << 32)
+                        | (entry.getRenderedTileUpdateId() & 0xFFFFFFFFL);
                 if (oldTile == null || oldTile.entry != tile || oldTile.isUpdateNeeded(tileUpdateId)) {
                     rebuild[0] = true;
                     ref.setTile(index, tile, layerNode);
@@ -1609,7 +1643,8 @@ public abstract class MapRenderer {
                     }
                     clearTransientVisual(entry);
                     InstancedTileBatch batch = getInstancedBatch(instancedBatches, source, layer.getName(), drawGroup, batchCulled);
-                    batch.putTile(entry, tile, source, pixelCoord.x, tileY, pixelCoord.y);
+                    batch.putTile(entry, tile, entry.getRenderedTile(), source,
+                            pixelCoord.x, tileY, pixelCoord.y);
                 }, batchCulled);
             }
             if (batchCulled) {
@@ -1790,13 +1825,12 @@ public abstract class MapRenderer {
         visual.setLocalTranslation(pixelCoord.x, getTileYAxis(z), pixelCoord.y);
 
         Material mat = visual.getMaterial();
-        materialFactory.setTile(mat, tile);
-        applyPreferredTextureArray(mat, tile);
+        applyRenderedTileMaterial(materialFactory, mat, tile, entry.getRenderedTile());
         materialFactory.setTintColor(mat, layer.getTintColor());
         materialFactory.setLayerOpacity(mat, (float) layer.getOpacity());
         materialFactory.setBlendMode(mat, layer.getBlendMode());
         spriteFactory.setAnimation(visual, tile);
-        configureAnimatedTextureArray(visual, tile);
+        configureAnimatedTile(visual, entry, tile);
         spriteFactory.applyProperties(tile, visual);
 
         transientSpatials.put(entry, visual);
@@ -2170,33 +2204,73 @@ public abstract class MapRenderer {
         texture.setMagFilter(Texture.MagFilter.Bilinear);
     }
 
-    private void applyPreferredTextureArray(Material material, Tile tile) {
-        material.clearParam(MaterialConst.COLOR_ARRAY);
-        material.clearParam(MaterialConst.TILE_LAYER);
-        if (tile == null || tile.getTileset() == null) {
+    void applyRenderedTileMaterial(MaterialFactory materialFactory, Material material,
+            Tile logicalTile, Tile renderedTile) {
+        Tile visualTile = renderedTile != null ? renderedTile : logicalTile;
+        if (visualTile == null) {
             return;
         }
 
-        Tileset tileset = tile.getTileset();
-        if (!preferTextureArraysForTilesets) {
+        Tileset tileset = visualTile.getTileset();
+        InstancedTilesetSource source = preferTextureArraysForTilesets && tileset != null
+                ? getPreferredTilesetSource(tileset) : null;
+        int arrayLayer = source != null ? source.getLayer(visualTile.getId()) : -1;
+        if (source != null && source.arrayBased && arrayLayer >= 0) {
+            MatParam arrayParam = material.getParam(MaterialConst.COLOR_ARRAY);
+            if (arrayParam == null || arrayParam.getValue() != source.textureArray) {
+                // Configure non-texture tile parameters once when the backing
+                // tileset changes, then switch the sampler define to the array.
+                materialFactory.setTile(material, visualTile);
+                clearMaterialParam(material, MaterialConst.COLOR_MAP);
+                material.setTexture(MaterialConst.COLOR_ARRAY, source.textureArray);
+                material.setBoolean(MaterialConst.USE_TILESET_IMAGE, true);
+                material.setVector2(MaterialConst.IMAGE_SIZE,
+                        new Vector2f(source.imageWidth, source.imageHeight));
+                material.setVector4(MaterialConst.TILE_SIZE,
+                        new Vector4f(visualTile.getWidth(), visualTile.getHeight(), 0f, 0f));
+            }
+            material.setFloat(MaterialConst.TILE_LAYER, source.getLayerValue(visualTile.getId()));
+            clearMaterialParam(material, MaterialConst.TILE_POSITION);
+            return;
+        }
+
+        if (tileset != null) {
             configureImageCollectionTextures(tileset);
-            return;
         }
-
-        InstancedTilesetSource source = getPreferredTilesetSource(tileset);
-        int layer = source.getLayer(tile.getId());
-        if (!source.arrayBased || layer < 0) {
-            return;
+        Texture visualTexture = renderedTileTexture(visualTile);
+        MatParam colorMap = material.getParam(MaterialConst.COLOR_MAP);
+        if (material.getParam(MaterialConst.COLOR_ARRAY) != null
+                || colorMap == null || colorMap.getValue() != visualTexture) {
+            clearMaterialParam(material, MaterialConst.COLOR_ARRAY);
+            clearMaterialParam(material, MaterialConst.TILE_LAYER);
+            materialFactory.setTile(material, visualTile);
         }
+        if (tileset != null && tileset.isImageBased()) {
+            Vector2f position;
+            MatParam current = material.getParam(MaterialConst.TILE_POSITION);
+            if (current != null && current.getValue() instanceof Vector2f) {
+                position = (Vector2f) current.getValue();
+                position.set(visualTile.getX(), visualTile.getY());
+            } else {
+                position = new Vector2f(visualTile.getX(), visualTile.getY());
+            }
+            material.setVector2(MaterialConst.TILE_POSITION, position);
+        } else {
+            clearMaterialParam(material, MaterialConst.TILE_POSITION);
+        }
+    }
 
-        material.clearParam(MaterialConst.COLOR_MAP);
-        material.setTexture(MaterialConst.COLOR_ARRAY, source.textureArray);
-        material.setFloat(MaterialConst.TILE_LAYER, source.getLayerValue(tile.getId()));
-        material.setBoolean(MaterialConst.USE_TILESET_IMAGE, true);
-        material.setVector2(MaterialConst.IMAGE_SIZE,
-                new Vector2f(source.imageWidth, source.imageHeight));
-        material.setVector4(MaterialConst.TILE_SIZE,
-                new Vector4f(tile.getWidth(), tile.getHeight(), 0f, 0f));
+    private static Texture renderedTileTexture(Tile tile) {
+        Tileset tileset = tile.getTileset();
+        TiledImageEntity image = tileset != null && tileset.isImageBased()
+                ? tileset.getImage() : tile.getImage();
+        return image != null ? image.getTexture() : null;
+    }
+
+    private static void clearMaterialParam(Material material, String name) {
+        if (material.getParam(name) != null) {
+            material.clearParam(name);
+        }
     }
 
     private void configureImageCollectionTextures(Tileset tileset) {
@@ -2211,16 +2285,18 @@ public abstract class MapRenderer {
         }
     }
 
-    private void configureAnimatedTextureArray(Spatial spatial, Tile tile) {
+    private void configureAnimatedTile(Spatial spatial, TiledEntity entity, Tile tile) {
         AnimatedTileControl control = spatial.getControl(AnimatedTileControl.class);
-        if (control == null || !preferTextureArraysForTilesets
-                || tile == null || tile.getTileset() == null) {
+        if (control == null) {
+            return;
+        }
+        control.setRenderedTileTarget(entity);
+        if (!preferTextureArraysForTilesets || tile == null || tile.getTileset() == null) {
+            control.setTextureArrayLayers(null);
             return;
         }
         InstancedTilesetSource source = getPreferredTilesetSource(tile.getTileset());
-        if (source.arrayBased) {
-            control.setTextureArrayLayers(source.getLayerValues());
-        }
+        control.setTextureArrayLayers(source.arrayBased ? source.getLayerValues() : null);
     }
 
     protected static class ViewCull {
@@ -2500,6 +2576,7 @@ public abstract class MapRenderer {
 
                 int objectUpdateId = obj.getUpdateId();
                 int objectPropertyUpdateId = obj.getPropertiesUpdateId();
+                int renderedTileUpdateId = obj.getRenderedTileUpdateId();
                 MaterialFactory materialFactory = spriteFactory.getMaterialFactory();
 
                 if (useInstancing && obj.getShape() == ObjectShape.TILE && !obj.isVisible()) {
@@ -2548,7 +2625,8 @@ public abstract class MapRenderer {
                     } else {
                         clearTransientVisual(obj);
                         InstancedTileBatch batch = getInstancedBatch(objectBatches, source, layer.getName(), drawGroup, batchCulled);
-                        batch.putObject(obj, tile, source, screenCoord.x, objectY, screenCoord.y);
+                        batch.putObject(obj, tile, obj.getRenderedTile(), source,
+                                screenCoord.x, objectY, screenCoord.y);
                         listener.afterEntityRender(tpf,tiledMap, layer, obj, layerNode);
                         continue;
                     }
@@ -2592,7 +2670,7 @@ public abstract class MapRenderer {
                     }
 
                     spriteFactory.setAnimation(spatial, obj);
-                    configureAnimatedTextureArray(spatial, obj.getTile());
+                    configureAnimatedTile(spatial, obj, obj.getTile());
                     if (obj.getShape() == ObjectShape.TEXT) {
                         configureTextSpatial(spatial, obj, layer);
                     }
@@ -2601,8 +2679,12 @@ public abstract class MapRenderer {
                         ((TiledSpatialObjectNode) spatial).configure(tiledMap, worldY, sortOrder);
                     } else if (spatial instanceof Geometry) {
                         Geometry geometry = (Geometry) spatial;
-                        materialFactory.setMapObject(geometry.getMaterial(), obj);
-                        applyPreferredTextureArray(geometry.getMaterial(), obj.getTile());
+                        if (obj.getShape() == ObjectShape.TILE && obj.getTile() != null) {
+                            applyRenderedTileMaterial(materialFactory, geometry.getMaterial(),
+                                    obj.getTile(), obj.getRenderedTile());
+                        } else {
+                            materialFactory.setMapObject(geometry.getMaterial(), obj);
+                        }
                         applyObjectDecals(geometry.getMaterial(), obj.getTile());
                         materialFactory.setTintColor(geometry.getMaterial(), layer.getTintColor());
                         materialFactory.setLayerOpacity(geometry.getMaterial(), (float) layer.getOpacity());
@@ -2611,6 +2693,15 @@ public abstract class MapRenderer {
                     materialFactory.setOpacity(spatial, objectOpacity(obj));
 
                     ref.clearUpdateNeeded(objectUpdateId);
+                    ref.clearRenderedTileUpdateNeeded(renderedTileUpdateId);
+                } else if (ref.isRenderedTileUpdateNeeded(renderedTileUpdateId)) {
+                    if (spatial instanceof Geometry && obj.getShape() == ObjectShape.TILE
+                            && obj.getTile() != null) {
+                        Geometry geometry = (Geometry) spatial;
+                        applyRenderedTileMaterial(materialFactory, geometry.getMaterial(),
+                                obj.getTile(), obj.getRenderedTile());
+                    }
+                    ref.clearRenderedTileUpdateNeeded(renderedTileUpdateId);
                 }
 
                 if(layerPropertiesUpdateNeeded||ref.isPropertiesUpdateNeeded(objectPropertyUpdateId)){

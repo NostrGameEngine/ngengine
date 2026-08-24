@@ -64,7 +64,6 @@ final class InstancedTileBatch {
     private static final int ORIGIN_COMPONENTS = 4;
     private static final int UV_SIZE_COMPONENTS = 2;
     private static final int DECAL_COMPONENTS = 4;
-    private static final String DECAL_TILE_PROPERTY = "decal.tile";
     private static final String DECAL_TILESET_PROPERTY = "decal.tileset";
     private static final String DECAL_SCALE_PROPERTY = "decal.scale";
     private static final String DECAL_SIZE_PROPERTY = "decal.size";
@@ -166,16 +165,18 @@ final class InstancedTileBatch {
         }
     }
 
-    void putTile(TiledBase entry, Tile tile, InstancedTilesetSource source, float x, float y, float z) {
+    void putTile(TiledBase entry, Tile tile, Tile renderedTile, InstancedTilesetSource source,
+            float x, float y, float z) {
         InstancedTileRecord record = getRecord(entry);
+        Tile visualTile = renderedTile != null ? renderedTile : tile;
         int textureSlot = getTextureSlot(source);
         float tileDataX;
         float tileDataY;
         if (!source.arrayBased) {
-            tileDataX = (float) tile.getX();
-            tileDataY = (float) tile.getY();
+            tileDataX = (float) visualTile.getX();
+            tileDataY = (float) visualTile.getY();
         } else {
-            tileDataX = (float) source.getLayer(tile.getId());
+            tileDataX = (float) source.getLayer(visualTile.getId());
             tileDataY = 0f;
         }
         int flipFlags = getInstancedFlipFlags(tile);
@@ -211,16 +212,18 @@ final class InstancedTileBatch {
         }
     }
 
-    void putObject(TiledObjectEntity entry, Tile tile, InstancedTilesetSource source, float x, float y, float z) {
+    void putObject(TiledObjectEntity entry, Tile tile, Tile renderedTile, InstancedTilesetSource source,
+            float x, float y, float z) {
         InstancedTileRecord record = getRecord(entry);
+        Tile visualTile = renderedTile != null ? renderedTile : tile;
         int textureSlot = getTextureSlot(source);
         float tileDataX;
         float tileDataY;
         if (!source.arrayBased) {
-            tileDataX = (float) tile.getX();
-            tileDataY = (float) tile.getY();
+            tileDataX = (float) visualTile.getX();
+            tileDataY = (float) visualTile.getY();
         } else {
-            tileDataX = (float) source.getLayer(tile.getId());
+            tileDataX = (float) source.getLayer(visualTile.getId());
             tileDataY = 0f;
         }
         int flipFlags = getInstancedFlipFlags(tile);
@@ -276,7 +279,7 @@ final class InstancedTileBatch {
             if (layer >= InstancedTileRecord.DECAL_LAYERS) {
                 return;
             }
-            Object decalTileValue = decalObject.getProperty(DECAL_TILE_PROPERTY);
+            Object decalTileValue = ObjectDecalPlacement.tileValueForFlip(decalObject, tile);
             if (decalTileValue == null) {
                 continue;
             }

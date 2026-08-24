@@ -64,6 +64,10 @@ public final class TiledParticleEmitter {
         if (source == null) {
             return null;
         }
+        Tile rendered = source.getRenderedTile();
+        if (rendered != null) {
+            return rendered;
+        }
         ComponentManager manager = source.getComponentManager();
         Spatial visual = manager != null ? manager.getInstanceOf(Spatial.class) : null;
         AnimatedTileControl animation = findAnimation(visual);

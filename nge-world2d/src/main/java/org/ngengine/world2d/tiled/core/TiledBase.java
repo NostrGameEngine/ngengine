@@ -84,20 +84,20 @@ public abstract class TiledBase  {
         return properties != null && !properties.isEmpty();
     }
 
-    public void setUpdateNeeded(){        
+    protected static int nextUpdateId() {
         int id = -1;
-        while(id == -1||id==0){
+        while (id == -1 || id == 0) {
             id = updateCounter.getAndIncrement();
         }
-        this.updateNeeded = id;
+        return id;
+    }
+
+    public void setUpdateNeeded(){
+        this.updateNeeded = nextUpdateId();
     }
 
     public void setPropertiesUpdateNeeded(){
-        int id = -1;
-        while(id == -1||id==0){
-            id = updateCounter.getAndIncrement();
-        }
-        this.propertiesUpdateNeeded = id;
+        this.propertiesUpdateNeeded = nextUpdateId();
     }
 
     public int getPropertiesUpdateId() {

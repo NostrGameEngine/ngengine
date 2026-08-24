@@ -39,6 +39,7 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.control.AbstractControl;
 
 import org.ngengine.world2d.tiled.core.tileset.Tile;
+import org.ngengine.world2d.tiled.core.TiledEntity;
 import org.ngengine.world2d.tiled.renderer.MaterialConst;
 
 /**
@@ -57,6 +58,7 @@ public class AnimatedTileControl extends AbstractControl {
     private float unusedTime;
     private final Vector2f tilePosition = new Vector2f();
     private Float[] textureArrayLayers;
+    private TiledEntity renderedTileTarget;
 
     public AnimatedTileControl(Tile tile) {
         this.tile = tile;
@@ -121,7 +123,26 @@ public class AnimatedTileControl extends AbstractControl {
         textureArrayLayers = layers;
     }
 
+    /**
+     * Uses an entity's render-only tile state as the animation authority. The
+     * world advances that state once per simulation tick, which keeps normal
+     * and instanced rendering in sync across multiple render targets.
+     *
+     * @param target entity rendered by this control, or {@code null} for the
+     *        standalone control timer
+     */
+    public void setRenderedTileTarget(TiledEntity target) {
+        if (renderedTileTarget != target) {
+            renderedTileTarget = target;
+            previousTileId = -1;
+        }
+    }
+
     public Tile getCurrentTile() {
+        if (renderedTileTarget != null) {
+            Tile rendered = renderedTileTarget.getRenderedTile();
+            return rendered != null ? rendered : tile;
+        }
         if (anim == null || anim.getTotalFrames() == 0 || tile.getTileset() == null) {
             return tile;
         }
@@ -135,6 +156,9 @@ public class AnimatedTileControl extends AbstractControl {
 
     @Override
     protected void controlUpdate(float tpf) {
+        if (renderedTileTarget != null) {
+            return;
+        }
         // no animation
         if (anim == null) {
             return;

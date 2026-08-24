@@ -339,9 +339,10 @@ public class TiledObjectEntity extends TiledEntity {
             return;
         }
         this.tile = tile;
-        this.gid = this.tile.getGid();
-        setUpdateNeeded();      
-        mergedProperties = null;  
+        this.gid = this.tile != null ? this.tile.getGid() : 0;
+        logicalTileChanged();
+        setUpdateNeeded();
+        mergedProperties = null;
     }
 
     public List<Vector2f> getPoints() {

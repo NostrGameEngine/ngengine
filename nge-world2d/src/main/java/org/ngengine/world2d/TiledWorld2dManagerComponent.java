@@ -616,6 +616,7 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
                             TiledTileEntity tile = tl.getTileAt(x, y);
                             if (tile != null) {
                                 onEntityUpdate(tpf, world, layer, tile);
+                                tile.updateTileAnimation(tpf);
                             }
                         }
                     }
@@ -624,6 +625,7 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
                     TiledObjectLayer og = (TiledObjectLayer) layer;
                     for (TiledObjectEntity obj : og.getObjects()) {
                         onEntityUpdate(tpf, world, layer, obj);
+                        obj.updateTileAnimation(tpf);
                          
                     }
                     
