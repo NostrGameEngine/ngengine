@@ -98,6 +98,7 @@ public class TiledPhysicsComponent extends AbstractComponent
     private int collisionGroup;
     private int collisionMask;
     private boolean debugFixturesDumped;
+    private boolean collisionEnabled = true;
 
     @Override
     public Component newInstance() {
@@ -188,6 +189,29 @@ public class TiledPhysicsComponent extends AbstractComponent
             return;
         }
         world.runAfterPhysicsStep(() -> updatePhysics(manager, world.getPhysics(), entity));
+    }
+
+    /**
+     * Enables or disables collision without destroying the body's fixtures.
+     * This is intended for stateful map objects such as doors whose logical
+     * tile remains stable while their rendered state changes.
+     *
+     * @param enabled {@code true} when the entity should participate in physics
+     */
+    public void setCollisionEnabled(boolean enabled) {
+        collisionEnabled = enabled;
+        if (body != null) {
+            if (body.isActive() != enabled) {
+                body.setActive(enabled);
+            }
+        } else if (enabled) {
+            refreshPhysics();
+        }
+    }
+
+    /** @return whether this component allows its body to participate in physics */
+    public boolean isCollisionEnabled() {
+        return collisionEnabled;
     }
 
     private final Vector2f linearVelocity = new Vector2f();
@@ -379,6 +403,9 @@ public class TiledPhysicsComponent extends AbstractComponent
         }
 
         if (body != null) {
+            if (body.isActive() != collisionEnabled) {
+                body.setActive(collisionEnabled);
+            }
             applyNetworkAuthorityBodyMode(mng, entity);
 
             double newX = 0, newY = 0, newAngle = 0;

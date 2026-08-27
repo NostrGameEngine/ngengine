@@ -1,14 +1,18 @@
 package org.ngengine.world2d;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.jbox2d.common.Vec2;
 import org.jbox2d.dynamics.World;
 import org.junit.jupiter.api.Test;
 import org.ngengine.config.NGEAppSettings;
 import org.ngengine.world2d.box2d.TiledPhysicsComponent;
+import org.ngengine.world2d.box2d.Box2dHelper;
 import org.ngengine.world2d.tiled.core.TiledMap;
 import org.ngengine.world2d.tiled.core.TiledObjectLayer;
 import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
@@ -48,6 +52,42 @@ class TiledPhysicsTileSwapTest {
         physics.refreshPhysics();
         assertNotNull(physics.getBody());
         assertNotNull(physics.getBody().getFixtureList());
+    }
+
+    @Test
+    void collisionOverrideReactivatesTheExistingDoorBody() {
+        TiledMap map = new TiledMap(1, 1);
+        map.setTileWidth(64);
+        map.setTileHeight(64);
+        World physicsWorld = new World(new Vec2());
+        TiledWorld2d world = new TiledWorld2d("test", map, physicsWorld, 1, null);
+        TiledObjectEntity door = new TiledObjectEntity(1, 32, 64, tileWithCollision(true));
+        TestPhysicsComponent physics = new TestPhysicsComponent(map, world);
+        physics.attach(door);
+        physics.refreshPhysics();
+
+        org.jbox2d.dynamics.Body originalBody = physics.getBody();
+        assertNotNull(originalBody);
+        assertNotNull(originalBody.getFixtureList());
+
+        physics.setCollisionEnabled(false);
+        assertFalse(originalBody.isActive());
+
+        physics.setCollisionEnabled(true);
+        assertSame(originalBody, physics.getBody());
+        assertTrue(originalBody.isActive());
+        assertNotNull(originalBody.getFixtureList());
+    }
+
+    @Test
+    void stringPhysicsPropertiesUseTheirDeclaredBooleanValue() {
+        TiledObjectEntity enabled = new TiledObjectEntity(1, 0, 0, 1, 1);
+        enabled.putProperty("physics", "true");
+        TiledObjectEntity disabled = new TiledObjectEntity(2, 0, 0, 1, 1);
+        disabled.putProperty("physics", "false");
+
+        assertTrue(Box2dHelper.isPhysicsEnabled(enabled));
+        assertFalse(Box2dHelper.isPhysicsEnabled(disabled));
     }
 
     private static Tile tileWithCollision(boolean physicsEnabled) {

@@ -55,7 +55,7 @@ public class Box2dHelper {
             return (Boolean) physics;
         }
         if (physics != null) {
-            return !Boolean.parseBoolean(String.valueOf(physics));
+            return Boolean.parseBoolean(String.valueOf(physics));
         }
         return true;
     }
