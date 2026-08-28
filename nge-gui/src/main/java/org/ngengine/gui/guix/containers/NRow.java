@@ -52,6 +52,7 @@ public class NRow extends NContainer {
     }
 
     public void setFillMode(FillMode horizontalFill, FillMode verticalFill) {
-        setLayout(new SpringGridLayout(Axis.X, Axis.Y, horizontalFill, verticalFill));
+        SpringGridLayout layout = (SpringGridLayout) getLayout();
+        layout.setFillModes(horizontalFill, verticalFill);
     }
 }
