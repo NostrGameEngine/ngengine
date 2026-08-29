@@ -33,6 +33,7 @@ import org.ngengine.world2d.tiled.core.TiledObjectLayer;
 import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
 import org.ngengine.world2d.tiled.core.tileset.Tile;
 import org.ngengine.world2d.tiled.enums.ObjectShape;
+import com.jme3.asset.AssetManager;
 import jakarta.annotation.Nullable;
 
 public class TiledNetcodeSpawner implements NetcodeSpawner {
@@ -348,7 +349,7 @@ public class TiledNetcodeSpawner implements NetcodeSpawner {
             entity.setShape(ObjectShape.RECTANGLE);
         }
         entity.setProperties(snapshot.getProperties() != null ? snapshot.getProperties() : java.util.Map.of());
-        applyTileFromSnapshot(entity, layer, snapshot.getGid(), entityId);
+        applyTileFromSnapshot(entity, layer, snapshot, entityId);
         layer.add(entity);
         ensureObjectSyncComponent(entity, snapshot.getComponentId());
         return entity;
@@ -357,23 +358,23 @@ public class TiledNetcodeSpawner implements NetcodeSpawner {
     private void applyTileFromSnapshot(
         TiledObjectEntity entity,
         @Nullable TiledObjectLayer layer,
-        int gid,
+        TiledObjectSnapshotMessage snapshot,
         BigInteger entityId
     ) {
-        if (gid <= 0) {
-            entity.setGid(gid);
-            return;
-        }
+        int gid = snapshot.getGid();
         if (layer == null || layer.getMap() == null) {
             entity.setGid(gid);
             return;
         }
-        Tile tile = null;
-        try {
-            tile = layer.getMap().getTileForTileGID(gid);
-        } catch (Exception ex) {
-            log.log(Level.WARNING, "Cannot resolve tile for spawned entity id=" + entityId + " gid=" + gid, ex);
-        }
+        AssetManager assets = layer.getComponentManager().getInstanceOf(AssetManager.class);
+        Tile tile = TiledTileReferenceResolver.resolve(
+            assets,
+            layer.getMap(),
+            gid,
+            snapshot.getTileSource(),
+            snapshot.getTileClass(),
+            snapshot.getTileId()
+        );
         if (tile != null) {
             entity.setTile(tile);
         } else {

@@ -32,6 +32,7 @@ import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
 import org.ngengine.world2d.tiled.core.tileset.Tile;
 import org.ngengine.world2d.tiled.enums.ObjectShape;
 import org.ngengine.world2d.TiledWorld2dManagerComponent;
+import com.jme3.asset.AssetManager;
 
 /**
  * Single authoritative entity-level snapshot producer/consumer.
@@ -110,6 +111,13 @@ public class TiledObjectSyncComponent extends AbstractComponent implements Tiled
         snapshot.setHeight(entity.getHeight());
         snapshot.setShape(entity.getShape() != null ? entity.getShape().name() : null);
         snapshot.setGid(entity.getGid());
+        Tile snapshotTile = entity.getTile();
+        if (snapshotTile != null) {
+            snapshot.setTileId(snapshotTile.getId());
+            snapshot.setTileClass(snapshotTile.getClazz());
+            snapshot.setTileSource(snapshotTile.getTileset() != null
+                ? snapshotTile.getTileset().getSource() : null);
+        }
         Map<String, Object> properties = sanitizeProperties(entity.getAllProperties());
         snapshot.setProperties(properties != null ? properties : Map.of());
         return (T) snapshot;
@@ -172,7 +180,7 @@ public class TiledObjectSyncComponent extends AbstractComponent implements Tiled
                 // Ignore unknown shape names from remote peers.
             }
         }
-        applyTileFromSnapshot(entity, snapshot.getGid());
+        applyTileFromSnapshot(entity, snapshot);
         Map<String, Object> props = snapshot.getProperties();
         entity.setProperties(props != null ? props : Map.of());
     }
@@ -219,22 +227,21 @@ public class TiledObjectSyncComponent extends AbstractComponent implements Tiled
         entity.setRotation(Math.toDegrees(sampledAnglesScratch[2]));
     }
 
-    private void applyTileFromSnapshot(TiledObjectEntity entity, int gid) {
-        if (gid <= 0) {
-            entity.setGid(gid);
-            return;
-        }
+    private void applyTileFromSnapshot(TiledObjectEntity entity, TiledObjectSnapshotMessage snapshot) {
+        int gid = snapshot.getGid();
         TiledObjectLayer layer = entity.getObjectGroup();
         if (layer == null || layer.getMap() == null) {
             entity.setGid(gid);
             return;
         }
-        Tile tile = null;
-        try {
-            tile = layer.getMap().getTileForTileGID(gid);
-        } catch (Exception ignored) {
-            tile = null;
-        }
+        Tile tile = TiledTileReferenceResolver.resolve(
+            getInstanceOf(AssetManager.class),
+            layer.getMap(),
+            gid,
+            snapshot.getTileSource(),
+            snapshot.getTileClass(),
+            snapshot.getTileId()
+        );
         if (tile != null) {
             entity.setTile(tile);
         } else {

@@ -18,6 +18,9 @@ public class TiledObjectSnapshotMessage extends SnapshotMessage {
     private double height;
     private String shape;
     private int gid;
+    private String tileSource;
+    private String tileClass;
+    private int tileId = -1;
     private long packedTranslation;
     private long packedRotation;
     private Map<String, Object> properties;
@@ -102,6 +105,30 @@ public class TiledObjectSnapshotMessage extends SnapshotMessage {
         this.gid = gid;
     }
 
+    public String getTileSource() {
+        return tileSource;
+    }
+
+    public void setTileSource(String tileSource) {
+        this.tileSource = tileSource;
+    }
+
+    public String getTileClass() {
+        return tileClass;
+    }
+
+    public void setTileClass(String tileClass) {
+        this.tileClass = tileClass;
+    }
+
+    public int getTileId() {
+        return tileId;
+    }
+
+    public void setTileId(int tileId) {
+        this.tileId = tileId;
+    }
+
     public long getPackedTranslation() {
         return packedTranslation;
     }
@@ -140,6 +167,9 @@ public class TiledObjectSnapshotMessage extends SnapshotMessage {
             Double.valueOf(height),
             shape,
             Integer.valueOf(gid),
+            tileSource,
+            tileClass,
+            Integer.valueOf(tileId),
             Long.valueOf(packedTranslation),
             Long.valueOf(packedRotation),
             properties
@@ -156,6 +186,7 @@ public class TiledObjectSnapshotMessage extends SnapshotMessage {
             && Double.compare(width, other.width) == 0
             && Double.compare(height, other.height) == 0
             && gid == other.gid
+            && tileId == other.tileId
             && packedTranslation == other.packedTranslation
             && packedRotation == other.packedRotation
             && Objects.equals(mapScope, other.mapScope)
@@ -164,6 +195,8 @@ public class TiledObjectSnapshotMessage extends SnapshotMessage {
             && Objects.equals(name, other.name)
             && Objects.equals(clazz, other.clazz)
             && Objects.equals(shape, other.shape)
+            && Objects.equals(tileSource, other.tileSource)
+            && Objects.equals(tileClass, other.tileClass)
             && Objects.equals(properties, other.properties);
     }
 }

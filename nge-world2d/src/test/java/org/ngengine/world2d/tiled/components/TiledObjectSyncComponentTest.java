@@ -10,12 +10,15 @@ import org.junit.jupiter.api.Test;
 import org.ngengine.Components;
 import org.ngengine.components.AbstractComponentManager;
 import org.ngengine.network.interpolation.TransformInterpolatorAndPredictor;
+import org.ngengine.network.protocol.DynamicSerializerProtocol;
 import org.ngengine.network.quantization.TransformQuantizer;
 import org.ngengine.world2d.TiledWorld2dManagerComponent;
 import org.ngengine.world2d.tiled.components.messages.TiledObjectSnapshotMessage;
 import org.ngengine.world2d.tiled.core.TiledMap;
 import org.ngengine.world2d.tiled.core.TiledObjectLayer;
 import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
+import org.ngengine.world2d.tiled.core.tileset.Tile;
+import org.ngengine.world2d.tiled.core.tileset.Tileset;
 
 import com.jme3.math.Quaternion;
 import com.jme3.math.Transform;
@@ -23,6 +26,44 @@ import com.jme3.math.Vector3f;
 
 public class TiledObjectSyncComponentTest {
     private static final float EPSILON = 0.03f;
+
+    @Test
+    public void runtimeTilesetReferenceWinsOverCollidingMapGid() {
+        TiledMap map = new TiledMap(4, 4);
+        Tileset terrain = tileset("tilesets/terrain.tsx", "terrain", 1, "floor");
+        Tileset particles = tileset("tilesets/spray.tsx", "spray", 0, "particle_extinguisher");
+        map.addTileset(terrain);
+        map.addTileset(particles);
+
+        Tile resolved = TiledTileReferenceResolver.resolve(
+            null,
+            map,
+            1,
+            "tilesets/spray.tsx",
+            "particle_extinguisher",
+            0
+        );
+
+        assertEquals(particles.getTile(0), resolved);
+    }
+
+    @Test
+    public void runtimeTileReferenceRoundTripsThroughTheNetworkProtocol() {
+        TiledObjectSnapshotMessage snapshot = new TiledObjectSnapshotMessage();
+        snapshot.setTileSource("tilesets/spray.tsx");
+        snapshot.setTileClass("particle_extinguisher");
+        snapshot.setTileId(7);
+
+        DynamicSerializerProtocol sender = new DynamicSerializerProtocol(true, ignored -> { }, 1L);
+        DynamicSerializerProtocol receiver = new DynamicSerializerProtocol(true, ignored -> { }, -1L);
+        TiledObjectSnapshotMessage decoded = (TiledObjectSnapshotMessage) receiver.toMessage(
+            sender.toByteBuffer(snapshot, null)
+        );
+
+        assertEquals("tilesets/spray.tsx", decoded.getTileSource());
+        assertEquals("particle_extinguisher", decoded.getTileClass());
+        assertEquals(7, decoded.getTileId());
+    }
 
     @Test
     public void lagAfterSnapshotGapSnapsToLatestAuthoritativeTransformAndResetsInterpolator()
@@ -101,6 +142,22 @@ public class TiledObjectSyncComponentTest {
         snapshot.setWidth(32);
         snapshot.setHeight(32);
         return snapshot;
+    }
+
+    private static Tileset tileset(
+            String source,
+            String name,
+            int firstGid,
+            String tileClass) {
+        Tileset tileset = new Tileset();
+        tileset.setSource(source);
+        tileset.setName(name);
+        tileset.setFirstGid(firstGid);
+        Tile tile = new Tile(0, firstGid, 32, 32);
+        tile.setClazz(tileClass);
+        tile.setTileset(tileset);
+        tileset.addTile(tile);
+        return tileset;
     }
 
     private static void setField(Object target, String name, Object value) throws Exception {
