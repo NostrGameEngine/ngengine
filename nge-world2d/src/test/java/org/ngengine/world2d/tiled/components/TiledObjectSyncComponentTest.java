@@ -51,6 +51,7 @@ public class TiledObjectSyncComponentTest {
         Vector3f initial = new Vector3f(36f, 0f, 36f);
         Vector3f latest = new Vector3f(1408f, 0f, 1152f);
         sync.onSnapshot(snapshot(quantizer, initial));
+        assertEquals(1, sync.getInterpolatorFactoryInvocationCount());
 
         Vector3f expectedInitial =
             quantizer.dequantizePosition(quantizer.quantizePosition(initial));
@@ -74,6 +75,7 @@ public class TiledObjectSyncComponentTest {
         setField(sync, "lastSnapshotPointMillis", staleSnapshotTime);
 
         sync.onSnapshot(snapshot(quantizer, latest));
+        assertEquals(1, sync.getInterpolatorFactoryInvocationCount());
         assertEquals(2, interpolator.size());
         assertEquals(expectedInitial.x, entity.getX(), EPSILON);
         assertEquals(expectedInitial.z, entity.getY(), EPSILON);
@@ -115,9 +117,21 @@ public class TiledObjectSyncComponentTest {
     }
 
     public static class ReplicaObjectSyncComponent extends TiledObjectSyncComponent {
+        private int interpolatorFactoryInvocationCount;
+
         @Override
         public boolean checkAuthority() {
             return false;
+        }
+
+        @Override
+        protected TransformInterpolatorAndPredictor createTransformInterpolator(float worldScale) {
+            interpolatorFactoryInvocationCount++;
+            return super.createTransformInterpolator(worldScale);
+        }
+
+        int getInterpolatorFactoryInvocationCount() {
+            return interpolatorFactoryInvocationCount;
         }
     }
 

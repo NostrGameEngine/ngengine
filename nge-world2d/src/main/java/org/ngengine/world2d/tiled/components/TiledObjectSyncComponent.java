@@ -342,7 +342,7 @@ public class TiledObjectSyncComponent extends AbstractComponent implements Tiled
 
     private void ensureInterpolatorState(TiledMap map) {
         if (transformInterpolator == null) {
-            transformInterpolator = new TransformInterpolatorAndPredictor(resolveWorldScale(map));
+            transformInterpolator = createTransformInterpolator(resolveWorldScale(map));
         }
         if (snapshotTransformScratch == null) {
             snapshotTransformScratch = new Transform(
@@ -361,6 +361,11 @@ public class TiledObjectSyncComponent extends AbstractComponent implements Tiled
         if (sampledAnglesScratch == null) {
             sampledAnglesScratch = new float[3];
         }
+    }
+
+    /** Allows fast-moving object types to trade a little smoothness for lower visual latency. */
+    protected TransformInterpolatorAndPredictor createTransformInterpolator(float worldScale) {
+        return new TransformInterpolatorAndPredictor(worldScale);
     }
 
     private float resolveWorldScale(TiledMap map) {
