@@ -49,6 +49,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
 import java.util.logging.Logger;
 import org.ngengine.network.protocol.DynamicSerializerProtocol;
 import org.ngengine.network.protocol.NetworkSafe;
@@ -104,6 +105,7 @@ public class P2PConnection implements Server {
     private final List<ConnectionListener> connectionListeners = new CopyOnWriteArrayList<>();
     private final List<NostrRTCRoomPeerDiscoveredListener> peerDiscoveredListeners = new CopyOnWriteArrayList<>();
     private final AtomicInteger nextConnectionId = new AtomicInteger();
+    private volatile Predicate<NostrPublicKey> peerAdmission = ignored -> true;
 
     private final NostrSigner localSigner;
     private final NostrPool masterServersPool;
@@ -184,6 +186,15 @@ public class P2PConnection implements Server {
     private void promotePendingConnection(RemotePeer connection) {
         String sessionKey = peerSessionKeyOf(connection.getRemotePeer());
         if (sessionKey == null || !pendingConnections.remove(sessionKey, connection)) {
+            return;
+        }
+        NostrPublicKey peer = connection.getRemotePeer() != null
+            ? connection.getRemotePeer().getPubkey()
+            : null;
+        if (peer == null || !peerAdmission.test(peer)) {
+            if (peer != null) {
+                rtcRoom.disconnect(peer);
+            }
             return;
         }
         connections.put(connection.getId(), connection);
@@ -434,18 +445,41 @@ public class P2PConnection implements Server {
         rtcRoom.discover();
     }
 
-    /** Disconnects every active session associated with the supplied public key. */
-    public void disconnectPeer(NostrPublicKey peer) {
-        if (peer != null) {
-            rtcRoom.disconnect(peer);
+    /**
+     * Disconnects every active session associated with the supplied public key.
+     *
+     * @return true when an active or pending session was found
+     */
+    public boolean disconnectPeer(NostrPublicKey peer) {
+        if (peer == null || !hasPeer(peer)) {
+            return false;
         }
+        rtcRoom.disconnect(peer);
+        return true;
     }
 
-    /** Bans a public key for this room and closes all of its active sessions. */
-    public void banPeer(NostrPublicKey peer) {
-        if (peer != null) {
-            rtcRoom.ban(peer);
+    void setPeerAdmission(Predicate<NostrPublicKey> peerAdmission) {
+        this.peerAdmission = peerAdmission != null ? peerAdmission : ignored -> true;
+    }
+
+    private boolean hasPeer(NostrPublicKey peer) {
+        for (RemotePeer connection : connections.values()) {
+            if (hasPublicKey(connection, peer)) {
+                return true;
+            }
         }
+        for (RemotePeer connection : pendingConnections.values()) {
+            if (hasPublicKey(connection, peer)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasPublicKey(RemotePeer connection, NostrPublicKey peer) {
+        return connection != null
+            && connection.getRemotePeer() != null
+            && peer.equals(connection.getRemotePeer().getPubkey());
     }
 
     @Override

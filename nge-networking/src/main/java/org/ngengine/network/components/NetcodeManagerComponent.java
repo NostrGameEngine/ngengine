@@ -278,7 +278,7 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
     }
 
     public boolean isNetworkSessionActive() {
-        return connection != null;
+        return connection != null && connection.isRunning();
     }
   
     public Player getLocalPlayerInfo(){
@@ -328,13 +328,6 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
     public void disconnectPeer(@Nullable NostrPublicKey peer) {
         if (connection != null && peer != null) {
             connection.disconnectPeer(peer);
-        }
-    }
-
-    /** Bans a remote peer from reconnecting to this local room view. */
-    public void banPeer(@Nullable NostrPublicKey peer) {
-        if (connection != null && peer != null) {
-            connection.banPeer(peer);
         }
     }
 

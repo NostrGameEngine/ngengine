@@ -33,7 +33,9 @@
 package org.ngengine.network;
 
 import java.time.Instant;
+import java.util.function.Consumer;
 import java.util.logging.Logger;
+import org.ngengine.nostr4j.keypair.NostrPublicKey;
 import org.ngengine.platform.NGEPlatform;
 import org.ngengine.platform.NGEUtils;
 
@@ -42,9 +44,16 @@ public class LocalLobby extends Lobby {
     private static final Logger logger = Logger.getLogger(LocalLobby.class.getName());
 
     private transient volatile boolean updateNeeded = false;
+    private transient Consumer<NostrPublicKey> banKickHandler;
 
-    public LocalLobby( String roomId, String roomKey, String roomRawData, Instant expiration, Instant creationTime) {
-        super( roomId, roomKey, roomRawData, expiration, creationTime);
+    LocalLobby(
+            String roomId,
+            String roomKey,
+            String roomRawData,
+            Instant expiration,
+            Instant creationTime,
+            NostrPublicKey owner) {
+        super(roomId, roomKey, roomRawData, expiration, creationTime, owner);
     }
 
     @Override
@@ -53,7 +62,39 @@ public class LocalLobby extends Lobby {
     }
 
     public void setData(String key, String value) {
+        if (BANNED_PEERS_DATA_KEY.equals(key)) {
+            throw new IllegalArgumentException("The lobby ban list is managed through banPeer and unbanPeer.");
+        }
         super.setData(key, value);
+        markUpdateNeeded();
+    }
+
+    /** Adds a peer to this lobby's persistent ban list and kicks it immediately. */
+    public boolean banPeer(NostrPublicKey peer) {
+        if (peer == null || isOwner(peer) || !addBannedPeer(peer)) {
+            return false;
+        }
+        super.setData(BANNED_PEERS_DATA_KEY, serializeBannedPeers());
+        markUpdateNeeded();
+        Consumer<NostrPublicKey> handler = banKickHandler;
+        if (handler != null) {
+            handler.accept(peer);
+        }
+        return true;
+    }
+
+    /** Removes a peer from this lobby's persistent ban list. */
+    public boolean unbanPeer(NostrPublicKey peer) {
+        if (!removeBannedPeer(peer)) {
+            return false;
+        }
+        String encoded = serializeBannedPeers();
+        super.setData(BANNED_PEERS_DATA_KEY, encoded.isEmpty() ? null : encoded);
+        markUpdateNeeded();
+        return true;
+    }
+
+    private void markUpdateNeeded() {
         NGEPlatform p = NGEUtils.getPlatform();
         String rawData = p.toJSON(this.data);
         this.roomRawData = rawData;
@@ -70,5 +111,9 @@ public class LocalLobby extends Lobby {
 
     protected void clearUpdateNeeded() {
         this.updateNeeded = false;
+    }
+
+    void setBanKickHandler(Consumer<NostrPublicKey> handler) {
+        this.banKickHandler = handler;
     }
 }

@@ -34,28 +34,47 @@ package org.ngengine.network;
 
 import java.io.Serializable;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 import org.ngengine.nostr4j.keypair.NostrPrivateKey;
+import org.ngengine.nostr4j.keypair.NostrPublicKey;
 import org.ngengine.nostr4j.nip49.Nip49;
 import org.ngengine.nostr4j.nip49.Nip49FailedException;
 
 public class Lobby implements Cloneable, Serializable {
+    static final String BANNED_PEERS_DATA_KEY = "nge.bannedPeers";
+
     protected final String id;
     protected final String key;
+    private final NostrPublicKey owner;
     protected String roomRawData; // used for filtering
     protected final Map<String, String> data = new HashMap<>();
+    private final Set<NostrPublicKey> bannedPeers = new CopyOnWriteArraySet<>();
     protected final Instant expiration;
     protected final Instant creationTime;
+    private volatile Instant latestSnapshotTime;
+    private volatile String latestSnapshotId;
 
-    Lobby(String roomId, String roomKey, String roomRawData, Instant expiration, Instant creationTime) {
+    Lobby(
+            String roomId,
+            String roomKey,
+            String roomRawData,
+            Instant expiration,
+            Instant creationTime,
+            NostrPublicKey owner) {
         this.key = Objects.requireNonNull(roomKey);
         this.roomRawData = Objects.requireNonNull(roomRawData);
         this.id = roomId;
         this.expiration = expiration;
         this.creationTime = creationTime;
+        this.latestSnapshotTime = creationTime;
+        this.owner = Objects.requireNonNull(owner);
     }
     
     public Instant getCreationTime() {
@@ -68,6 +87,16 @@ public class Lobby implements Cloneable, Serializable {
 
     public String getId() {
         return id;
+    }
+
+    /** Returns the public key that signed and owns this lobby. */
+    public NostrPublicKey getOwner() {
+        return owner;
+    }
+
+    /** Returns whether the supplied public key owns this lobby. */
+    public boolean isOwner(NostrPublicKey peer) {
+        return owner.equals(peer);
     }
 
     public boolean isOwnedByLocalPeer() {
@@ -111,6 +140,9 @@ public class Lobby implements Cloneable, Serializable {
         } else {
             data.put(key, value);
         }
+        if (BANNED_PEERS_DATA_KEY.equals(key)) {
+            loadBannedPeers(value);
+        }
     }
 
     public String getData(String key) {
@@ -135,6 +167,92 @@ public class Lobby implements Cloneable, Serializable {
 
     protected void setRawData(String rawData) {
         this.roomRawData = rawData;
+    }
+
+    final boolean isPeerBanned(NostrPublicKey peer) {
+        return peer != null && bannedPeers.contains(peer);
+    }
+
+    final Collection<NostrPublicKey> getBannedPeersSnapshot() {
+        return Collections.unmodifiableList(new ArrayList<>(bannedPeers));
+    }
+
+    protected final boolean addBannedPeer(NostrPublicKey peer) {
+        return peer != null && bannedPeers.add(peer);
+    }
+
+    protected final boolean removeBannedPeer(NostrPublicKey peer) {
+        return peer != null && bannedPeers.remove(peer);
+    }
+
+    protected final String serializeBannedPeers() {
+        ArrayList<String> encoded = new ArrayList<>(bannedPeers.size());
+        for (NostrPublicKey peer : bannedPeers) {
+            encoded.add(peer.asHex());
+        }
+        Collections.sort(encoded);
+        return String.join(",", encoded);
+    }
+
+    final void replaceSnapshot(String rawData, Map<String, String> nextData) {
+        roomRawData = Objects.requireNonNull(rawData);
+        data.clear();
+        data.putAll(nextData);
+        loadBannedPeers(data.get(BANNED_PEERS_DATA_KEY));
+    }
+
+    final boolean refreshSnapshot(
+            String rawData,
+            Map<String, String> nextData,
+            Instant snapshotTime,
+            String snapshotId) {
+        if (!isNewerSnapshot(snapshotTime, snapshotId)) {
+            return false;
+        }
+        replaceSnapshot(rawData, nextData);
+        latestSnapshotTime = snapshotTime;
+        latestSnapshotId = snapshotId;
+        return true;
+    }
+
+    final void recordSnapshotRevision(Instant snapshotTime, String snapshotId) {
+        latestSnapshotTime = snapshotTime;
+        latestSnapshotId = snapshotId;
+    }
+
+    private boolean isNewerSnapshot(Instant snapshotTime, String snapshotId) {
+        if (snapshotTime == null) {
+            return false;
+        }
+        int timeOrder = snapshotTime.compareTo(latestSnapshotTime);
+        if (timeOrder != 0) {
+            return timeOrder > 0;
+        }
+        if (latestSnapshotId == null) {
+            return snapshotId != null;
+        }
+        return snapshotId != null
+            && !snapshotId.equals(latestSnapshotId)
+            && snapshotId.compareTo(latestSnapshotId) < 0;
+    }
+
+    private void loadBannedPeers(String encoded) {
+        bannedPeers.clear();
+        if (encoded == null || encoded.trim().isEmpty()) {
+            return;
+        }
+        String[] peers = encoded.split(",");
+        for (String peer : peers) {
+            String normalized = peer.trim();
+            if (normalized.isEmpty()) {
+                continue;
+            }
+            try {
+                bannedPeers.add(NostrPublicKey.fromHex(normalized));
+            } catch (RuntimeException ignored) {
+                // Ignore malformed entries received from remote lobby metadata.
+            }
+        }
     }
 
     // }
