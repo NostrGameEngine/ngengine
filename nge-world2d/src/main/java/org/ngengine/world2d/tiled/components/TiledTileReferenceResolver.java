@@ -27,7 +27,7 @@ final class TiledTileReferenceResolver {
                 if (sameSource(tileset.getSource(), source)) {
                     Tile referenced = tileFrom(tileset, tileClass, tileId);
                     if (referenced != null) {
-                        return referenced;
+                        return withFlippedMask(referenced, gid);
                     }
                 }
             }
@@ -35,18 +35,32 @@ final class TiledTileReferenceResolver {
 
         Tileset loaded = loadTileset(assets, source);
         Tile referenced = tileFrom(loaded, tileClass, tileId);
-        return referenced != null ? referenced : gidTile;
+        return referenced != null ? withFlippedMask(referenced, gid) : gidTile;
     }
 
     private static Tile tileForGid(TiledMap map, int gid) {
-        if (map == null || gid <= 0) {
+        int baseGid = gid & ~Tile.FLIPPED_MASK;
+        if (map == null || baseGid <= 0) {
             return null;
         }
         try {
-            return map.getTileForTileGID(gid);
+            return withFlippedMask(map.getTileForTileGID(baseGid), gid);
         } catch (RuntimeException ignored) {
             return null;
         }
+    }
+
+    private static Tile withFlippedMask(Tile tile, int gid) {
+        if (tile == null) {
+            return null;
+        }
+        int mask = gid & Tile.FLIPPED_MASK;
+        if (tile.getFlippedMask() == mask) {
+            return tile;
+        }
+        Tile transformed = tile.copy();
+        transformed.setFlippedMask(mask);
+        return transformed;
     }
 
     private static boolean hasReference(String source, String tileClass, int tileId) {

@@ -324,6 +324,20 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
         return connectedPeersRO;
     }
 
+    /** Disconnects a remote peer from this local room view. */
+    public void disconnectPeer(@Nullable NostrPublicKey peer) {
+        if (connection != null && peer != null) {
+            connection.disconnectPeer(peer);
+        }
+    }
+
+    /** Bans a remote peer from reconnecting to this local room view. */
+    public void banPeer(@Nullable NostrPublicKey peer) {
+        if (connection != null && peer != null) {
+            connection.banPeer(peer);
+        }
+    }
+
     public @Nullable NostrPublicKey getLocalPeerPublicKey() {
         NostrSigner localSigner = connection != null ? connection.getLocalSigner() : null;
         if (localSigner == null) {

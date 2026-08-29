@@ -48,6 +48,28 @@ public class TiledObjectSyncComponentTest {
     }
 
     @Test
+    public void stableTileReferencePreservesEditorAuthoredHorizontalFlip() {
+        TiledMap map = new TiledMap(4, 4);
+        Tileset walls = tileset("tilesets/walls.tsx", "walls", 31, "wall");
+        map.addTileset(walls);
+
+        int flippedGid = 31 | Tile.FLIPPED_HORIZONTALLY_FLAG;
+        Tile resolved = TiledTileReferenceResolver.resolve(
+            null,
+            map,
+            flippedGid,
+            "tilesets/walls.tsx",
+            "wall",
+            0
+        );
+
+        assertEquals("wall", resolved.getClazz());
+        assertEquals(0, resolved.getId());
+        assertEquals(Tile.FLIPPED_HORIZONTALLY_FLAG, resolved.getFlippedMask());
+        assertEquals(0, walls.getTile(0).getFlippedMask());
+    }
+
+    @Test
     public void runtimeTileReferenceRoundTripsThroughTheNetworkProtocol() {
         TiledObjectSnapshotMessage snapshot = new TiledObjectSnapshotMessage();
         snapshot.setTileSource("tilesets/spray.tsx");

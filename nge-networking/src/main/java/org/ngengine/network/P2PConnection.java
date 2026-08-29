@@ -57,6 +57,7 @@ import org.ngengine.nostr4j.NostrPool;
 import org.ngengine.nostr4j.RTCSettings;
 import org.ngengine.nostr4j.keypair.NostrKeyPair;
 import org.ngengine.nostr4j.keypair.NostrPrivateKey;
+import org.ngengine.nostr4j.keypair.NostrPublicKey;
 import org.ngengine.nostr4j.rtc.NostrRTCRoom;
 import org.ngengine.nostr4j.rtc.NostrTURNPool;
 import org.ngengine.nostr4j.rtc.listeners.NostrRTCRoomPeerDiscoveredListener;
@@ -431,6 +432,20 @@ public class P2PConnection implements Server {
 
     public void discover() {
         rtcRoom.discover();
+    }
+
+    /** Disconnects every active session associated with the supplied public key. */
+    public void disconnectPeer(NostrPublicKey peer) {
+        if (peer != null) {
+            rtcRoom.disconnect(peer);
+        }
+    }
+
+    /** Bans a public key for this room and closes all of its active sessions. */
+    public void banPeer(NostrPublicKey peer) {
+        if (peer != null) {
+            rtcRoom.ban(peer);
+        }
     }
 
     @Override

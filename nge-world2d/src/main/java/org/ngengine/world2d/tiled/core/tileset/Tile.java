@@ -357,6 +357,7 @@ public class Tile extends TiledBase {
         Tile tile = new Tile(x, y, width, height);
         tile.id = id;
         tile.gid = gid;
+        tile.clazz = clazz;
         tile.tileset = tileset;// share the tileset
         tile.image = image;
 
