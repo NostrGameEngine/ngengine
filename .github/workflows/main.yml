@@ -14,7 +14,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
       - name: Setup the java environment
         uses: actions/setup-java@v5
         with:
@@ -44,7 +44,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
       - name: Setup the java environment
         uses: actions/setup-java@v5
         with:
@@ -75,7 +75,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
       - name: Setup the java environment
         uses: actions/setup-java@v5
         with:
@@ -159,7 +159,7 @@ jobs:
           echo "allowed=$allowed" >> "$GITHUB_OUTPUT"
 
       - name: Clone the repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 1
 
