@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigInteger;
@@ -144,6 +145,27 @@ public class NetcodeAuthorityAssignmentTest {
                 remaining,
                 peers.get(0)
             )
+        );
+    }
+
+    @Test
+    public void persistentReservedOffsetsCannotEscapeTheirOwnerBlock() {
+        BigInteger ownerKey = BigInteger.valueOf(123L);
+        long lastOffset = NetcodePartitioning.PERSISTENT_BLOCK_SIZE.longValue() - 1L;
+        BigInteger lastId = NetcodePartitioning.nextLocalPersistentReservedId(ownerKey, lastOffset);
+
+        assertTrue(NetcodePartitioning.isPersistentIdInRequesterRange(lastId, ownerKey));
+        assertEquals(ownerKey, NetcodePartitioning.decodePersistentOwnerKey(lastId));
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> NetcodePartitioning.nextLocalPersistentReservedId(
+                ownerKey,
+                NetcodePartitioning.PERSISTENT_BLOCK_SIZE.longValue()
+            )
+        );
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> NetcodePartitioning.nextLocalPersistentReservedId(ownerKey, -1L)
         );
     }
 

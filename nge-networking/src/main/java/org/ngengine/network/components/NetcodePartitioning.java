@@ -111,10 +111,10 @@ public final class NetcodePartitioning {
 
    
     public static BigInteger nextLocalPersistentReservedId(BigInteger ownerKey, long skip) {
-        if (skip < 0L || skip > RESERVED_SEQ_MASK.longValue()) {
-            throw new IllegalArgumentException("Skip out of reserved id sequence range: " + skip);
+        if (skip < 0L || skip >= PERSISTENT_BLOCK_SIZE.longValue()) {
+            throw new IllegalArgumentException("Skip out of persistent id block range: " + skip);
         }
-        BigInteger seqBits = BigInteger.valueOf(skip).and(RESERVED_SEQ_MASK);
+        BigInteger seqBits = BigInteger.valueOf(skip);
         return persistentRangeStart(ownerKey).add(seqBits);
     }
 }
