@@ -111,6 +111,30 @@ public final class NetcodeAuthorityAssignment {
         return resolveByRendezvous(networkId, sortedPeerIds);
     }
 
+    /**
+     * Selects a deterministic coordinator for network-visible one-shot effects
+     * produced during orphan cleanup.
+     *
+     * <p>This method does not assign authority to the orphaned entity. Given
+     * the same network ID and peer set, every replica selects the same peer by
+     * rendezvous hashing. Local replica cleanup must still run on every peer;
+     * the coordinator is only for effects that must be emitted once.</p>
+     *
+     * @param networkId the orphaned fragment's network ID
+     * @param knownPeerIds the peers currently known by this replica, including
+     *                     the current peer when its identity is available
+     * @return the selected peer, or {@code null} when no selection can be made
+     */
+    public static @Nullable NostrPublicKey getOrphanCleanupCoordinator(
+        @Nullable BigInteger networkId,
+        Collection<NostrPublicKey> knownPeerIds
+    ) {
+        if (networkId == null || knownPeerIds == null || knownPeerIds.isEmpty()) {
+            return null;
+        }
+        return resolveByRendezvous(networkId, knownPeerIds);
+    }
+
     private static @Nullable NostrPublicKey resolveDeterministicOwner(
         @Nullable BigInteger networkId,
         Collection<NostrPublicKey> knownPeerIds,

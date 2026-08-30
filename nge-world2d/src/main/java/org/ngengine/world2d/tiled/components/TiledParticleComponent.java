@@ -2,6 +2,7 @@ package org.ngengine.world2d.tiled.components;
 
 import org.ngengine.components.AbstractComponent;
 import org.ngengine.components.ComponentManager;
+import org.ngengine.network.components.NetcodeOrphanContext;
 
 import com.jme3.math.Vector2f;
 
@@ -54,6 +55,14 @@ public class TiledParticleComponent extends AbstractComponent implements TiledEn
 
     public boolean isDead(){
         return lifespan>0 && age>=lifespan;
+    }
+
+    @Override
+    public void onNetworkOrphaned(NetcodeOrphanContext context) {
+        TiledObjectEntity entity = getInstanceOf(TiledObjectEntity.class);
+        if (entity != null && entity.getObjectGroup() != null) {
+            entity.removeFromLayer();
+        }
     }
 
     public TiledParticleComponent follow(TiledEntity target, float offsetX, float offsetY) {

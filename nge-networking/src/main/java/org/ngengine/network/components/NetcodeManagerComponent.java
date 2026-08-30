@@ -1,6 +1,7 @@
 package org.ngengine.network.components;
 
 import java.math.BigInteger;
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -17,7 +18,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.time.Duration;
 
 import org.ngengine.components.AbstractComponent;
 import org.ngengine.components.Component;
@@ -64,6 +64,7 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
 
     private final ArrayDeque<InboundMessage> inboundMessages = new ArrayDeque<>();
     private final Map<NetcodeFragment, RegisteredHandler> registeredActionHandlers = new HashMap<>();
+    private final List<NetcodeFragment> orphanLifecycleHandlers = new ArrayList<>();
     private final @Nullable NetcodeSpawner spawner;
     private final AtomicLong localReservedCounter = new AtomicLong();
     private final AtomicLong localPersistentCounter = new AtomicLong();
@@ -80,9 +81,15 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
     private @Nullable Set<NostrPublicKey> cachedKnownPeerPublicKeys;
     private @Nullable List<NostrPublicKey> cachedSortedKnownPeerPublicKeys;
     private final Map<BigInteger, NostrPublicKey> cachedActiveOwners = new WeakHashMap<>();
+    private long orphanLifecycleTopologyVersion = Long.MIN_VALUE;
+    private boolean orphanLifecycleDirty;
+    private boolean hasPendingOrphans;
+    private Duration networkOrphanGracePeriod = NetcodeFragment.DEFAULT_ORPHAN_GRACE_PERIOD;
 
     public void registerActionHandler(NetcodeFragment handler) {
-        registeredActionHandlers.putIfAbsent(handler, new RegisteredHandler());
+        if (registeredActionHandlers.putIfAbsent(handler, new RegisteredHandler()) == null) {
+            orphanLifecycleDirty = true;
+        }
     }
 
     public void unregisterActionHandler(NetcodeFragment handler) {
@@ -91,6 +98,12 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
 
     private static final class RegisteredHandler {
         public long lastSnapshotNanos = Long.MIN_VALUE;
+        public long authorityTopologyVersion = Long.MIN_VALUE;
+        public long orphanedSinceNanos = Long.MIN_VALUE;
+        public boolean authorityInitialized;
+        public boolean orphanNotified;
+        public @Nullable NostrPublicKey lastAuthorityOwner;
+        public @Nullable NostrPublicKey orphanedOwner;
     }
 
    
@@ -178,6 +191,32 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
         if (lobbyManager != null) {
             lobbyManager.setTurnServer(turnServer);
         }
+    }
+
+    /**
+     * Returns the fallback orphan grace period used by fragments that do not
+     * provide their own value. This setting applies only to reserved network
+     * IDs; shared and persistent IDs use authority reassignment instead.
+     */
+    public Duration getNetworkOrphanGracePeriod() {
+        return networkOrphanGracePeriod;
+    }
+
+    /**
+     * Sets the fallback orphan grace period used by fragments that do not
+     * provide their own value. A zero duration enables immediate cleanup.
+     * Negative durations are rejected.
+     *
+     * @param gracePeriod non-negative fallback grace period
+     * @throws NullPointerException if {@code gracePeriod} is {@code null}
+     * @throws IllegalArgumentException if {@code gracePeriod} is negative
+     */
+    public void setNetworkOrphanGracePeriod(Duration gracePeriod) {
+        Objects.requireNonNull(gracePeriod, "gracePeriod");
+        if (gracePeriod.isNegative()) {
+            throw new IllegalArgumentException("gracePeriod cannot be negative");
+        }
+        networkOrphanGracePeriod = gracePeriod;
     }
 
     @Override
@@ -497,6 +536,7 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
         }
 
         long nowNanos = System.nanoTime();
+        updateOrphanLifecycle(nowNanos);
         for(Entry<NetcodeFragment, RegisteredHandler> entry : registeredActionHandlers.entrySet()){
             NetcodeFragment handler = entry.getKey();
             RegisteredHandler data = entry.getValue();
@@ -522,6 +562,108 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
             data.lastSnapshotNanos = nowNanos;
         }
 
+    }
+
+    /**
+     * Advances the reserved-ID orphan state machine.
+     *
+     * <p>Loss of the original owner starts a grace timer. Reconnection before
+     * expiry cancels that timer. Once it expires, every surviving replica is
+     * notified exactly once. This method never attempts to resolve or assign a
+     * replacement owner; shared and persistent IDs are excluded before owner
+     * resolution and continue through the normal reassignment path.</p>
+     */
+    private void updateOrphanLifecycle(long nowNanos) {
+        if (!isNetworkSessionActive() || registeredActionHandlers.isEmpty()) {
+            return;
+        }
+        long topologyVersion = connectedPeerSetVersion;
+        if (!orphanLifecycleDirty
+                && !hasPendingOrphans
+                && orphanLifecycleTopologyVersion == topologyVersion) {
+            return;
+        }
+        orphanLifecycleDirty = false;
+        orphanLifecycleTopologyVersion = topologyVersion;
+        hasPendingOrphans = false;
+        orphanLifecycleHandlers.clear();
+        orphanLifecycleHandlers.addAll(registeredActionHandlers.keySet());
+        for (NetcodeFragment handler : orphanLifecycleHandlers) {
+            RegisteredHandler data = registeredActionHandlers.get(handler);
+            if (data == null || !isHandlerAttached(handler)) {
+                continue;
+            }
+            BigInteger networkId = handler.getNetworkId();
+            if (networkId == null || networkId.signum() < 0) {
+                continue;
+            }
+            if (!NetcodePartitioning.isReservedId(networkId)) {
+                continue;
+            }
+            if (data.authorityTopologyVersion != topologyVersion) {
+                data.authorityTopologyVersion = topologyVersion;
+                NostrPublicKey owner = resolveActiveOwnerPeerPublicKey(networkId);
+                if (!data.authorityInitialized) {
+                    data.authorityInitialized = true;
+                    data.lastAuthorityOwner = owner;
+                    if (owner == null) {
+                        data.orphanedSinceNanos = nowNanos;
+                    }
+                } else if (owner == null) {
+                    if (data.orphanedSinceNanos == Long.MIN_VALUE && !data.orphanNotified) {
+                        data.orphanedOwner = data.lastAuthorityOwner;
+                        data.orphanedSinceNanos = nowNanos;
+                    }
+                } else {
+                    data.lastAuthorityOwner = owner;
+                    data.orphanedOwner = null;
+                    data.orphanedSinceNanos = Long.MIN_VALUE;
+                    data.orphanNotified = false;
+                }
+            }
+            if (data.orphanNotified || data.orphanedSinceNanos == Long.MIN_VALUE) {
+                continue;
+            }
+            Duration gracePeriod = handler.getNetworkOrphanGracePeriod();
+            if (gracePeriod == null) {
+                gracePeriod = networkOrphanGracePeriod;
+            }
+            long graceNanos = 0L;
+            if (!gracePeriod.isNegative()) {
+                try {
+                    graceNanos = gracePeriod.toNanos();
+                } catch (ArithmeticException ex) {
+                    graceNanos = Long.MAX_VALUE;
+                }
+            }
+            if (nowNanos - data.orphanedSinceNanos < graceNanos) {
+                hasPendingOrphans = true;
+                continue;
+            }
+            Set<NostrPublicKey> peers = getKnownPeerPublicKeys();
+            NostrPublicKey localPeer = getLocalPeerPublicKey();
+            NostrPublicKey cleanupCoordinator = NetcodeAuthorityAssignment.getOrphanCleanupCoordinator(
+                networkId,
+                peers
+            );
+            NetcodeOrphanContext context = new NetcodeOrphanContext(
+                networkId,
+                handler.getComponentId(),
+                data.orphanedOwner,
+                cleanupCoordinator,
+                localPeer
+            );
+            data.orphanNotified = true;
+            try {
+                handler.onNetworkOrphaned(context);
+            } catch (Throwable ex) {
+                log.log(Level.WARNING,
+                    "Error cleaning orphaned network fragment. componentId=" + handler.getComponentId()
+                        + ", networkId=" + networkId,
+                    ex);
+            }
+        }
+        orphanLifecycleHandlers.clear();
     }
 
     private void dispatchMessage(InboundMessage inbound) {

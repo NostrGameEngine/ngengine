@@ -11,6 +11,8 @@ import java.util.List;
 import com.jme3.math.Vector2f;
 
 import org.junit.jupiter.api.Test;
+import org.ngengine.Components;
+import org.ngengine.components.AbstractComponentManager;
 import org.ngengine.world2d.tiled.animation.AnimatedTileControl;
 import org.ngengine.world2d.tiled.animation.Frame;
 import org.ngengine.world2d.tiled.core.TiledMap;
@@ -22,6 +24,26 @@ import org.ngengine.world2d.tiled.enums.Orientation;
 import org.ngengine.world2d.tiled.util.TiledCoordinateSystem;
 
 public class TiledParticleComponentTest {
+
+    @Test
+    public void orphanedParticleRemovesItsLocalReplica() {
+        TiledMap map = new TiledMap(4, 4);
+        TiledObjectLayer layer = new TiledObjectLayer(4, 4);
+        map.addLayer(layer);
+        TiledObjectEntity particle = new TiledObjectEntity(1, 0, 0, 32, 32);
+        layer.add(particle);
+        Components.mount(particle, new TiledParticleComponent());
+        particle.getComponentManager().setParent(new TestComponentManager());
+        particle.getComponentManager().update(null, map, layer, particle, 0f);
+        TiledParticleComponent component = particle.getComponentManager().getComponent(
+            TiledParticleComponent.class
+        );
+
+        component.onNetworkOrphaned(null);
+
+        assertFalse(layer.getObjects().contains(particle));
+        assertNull(particle.getObjectGroup());
+    }
 
     @Test
     public void followCanBeConfiguredBeforeComponentIsAttached() {
@@ -173,5 +195,8 @@ public class TiledParticleComponentTest {
         TiledObjectEntity marker = new TiledObjectEntity(-1, x, y, 0, 0);
         marker.putProperty(TiledParticleEmitter.PROPERTY_EMITTER, emitterId);
         return marker;
+    }
+
+    private static final class TestComponentManager extends AbstractComponentManager {
     }
 }

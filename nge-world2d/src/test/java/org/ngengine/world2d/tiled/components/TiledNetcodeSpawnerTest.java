@@ -11,6 +11,7 @@ import java.util.Objects;
 import org.junit.jupiter.api.Test;
 import org.ngengine.Components;
 import org.ngengine.components.AbstractComponent;
+import org.ngengine.components.AbstractComponentManager;
 import org.ngengine.components.ComponentManager;
 import org.ngengine.network.components.NetcodeManagerComponent;
 import org.ngengine.network.components.NetcodePartitioning;
@@ -58,6 +59,25 @@ public class TiledNetcodeSpawnerTest {
 
         RecordingNetcodeComponent component = entity.getComponentManager().getComponent(RecordingNetcodeComponent.class);
         assertNotNull(component);
+        assertEquals(-1, component.getLastValue());
+        entity.getComponentManager().setParent(new TestComponentManager());
+        entity.getComponentManager().update(null, null, null, entity, 0f);
+        invoke(
+            spawner,
+            "applyBufferedComponentSnapshots",
+            new Class<?>[] {
+                org.ngengine.network.components.NetcodeManagerComponent.class,
+                TiledObjectEntity.class,
+                String.class,
+                String.class,
+                BigInteger.class
+            },
+            null,
+            entity,
+            null,
+            null,
+            BigInteger.valueOf(77)
+        );
         assertEquals(123, component.getLastValue());
     }
 
@@ -99,6 +119,25 @@ public class TiledNetcodeSpawnerTest {
 
         RecordingNetcodeComponent component = entity.getComponentManager().getComponent(RecordingNetcodeComponent.class);
         assertNotNull(component);
+        assertEquals(-1, component.getLastValue());
+        entity.getComponentManager().setParent(new TestComponentManager());
+        entity.getComponentManager().update(null, null, null, entity, 0f);
+        invoke(
+            spawner,
+            "applyBufferedComponentSnapshots",
+            new Class<?>[] {
+                org.ngengine.network.components.NetcodeManagerComponent.class,
+                TiledObjectEntity.class,
+                String.class,
+                String.class,
+                BigInteger.class
+            },
+            null,
+            entity,
+            "scope-after-object",
+            "objects",
+            entityId
+        );
         assertEquals(456, component.getLastValue());
     }
 
@@ -172,5 +211,8 @@ public class TiledNetcodeSpawnerTest {
 
         @Override
         protected void onDisable(ComponentManager mng) {}
+    }
+
+    private static final class TestComponentManager extends AbstractComponentManager {
     }
 }

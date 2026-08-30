@@ -135,7 +135,18 @@ public class TiledNetcodeSpawner implements NetcodeSpawner {
             return null;
         }
 
-        return applyComponentSnapshot(entity, snapshot);
+        applyBufferedComponentSnapshots(
+            manager,
+            entity,
+            snapshot.getMapScope(),
+            snapshot.getLayerName(),
+            entityId
+        );
+        NetcodeFragment handler = applyComponentSnapshot(entity, snapshot);
+        if (handler == null) {
+            bufferComponentSnapshot(snapshot, entityId);
+        }
+        return handler;
     }
 
     private @Nullable NetcodeFragment applyComponentSnapshot(
@@ -147,7 +158,12 @@ public class TiledNetcodeSpawner implements NetcodeSpawner {
             return null;
         }
         Component component = mountComponent(entity, componentType);
-        if (component == null) return null;
+        if (component == null || component.getComponentManager() == null) {
+            // Components mounted while the manager is updating are attached on
+            // the next manager pass. Do not expose or hydrate a half-attached
+            // handler; the sender's next periodic snapshot will complete it.
+            return null;
+        }
         applyComponentEnabledState(entity, component, snapshot.isEnabled());
         return component instanceof NetcodeFragment ? (NetcodeFragment) component : null;
     }
@@ -184,9 +200,13 @@ public class TiledNetcodeSpawner implements NetcodeSpawner {
 
     private void bufferComponentSnapshot(TiledComponentSnapshotMessage snapshot, BigInteger entityId) {
         String key = bufferedKey(snapshot.getMapScope(), snapshot.getLayerName(), entityId);
-        bufferedComponentSnapshots
-            .computeIfAbsent(key, ignored -> new ArrayList<>())
-            .add(new BufferedComponentSnapshot(snapshot, Instant.now()));
+        List<BufferedComponentSnapshot> buffered = bufferedComponentSnapshots
+            .computeIfAbsent(key, ignored -> new ArrayList<>());
+        buffered.removeIf(item -> java.util.Objects.equals(
+            item.snapshot.getComponentType(),
+            snapshot.getComponentType()
+        ));
+        buffered.add(new BufferedComponentSnapshot(snapshot, Instant.now()));
     }
 
     private void bufferObjectSnapshot(TiledObjectSnapshotMessage snapshot, BigInteger entityId) {
@@ -228,6 +248,7 @@ public class TiledNetcodeSpawner implements NetcodeSpawner {
         if (buffered == null || buffered.isEmpty()) {
             return;
         }
+        List<BufferedComponentSnapshot> deferred = null;
         for (BufferedComponentSnapshot item : buffered) {
             try {
                 NetcodeFragment handler = applyComponentSnapshot(entity, item.snapshot);
@@ -236,10 +257,20 @@ public class TiledNetcodeSpawner implements NetcodeSpawner {
                         manager.registerActionHandler(handler);
                     }
                     handler.onSnapshot(item.snapshot);
+                } else {
+                    if (deferred == null) {
+                        deferred = new ArrayList<>();
+                    }
+                    deferred.add(item);
                 }
             } catch (Throwable ex) {
                 log.log(Level.WARNING, "Failed applying buffered component snapshot for entity "
-                    + entityId + " componentType=" + item.snapshot.getComponentType(), ex);
+                + entityId + " componentType=" + item.snapshot.getComponentType(), ex);
+            }
+        }
+        if (deferred != null) {
+            for (BufferedComponentSnapshot item : deferred) {
+                bufferComponentSnapshot(item.snapshot, entityId);
             }
         }
     }

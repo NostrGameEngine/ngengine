@@ -2,6 +2,7 @@ package org.ngengine.network.components;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -144,6 +145,93 @@ public class NetcodeAuthorityAssignmentTest {
                 peers.get(0)
             )
         );
+    }
+
+    @Test
+    public void threePeerTopologyReassignsOnlySharedAndPersistentIds() {
+        List<NostrPublicKey> peers = peers(3);
+        Set<NostrPublicKey> allPeers = new LinkedHashSet<>(peers);
+
+        BigInteger sharedId = BigInteger.valueOf(42L);
+        NostrPublicKey sharedOwner = NetcodeAuthorityAssignment.getPeerWithAuthority(
+            sharedId,
+            allPeers,
+            peers.get(0)
+        );
+        Set<NostrPublicKey> sharedRemaining = new LinkedHashSet<>(peers);
+        sharedRemaining.remove(sharedOwner);
+        NostrPublicKey sharedReplacement = NetcodeAuthorityAssignment.getPeerWithAuthority(
+            sharedId,
+            sharedRemaining,
+            sharedRemaining.iterator().next()
+        );
+        assertNotNull(sharedReplacement);
+        assertNotEquals(sharedOwner, sharedReplacement);
+        for (NostrPublicKey localPerspective : sharedRemaining) {
+            assertEquals(
+                sharedReplacement,
+                NetcodeAuthorityAssignment.getPeerWithAuthority(
+                    sharedId,
+                    sharedRemaining,
+                    localPerspective
+                )
+            );
+        }
+
+        NostrPublicKey encodedOwner = peers.get(1);
+        BigInteger ownerKey = new BigInteger(encodedOwner.asHex(), 16);
+        Set<NostrPublicKey> ownerRemaining = new LinkedHashSet<>(peers);
+        ownerRemaining.remove(encodedOwner);
+        BigInteger persistentId = NetcodePartitioning.nextLocalPersistentReservedId(ownerKey, 8L);
+        NostrPublicKey persistentReplacement = NetcodeAuthorityAssignment.getPeerWithAuthority(
+            persistentId,
+            ownerRemaining,
+            ownerRemaining.iterator().next()
+        );
+        assertNotNull(persistentReplacement);
+        for (NostrPublicKey localPerspective : ownerRemaining) {
+            assertEquals(
+                persistentReplacement,
+                NetcodeAuthorityAssignment.getPeerWithAuthority(
+                    persistentId,
+                    ownerRemaining,
+                    localPerspective
+                )
+            );
+        }
+
+        BigInteger reservedId = NetcodePartitioning.nextLocalReservedId(ownerKey, 9L);
+        for (NostrPublicKey localPerspective : ownerRemaining) {
+            assertNull(
+                NetcodeAuthorityAssignment.getPeerWithAuthority(
+                    reservedId,
+                    ownerRemaining,
+                    localPerspective
+                )
+            );
+        }
+    }
+
+    @Test
+    public void orphanCleanupCoordinatorIsDeterministicAcrossRemainingPeers() {
+        List<NostrPublicKey> peers = peers(4);
+        BigInteger networkId = NetcodePartitioning.nextLocalReservedId(
+            new BigInteger(peers.get(3).asHex(), 16),
+            5L
+        );
+        Set<NostrPublicKey> remaining = new LinkedHashSet<>(peers.subList(0, 3));
+        NostrPublicKey coordinator = NetcodeAuthorityAssignment.getOrphanCleanupCoordinator(
+            networkId,
+            remaining
+        );
+
+        assertTrue(remaining.contains(coordinator));
+        for (int i = 0; i < 4; i++) {
+            assertEquals(
+                coordinator,
+                NetcodeAuthorityAssignment.getOrphanCleanupCoordinator(networkId, remaining)
+            );
+        }
     }
 
     @Test

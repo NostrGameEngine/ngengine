@@ -1,6 +1,7 @@
 package org.ngengine.network.components;
 
 import java.math.BigInteger;
+import java.time.Duration;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import org.ngengine.components.Component;
@@ -9,7 +10,14 @@ import org.ngengine.components.fragments.ActionBasedFragment;
 import org.ngengine.network.RemotePeer;
 import org.ngengine.nostr4j.keypair.NostrPublicKey;
 
+import jakarta.annotation.Nullable;
+
 public interface NetcodeFragment  extends ActionBasedFragment<ActionMessage> {
+    /**
+     * Default time allowed for the original owner of a reserved network ID to
+     * reconnect before the fragment is declared orphaned.
+     */
+    Duration DEFAULT_ORPHAN_GRACE_PERIOD = Duration.ofMinutes(1L);
     
     public BigInteger getNetworkId();
 
@@ -127,6 +135,44 @@ public interface NetcodeFragment  extends ActionBasedFragment<ActionMessage> {
 
     default <T extends SnapshotMessage> T requestSnapshot(RemotePeer target){
         return null;
+    }
+
+    /**
+     * Returns the optional delay before this fragment is declared orphaned.
+     *
+     * <p>The orphan lifecycle applies only to fragments with a reserved
+     * network ID. Shared and persistent IDs remain eligible for normal
+     * authority reassignment and never enter this lifecycle. Returning
+     * {@code null} uses the fallback configured on
+     * {@link NetcodeManagerComponent}; returning {@link Duration#ZERO} enables
+     * immediate cleanup. Implementations should not return a negative value.</p>
+     *
+     * @return the fragment-specific grace period, or {@code null} to use the
+     *         manager fallback
+     */
+    default @Nullable Duration getNetworkOrphanGracePeriod() {
+        return null;
+    }
+
+    /**
+     * Handles a reserved-ID fragment whose original owner remained offline for
+     * the configured grace period.
+     *
+     * <p>The manager invokes this hook once on every surviving replica. It
+     * does not assign a new owner. Implementations should always perform their
+     * local, idempotent cleanup on every replica. If cleanup also needs a
+     * network-visible one-shot side effect, such as spawning a replacement or
+     * broadcasting a follow-up action, only the peer for which
+     * {@link NetcodeOrphanContext#isCurrentPeerCleanupCoordinator()} returns
+     * {@code true} should produce that effect.</p>
+     *
+     * <p>If the original owner reconnects before the grace period expires, the
+     * pending orphan state is cancelled and this hook is not called.</p>
+     *
+     * @param context immutable metadata describing the orphaned fragment and
+     *                the peer selected for coordinated one-shot effects
+     */
+    default void onNetworkOrphaned(NetcodeOrphanContext context) {
     }
     
     default NetcodeBehavior getNetworkBehavior(){
