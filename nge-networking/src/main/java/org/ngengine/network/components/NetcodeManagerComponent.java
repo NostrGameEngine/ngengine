@@ -2,7 +2,6 @@ package org.ngengine.network.components;
 
 import java.math.BigInteger;
 import java.time.Duration;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -14,6 +13,9 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.logging.Level;
@@ -62,8 +64,10 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
     private Lobby connectedLobby;
     
 
-    private final ArrayDeque<InboundMessage> inboundMessages = new ArrayDeque<>();
+    private final ConcurrentLinkedQueue<InboundMessage> inboundMessages = new ConcurrentLinkedQueue<>();
     private final Map<NetcodeFragment, RegisteredHandler> registeredActionHandlers = new HashMap<>();
+    private final Map<Class<? extends Message>, CopyOnWriteArrayList<NetworkMessageHandler<? extends Message>>>
+        registeredMessageHandlers = new ConcurrentHashMap<>();
     private final List<NetcodeFragment> orphanLifecycleHandlers = new ArrayList<>();
     private final @Nullable NetcodeSpawner spawner;
     private final AtomicLong localReservedCounter = new AtomicLong();
@@ -94,6 +98,42 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
 
     public void unregisterActionHandler(NetcodeFragment handler) {
         registeredActionHandlers.remove(handler);
+    }
+
+    /**
+     * Registers a typed message handler that runs on the application logic
+     * thread. This transport is intended for game/session messages that do not
+     * represent a replicated component and therefore need no component ID,
+     * network ID, snapshot lifecycle or authority assignment.
+     */
+    public <T extends Message> void registerMessageHandler(
+        Class<T> messageType,
+        NetworkMessageHandler<T> handler
+    ) {
+        Objects.requireNonNull(messageType, "messageType");
+        Objects.requireNonNull(handler, "handler");
+        registeredMessageHandlers
+            .computeIfAbsent(messageType, ignored -> new CopyOnWriteArrayList<>())
+            .addIfAbsent(handler);
+    }
+
+    /** Unregisters a handler previously added with {@link #registerMessageHandler}. */
+    public <T extends Message> void unregisterMessageHandler(
+        Class<T> messageType,
+        NetworkMessageHandler<T> handler
+    ) {
+        if (messageType == null || handler == null) {
+            return;
+        }
+        CopyOnWriteArrayList<NetworkMessageHandler<? extends Message>> handlers =
+            registeredMessageHandlers.get(messageType);
+        if (handlers == null) {
+            return;
+        }
+        handlers.remove(handler);
+        if (handlers.isEmpty()) {
+            registeredMessageHandlers.remove(messageType, handlers);
+        }
     }
 
     private static final class RegisteredHandler {
@@ -135,7 +175,7 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
                 throw new IllegalStateException("Expected RemotePeer connection, got " + conn.getClass().getName());
             }
             RemotePeer remotePeer = (RemotePeer) conn;
-            inboundMessages.addLast(new InboundMessage(remotePeer, message));
+            inboundMessages.add(new InboundMessage(remotePeer, message));
         }
     };
 
@@ -242,6 +282,7 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
         }
         inboundMessages.clear();
         registeredActionHandlers.clear();
+        registeredMessageHandlers.clear();
     }
 
     public void listLobbies(
@@ -528,7 +569,7 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
     public void updateAppLogic(ComponentManager mng, float tpf) {
         cleanupDetachedHandlers();
         while (!inboundMessages.isEmpty()) {
-            InboundMessage inbound = inboundMessages.pollFirst();
+            InboundMessage inbound = inboundMessages.poll();
             if (inbound == null || inbound.getMessage() == null) {
                 continue;
             }
@@ -668,8 +709,11 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
 
     private void dispatchMessage(InboundMessage inbound) {
         Message message = inbound.getMessage();
+        boolean handled = dispatchTypedMessage(inbound.getFromPeer(), message);
         if(!(message instanceof ActionMessage)){
-            log.log(Level.FINEST, "Received unknown message type: " + message.getClass().getName());
+            if (!handled) {
+                log.log(Level.FINEST, "Received unknown message type: " + message.getClass().getName());
+            }
             return;
         }
         ActionMessage actionMessage = (ActionMessage) message;
@@ -783,6 +827,24 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
                 }
             }
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean dispatchTypedMessage(RemotePeer source, Message message) {
+        CopyOnWriteArrayList<NetworkMessageHandler<? extends Message>> handlers =
+            registeredMessageHandlers.get(message.getClass());
+        if (handlers == null || handlers.isEmpty()) {
+            return false;
+        }
+        for (NetworkMessageHandler<? extends Message> handler : handlers) {
+            try {
+                ((NetworkMessageHandler<Message>) handler).onMessage(source, message);
+            } catch (Throwable ex) {
+                log.log(Level.WARNING,
+                    "Error handling network message " + message.getClass().getName(), ex);
+            }
+        }
+        return true;
     }
 
     private @Nullable NetcodeFragment findRegisteredHandler(ActionMessage actionMessage) {

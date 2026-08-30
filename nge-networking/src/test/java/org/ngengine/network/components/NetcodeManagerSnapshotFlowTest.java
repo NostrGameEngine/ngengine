@@ -6,11 +6,11 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Constructor;
 import java.math.BigInteger;
 import java.time.Duration;
-import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Queue;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -235,7 +235,7 @@ public class NetcodeManagerSnapshotFlowTest {
         Object inbound = constructor.newInstance(null, message);
         Field field = findField(manager.getClass(), "inboundMessages");
         field.setAccessible(true);
-        ((ArrayDeque<Object>) field.get(manager)).addLast(inbound);
+        ((Queue<Object>) field.get(manager)).add(inbound);
     }
 
     private static void setField(Object target, String field, Object value) throws Exception {
