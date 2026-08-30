@@ -68,7 +68,7 @@ import static org.lwjgl.sdl.SDLVideo.*;
 /**
  * SDL implementation of {@link MouseInput}.
  */
-public class SdlMouseInput implements MouseInput {
+public class SdlMouseInput implements MouseInput, SdlEventListener {
 
     private static final Logger LOGGER = Logger.getLogger(SdlMouseInput.class.getName());
     private static final int WHEEL_SCALE = 120;
@@ -130,6 +130,7 @@ public class SdlMouseInput implements MouseInput {
         setCursorVisible(cursorVisible);
     }
 
+    @Override
     public void onSDLEvent(SDL_Event event) {
         final int type = event.type();
 
