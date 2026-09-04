@@ -37,8 +37,10 @@ import com.jme3.renderer.Statistics;
 import com.jme3.texture.Image;
 import com.jme3.texture.Image.Format;
 import com.jme3.texture.image.ColorSpace;
+import com.jme3.util.BufferUtils;
 import java.nio.ByteBuffer;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -321,6 +323,83 @@ public final class TextureUtil {
             }
 
             pos += mipSizes[i];
+        }
+    }
+
+    /**
+     * Uploads all layers of a 2D texture array.
+     *
+     * <p>Compressed arrays must allocate each mip level with
+     * {@code glCompressedTexImage3D}; allocating them through
+     * {@code glTexImage3D} with a compressed internal format is invalid on
+     * OpenGL ES and leaves the texture incomplete. The source image stores one
+     * complete mip chain per layer, so compressed levels are gathered into one
+     * contiguous buffer and submitted once per level.</p>
+     *
+     * @param image array image to upload
+     * @param target OpenGL texture-array target
+     * @param linearizeSrgb whether an sRGB internal format should be selected
+     */
+    public void uploadTextureArray(Image image, int target, boolean linearizeSrgb) {
+        List<ByteBuffer> layers = image.getData();
+        if (layers == null || layers.isEmpty()) {
+            uploadTexture(image, target, -1, linearizeSrgb);
+            return;
+        }
+
+        boolean getSrgbFormat = image.getColorSpace() == ColorSpace.sRGB && linearizeSrgb;
+        Image.Format jmeFormat = image.getFormat();
+        GLImageFormat oglFormat = getImageFormatWithError(jmeFormat, getSrgbFormat);
+        if (!oglFormat.compressed) {
+            uploadTexture(image, target, -1, linearizeSrgb);
+            for (int layer = 0; layer < layers.size(); layer++) {
+                uploadTexture(image, target, layer, linearizeSrgb);
+            }
+            return;
+        }
+
+        int[] mipSizes = image.getMipMapSizes();
+        if (mipSizes == null) {
+            mipSizes = new int[] {layers.get(0).capacity()};
+        }
+        int mipChainSize = 0;
+        for (int mipSize : mipSizes) {
+            mipChainSize = Math.addExact(mipChainSize, mipSize);
+        }
+        for (int layer = 0; layer < layers.size(); layer++) {
+            ByteBuffer data = layers.get(layer);
+            if (data == null || data.capacity() < mipChainSize) {
+                throw new RendererException("Texture-array layer " + layer
+                        + " does not contain the complete compressed mip chain");
+            }
+        }
+        int mipOffset = 0;
+        for (int level = 0; level < mipSizes.length; level++) {
+            int mipSize = mipSizes[level];
+            int levelSize = Math.multiplyExact(mipSize, layers.size());
+            ByteBuffer levelData = BufferUtils.createByteBuffer(levelSize);
+            try {
+                for (ByteBuffer layer : layers) {
+                    ByteBuffer source = layer.duplicate();
+                    source.position(mipOffset);
+                    source.limit(mipOffset + mipSize);
+                    levelData.put(source);
+                }
+                levelData.flip();
+                gl2.glCompressedTexImage3D(
+                        target,
+                        level,
+                        oglFormat.internalFormat,
+                        Math.max(1, image.getWidth() >> level),
+                        Math.max(1, image.getHeight() >> level),
+                        layers.size(),
+                        0,
+                        levelData);
+                statistics.onTextureUpload(levelSize);
+            } finally {
+                BufferUtils.destroyDirectBuffer(levelData);
+            }
+            mipOffset += mipSize;
         }
     }
 

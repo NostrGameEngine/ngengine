@@ -3213,16 +3213,7 @@ public final class GLRenderer implements Renderer {
                 throw new RendererException("Texture arrays not supported by graphics hardware");
             }
 
-            List<ByteBuffer> data = imageForUpload.getData();
-
-            // -1 index specifies prepare data for 2D Array
-            texUtil.uploadTexture(imageForUpload, target, -1, linearizeSrgbImages);
-
-            for (int i = 0; i < data.size(); i++) {
-                // upload each slice of 2D array in turn
-                // this time with the appropriate index
-                texUtil.uploadTexture(imageForUpload, target, i, linearizeSrgbImages);
-            }
+            texUtil.uploadTextureArray(imageForUpload, target, linearizeSrgbImages);
         } else {
             texUtil.uploadTexture(imageForUpload, target, 0, linearizeSrgbImages);
         }
