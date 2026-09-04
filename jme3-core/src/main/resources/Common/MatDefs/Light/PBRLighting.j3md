@@ -160,8 +160,8 @@ MaterialDef PBR Lighting {
             //   7 - alpha
             //   8 - geometryNormals
 
-        Texture2D MatCapMap : Common/Textures/fake.png
-        Texture2D MatCapMetalMap : Common/Textures/fakemetal.png
+        Texture2D MatCapMap -LINEAR : Common/Textures/fake.png
+        Texture2D MatCapMetalMap -LINEAR : Common/Textures/fakemetal.png
         Float MatCapIntensity : 0.0   
     }
 
