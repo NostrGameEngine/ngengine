@@ -34,12 +34,13 @@ package org.ngengine.web.audio;
 
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
-import org.ngengine.platform.NGEPlatform;
 import org.ngengine.web.WebBinds;
 import org.ngengine.web.WebBindsAsync;
 import org.teavm.jso.core.JSArray;
@@ -64,7 +65,8 @@ public class WebAudioRenderer implements AudioRenderer {
 
     private AtomicInteger idCounter = new AtomicInteger(1);
     private Map<Integer, AudioSource> audioSourceIdMap = new WeakHashMap<>();
-    private Map<Integer, Object> otherIdsMap = new WeakHashMap<>();
+    private Map<AudioData, Integer> audioDataIds = new WeakHashMap<>();
+    private Set<Integer> otherIds = new HashSet<>();
     private Map<Integer, Runnable> freeMap = new ConcurrentHashMap<>();
     private int ctxId = NativeObject.INVALID_ID;
 
@@ -86,7 +88,7 @@ public class WebAudioRenderer implements AudioRenderer {
         int id;
         do {
             id = idCounter.incrementAndGet();
-            if (otherIdsMap.containsKey(id)) id = NativeObject.INVALID_ID;
+            if (otherIds.contains(id)) id = NativeObject.INVALID_ID;
             else if (audioSourceIdMap.containsKey(id)) id = NativeObject.INVALID_ID;
         }  while (id == NativeObject.INVALID_ID || id == 0);
         return id;
@@ -96,36 +98,36 @@ public class WebAudioRenderer implements AudioRenderer {
         if(ctxId != NativeObject.INVALID_ID) return ctxId;
         int id = getNextId();
         WebBindsAsync.createAudioContext(SAMPLE_RATE,id);
-        freeMap.put(id,NGEPlatform.get().registerFinalizer(this, ()->{
-            WebBinds.freeAudioContext(id);
-            freeMap.remove(id);
-        }));
         ctxId = id;
         return ctxId;
     }
 
     private int getAudioData(AudioData data){
         boolean updateNeeded = data.isUpdateNeeded();
-        int id = data.getId();
+        Integer currentId = audioDataIds.get(data);
+        int id = currentId != null ? currentId : NativeObject.INVALID_ID;
 
         if(id==NativeObject.INVALID_ID){
             id = getNextId();
-            otherIdsMap.put(id, data);
+            audioDataIds.put(data, id);
+            otherIds.add(id);
             data.setUpdateNeeded();
             updateNeeded = true;
         } else if(updateNeeded){
-            Runnable free = freeMap.remove(data.getId());
+            Runnable free = freeMap.remove(id);
             if (free != null) free.run();            
         }
         if(updateNeeded){
+            otherIds.add(id);
             JSArray<Float32Array> f32 = WebAudioDataUtils.getF32Data(data,  SAMPLE_RATE);
-            WebBindsAsync.createAudioBuffer(getContextId(), id, f32, (int)(data.getDuration()*data.getSampleRate()), data.getSampleRate());
+            int frameCount = f32.getLength() == 0 ? 0 : f32.get(0).getLength();
+            WebBindsAsync.createAudioBuffer(
+                    getContextId(), id, f32, frameCount, SAMPLE_RATE);
             final int fid = id;
-            freeMap.put(id, NGEPlatform.get().registerFinalizer(data, ()->{
+            freeMap.put(id, ()->{
                 WebBinds.freeAudioBuffer(getContextId(), fid);
-                freeMap.remove(fid);
-                otherIdsMap.remove(fid);
-            }));         
+                otherIds.remove(fid);
+            });
             data.clearUpdateNeeded();   
         }
         return id;
@@ -137,11 +139,10 @@ public class WebAudioRenderer implements AudioRenderer {
             WebBindsAsync.createAudioSource(getContextId(), channel);
             audioSourceIdMap.put(channel, src);
             final int fid = channel;
-            freeMap.put(channel, NGEPlatform.get().registerFinalizer(src, ()->{
+            freeMap.put(channel, ()->{
                 WebBinds.freeAudioSource(getContextId(), fid);
-                freeMap.remove(fid);
                 audioSourceIdMap.remove(fid);
-            }));
+            });
         }
         return channel;
     }
@@ -255,8 +256,11 @@ public class WebAudioRenderer implements AudioRenderer {
 
     @Override
     public void deleteAudioData(AudioData ad) {
-        Runnable free = freeMap.remove(ad.getId());
+        Integer id = audioDataIds.remove(ad);
+        if (id == null) return;
+        Runnable free = freeMap.remove(id);
         if( free != null ) free.run();
+        otherIds.remove(id);
     }
 
     private void initPlayback(AudioSource src, int srcId){        
@@ -381,12 +385,12 @@ public class WebAudioRenderer implements AudioRenderer {
 
     @Override
     public void cleanup() {
-        for (Entry<Integer, Runnable> e : freeMap.entrySet()) {
-            e.getValue().run();
-        }
+        Runnable[] cleanupActions = freeMap.values().toArray(new Runnable[0]);
         freeMap.clear();
+        for (Runnable cleanupAction : cleanupActions) cleanupAction.run();
         audioSourceIdMap.clear();
-        otherIdsMap.clear();
+        audioDataIds.clear();
+        otherIds.clear();
         if (ctxId != NativeObject.INVALID_ID) {
             WebBinds.freeAudioContext(ctxId);
             ctxId = NativeObject.INVALID_ID;

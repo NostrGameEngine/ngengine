@@ -54,9 +54,8 @@ public final class HeapAllocator implements BufferAllocator {
      */
     @Override
     public void destroyDirectBuffer(Buffer toBeDestroyed) {
-        // no exception by intent, as this way naively written java7/8
-        // applications won't crash on 9 assuming they can dispose buffers
-        System.err.println("Warning destroyBuffer not supported");
+        // Browser-backed direct buffers are garbage collected. Explicit
+        // destruction is intentionally a no-op on this platform.
     }
 
     /**

@@ -32,15 +32,15 @@
 
 package org.ngengine.web;
 
-import org.teavm.jso.JSByRef;
 import org.teavm.jso.JSObject;
 import org.teavm.jso.JSProperty;
+import org.teavm.jso.typedarrays.Int8Array;
 
 public interface WebDecodedImage extends JSObject {
     @JSProperty
     public int getWidth();
     @JSProperty
     public int getHeight();
-    @JSProperty @JSByRef
-    public byte[] getData();
+    @JSProperty
+    public Int8Array getData();
 }

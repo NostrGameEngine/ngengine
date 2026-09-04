@@ -120,44 +120,59 @@ public class WebAudioDataUtils {
         }
     }
 
-    private static JSArray<Float32Array> getF32Data(AudioStream ab, int srcSampleRate, int destSampleRate, int lengthInSamples) {
-        ByteBuffer inputData = ByteBuffer.allocateDirect(lengthInSamples * (ab.getBitsPerSample() / 8));
+    private static JSArray<Float32Array> getF32Data(
+            AudioStream ab, int srcSampleRate, int destSampleRate) {
+        int bytesPerFrame = ab.getChannels() * (ab.getBitsPerSample() / 8);
+        int expectedSize = Math.max(0, (int) (ab.getDuration() * srcSampleRate) * bytesPerFrame);
+        ByteArrayOutputStream decodedPcm = new ByteArrayOutputStream(expectedSize);
         byte chunk[] = new byte[1024];
-        int read = 0;
+        int read;
         while ((read = ab.readSamples(chunk)) > 0) {
-            inputData.put(chunk, 0, read);
+            decodedPcm.write(chunk, 0, read);
         }
-        inputData.rewind();
-        // Float32Array data[] = new Float32Array[ab.getChannels()];
+        byte[] pcm = decodedPcm.toByteArray();
+        int sourceFrames = bytesPerFrame == 0 ? 0 : pcm.length / bytesPerFrame;
+        int destinationFrames = resampledFrameCount(sourceFrames, srcSampleRate, destSampleRate);
+        ByteBuffer inputData = ByteBuffer.allocateDirect(pcm.length).order(ByteOrder.nativeOrder());
+        inputData.put(pcm);
+        inputData.flip();
         JSArray<Float32Array> data = new JSArray<>(ab.getChannels());
         for (int i = 0; i < ab.getChannels(); i++) {
-            data.set(i, new Float32Array(lengthInSamples));
+            data.set(i, new Float32Array(destinationFrames));
         }
         audioDataToF32(ab, inputData, data, srcSampleRate, destSampleRate);
-        inputData.rewind();
         return data;
 
     }
 
-    private static JSArray<Float32Array>  getF32Data(AudioBuffer ab, int srcSampleRate, int destSampleRate, int lengthInSamples) {
+    private static JSArray<Float32Array> getF32Data(
+            AudioBuffer ab, int srcSampleRate, int destSampleRate) {
         ByteBuffer inputData = ab.getData();
         inputData.rewind();
+        int bytesPerFrame = ab.getChannels() * (ab.getBitsPerSample() / 8);
+        int sourceFrames = bytesPerFrame == 0 ? 0 : inputData.remaining() / bytesPerFrame;
+        int destinationFrames = resampledFrameCount(sourceFrames, srcSampleRate, destSampleRate);
         JSArray<Float32Array> data = new JSArray<>(ab.getChannels());
          for (int i = 0; i < ab.getChannels(); i++) {
-            data.set(i, new Float32Array(lengthInSamples));
+            data.set(i, new Float32Array(destinationFrames));
         }        
         audioDataToF32(ab, inputData, data, srcSampleRate, destSampleRate);
         inputData.rewind();
         return data;
     }
 
+    private static int resampledFrameCount(int sourceFrames, int sourceRate, int destinationRate) {
+        if (sourceFrames == 0 || sourceRate <= 0 || destinationRate <= 0) return 0;
+        return Math.max(1, (int) Math.ceil(
+                (double) sourceFrames * destinationRate / sourceRate));
+    }
+
     public static JSArray<Float32Array> getF32Data(AudioData ab, int destSampleRate) {
         int srcSampleRate = ab.getSampleRate();
-        int lengthInSamples = (int) (ab.getDuration() * ab.getSampleRate());
         if (ab instanceof AudioStream) {
-            return getF32Data((AudioStream) ab, srcSampleRate, destSampleRate, lengthInSamples);
+            return getF32Data((AudioStream) ab, srcSampleRate, destSampleRate);
         } else if (ab instanceof AudioBuffer) {
-            return getF32Data((AudioBuffer) ab, srcSampleRate, destSampleRate, lengthInSamples);
+            return getF32Data((AudioBuffer) ab, srcSampleRate, destSampleRate);
         } else {
             throw new UnsupportedOperationException("Unsupported AudioData type: " + ab.getClass().getName());
         }

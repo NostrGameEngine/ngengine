@@ -39,7 +39,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 
-import org.ngengine.web.WebBindsAsync;
+import org.ngengine.web.WebBinds;
 import org.ngengine.web.WebDecodedImage;
 import org.ngengine.web.WebHdrDecodedImage;
 import org.teavm.jso.typedarrays.Float32Array;
@@ -110,7 +110,8 @@ public class WebImageLoader implements AssetLoader {
             if(filename.endsWith(".hdr")){
                 format = Format.RGB16F;
                 colorSpace = ColorSpace.Linear;
-                WebHdrDecodedImage decoded = WebBindsAsync.decodeHdrImage(baos.toByteArray(), assetInfo.getKey().getName());
+                WebHdrDecodedImage decoded = WebBinds.decodeHdrImagePromise(
+                        baos.toByteArray(), assetInfo.getKey().getName()).await();
                 w = decoded.getWidth();
                 h = decoded.getHeight();
                 Float32Array data = decoded.getData();
@@ -123,10 +124,12 @@ public class WebImageLoader implements AssetLoader {
             } else {
                 format = Format.RGBA8;
                 colorSpace = ColorSpace.sRGB;
-                WebDecodedImage decoded = WebBindsAsync.decodeImage(baos.toByteArray(), assetInfo.getKey().getName(), width, height);
+                byte[] encodedImage = baos.toByteArray();
+                WebDecodedImage decoded = WebBinds.decodeImagePromise(
+                        encodedImage, assetInfo.getKey().getName(), width, height).await();
                 w = decoded.getWidth();
                 h = decoded.getHeight();
-                byte[] data = decoded.getData();
+                byte[] data = decoded.getData().copyToJavaArray();
                 if(flipY) flipImage(data, w, h, Format.RGBA8.getBitsPerPixel());
                 bbf = BufferUtils.createByteBuffer(data);       
             }

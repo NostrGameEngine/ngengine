@@ -120,14 +120,6 @@ async function decodeImage (data, filename, scaleW, scaleH) {
         if (!dw) dw = w;
         if (!dh) dh = h;
 
-        // Enforce maximum texture size of 4096x4096
-        const MAX_TEXTURE_SIZE = 4096;
-        if (dw > MAX_TEXTURE_SIZE || dh > MAX_TEXTURE_SIZE) {
-            const scale = Math.min(MAX_TEXTURE_SIZE / dw, MAX_TEXTURE_SIZE / dh);
-            dw = Math.floor(dw * scale);
-            dh = Math.floor(dh * scale);
-        }
-
         // canvas = doc.createElement('canvas');
         canvas = new g.OffscreenCanvas(dw, dh);
         // canvas.style.cssText = 'position:absolute;top:-10000px;left:-10000px;visibility:hidden;';
@@ -162,7 +154,6 @@ async function decodeImage (data, filename, scaleW, scaleH) {
             colorSpace: 'srgb'
         });
         const pixels = imageData.data;  
-       
 
         return {
             data: new Uint8Array(pixels.buffer, pixels.byteOffset, pixels.length),

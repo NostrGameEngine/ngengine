@@ -43,10 +43,17 @@ export const decodeImageAsync = (data /*byte[]*/, filename /*str*/ , targetWidth
     
     }*/
    if(!isWorker()||!filename.toLowerCase().endsWith('.svg')) {
-        ImageLoader.decodeImage(_u(data), filename, targetWidth, targetHeight ).then(res).catch(e=>rej( String(e)));  
+        ImageLoader.decodeImage(_u(data), filename, targetWidth, targetHeight ).then(res, e=>rej(String(e)));
    } else{
-        Binds.fireEvent("decodeImage", _u(data), filename, targetWidth, targetHeight).then(res).catch(e=>rej( String(e)));
+        Binds.fireEvent("decodeImage", _u(data), filename, targetWidth, targetHeight).then(res, e=>rej(String(e)));
    }
+}
+
+export const decodeImagePromise = (data, filename, targetWidth, targetHeight) => {
+   if (!isWorker() || !filename.toLowerCase().endsWith('.svg')) {
+        return ImageLoader.decodeImage(_u(data), filename, targetWidth, targetHeight);
+   }
+   return Binds.fireEvent("decodeImage", _u(data), filename, targetWidth, targetHeight);
 }
 
 export const decodeHdrImageAsync = (data /*byte[]*/, filename /*str*/ , res, rej) => { /* {
@@ -55,8 +62,12 @@ export const decodeHdrImageAsync = (data /*byte[]*/, filename /*str*/ , res, rej
         height: number
     
     }*/
-   ImageLoader.decodeHdrImage(_u(data), filename ).then(res).catch(e=>rej( String(e)));  
+   ImageLoader.decodeHdrImage(_u(data), filename ).then(res, e=>rej(String(e)));
  
+}
+
+export const decodeHdrImagePromise = (data, filename) => {
+   return ImageLoader.decodeHdrImage(_u(data), filename);
 }
 
 
@@ -140,7 +151,7 @@ export const waitNextFrame = (callback) => {
 // }
 
 export const getRenderTargetAsync = (res, rej) => {
-    Binds.fireEvent("getRenderTarget").then(res).catch(e=>rej(String(e)));
+    Binds.fireEvent("getRenderTarget").then(res, e=>rej(String(e)));
 }
 
 export const addResizeRenderTargetListener = (fun)=>{
@@ -159,6 +170,25 @@ export const removeInputEventListener = (event, fun) => {
     Binds.removeEventListener(event, fun);
 }
 
+export const showSoftKeyboardAsync = (show, res, rej) => {
+    Binds.fireEvent("showSoftKeyboard", Boolean(show))
+        .then(value => res(Boolean(value)), error => rej(String(error)));
+}
+
+export const refreshGamepads = () => {
+    Binds.fireEvent("pollGamepads");
+}
+
+export const setGamepadRumble = (gamepadIndex, amountHigh, amountLow, durationMillis) => {
+    Binds.fireEvent(
+        "setGamepadRumble",
+        Number(gamepadIndex),
+        Number(amountHigh),
+        Number(amountLow),
+        Number(durationMillis)
+    );
+}
+
 
 
 
@@ -168,7 +198,7 @@ export const addAudioEndListener = (fun) => {
 };
 
 export const createAudioContextAsync = (sampleRate, id, res, rej) => {
-    Binds.fireEvent("createAudioContext", sampleRate, id).then(res).catch(e=>rej(String(e)));
+    Binds.fireEvent("createAudioContext", sampleRate, id).then(res, e=>rej(String(e)));
 };
 
 export const freeAudioContext = (id) => {
@@ -176,7 +206,7 @@ export const freeAudioContext = (id) => {
 };
 
 export const createAudioBufferAsync = (ctxId, id, f32channelData, lengthInSamples, sampleRate, res, rej) => {
-    Binds.fireEvent("createAudioBuffer", ctxId, id, f32channelData, lengthInSamples, sampleRate).then(res).catch(e=>rej(String(e)));
+    Binds.fireEvent("createAudioBuffer", ctxId, id, f32channelData, lengthInSamples, sampleRate).then(res, e=>rej(String(e)));
 };
 
 export const freeAudioBuffer = (ctxId, bufId) => {
@@ -184,7 +214,7 @@ export const freeAudioBuffer = (ctxId, bufId) => {
 };
 
 export const createAudioSourceAsync = (ctxId, id,  res, rej) => {
-    Binds.fireEvent("createAudioSource", ctxId, id).then(res).catch(e=>rej(String(e)));
+    Binds.fireEvent("createAudioSource", ctxId, id).then(res, e=>rej(String(e)));
 };
 
 export const freeAudioSource = (ctxId, srcId) => {
@@ -192,7 +222,7 @@ export const freeAudioSource = (ctxId, srcId) => {
 };
 
 export const setAudioBufferAsync = (ctxId, srcId, bufId, res, rej) => {
-    Binds.fireEvent("setAudioBuffer", ctxId, srcId, bufId).then(res).catch(e=>rej(String(e)));
+    Binds.fireEvent("setAudioBuffer", ctxId, srcId, bufId).then(res, e=>rej(String(e)));
 };
 
 export const setAudioPositional = (ctxId, srcId, v) => {
@@ -248,19 +278,19 @@ export const setAudioVolume = (ctxId, srcId, v) => {
 };
 
 export const getAudioPlaybackRateAsync = (ctxId, srcId, res, rej) => {
-    Binds.fireEvent("getAudioPlaybackRate", ctxId, srcId).then(res).catch(e=>rej(String(e)));
+    Binds.fireEvent("getAudioPlaybackRate", ctxId, srcId).then(res, e=>rej(String(e)));
 };
 
 export const playAudioSourceAsync = (ctxId, srcId, res, rej) => {
-    Binds.fireEvent("playAudioSource", ctxId, srcId).then(res).catch(e=>rej(String(e)));
+    Binds.fireEvent("playAudioSource", ctxId, srcId).then(res, e=>rej(String(e)));
 };
 
 export const pauseAudioSourceAsync = (ctxId, srcId, res, rej) => {
-    Binds.fireEvent("pauseAudioSource", ctxId, srcId).then(res).catch(e=>rej(String(e)));
+    Binds.fireEvent("pauseAudioSource", ctxId, srcId).then(res, e=>rej(String(e)));
 };
 
 export const stopAudioSourceAsync = (ctxId, srcId, res, rej) => {
-    Binds.fireEvent("stopAudioSource", ctxId, srcId).then(res).catch(e=>rej(String(e)));
+    Binds.fireEvent("stopAudioSource", ctxId, srcId).then(res, e=>rej(String(e)));
 };
 
 export const setAudioContextListener = (
@@ -284,22 +314,22 @@ export const getBaseURLAsync = (res, rej) => {
         res(baseUrl);
         return;
     }
-    Binds.fireEvent("getBaseURL").then( (url) => {
+    Binds.fireEvent("getBaseURL").then((url) => {
         baseUrl = ""+url;
-        res(url);
-    }).catch(e=>rej(String(e)));
+        res(baseUrl);
+    }, e=>rej(String(e)));
 }
 
 export const connectNip07BackendAsync = (res, rej) => {
-    Nip07Proxy.inject().then(res).catch(e=>rej(String(e)));
+    Nip07Proxy.inject().then(res, e=>rej(String(e)));
 }
 
 export const connectWebRTCBackendAsync = (res, rej) => {
-    WebRTCProxy.inject().then(res).catch(e=>rej(String(e)));
+    WebRTCProxy.inject().then(res, e=>rej(String(e)));
 }
 
 export const connectClipboardBackendAsync = (res, rej) => {
-    ClipboardProxy.inject().then(res).catch(e=>rej(String(e)));
+    ClipboardProxy.inject().then(res, e=>rej(String(e)));
 }
 
 

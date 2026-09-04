@@ -115,6 +115,8 @@ public class WebGL implements GL, GL2, GLES_30, GLExt, GLFbo {
         enableExtension("WEBGL_compressed_texture_s3tc","GL_EXT_texture_compression_s3tc");
         enableExtension("WEBGL_compressed_texture_s3tc_srgb",null);
         enableExtension("WEBGL_compressed_texture_etc","GL_ARB_ES3_compatibility");
+        enableExtension("EXT_texture_compression_bptc","GL_ARB_texture_compression_bptc");
+        enableExtension("WEBGL_compressed_texture_astc","GL_KHR_texture_compression_astc_ldr");
         enableExtension("WEBGL_compressed_texture_rgtc","GL_EXT_texture_compression_rgtc");
         enableExtension("EXT_color_buffer_half_float","GL_EXT_color_buffer_half_float");
         enableExtension("EXT_color_buffer_float","GL_EXT_color_buffer_float");
@@ -140,8 +142,6 @@ public class WebGL implements GL, GL2, GLES_30, GLExt, GLFbo {
 
 
         // enableExtension("WEBGL_compressed_texture_pvrtc");
-        // enableExtension("WEBGL_compressed_texture_astc");
-
     }
 
  
@@ -325,11 +325,6 @@ public class WebGL implements GL, GL2, GLES_30, GLExt, GLFbo {
         return out;
     }
 
-    private void _pD(JSObject obj) {
-        pMap.entrySet().removeIf(entry -> entry.getValue() == obj);
-
-    }
-    
     private <T extends JSObject> T _pD(int i) {
         return (T) pMap.remove(i);
         
@@ -541,9 +536,10 @@ public class WebGL implements GL, GL2, GLES_30, GLExt, GLFbo {
     public void glDeleteBuffers(IntBuffer buffers) {
         checkLimit(buffers);
         for (int i = 0; i < buffers.limit(); i++) {
-            WebGLBuffer b = _pG(buffers.get(i));
+            int bufferId = buffers.get(i);
+            WebGLBuffer b = _pG(bufferId);
             gl.deleteBuffer(b);
-            _pD(b);
+            _pD(bufferId);
         }
     }
 
@@ -551,14 +547,14 @@ public class WebGL implements GL, GL2, GLES_30, GLExt, GLFbo {
     public void glDeleteProgram(int program) {
         WebGLProgram p = _pG(program);
         gl.deleteProgram(p);
-        _pD(p);
+        _pD(program);
     }
 
     @Override
     public void glDeleteShader(int shader) {
         WebGLShader s = _pG(shader);
         gl.deleteShader(s);
-        _pD(s);
+        _pD(shader);
 
     }
 
@@ -566,9 +562,10 @@ public class WebGL implements GL, GL2, GLES_30, GLExt, GLFbo {
     public void glDeleteTextures(IntBuffer textures) {
         checkLimit(textures);
         for (int i = 0; i < textures.limit(); i++) {
-            WebGLTexture t = _pG(textures.get(i));
+            int textureId = textures.get(i);
+            WebGLTexture t = _pG(textureId);
             gl.deleteTexture(t);
-            _pD(t);
+            _pD(textureId);
         }
     }
 
@@ -1046,9 +1043,10 @@ public class WebGL implements GL, GL2, GLES_30, GLExt, GLFbo {
     public void glDeleteFramebuffersEXT(IntBuffer param1) {
         checkLimit(param1);
         for (int i = param1.position(); i < param1.limit(); i++) {
-            WebGLFramebuffer fb = _pG(param1.get(i));
+            int framebufferId = param1.get(i);
+            WebGLFramebuffer fb = _pG(framebufferId);
             gl.deleteFramebuffer(fb);
-            _pD(fb);
+            _pD(framebufferId);
 
         }
     }
@@ -1057,9 +1055,10 @@ public class WebGL implements GL, GL2, GLES_30, GLExt, GLFbo {
     public void glDeleteRenderbuffersEXT(IntBuffer param1) {
         checkLimit(param1);
         for (int i = param1.position(); i < param1.limit(); i++) {
-            WebGLRenderbuffer rb = _pG(param1.get(i));
+            int renderbufferId = param1.get(i);
+            WebGLRenderbuffer rb = _pG(renderbufferId);
             gl.deleteRenderbuffer(rb);
-            _pD(rb);
+            _pD(renderbufferId);
         }
     }
 
@@ -1249,8 +1248,6 @@ public class WebGL implements GL, GL2, GLES_30, GLExt, GLFbo {
             case Luminance8:
             case Luminance16F:
             case Luminance32F:
-            case Luminance8Alpha8:
-            case Luminance16FAlpha16F:
             case R8I:
             case R8UI:
             case R16I:
@@ -1299,6 +1296,14 @@ public class WebGL implements GL, GL2, GLES_30, GLExt, GLFbo {
 
             case RG16F:
             case RG32F:
+            case Luminance8Alpha8:
+            case Luminance16FAlpha16F:
+            case RG8I:
+            case RG8UI:
+            case RG16I:
+            case RG16UI:
+            case RG32I:
+            case RG32UI:
                 return 2;
             case RGBA8:
             case ABGR8:

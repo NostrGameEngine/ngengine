@@ -81,6 +81,7 @@ function createAudioSource(ctxId, id){
         volume: 1,
         duration: 0,
         positional: false,
+        started: false,
         reconnectionNeeded: true
         
     };
@@ -91,10 +92,10 @@ function freeAudioSource(ctxId, srcId){
     if(!ctx) throw new Error("Invalid context id");
     const src = ctx.nge.sources[srcId];
     if(src){
-        if(src.node){
+        if(src.node && src.started){
             src.node.stop();
-            src.node.disconnect();
         }
+        if(src.node) src.node.disconnect();
         if(src.panner) src.panner.disconnect();
         if(src.gain) src.gain.disconnect();
         delete ctx.nge.sources[srcId];
@@ -169,7 +170,9 @@ function playAudioSource(ctxId, srcId){
     applyProperties(ctxId, srcId);
     src.startTime = ctx.currentTime;
     src.node.start(0, src.pausedAt);
+    src.started = true;
     src.node.addEventListener('ended', ()=>{
+        src.started = false;
         Binds.fireEvent("audioSourceEnded", ctxId, srcId);
     }, { once: true });
 }
@@ -180,8 +183,10 @@ function stopAudioSource(ctxId, srcId){
     const src = ctx.nge.sources[srcId];
     if(!src) throw new Error("Invalid source id");
     src.pausedAt = 0;
-    src.node.stop(0);   
+    if(src.started) src.node.stop(0);
+    src.node.disconnect();
     src.node = ctx.createBufferSource(); 
+    src.started = false;
     src.reconnectionNeeded = true;
 }
 
@@ -191,8 +196,10 @@ function pauseAudioSource(ctxId, srcId){
     const src = ctx.nge.sources[srcId];
     if(!src) throw new Error("Invalid source id");
     src.pausedAt = ctx.currentTime - src.startTime;
-    src.node.stop(0);
+    if(src.started) src.node.stop(0);
+    src.node.disconnect();
     src.node = ctx.createBufferSource(); 
+    src.started = false;
     src.reconnectionNeeded = true;
 }
 

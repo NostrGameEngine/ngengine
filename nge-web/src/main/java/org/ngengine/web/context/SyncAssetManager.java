@@ -46,12 +46,14 @@ import com.jme3.audio.AudioKey;
 import com.jme3.font.BitmapFont;
 import com.jme3.material.Material;
 import com.jme3.post.FilterPostProcessor;
-import com.jme3.renderer.Caps;
 import com.jme3.scene.Spatial;
 import com.jme3.shader.ShaderGenerator;
 import com.jme3.texture.Texture;
+import com.jme3.renderer.Caps;
 import java.io.InputStream;
+import java.util.Collection;
 import java.util.EnumSet;
+import java.util.Set;
 
 /**
  * An asynchronous wrapper for the JME AssetManager that allows loading assets in a separate thread and
@@ -67,6 +69,16 @@ public class SyncAssetManager implements AssetManager {
 
     protected SyncAssetManager(AssetManager assetManager) {
         this.assetManager = assetManager;
+    }
+
+    @Override
+    public void setRendererCaps(Collection<Caps> caps) {
+        assetManager.setRendererCaps(caps);
+    }
+
+    @Override
+    public Set<Caps> getRendererCaps() {
+        return assetManager.getRendererCaps();
     }
 
    
