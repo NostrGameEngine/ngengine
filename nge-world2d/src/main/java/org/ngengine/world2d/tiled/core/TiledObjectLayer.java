@@ -115,6 +115,13 @@ public class TiledObjectLayer extends TiledLayer {
     }
     
     public void add(TiledObjectEntity obj) {
+        TiledObjectLayer previous = obj.getObjectGroup();
+        if (previous == this) {
+            return;
+        }
+        if (previous != null) {
+            previous.remove(obj);
+        }
         obj.setObjectGroup(this);
         objects.add(obj);
         obj.attached();
@@ -128,7 +135,9 @@ public class TiledObjectLayer extends TiledLayer {
         // Netcode cleanup uses that scope to address the same remote handler
         // that was registered while the object was attached.
         o.detached();
-        o.setObjectGroup(null);
+        if (o.getObjectGroup() == this) {
+            o.setObjectGroup(null);
+        }
     }
 
     /**

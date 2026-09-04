@@ -2600,8 +2600,14 @@ public abstract class MapRenderer {
         try(TempVars vars = TempVars.get()){
             for (int i = 0; i < len; i++) {
                 TiledObjectEntity obj = renderObjects.get(i);
-                
+                if (obj.getObjectGroup() != layer) {
+                    continue;
+                }
+
                 listener.beforeEntityRender(tpf,tiledMap, layer, obj);
+                if (obj.getObjectGroup() != layer) {
+                    continue;
+                }
 
                 int objectUpdateId = obj.getUpdateId();
                 int objectPropertyUpdateId = obj.getPropertiesUpdateId();

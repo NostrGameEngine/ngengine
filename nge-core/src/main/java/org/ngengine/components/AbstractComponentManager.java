@@ -618,7 +618,7 @@ public abstract class AbstractComponentManager  implements ComponentManager, Sav
             ComponentUpdater updater = (ComponentUpdater) updaterObj;
             for (Object mountObj : componentMounts.getArray()) {
                 ComponentMount mount = (ComponentMount) mountObj;
-                if (!mount.enabled) continue;
+                if (!mount.enabled || mount.markForRemoval) continue;
                 if (updater.canUpdate(this, mount.component)) {
                     updater.update(this, mount.component, tpf);
                 }
@@ -629,7 +629,7 @@ public abstract class AbstractComponentManager  implements ComponentManager, Sav
             ComponentUpdater updater = (ComponentUpdater) updaterObj;
             for (Object mountObj : componentMounts.getArray()) {
                 ComponentMount mount = (ComponentMount) mountObj;
-                if (!mount.enabled) continue;
+                if (!mount.enabled || mount.markForRemoval) continue;
                 if (updater.canUpdate(this, mount.component)) {
                     updater.afterUpdate(this, mount.component);
                 }
@@ -643,7 +643,7 @@ public abstract class AbstractComponentManager  implements ComponentManager, Sav
             ComponentUpdater updater = (ComponentUpdater) updaterObj;
             for (Object mountObj : componentMounts.getArray()) {
                 ComponentMount mount = (ComponentMount) mountObj;
-                if (!mount.enabled) continue;
+                if (!mount.enabled || mount.markForRemoval) continue;
                 if (updater.canUpdate(this, mount.component)) {
                     updater.render(this, mount.component);
                 }
@@ -654,7 +654,7 @@ public abstract class AbstractComponentManager  implements ComponentManager, Sav
             ComponentUpdater updater = (ComponentUpdater) updaterObj;
             for (Object mountObj : componentMounts.getArray()) {
                 ComponentMount mount = (ComponentMount) mountObj;
-                if (!mount.enabled) continue;
+                if (!mount.enabled || mount.markForRemoval) continue;
                 if (updater.canUpdate(this, mount.component)) {
                     updater.afterRender(this, mount.component);
                 }
