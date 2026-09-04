@@ -2,11 +2,6 @@
 
 def useSnapshotDeps = (jmeVersionTag == 'SNAPSHOT')
 
-ext.jmeNativeImageAdditionalTargetTypes = (
-        (ext.has('jmeNativeImageAdditionalTargetTypes') ? ext.jmeNativeImageAdditionalTargetTypes : []) +
-                ['org.ngengine.components.Component']
-).unique()
-
 dependencies {
     api project(':nge-core')
     api project(':nge-gui')

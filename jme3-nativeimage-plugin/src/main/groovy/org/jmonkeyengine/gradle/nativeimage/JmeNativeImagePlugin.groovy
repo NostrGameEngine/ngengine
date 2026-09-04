@@ -14,9 +14,11 @@ class JmeNativeImagePlugin implements Plugin<Project> {
     @Override
     void apply(Project project) {
         project.extensions.create('jmeNativeImage', JmeNativeImageExtension)
+        URL ngeDefaultsScript = getClass().getResource(
+                '/org/jmonkeyengine/gradle/nativeimage/nge-native-image-defaults.gradle')
         URL metadataScript = getClass().getResource('/org/jmonkeyengine/gradle/nativeimage/native-image-metadata.gradle')
-        if (metadataScript == null) {
-            throw new IllegalStateException('Unable to locate bundled native image Gradle script.')
+        if (ngeDefaultsScript == null || metadataScript == null) {
+            throw new IllegalStateException('Unable to locate bundled native image Gradle scripts.')
         }
         URL codeSourceLocation = getClass().protectionDomain?.codeSource?.location
         if (codeSourceLocation != null) {
@@ -25,7 +27,10 @@ class JmeNativeImagePlugin implements Plugin<Project> {
                     Paths.get(codeSourceLocation.toURI()).toFile().absolutePath
             )
         }
-        project.extensions.extraProperties.set('jmeNativeImageGeneratorScriptHash', sha256(metadataScript))
+        project.extensions.extraProperties.set(
+                'jmeNativeImageGeneratorScriptHash',
+                sha256(metadataScript) + ':' + sha256(ngeDefaultsScript))
+        project.apply(from: ngeDefaultsScript)
         project.apply(from: metadataScript)
     }
 

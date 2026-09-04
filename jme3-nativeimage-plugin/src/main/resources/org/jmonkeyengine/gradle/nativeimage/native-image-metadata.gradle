@@ -65,6 +65,7 @@ def defaultTargetTypes = [
         'com.jme3.util.clone.JmeCloneable',
         'com.jme3.anim.util.JointModelTransform',
         'com.jme3.util.struct.Struct',
+        'com.jme3.material.TechniqueDef',
         'com.jme3.material.logic.TechniqueDefLogic',
         'com.jme3.system.JmeSystemDelegate',
         'com.jme3.system.JmeContext',
@@ -692,14 +693,36 @@ def isJdkClassName = { String className ->
 }
 
 def normalizedTargetTypes = {
-    return (defaultTargetTypes + configuredStringList('jmeNativeImageAdditionalTargetTypes', 'additionalTargetTypes'))
+    def bundledTargetTypes = extraProperties.has('jmeNativeImageBundledTargetTypes')
+            ? asStringList(extraProperties.get('jmeNativeImageBundledTargetTypes')) : []
+    return (defaultTargetTypes + bundledTargetTypes + configuredStringList('jmeNativeImageAdditionalTargetTypes', 'additionalTargetTypes'))
+            .findAll { !it.isEmpty() }
+            .toSorted()
+            .unique()
+}
+
+def normalizedTeaVmRootTargetTypes = {
+    def bundledTargetTypes = extraProperties.has('jmeNativeImageBundledTargetTypes')
+            ? asStringList(extraProperties.get('jmeNativeImageBundledTargetTypes')) : []
+    return (bundledTargetTypes + configuredStringList('jmeNativeImageAdditionalTargetTypes', 'additionalTargetTypes'))
             .findAll { !it.isEmpty() }
             .toSorted()
             .unique()
 }
 
 def normalizedTargetAnnotations = {
-    return (defaultTargetAnnotations + configuredStringList('jmeNativeImageAdditionalTargetAnnotations', 'additionalTargetAnnotations'))
+    def bundledTargetAnnotations = extraProperties.has('jmeNativeImageBundledTargetAnnotations')
+            ? asStringList(extraProperties.get('jmeNativeImageBundledTargetAnnotations')) : []
+    return (defaultTargetAnnotations + bundledTargetAnnotations + configuredStringList('jmeNativeImageAdditionalTargetAnnotations', 'additionalTargetAnnotations'))
+            .findAll { !it.isEmpty() }
+            .toSorted()
+            .unique()
+}
+
+def normalizedTeaVmRootTargetAnnotations = {
+    def bundledTargetAnnotations = extraProperties.has('jmeNativeImageBundledTargetAnnotations')
+            ? asStringList(extraProperties.get('jmeNativeImageBundledTargetAnnotations')) : []
+    return (bundledTargetAnnotations + configuredStringList('jmeNativeImageAdditionalTargetAnnotations', 'additionalTargetAnnotations'))
             .findAll { !it.isEmpty() }
             .toSorted()
             .unique()
@@ -830,6 +853,9 @@ project.afterEvaluate {
     File nativeImageMetadataDir = new File(generatedResourcesRoot, nativeImageMetadataRelativeDir)
     File metadataFile = new File(nativeImageMetadataDir, 'reachability-metadata.json')
     File reflectConfigFile = new File(nativeImageMetadataDir, 'reflect-config.json')
+    File reflectionClassListFile = new File(generatedResourcesRoot, 'META-INF/ngengine/reflection-classes.txt')
+    File reflectionRootListFile = new File(generatedResourcesRoot, 'META-INF/ngengine/reflection-roots.txt')
+    File reflectionMetadataFile = new File(generatedResourcesRoot, 'META-INF/ngengine/reflection-metadata.txt')
     String runtimeInitializationPropertiesRelativePath = "${nativeImageMetadataRelativeDir}/jme-runtime-initialization/native-image.properties"
     File nativeImagePropertiesFile = new File(generatedResourcesRoot, runtimeInitializationPropertiesRelativePath)
     File legacyNativeImagePropertiesFile = new File(nativeImageMetadataDir, 'native-image.properties')
@@ -877,14 +903,19 @@ project.afterEvaluate {
                 .withPathSensitivity(PathSensitivity.RELATIVE)
         inputs.property('jmeNativeImageTargetTypes', normalizedTargetTypes())
         inputs.property('jmeNativeImageTargetAnnotations', normalizedTargetAnnotations())
+        inputs.property('jmeNativeImageTeaVmRootTargetTypes', normalizedTeaVmRootTargetTypes())
+        inputs.property('jmeNativeImageTeaVmRootTargetAnnotations', normalizedTeaVmRootTargetAnnotations())
         inputs.property('jmeNativeImageProxyInterfaceSets', normalizedProxyInterfaceSets())
         inputs.property('jmeNativeImageAdditionalUnsafeAllocatedTypes', normalizedAdditionalUnsafeAllocatedTypes())
         inputs.property('jmeNativeImageUnsafeAllocationContainerTypes', normalizedUnsafeAllocationContainerTypes())
         inputs.property('jmeNativeImageRuntimeInitializedTypes', normalizedRuntimeInitializedTypes())
         inputs.property('jmeNativeImageAdditionalResourceGlobs', normalizedResourceGlobs())
-        inputs.property('jmeNativeImageGeneratorVersion', 9)
+        inputs.property('jmeNativeImageGeneratorVersion', 13)
         outputs.file(metadataFile)
         outputs.file(reflectConfigFile)
+        outputs.file(reflectionClassListFile)
+        outputs.file(reflectionRootListFile)
+        outputs.file(reflectionMetadataFile)
         outputs.file(nativeImagePropertiesFile)
 
         [mainSourceSet.compileJavaTaskName, 'compileGroovy', 'compileKotlin'].each { taskName ->
@@ -959,6 +990,8 @@ project.afterEvaluate {
                 def unsafeAllocationContainerTypes = normalizedUnsafeAllocationContainerTypes() as Set<String>
                 def targetTypes = normalizedTargetTypes()
                 def targetAnnotations = normalizedTargetAnnotations()
+                def teaVmRootTargetTypes = normalizedTeaVmRootTargetTypes()
+                def teaVmRootTargetAnnotations = normalizedTeaVmRootTargetAnnotations()
                 def proxyInterfaceSets = normalizedProxyInterfaceSets()
                 SortedSet<String> candidateClassNames = new TreeSet<>()
                 candidateClassNames.addAll(discoveredClassNames)
@@ -979,7 +1012,14 @@ project.afterEvaluate {
                 targetTypes.each { targetType ->
                     loadedTargetTypes[targetType] = loadClassSafely(scanLoader, targetType)
                 }
+                def missingAdditionalTargetTypes = additionalTargetTypes.findAll { loadedTargetTypes[it] == null }
+                if (!missingAdditionalTargetTypes.isEmpty()) {
+                    throw new GradleException("${project.path}: configured native-image target types are not on the scan classpath: ${missingAdditionalTargetTypes.join(', ')}")
+                }
                 List<Class<?>> targetTypeClasses = loadedTargetTypes.values().findAll { it != null }
+                List<Class<?>> teaVmRootTargetTypeClasses = teaVmRootTargetTypes
+                        .collect { loadedTargetTypes[it] }
+                        .findAll { it != null }
 
                 Map<String, Class<?>> loadedTargetAnnotations = new LinkedHashMap<>()
                 targetAnnotations.each { targetAnnotation ->
@@ -994,9 +1034,13 @@ project.afterEvaluate {
                     throw new GradleException("${project.path}: configured native-image target annotations are not annotations: ${invalidAdditionalTargetAnnotations.join(', ')}")
                 }
                 List<Class<?>> targetAnnotationClasses = loadedTargetAnnotations.values().findAll { it != null && it.isAnnotation() }
+                List<Class<?>> teaVmRootTargetAnnotationClasses = teaVmRootTargetAnnotations
+                        .collect { loadedTargetAnnotations[it] }
+                        .findAll { it != null && it.isAnnotation() }
                 Class<?> preserveReflectionAnnotationClass = loadedTargetAnnotations['com.jme3.util.PreserveReflection']
 
                 Map<String, Map<String, Object>> classEntries = new TreeMap<>()
+                SortedSet<String> teaVmReflectionRoots = new TreeSet<>()
                 def updateClassEntry = { String className, boolean includeConstructors, boolean includeFields, boolean includeMethods, boolean unsafeAllocated = false ->
                     Map<String, Object> entry = classEntries[className]
                     if (entry == null) {
@@ -1043,8 +1087,8 @@ project.afterEvaluate {
                 }
 
                 loadedTargetTypes.each { String targetType, Class<?> targetClass ->
-                    if (targetClass == null || (!targetClass.isInterface() && !targetClass.isAnnotation())) {
-                        updateClassEntry(targetType, targetClass == null || isConstructible(targetClass), true, true)
+                    if (targetClass != null && !targetClass.isInterface() && !targetClass.isAnnotation()) {
+                        updateClassEntry(targetType, isConstructible(targetClass), true, true)
                     }
                 }
 
@@ -1072,6 +1116,12 @@ project.afterEvaluate {
                         boolean regularMatch =
                                 targetTypeClasses.any { safeAssignableFrom(it, clazz) } ||
                                 targetAnnotationClasses.any { safeAnnotationPresent(clazz, it) }
+                        boolean teaVmRootMatch =
+                                teaVmRootTargetTypeClasses.any { safeAssignableFrom(it, clazz) } ||
+                                teaVmRootTargetAnnotationClasses.any { safeAnnotationPresent(clazz, it) }
+                        if (teaVmRootMatch) {
+                            teaVmReflectionRoots.add(clazz.name)
+                        }
                         if (regularMatch) {
                             Class<?> current = clazz
                             while (current != null && current != Object.class) {
@@ -1215,6 +1265,25 @@ project.afterEvaluate {
                     return reflectEntry
                 }
                 reflectConfigFile.text = JsonOutput.prettyPrint(JsonOutput.toJson(reflectConfigEntries)) + System.lineSeparator()
+                reflectionClassListFile.parentFile.mkdirs()
+                reflectionClassListFile.text = classEntries.keySet().join(System.lineSeparator()) + System.lineSeparator()
+                reflectionRootListFile.parentFile.mkdirs()
+                reflectionRootListFile.text = teaVmReflectionRoots.join(System.lineSeparator()) + System.lineSeparator()
+                reflectionMetadataFile.parentFile.mkdirs()
+                reflectionMetadataFile.text = classEntries.values().collect { entry ->
+                    String flags = ''
+                    if (entry.allDeclaredConstructors == true) flags += 'C'
+                    if (entry.allDeclaredFields == true) flags += 'F'
+                    if (entry.allDeclaredMethods == true) flags += 'D'
+                    if (entry.allPublicMethods == true) flags += 'P'
+                    if (entry.unsafeAllocated == true) flags += 'U'
+                    String methods = entry.methods instanceof List
+                            ? entry.methods.collect { method ->
+                                "${method.name}(${(method.parameterTypes ?: []).join(',')})"
+                            }.toSorted().join(';')
+                            : ''
+                    return "${entry.type}\t${flags}\t${methods}"
+                }.join(System.lineSeparator()) + System.lineSeparator()
             } finally {
                 scanLoader.close()
             }
@@ -1227,6 +1296,9 @@ project.afterEvaluate {
         dependsOn(generateTaskProvider)
         inputs.file(metadataFile)
         inputs.file(reflectConfigFile)
+        inputs.file(reflectionClassListFile)
+        inputs.file(reflectionRootListFile)
+        inputs.file(reflectionMetadataFile)
         inputs.file(nativeImagePropertiesFile)
 
         doLast {
@@ -1338,6 +1410,29 @@ project.afterEvaluate {
                 Set<String> missingFromReflectConfig = reflectionClassNames - reflectConfigNames
                 Set<String> extraReflectConfigEntries = reflectConfigNames - reflectionClassNames
                 throw new GradleException("Reflect-config entries do not match reachability reflection entries in ${project.path}; missing=${missingFromReflectConfig}, extra=${extraReflectConfigEntries}")
+            }
+            List<String> reusableReflectionClasses = reflectionClassListFile.readLines().findAll { !it.isEmpty() }
+            if (reusableReflectionClasses != reusableReflectionClasses.toSorted().unique()
+                    || (reusableReflectionClasses as Set<String>) != reflectConfigNames) {
+                throw new GradleException("Reusable reflection class list does not match reflect-config entries in ${project.path}")
+            }
+            List<String> reusableReflectionMetadata = reflectionMetadataFile.readLines().findAll { !it.isEmpty() }
+            List<String> reusableReflectionMetadataNames = []
+            reusableReflectionMetadata.eachWithIndex { line, index ->
+                String[] columns = line.split('\\t', -1)
+                if (columns.length != 3 || columns[0].isEmpty() || !(columns[1] ==~ /[CFDPU]*/)) {
+                    throw new GradleException("Malformed reusable reflection metadata entry ${index} in ${reflectionMetadataFile}")
+                }
+                reusableReflectionMetadataNames.add(columns[0])
+            }
+            if (reusableReflectionMetadataNames != reusableReflectionMetadataNames.toSorted().unique()
+                    || (reusableReflectionMetadataNames as Set<String>) != reflectConfigNames) {
+                throw new GradleException("Reusable reflection metadata does not match reflect-config entries in ${project.path}")
+            }
+            List<String> teaVmReflectionRoots = reflectionRootListFile.readLines().findAll { !it.isEmpty() }
+            if (teaVmReflectionRoots != teaVmReflectionRoots.toSorted().unique()
+                    || !reflectConfigNames.containsAll(teaVmReflectionRoots)) {
+                throw new GradleException("TeaVM reflection roots are not a sorted subset of reflect-config entries in ${project.path}")
             }
         }
     }

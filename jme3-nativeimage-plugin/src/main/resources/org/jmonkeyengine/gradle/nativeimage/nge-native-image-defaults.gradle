@@ -1,0 +1,24 @@
+// Nostr Game Engine reflection extension points.
+//
+// Keep these definitions separate from native-image-metadata.gradle so that
+// updating the upstream jMonkeyEngine metadata generator does not require
+// reapplying NGE-specific target lists inside that file.
+
+ext.jmeNativeImageBundledTargetTypes = [
+        'org.ngengine.components.Component',
+        'org.ngengine.components.fragments.Fragment',
+        'org.ngengine.components.actions.ComponentActionEvent',
+        'org.ngengine.network.components.ActionMessage',
+        'org.ngengine.network.components.SnapshotMessage',
+        'org.ngengine.network.protocol.DiffableMessage',
+        'org.ngengine.nostr4j.listeners.NostrRelayComponent',
+        'org.ngengine.auth.Auth',
+        'org.ngengine.auth.AuthStrategy',
+        'org.ngengine.auth.AuthConfig',
+        'org.ngengine.gui.guix.win.NWindow',
+        'org.ngengine.gui.nav.NavigatorInputHandler'
+]
+
+ext.jmeNativeImageBundledTargetAnnotations = [
+        'org.ngengine.network.protocol.NetworkSafe'
+]

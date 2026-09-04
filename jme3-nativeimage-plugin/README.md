@@ -41,7 +41,21 @@ Build the native executable with:
 
 The plugin automatically preserves common jME runtime types, such as
 `Savable`, `AssetLoader`, `Control`, `Filter`, networking serializers, and
-other engine extension points.
+other engine extension points. It also discovers NGE application components
+and fragments, component actions, network messages and snapshots,
+`@NetworkSafe` payloads, relay listeners, windows, navigator input handlers,
+and authentication implementations and configuration when those APIs are
+present on the scan classpath.
+
+The generated class list is shared by GraalVM Native Image and the NGE TeaVM
+reflection supplier. Applications therefore do not need to duplicate the
+built-in NGE preservation rules in their TeaVM configuration.
+The generator also writes a smaller TeaVM reachability-root list containing
+only NGE and application extension types; the full GraalVM reflection catalog
+is not forced into the browser bundle.
+The NGE-specific defaults live in the separate
+`nge-native-image-defaults.gradle` resource to keep upstream jMonkeyEngine
+metadata-generator updates isolated from NGE conventions.
 
 For application classes, use the `jmeNativeImage` DSL:
 
