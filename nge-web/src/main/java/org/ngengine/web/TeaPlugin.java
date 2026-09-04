@@ -44,6 +44,7 @@ public class TeaPlugin implements TeaVMPlugin {
     public void install(TeaVMHost host) {
         System.out.println("Installing NGE TeaVM Plugin");
         host.add(new TeaClassTransformer());
+        host.add(new NgeReflectionReachabilityListener(host.getClassLoader()));
 
     }
 }
