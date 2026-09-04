@@ -75,6 +75,19 @@ public class MatParamUniformBufferTest {
     }
 
     @Test
+    public void ignoresLineAndBlockCommentsWithoutRegexLineBreakEscape() {
+        MatParamUniformBuffer.Layout layout = MatParamUniformBuffer.parseLayout(
+                "// layout(std140) uniform m_MatParams { sampler2D Invalid; };\r\n"
+                + "/* layout(std140) uniform m_MatParams { sampler2D Invalid; }; */\n"
+                + "layout(std140) uniform m_MatParams {\n"
+                + "    vec4 Color; // retained member\n"
+                + "};\n");
+
+        assertNotNull(layout);
+        assertEquals(0, layout.getMember("Color").offset);
+    }
+
+    @Test
     public void writesInstanceNamedMatParamBlock() {
         String source = "#version 330\n"
                 + "layout(std140) uniform MatParams {\n"

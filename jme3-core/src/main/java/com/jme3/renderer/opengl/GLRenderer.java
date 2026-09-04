@@ -1919,7 +1919,8 @@ public final class GLRenderer implements Renderer {
 
     private static final Pattern BINDING_ZERO_PATTERN = Pattern.compile(
             "layout\\s*\\([^)]*binding\\s*=\\s*0[^)]*\\)\\s*(buffer|uniform)\\s+\\w+");
-    private static final Pattern GLSL_COMMENT_PATTERN = Pattern.compile("(?s)/\\*.*?\\*/|//.*?(?=\\R|$)");
+    private static final Pattern GLSL_COMMENT_PATTERN = Pattern.compile(
+            "(?s)/\\*.*?\\*/|//[^\\r\\n\\u0085\\u2028\\u2029]*");
 
     /**
      * Checks that layout(binding=0) is not used on a non-first buffer block,

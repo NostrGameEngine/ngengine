@@ -72,7 +72,8 @@ import java.util.regex.Pattern;
 final class MatParamUniformBuffer {
 
     private static final Std140Layout STD140 = new Std140Layout();
-    private static final Pattern COMMENT_PATTERN = Pattern.compile("(?s)/\\*.*?\\*/|//.*?(?=\\R|$)");
+    private static final Pattern COMMENT_PATTERN = Pattern.compile(
+            "(?s)/\\*.*?\\*/|//[^\\r\\n\\u0085\\u2028\\u2029]*");
     private static final Pattern BLOCK_PATTERN = Pattern.compile(
             "(?s)(?:layout\\s*\\(([^)]*)\\)\\s*)?uniform\\s+(\\w+)\\s*\\{(.*?)\\}\\s*(\\w+)?\\s*;");
     private static final Pattern MEMBER_PATTERN = Pattern.compile(
