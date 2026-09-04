@@ -4,6 +4,14 @@ sw.js
 logo.webp
 electrolize-font/
 webapp.js
+webapp.js.map
+webapp.wasm
+webapp.wasm-runtime.js
+webapp.wasm.map
+webapp.wasm.teadbg
+webapp.wasm-deobfuscator.wasm
+runtime.js
+dev-server.mjs
 worker.js
 launcher.js
 ngeapp.json

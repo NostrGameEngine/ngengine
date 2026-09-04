@@ -13,6 +13,13 @@ const CACHE_VERSION = "v1";
 const PREFETCH_WORKERS = 5;
 const HASHES_STORE = "__hashes__";
 const BUNDLE_KEY = "bundle.zip";
+const BUNDLE_META_KEY = "__bundle_meta__";
+const BUNDLE_CHUNK_PREFIX = "__bundle_chunks__/";
+const BUNDLE_CHUNK_SIZE = 1024 * 1024;
+const BUNDLE_INITIAL_READ_AHEAD_CHUNKS = 4;
+const BUNDLE_MIN_READ_AHEAD_CHUNKS = 1;
+const BUNDLE_MAX_READ_AHEAD_CHUNKS = 8;
+const BUNDLE_PROGRESS_INTERVAL_MS = 100;
 
 const NON_CACHEABLE = [
     INDEX_URL,
@@ -40,7 +47,20 @@ let bundleBlobReader = null;
 let bundleZipReader = null;
 let bundleUpdatePromise = null;
 let bundleEntryMap = null;
+let bundleMode = null;
+let bundleMetadata = null;
+const bundleChunkRequests = new Map();
+const bundleInflightBytes = new Map();
+const bundleEntryRequests = new Map();
+const bundleEntryQueue = [];
+let bundleCachedChunkIndexes = new Set();
+let bundleCachedBytes = 0;
+let bundleProgressHash = null;
+let bundleReadAheadChunks = BUNDLE_INITIAL_READ_AHEAD_CHUNKS;
+let bundleProgressLastUpdate = 0;
+let bundlePreloadActive = false;
 let COUNT_PROMISE = null;
+let bundleEntryQueueRunning = false;
 
 function closeBundleReaders() {
   try { bundleZipReader && bundleZipReader.close && bundleZipReader.close(); } catch(_) {}
@@ -49,10 +69,417 @@ function closeBundleReaders() {
   bundleBlob = null;
   bundleEntries = undefined;
   bundleEntryMap = null;
+  bundleMode = null;
+  bundleMetadata = null;
+  bundledLoaded = false;
+}
+
+function queueBundleEntryRead(entry, path, background) {
+    const existing = bundleEntryRequests.get(path);
+    if (existing) return existing;
+
+    let resolveJob;
+    let rejectJob;
+    const promise = new Promise((resolve, reject) => {
+        resolveJob = resolve;
+        rejectJob = reject;
+    });
+    const job = { entry, path, resolve: resolveJob, reject: rejectJob };
+    bundleEntryRequests.set(path, promise);
+
+    if (background) {
+        bundleEntryQueue.push(job);
+    } else {
+        // A foreground asset miss always runs before queued background work. The
+        // current ZIP read is allowed to finish, avoiding an aborted range request;
+        // requesting the same entry simply shares the in-flight promise above.
+        const firstBackground = bundleEntryQueue.findIndex(queued => queued.background);
+        job.background = false;
+        if (firstBackground < 0) bundleEntryQueue.push(job);
+        else bundleEntryQueue.splice(firstBackground, 0, job);
+    }
+    if (background) job.background = true;
+    drainBundleEntryQueue();
+    return promise;
+}
+
+async function drainBundleEntryQueue() {
+    if (bundleEntryQueueRunning) return;
+    bundleEntryQueueRunning = true;
+    const Zip = await getZip();
+    try {
+        while (bundleEntryQueue.length) {
+            const job = bundleEntryQueue.shift();
+            try {
+                const blob = await job.entry.getData(new Zip.BlobWriter());
+                job.resolve(blob);
+            } catch (error) {
+                job.reject(error);
+            } finally {
+                bundleEntryRequests.delete(job.path);
+            }
+        }
+    } finally {
+        bundleEntryQueueRunning = false;
+        if (bundleEntryQueue.length) drainBundleEntryQueue();
+    }
 }
 
 async function getZip(){
    return globalThis.zip;
+}
+
+function bundleChunkUrl(hash, index) {
+    const safeHash = encodeURIComponent(hash || "unversioned");
+    return new URL(`${BUNDLE_CHUNK_PREFIX}${safeHash}/${index}`, self.registration.scope).href;
+}
+
+function bundleChunkPrefixUrl(hash) {
+    const safeHash = encodeURIComponent(hash || "unversioned");
+    return new URL(`${BUNDLE_CHUNK_PREFIX}${safeHash}/`, self.registration.scope).href;
+}
+
+function bundleChunkLength(metadata, index) {
+    const start = index * metadata.chunkSize;
+    return Math.max(0, Math.min(metadata.chunkSize, metadata.size - start));
+}
+
+function chooseInitialReadAheadChunks() {
+    const downlink = Number(self.navigator?.connection?.downlink);
+    if (!Number.isFinite(downlink) || downlink <= 0) {
+        return BUNDLE_INITIAL_READ_AHEAD_CHUNKS;
+    }
+    if (downlink < 2) return 1;
+    if (downlink < 8) return 2;
+    if (downlink >= 25) return 8;
+    return BUNDLE_INITIAL_READ_AHEAD_CHUNKS;
+}
+
+function tuneBundleReadAhead(byteLength, elapsedMs) {
+    if (byteLength < BUNDLE_CHUNK_SIZE || elapsedMs <= 0) return;
+    const bytesPerSecond = byteLength * 1000 / elapsedMs;
+    if (elapsedMs < 900 && bytesPerSecond >= 6 * 1024 * 1024) {
+        bundleReadAheadChunks = Math.min(
+            BUNDLE_MAX_READ_AHEAD_CHUNKS,
+            bundleReadAheadChunks * 2
+        );
+    } else if (elapsedMs > 2500 || bytesPerSecond < 1.5 * 1024 * 1024) {
+        bundleReadAheadChunks = Math.max(
+            BUNDLE_MIN_READ_AHEAD_CHUNKS,
+            Math.ceil(bundleReadAheadChunks / 2)
+        );
+    }
+}
+
+function currentBundleTransferBytes(metadata) {
+    let inflightBytes = 0;
+    for (const bytes of bundleInflightBytes.values()) inflightBytes += bytes;
+    return Math.min(metadata.size, bundleCachedBytes + inflightBytes);
+}
+
+async function reportBundleTransferProgress(metadata, force) {
+    const now = Date.now();
+    if (!force && now - bundleProgressLastUpdate < BUNDLE_PROGRESS_INTERVAL_MS) return;
+    bundleProgressLastUpdate = now;
+
+    await updateProgress(
+        bundlePreloadActive ? LAST_FETCHED : "",
+        bundlePreloadActive ? NUM_PREFETCHED : 0,
+        bundlePreloadActive ? (NUM_ENTRIES_TO_PRELOAD || 1) : 1,
+        currentBundleTransferBytes(metadata),
+        metadata.size,
+        bundlePreloadActive ? "Loading..." : "Preparing bundled resources...",
+        true
+    );
+}
+
+async function initializeBundleTransferProgress(metadata) {
+    if (bundleProgressHash === metadata.hash) return;
+    const cache = await getCache();
+    const prefix = bundleChunkPrefixUrl(metadata.hash);
+    const chunkCount = Math.ceil(metadata.size / metadata.chunkSize);
+    const cachedIndexes = new Set();
+    let cachedBytes = 0;
+
+    for (const request of await cache.keys()) {
+        if (!request.url.startsWith(prefix)) continue;
+        const index = Number(request.url.substring(prefix.length));
+        if (!Number.isSafeInteger(index) || index < 0 || index >= chunkCount) continue;
+        if (cachedIndexes.has(index)) continue;
+        cachedIndexes.add(index);
+        cachedBytes += bundleChunkLength(metadata, index);
+    }
+
+    bundleProgressHash = metadata.hash;
+    bundleCachedChunkIndexes = cachedIndexes;
+    bundleCachedBytes = Math.min(metadata.size, cachedBytes);
+    bundleInflightBytes.clear();
+    bundleReadAheadChunks = chooseInitialReadAheadChunks();
+    bundleProgressLastUpdate = 0;
+}
+
+async function readBundleMetadata() {
+    try {
+        const cache = await getCache();
+        const response = await cache.match(BUNDLE_META_KEY);
+        return response ? await response.json() : null;
+    } catch (error) {
+        console.warn("Failed to read bundle metadata", error);
+        return null;
+    }
+}
+
+async function writeBundleMetadata(metadata) {
+    const cache = await getCache();
+    await cache.put(BUNDLE_META_KEY, new Response(JSON.stringify(metadata), {
+        headers: { "Content-Type": "application/json" }
+    }));
+}
+
+async function clearBundleChunks() {
+    const cache = await getCache();
+    const requests = await cache.keys();
+    await Promise.all(requests.map(request => {
+        const relative = toScopeRelative(new URL(request.url).pathname);
+        return relative.startsWith(BUNDLE_CHUNK_PREFIX)
+            ? cache.delete(request)
+            : Promise.resolve(false);
+    }));
+    bundleChunkRequests.clear();
+    bundleInflightBytes.clear();
+    bundleCachedChunkIndexes = new Set();
+    bundleCachedBytes = 0;
+    bundleProgressHash = null;
+    bundleReadAheadChunks = BUNDLE_INITIAL_READ_AHEAD_CHUNKS;
+    bundleProgressLastUpdate = 0;
+}
+
+async function probeBundleRange(url) {
+    const absoluteUrl = new URL(url, self.location).href;
+    try {
+        const response = await fetch(absoluteUrl, {
+            headers: { Range: "bytes=0-0" },
+            cache: "no-store"
+        });
+        const contentRange = response.headers.get("content-range") || "";
+        const match = /^bytes\s+0-0\/(\d+)$/i.exec(contentRange.trim());
+        if (response.status !== 206 || !match) {
+            try { await response.body?.cancel(); } catch (_) {}
+            return { supported: false, url: absoluteUrl, size: null };
+        }
+        const size = Number(match[1]);
+        const probe = new Uint8Array(await response.arrayBuffer());
+        if (!Number.isSafeInteger(size) || size <= 0 || probe.length !== 1) {
+            return { supported: false, url: absoluteUrl, size: null };
+        }
+        return { supported: true, url: absoluteUrl, size };
+    } catch (error) {
+        console.info("Bundle range requests are unavailable; using the full-download fallback.", error);
+        return { supported: false, url: absoluteUrl, size: null };
+    }
+}
+
+async function readBundleChunk(metadata, index) {
+    const chunkCount = Math.ceil(metadata.size / metadata.chunkSize);
+    if (!Number.isSafeInteger(index) || index < 0 || index >= chunkCount) {
+        throw new RangeError(`Invalid bundle chunk index: ${index}`);
+    }
+    await initializeBundleTransferProgress(metadata);
+    const requestKey = `${metadata.hash}:${index}`;
+    const pending = bundleChunkRequests.get(requestKey);
+    if (pending) return pending;
+
+    const cache = await getCache();
+    const chunkUrl = bundleChunkUrl(metadata.hash, index);
+    const cached = await cache.match(chunkUrl);
+    if (cached) {
+        if (!bundleCachedChunkIndexes.has(index)) {
+            bundleCachedChunkIndexes.add(index);
+            bundleCachedBytes += bundleChunkLength(metadata, index);
+        }
+        return new Uint8Array(await cached.arrayBuffer());
+    }
+
+    const pendingAfterCache = bundleChunkRequests.get(requestKey);
+    if (pendingAfterCache) return pendingAfterCache;
+
+    const lastPossibleChunk = Math.min(chunkCount - 1, index + bundleReadAheadChunks - 1);
+    const candidateIndexes = [];
+    for (let candidate = index; candidate <= lastPossibleChunk; candidate++) {
+        candidateIndexes.push(candidate);
+    }
+    const candidateCached = await Promise.all(candidateIndexes.map(candidate =>
+        cache.match(bundleChunkUrl(metadata.hash, candidate))
+    ));
+
+    const pendingAfterLookup = bundleChunkRequests.get(requestKey);
+    if (pendingAfterLookup) return pendingAfterLookup;
+    if (candidateCached[0]) {
+        if (!bundleCachedChunkIndexes.has(index)) {
+            bundleCachedChunkIndexes.add(index);
+            bundleCachedBytes += bundleChunkLength(metadata, index);
+        }
+        return new Uint8Array(await candidateCached[0].arrayBuffer());
+    }
+
+    let lastChunk = index;
+    for (let offset = 1; offset < candidateIndexes.length; offset++) {
+        const candidate = candidateIndexes[offset];
+        if (candidateCached[offset] || bundleChunkRequests.has(`${metadata.hash}:${candidate}`)) break;
+        lastChunk = candidate;
+    }
+
+    const claimedKeys = [];
+    const operationId = `${requestKey}:${Date.now()}:${Math.random()}`;
+    const operation = (async () => {
+        const start = index * metadata.chunkSize;
+        const end = Math.min((lastChunk + 1) * metadata.chunkSize, metadata.size) - 1;
+        const startedAt = performance.now();
+        const response = await fetch(metadata.url, {
+            headers: { Range: `bytes=${start}-${end}` },
+            cache: "no-store"
+        });
+        const contentRange = response.headers.get("content-range") || "";
+        const expectedRange = `bytes ${start}-${end}/${metadata.size}`;
+        if (response.status !== 206 || contentRange.trim().toLowerCase() !== expectedRange.toLowerCase()) {
+            try { await response.body?.cancel(); } catch (_) {}
+            throw new Error(`Bundle range request failed: ${response.status} ${contentRange}`);
+        }
+        const expectedLength = end - start + 1;
+        const pieces = [];
+        let received = 0;
+        if (response.body) {
+            const reader = response.body.getReader();
+            while (true) {
+                const result = await reader.read();
+                if (result.done) break;
+                if (!result.value || result.value.length === 0) continue;
+                pieces.push(result.value);
+                received += result.value.length;
+                bundleInflightBytes.set(operationId, received);
+                await reportBundleTransferProgress(metadata, false);
+            }
+        } else {
+            const value = new Uint8Array(await response.arrayBuffer());
+            pieces.push(value);
+            received = value.length;
+            bundleInflightBytes.set(operationId, received);
+        }
+
+        const data = new Uint8Array(received);
+        let dataOffset = 0;
+        for (const piece of pieces) {
+            data.set(piece, dataOffset);
+            dataOffset += piece.length;
+        }
+        if (data.length !== expectedLength) {
+            throw new Error(`Bundle range ${index}-${lastChunk} is truncated: ${data.length}/${expectedLength}`);
+        }
+
+        const chunks = [];
+        for (let chunk = index; chunk <= lastChunk; chunk++) {
+            const relativeOffset = chunk * metadata.chunkSize - start;
+            const length = bundleChunkLength(metadata, chunk);
+            const chunkData = data.slice(relativeOffset, relativeOffset + length);
+            await cache.put(bundleChunkUrl(metadata.hash, chunk), new Response(chunkData, {
+                headers: {
+                    "Content-Type": "application/octet-stream",
+                    "Content-Length": String(chunkData.length)
+                }
+            }));
+            chunks.push(chunkData);
+        }
+
+        bundleInflightBytes.delete(operationId);
+        for (let chunk = index; chunk <= lastChunk; chunk++) {
+            if (!bundleCachedChunkIndexes.has(chunk)) {
+                bundleCachedChunkIndexes.add(chunk);
+                bundleCachedBytes += bundleChunkLength(metadata, chunk);
+            }
+        }
+        tuneBundleReadAhead(data.length, performance.now() - startedAt);
+        return chunks;
+    })();
+
+    for (let chunk = index; chunk <= lastChunk; chunk++) {
+        const key = `${metadata.hash}:${chunk}`;
+        const chunkPromise = operation.then(chunks => chunks[chunk - index]);
+        chunkPromise.catch(() => {});
+        bundleChunkRequests.set(key, chunkPromise);
+        claimedKeys.push([key, chunkPromise]);
+    }
+    operation.then(
+        () => reportBundleTransferProgress(metadata, true),
+        () => {
+            bundleInflightBytes.delete(operationId);
+            return reportBundleTransferProgress(metadata, true);
+        }
+    ).catch(error => console.warn("Failed to report bundle transfer progress", error))
+        .finally(() => {
+            for (const [key, promise] of claimedKeys) {
+                if (bundleChunkRequests.get(key) === promise) bundleChunkRequests.delete(key);
+            }
+        });
+    return bundleChunkRequests.get(requestKey);
+}
+
+function createCachedBundleRangeReader(Zip, metadata) {
+    return new class extends Zip.Reader {
+        constructor() {
+            super();
+            this.size = metadata.size;
+        }
+
+        async init() {
+            super.init();
+        }
+
+        async readUint8Array(index, length) {
+            if (index < 0 || length < 0 || index + length > metadata.size) {
+                throw new RangeError(`Invalid bundle byte range: ${index}+${length}`);
+            }
+            if (length === 0) return new Uint8Array();
+
+            const firstChunk = Math.floor(index / metadata.chunkSize);
+            const lastChunk = Math.floor((index + length - 1) / metadata.chunkSize);
+            const chunkPromises = [];
+            for (let chunk = firstChunk; chunk <= lastChunk; chunk++) {
+                chunkPromises.push(readBundleChunk(metadata, chunk));
+            }
+            const chunks = await Promise.all(chunkPromises);
+
+            const result = new Uint8Array(length);
+            let outputOffset = 0;
+            for (let chunk = firstChunk; chunk <= lastChunk; chunk++) {
+                const data = chunks[chunk - firstChunk];
+                const chunkStart = chunk * metadata.chunkSize;
+                const copyStart = Math.max(index, chunkStart);
+                const copyEnd = Math.min(index + length, chunkStart + data.length);
+                const sourceStart = copyStart - chunkStart;
+                const copyLength = copyEnd - copyStart;
+                result.set(data.subarray(sourceStart, sourceStart + copyLength), outputOffset);
+                outputOffset += copyLength;
+            }
+            return result;
+        }
+    }();
+}
+
+async function openRangeBundle(metadata) {
+    closeBundleReaders();
+    await initializeBundleTransferProgress(metadata);
+    const Zip = await getZip();
+    bundleMode = "range";
+    bundleMetadata = metadata;
+    bundleBlobReader = createCachedBundleRangeReader(Zip, metadata);
+    bundleZipReader = new Zip.ZipReader(bundleBlobReader);
+    bundleEntries = await bundleZipReader.getEntries();
+    bundleEntryMap = Object.create(null);
+    for (const entry of bundleEntries) {
+        bundleEntryMap[entry.filename] = entry;
+    }
+    bundledLoaded = true;
+    return bundleEntries;
 }
 
 // Normalize a URL pathname to scope-relative path used by resources.index.txt
@@ -81,132 +508,140 @@ const NON_CACHEABLE_REL = (() => {
 
 function isNonCacheablePathname(pathname) {
     const rel = toScopeRelative(pathname);
-    return NON_CACHEABLE_REL.includes(rel);
+    return NON_CACHEABLE_REL.includes(rel)
+        || rel === BUNDLE_META_KEY
+        || rel.startsWith(BUNDLE_CHUNK_PREFIX);
 }
 
 async function updateBundle(url, hash) {
-    updateProgress("", 0, 1, null, null, "Downloading bundled resources...", false);
-
     const cache = await getCache();
     const hashes = await getStoredHashes();
     const storedHash = hashes[BUNDLE_KEY];
-    if (hash && storedHash === hash) {
-        console.log("Bundle already up-to-date");
+    const cachedBundle = await cache.match(BUNDLE_KEY);
+    const storedMetadata = await readBundleMetadata();
+    const probe = await probeBundleRange(url);
+
+    if (cachedBundle && hash && storedHash === hash) {
+        console.log("Complete bundle already up-to-date");
+        await cache.delete(BUNDLE_META_KEY);
+        await clearBundleChunks();
+        closeBundleReaders();
         bundledLoaded = true;
-        return;
+        return { mode: "blob" };
     }
 
-    // Probe server for size and range support
-    let totalBytes = null;
-    let acceptRanges = false;
-    try {
-        const head = await fetch(url, { method: "HEAD", cache: "no-store" });
-        totalBytes = Number(head.headers.get("content-length")) || null;
-        acceptRanges = /\bbytes\b/i.test(head.headers.get("accept-ranges") || "");
-    } catch (_) {
-        // ignore, fallback below
-    }
+    if (probe.supported) {
+        const metadata = {
+            version: 1,
+            url: probe.url,
+            hash: hash || `${probe.size}:${probe.url}`,
+            size: probe.size,
+            chunkSize: BUNDLE_CHUNK_SIZE
+        };
+        const metadataMatches = storedMetadata
+            && storedMetadata.version === metadata.version
+            && storedMetadata.url === metadata.url
+            && storedMetadata.hash === metadata.hash
+            && storedMetadata.size === metadata.size
+            && storedMetadata.chunkSize === metadata.chunkSize;
 
-    if (acceptRanges && totalBytes && totalBytes > 0) {
-        // Resumable ranged download streamed into Cache
-        const CHUNK = 2 * 1024 * 1024; // 2 MiB
-        let offset = 0;
-        let received = 0;
+        if (!metadataMatches) {
+            closeBundleReaders();
+            await cache.delete(BUNDLE_KEY);
+            await cache.delete(BUNDLE_META_KEY);
+            await clearBundleChunks();
+            await writeBundleMetadata(metadata);
+        }
 
-        const stream = new ReadableStream({
-            async pull(controller) {
-                if (offset >= totalBytes) {
-                    controller.close();
-                    return;
-                }
-                const end = Math.min(offset + CHUNK, totalBytes);
-                let attempt = 0;
-                for (;;) {
-                    let reader = null;
-                    try {
-                        const resp = await fetch(url, {
-                            headers: { Range: `bytes=${offset}-${end - 1}` },
-                            cache: "no-store"
-                        });
-                        if (resp.status !== 206 || !resp.body) {
-                            throw new Error(`Range fetch failed: ${resp.status}`);
-                        }
-                        reader = resp.body.getReader();
-                        while (true) {
-                            const { done, value } = await reader.read();
-                            if (value && value.length) {
-                                controller.enqueue(value);
-                                received += value.length;
-                                updateProgress("", 0, 1, received, totalBytes, "Downloading bundled resources...", false);
-                            }
-                            if (done) break;
-                        }
-                        offset = end;
-                        break; // chunk done
-                    } catch (e) {
-                        attempt++;
-                        try { reader && reader.cancel && reader.cancel(); } catch(_) {}
-                        if (attempt > 4) {
-                            controller.error(e);
-                            return;
-                        }
-                        await new Promise(r => setTimeout(r, attempt * 500));
-                    }
-                }
+        await initializeBundleTransferProgress(metadata);
+        await updateProgress(
+            "",
+            0,
+            1,
+            currentBundleTransferBytes(metadata),
+            probe.size,
+            "Preparing bundled resources...",
+            true
+        );
+        try {
+            const entries = await openRangeBundle(metadata);
+            if (!Array.isArray(entries) || entries.length === 0) {
+                throw new Error("Invalid/empty ranged ZIP");
             }
-        });
-
-        // Put streamed response into cache 
-        await cache.put(BUNDLE_KEY, new Response(stream, {
-            headers: { "Content-Type": "application/zip" }
-        }));
-
-        if (received !== totalBytes) {
-            // Extra guard if server lied about size
-            await cache.delete(BUNDLE_KEY);
-            throw new Error(`Bundle size mismatch: got ${received} of ${totalBytes}`);
-        }
-    } else {
-        // Fallback: single GET 
-        const resp = await fetch(url, { cache: "no-store" });
-        if (!resp.ok || !resp.body) throw new Error(`Failed to fetch bundle: ${resp.status}`);
-
-        const totalHdr = Number(resp.headers.get("content-length")) || null;
-        const reader = resp.body.getReader();
-
-        let received = 0;
-        const stream = new ReadableStream({
-            async pull(controller) {
-                try {
-                    const { done, value } = await reader.read();
-                    if (value && value.length) {
-                        controller.enqueue(value);
-                        received += value.length;
-                        updateProgress("", 0, 1, received, totalHdr, "Downloading bundled resources...", false);
-                    }
-                    if (done) controller.close();
-                } catch (e) {
-                    controller.error(e);
-                }
-            },
-            cancel() { try { reader.releaseLock(); } catch(_) {} }
-        });
-
-        await cache.put(BUNDLE_KEY, new Response(stream, {
-            headers: { "Content-Type": "application/zip" }
-        }));
-
-        if (totalHdr != null && received !== totalHdr) {
-            await cache.delete(BUNDLE_KEY);
-            throw new Error(`Bundle truncated: got ${received} of ${totalHdr} bytes`);
+            if (hash) await storeHash(BUNDLE_KEY, hash);
+            console.log("Bundle opened with on-demand HTTP range loading");
+            return { mode: "range" };
+        } catch (error) {
+            console.warn("On-demand bundle loading failed; downloading the complete ZIP instead.", error);
+            closeBundleReaders();
+            await cache.delete(BUNDLE_META_KEY);
+            await clearBundleChunks();
         }
     }
 
-    // Validate ZIP from cache  
+    await updateProgress("", 0, 1, 0, probe.size, "Downloading bundled resources...", false);
+    const response = await fetch(probe.url, { cache: "no-store" });
+    if (!response.ok || !response.body) {
+        throw new Error(`Failed to fetch bundle: ${response.status}`);
+    }
+
+    const totalBytes = Number(response.headers.get("content-length")) || null;
+    const reader = response.body.getReader();
+    let received = 0;
+    let lastProgressUpdate = 0;
+    const stream = new ReadableStream({
+        async pull(controller) {
+            try {
+                const { done, value } = await reader.read();
+                if (value && value.length) {
+                    controller.enqueue(value);
+                    received += value.length;
+                    const now = Date.now();
+                    if (done || now - lastProgressUpdate >= 100) {
+                        lastProgressUpdate = now;
+                        await updateProgress(
+                            "",
+                            0,
+                            1,
+                            received,
+                            totalBytes,
+                            "Downloading bundled resources...",
+                            false
+                        );
+                    }
+                }
+                if (done) {
+                    controller.close();
+                    await updateProgress(
+                        "",
+                        0,
+                        1,
+                        received,
+                        totalBytes,
+                        "Downloading bundled resources...",
+                        false
+                    );
+                }
+            } catch (error) {
+                controller.error(error);
+            }
+        },
+        cancel() {
+            try { reader.cancel(); } catch (_) {}
+        }
+    });
+
+    await cache.put(BUNDLE_KEY, new Response(stream, {
+        headers: { "Content-Type": "application/zip" }
+    }));
+    if (totalBytes != null && received !== totalBytes) {
+        await cache.delete(BUNDLE_KEY);
+        throw new Error(`Bundle truncated: got ${received} of ${totalBytes} bytes`);
+    }
+
     const stored = await cache.match(BUNDLE_KEY);
     if (!stored) throw new Error("Bundle missing from cache after download");
     const blob = await stored.blob();
-
     const Zip = await getZip();
     try {
         const zipReader = new Zip.ZipReader(new Zip.BlobReader(blob));
@@ -215,17 +650,19 @@ async function updateBundle(url, hash) {
         if (!Array.isArray(entries) || entries.length === 0) {
             throw new Error("Invalid/empty ZIP");
         }
-    } catch (e) {
-        console.error("Bundle validation failed:", e);
+    } catch (error) {
+        console.error("Bundle validation failed:", error);
         await cache.delete(BUNDLE_KEY);
-        throw e;
+        throw error;
     }
-    
-    closeBundleReaders();
 
+    closeBundleReaders();
+    await cache.delete(BUNDLE_META_KEY);
+    await clearBundleChunks();
     if (hash) await storeHash(BUNDLE_KEY, hash);
     bundledLoaded = true;
-    console.log("Bundle updated");
+    console.log("Complete bundle downloaded and validated");
+    return { mode: "blob" };
 }
 
 async function loadBundledResources() {
@@ -238,6 +675,16 @@ async function loadBundledResources() {
     }
 
     bundleOpenPromise = (async () => {
+        const metadata = await readBundleMetadata();
+        if (metadata) {
+            try {
+                return await openRangeBundle(metadata);
+            } catch (error) {
+                console.warn("Failed to reopen the ranged bundle", error);
+                closeBundleReaders();
+            }
+        }
+
         const Zip = await getZip();
         const cache = await getCache();
         const resp = await cache.match(BUNDLE_KEY);
@@ -273,8 +720,7 @@ async function loadBundledResources() {
     }
 }
 
-async function getContent(url) {
-    const Zip = await getZip();
+async function getContent(url, background = false) {
     const entries = await loadBundledResources();
     let path;
     if (entries && entries.length) {
@@ -282,7 +728,7 @@ async function getContent(url) {
 
         const entry = bundleEntryMap ? bundleEntryMap[path] : undefined;
         if (entry) {
-            const blob = await entry.getData(new Zip.BlobWriter());
+            const blob = await queueBundleEntryRead(entry, path, background);
             return new Response(blob, { headers: { "Content-Type": guessMime(path) } });
         }
     }
@@ -507,14 +953,14 @@ async function storeInCache(url, response, hash) {
     }
 }
 
-async function fetchAndCache(request, awaitCaching = false) {
+async function fetchAndCache(request, awaitCaching = false, background = false) {
     const pathname = new URL(request.url, self.location.origin).pathname;
     if (isNonCacheablePathname(pathname)) {
         return await fetch(request, { cache: "no-cache" });
     }
 
     // Serve from bundle if present; else network
-    const resp = await getContent(request.url);
+    const resp = await getContent(request.url, background);
     if (resp.ok) {
         const cachable = resp.clone();
         LAST_FETCHED = new URL(request.url).pathname;
@@ -561,9 +1007,6 @@ async function prefetchResources() {
     const entries = Object.values(index);
     if (entries.length === 0) return;
 
-    // Sort largest → smallest
-    entries.sort((a, b) => b.size - a.size);
-
     let i = 0;
 
     async function worker() {
@@ -576,7 +1019,7 @@ async function prefetchResources() {
                 const cached = await getFromCache(url);
                 if (!cached) {
                     const req = new Request(url);
-                    const resp = await fetchAndCache(req, true);
+                    const resp = await fetchAndCache(req, true, true);
                     if (!resp.ok) throw new Error("Failed to fetch: " + resp.status);
                 } else {
                 }
@@ -599,7 +1042,11 @@ async function prefetchResources() {
     }
 
     const workers = [];
-    for (let w = 0; w < PREFETCH_WORKERS; w++) {
+    // A ranged ZIP uses one sequential background extractor. This prevents
+    // decompression/range bursts from competing with the running game; cache
+    // misses from fetch events are inserted ahead of this queue.
+    const workerCount = bundleMode === "range" ? 1 : PREFETCH_WORKERS;
+    for (let w = 0; w < workerCount; w++) {
         workers.push(worker());
     }
     await Promise.all(workers);
@@ -642,12 +1089,13 @@ async function updateClient(start) {
             if(!force&&!updating) return;
             const [maxEntries, maxBytes] = await countPreloadEntries();
             if(!force&&!updating) return;
-            updateProgress(
+            const reportBundleBytes = bundleMode === "range" && bundleMetadata;
+            await updateProgress(
                 LAST_FETCHED,
                 NUM_PREFETCHED,
                 maxEntries,
-                BYTES_PREFETCHED,
-                maxBytes,
+                reportBundleBytes ? currentBundleTransferBytes(bundleMetadata) : BYTES_PREFETCHED,
+                reportBundleBytes ? bundleMetadata.size : maxBytes,
                 "Loading...",
                 true
             );
@@ -685,6 +1133,8 @@ async function updateClient(start) {
 
 async function startPreload(configUrl) {
     PREFETCH = true;
+    bundlePreloadActive = false;
+    INDEX = null;
     NUM_PREFETCHED = 0;
     BYTES_PREFETCHED = 0;
     LAST_FETCHED = "";
@@ -701,6 +1151,8 @@ async function startPreload(configUrl) {
             .finally(() => { bundleUpdatePromise = null; });
         await bundleUpdatePromise;
     }
+
+    const shouldPrefetch = config.preloadResources !== false && config.preload_resources !== false;
 
     const cache = await getCache();
     const index = await getIndex();
@@ -720,9 +1172,20 @@ async function startPreload(configUrl) {
         }
     }
 
+    if (!shouldPrefetch) {
+        PREFETCH = false;
+        await updateProgress("", 0, 0, 0, 0, "Ready", true);
+        return;
+    }
+
+    bundlePreloadActive = true;
     await updateClient(true);
-    await prefetchResources();
-    await updateClient(false); // final update
+    try {
+        await prefetchResources();
+    } finally {
+        await updateClient(false); // final update
+        bundlePreloadActive = false;
+    }
 }
 
 self.addEventListener("message", (event) => {
@@ -756,7 +1219,8 @@ self.addEventListener("activate", (event) => {
         try {
             const cache = await getCache();
             const resp = await cache.match(BUNDLE_KEY);
-            if (resp) {
+            const metadata = await readBundleMetadata();
+            if (resp || metadata) {
                 bundledLoaded = true;
                 // Warm up entries (do not block activation)
                 loadBundledResources().catch(() => {});

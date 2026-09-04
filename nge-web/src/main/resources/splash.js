@@ -2,6 +2,19 @@ const CONFIG_PATH = "ngeapp.json";
 
 let updateComplete = false;
 
+function formatBytes(value) {
+    if (value == null || !Number.isFinite(value) || value < 0) return "";
+    if (value === 0) return "0 B";
+    const units = ["B", "KiB", "MiB", "GiB", "TiB"];
+    const unitIndex = Math.min(
+        units.length - 1,
+        Math.floor(Math.log(value) / Math.log(1024))
+    );
+    const scaled = value / Math.pow(1024, unitIndex);
+    const digits = scaled >= 100 || unitIndex === 0 ? 0 : (scaled >= 10 ? 1 : 2);
+    return `${scaled.toFixed(digits)} ${units[unitIndex]}`;
+}
+
 // update the splash screen progress bar
 function updateProgress(
     splashEl,
@@ -54,9 +67,7 @@ function updateProgress(
     }
 
     if(doneBytes !=null && totalBytes != null && infoSizes) {
-        const totalGB = (totalBytes / (1024*1024*1024)).toFixed(2) + "GB";
-        const doneGB = (doneBytes / (1024*1024*1024)).toFixed(2) + "GB";
-        const v = doneGB + "/" + totalGB;
+        const v = formatBytes(doneBytes) + " / " + formatBytes(totalBytes);
         infoSizes.textContent = v;
     } else if(infoSizes){
         infoSizes.textContent = " ";
@@ -85,19 +96,16 @@ function updateProgress(
 // toggle the splash screen to ready state (=everything loaded)
 async function ready(splashEl){
     updateProgress(splashEl, "", null, null, null, null, "Ready", "Play", true);
-    if('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({ type: "stop-preload" });
-    }    
 }
 
 // load the config file
 async function loadConfig(){
     const url = CONFIG_PATH;
-    const config = fetch(url).then(r=> r.json()).catch(e=>{
+    const config = await fetch(url).then(r=> r.json()).catch(e=>{
         console.warn("Failed to load config", e);
         return {};
     });
-    if (config.bundle && !'serviceWorker' in navigator) {
+    if (config.bundle && !("serviceWorker" in navigator)) {
         alert("This application requires a browser with Service Worker support.");
         throw new Error("Service workers required");
     }
@@ -111,11 +119,47 @@ async function startPreloader(splashEl){
         const baseURL = new URL('./', window.location.href);
         const serviceWorkerPath = new URL('sw.js', baseURL).pathname;
         const serviceWorkerScope = baseURL.pathname;
+        let preloadController = null;
+
+        const waitForActivation = (worker) => new Promise(resolve => {
+            if (!worker || worker.state === "activated" || worker.state === "redundant") {
+                resolve();
+                return;
+            }
+            let timeout = null;
+            const finish = () => {
+                worker.removeEventListener("statechange", onStateChange);
+                if (timeout != null) clearTimeout(timeout);
+                resolve();
+            };
+            const onStateChange = () => {
+                if (worker.state === "activated" || worker.state === "redundant") finish();
+            };
+            worker.addEventListener("statechange", onStateChange);
+            timeout = setTimeout(finish, 10000);
+        });
+
+        const requestPreload = () => {
+            const controller = navigator.serviceWorker.controller;
+            if (!controller) return false;
+            if (preloadController === controller) return true;
+            if (preloadController) {
+                preloadController.postMessage({ type: "stop-preload" });
+            }
+            preloadController = controller;
+            controller.postMessage({
+                type: "start-preload",
+                config: CONFIG_PATH
+            });
+            return true;
+        };
+
         navigator.serviceWorker.addEventListener("message", (event) => {
             if (
                 !event.source ||
-                !event.source instanceof ServiceWorker ||
-                event.origin !== location.origin                
+                !(event.source instanceof ServiceWorker) ||
+                event.origin !== location.origin ||
+                (preloadController && event.source !== preloadController)
             ) return;
             
 
@@ -142,27 +186,37 @@ async function startPreloader(splashEl){
      
         navigator.serviceWorker.addEventListener('controllerchange', () => {
             console.log('New service worker controller available');
-            if (navigator.serviceWorker.controller) {
-                navigator.serviceWorker.controller.postMessage({ 
-                    type: "start-preload", 
-                    config: CONFIG_PATH 
-                });
-            }
+            requestPreload();
         });
-        
-        navigator.serviceWorker.register(serviceWorkerPath+"?t="+Date.now(),{
-            scope: serviceWorkerScope
-        }).then(reg => {
-            if (!navigator.serviceWorker.controller) {
-                console.log("No active service worker - reloading");
-                window.location.reload();
-            } 
-        }).catch(e => {
+
+        try {
+            const registration = await navigator.serviceWorker.register(serviceWorkerPath, {
+                scope: serviceWorkerScope,
+                updateViaCache: "none"
+            });
+            await registration.update().catch(error => {
+                console.warn("Service worker update check failed", error);
+            });
+            await waitForActivation(registration.installing || registration.waiting);
+            await navigator.serviceWorker.ready;
+            if (!requestPreload()) {
+                const reloadKey = "nge-service-worker-reload";
+                if (!sessionStorage.getItem(reloadKey)) {
+                    sessionStorage.setItem(reloadKey, "1");
+                    console.log("No active service worker controller - reloading once");
+                    window.location.reload();
+                    return;
+                }
+                throw new Error("Service worker is active but does not control this page");
+            }
+            sessionStorage.removeItem("nge-service-worker-reload");
+        } catch(e) {
             console.error("Service worker registration failed", e);
             alert("Service worker registration failed");
-        });
-       
-        console.log("Service worker registered");
+            throw e;
+        }
+
+        console.log("Service worker registered and preload requested");
     } else {
         console.warn("Service workers are not supported.");
         ready(splashEl);
@@ -174,12 +228,13 @@ async function startPreloader(splashEl){
 // launch the web app
 async function launchWebApp(splashEl,config){
     splashEl.remove();
-    await import("./launcher.js").then(m=>{
-        m.default(config);
-    }).catch(e=>{
+    try {
+        const module = await import("./launcher.js");
+        await module.default(config);
+    } catch(e) {
         console.error("Failed to launch application", e);
         alert("Failed to launch application: " + e);
-    });
+    }
 }
 
  

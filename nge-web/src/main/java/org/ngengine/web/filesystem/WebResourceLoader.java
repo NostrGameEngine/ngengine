@@ -33,9 +33,10 @@
 package org.ngengine.web.filesystem;
 
 
-import java.io.ByteArrayOutputStream;
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -44,6 +45,10 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.ngengine.platform.NGEPlatform;
 import org.ngengine.platform.NGEUtils;
@@ -54,6 +59,11 @@ import com.jme3.util.res.ResourceLoader;
 
 
 public class WebResourceLoader implements ResourceLoader {
+    private static final Logger logger = Logger.getLogger(WebResourceLoader.class.getName());
+    private static final String RESOURCE_INDEX = "resources.index.txt";
+
+    private Set<String> resourceIndex;
+    private boolean resourceIndexLoadAttempted;
  
     public WebResourceLoader() {
       
@@ -61,7 +71,7 @@ public class WebResourceLoader implements ResourceLoader {
     }
 
  
-    private String getFullPath(Class<?> clazz, String path) throws MalformedURLException {
+    private String getResourcePath(Class<?> clazz, String path) {
         String resourcePath = path;
         if (clazz != null) {
             String className = clazz.getName();
@@ -69,13 +79,53 @@ public class WebResourceLoader implements ResourceLoader {
             classPath = classPath.substring(0, classPath.lastIndexOf('/'));
             resourcePath = classPath + "/" + path;
         }
-        String url = WebBindsAsync.getBaseURL();
-         if(resourcePath.startsWith("/")){
+        if(resourcePath.startsWith("/")){
             resourcePath=resourcePath.substring(1);
         }
+        return resourcePath;
+    }
+
+    private String getFullPath(Class<?> clazz, String path) throws MalformedURLException {
+        String resourcePath = getResourcePath(clazz, path);
+        String url = WebBindsAsync.getBaseURL();
         url += resourcePath;
         url = NGEUtils.safeURI(url).toString();
         return url;
+    }
+
+    private synchronized void loadResourceIndex() throws IOException {
+        if (resourceIndexLoadAttempted) return;
+        resourceIndexLoadAttempted = true;
+
+        Set<String> loadedIndex = new HashSet<>();
+        String indexUrl = getFullPath(null, RESOURCE_INDEX);
+        URL url = new URL(null, indexUrl, new WebUrlStreamHandler());
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                url.openConnection().getInputStream(), Charset.forName("UTF-8")))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                int firstSeparator = line.indexOf(' ');
+                int secondSeparator = firstSeparator < 0
+                        ? -1
+                        : line.indexOf(' ', firstSeparator + 1);
+                if (secondSeparator < 0) continue;
+                String resource = line.substring(secondSeparator + 1).trim();
+                if (!resource.isEmpty()) loadedIndex.add(resource);
+            }
+        }
+        resourceIndex = loadedIndex;
+    }
+
+    private boolean isIndexedResource(String resourcePath) {
+        if (RESOURCE_INDEX.equals(resourcePath)) return true;
+        try {
+            loadResourceIndex();
+        } catch (IOException exception) {
+            logger.log(Level.WARNING,
+                    "Unable to load the web resource index; falling back to optimistic lookup",
+                    exception);
+        }
+        return resourceIndex == null || resourceIndex.contains(resourcePath);
     }
 
     private static class WebUrlStreamHandler extends URLStreamHandler {
@@ -89,8 +139,17 @@ public class WebResourceLoader implements ResourceLoader {
                 public InputStream getInputStream() throws IOException {
                     try{
                         NGEHttpResponseStream req = NGEPlatform.get().httpRequestStream("GET", url.toString(), null, null, null).await();
+                        if (!req.status()) {
+                            try {
+                                req.body().close();
+                            } catch (Exception ignored) {
+                                // Preserve the HTTP failure as the useful resource error.
+                            }
+                            throw new IOException("HTTP " + req.statusCode() + " while reading " + url);
+                        }
                         return req.body;
                     } catch(Exception ex){
+                        if (ex instanceof IOException) throw (IOException) ex;
                         throw new IOException("Failed to get resource: "+url.toString()+" - "+ex.toString());
                     }
                 }
@@ -102,7 +161,9 @@ public class WebResourceLoader implements ResourceLoader {
     @Override
     public URL getResource(String path, Class<?> clazz) {
         try{
-            path = getFullPath(clazz, path);            
+            String resourcePath = getResourcePath(clazz, path);
+            if (!isIndexedResource(resourcePath)) return null;
+            path = getFullPath(null, resourcePath);
             return new URL(null,path, new WebUrlStreamHandler());
         } catch (Exception e) {
             e.printStackTrace();
@@ -122,43 +183,19 @@ public class WebResourceLoader implements ResourceLoader {
         return null;
     }
 
-    protected ArrayList<URL> index;
-
     @Override
     public Enumeration<URL> getResources(String path) throws IOException {
-        if (index == null) {
-            String indexPath=this.getFullPath(null, "resources.index.txt");
-            URL url=new URL(indexPath);
-            try {
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                byte[] buffer = new byte[1024];
-                int len;
-                InputStream is = url.openStream();
-                while ((len = is.read(buffer)) > -1 ) {
-                    baos.write(buffer, 0, len);
-                }
-                baos.flush();
-                String content = new String(baos.toByteArray(), Charset.forName("UTF-8"));
-                String[] lines = content.split("\n");
-                index = new ArrayList<URL>();
-                for (String line : lines) {
-                    line = line.trim();
-                    String[] parts=line.split(" ",2);
-                    if(parts.length==2){
-                        String hash=parts[0].trim(); // useless
-                        String size=parts[1].trim(); // useless
-                        String resource=parts[2].trim();
-                        if (resource.length() > 0 ) {
-                            URL url2 = getResource(line, null);
-                            index.add(url2);
-                        }
-                    }
-                } 
-            } catch (Exception e) {
-                e.printStackTrace();
+        loadResourceIndex();
+        if (resourceIndex == null) return Collections.emptyEnumeration();
+
+        String normalizedPath = getResourcePath(null, path);
+        ArrayList<URL> matches = new ArrayList<>();
+        for (String resource : resourceIndex) {
+            if (resource.equals(normalizedPath) || resource.endsWith("/" + normalizedPath)) {
+                matches.add(new URL(null, getFullPath(null, resource), new WebUrlStreamHandler()));
             }
         }
-        return Collections.enumeration(index.stream().filter(f -> f.toString().endsWith(path)).collect(java.util.stream.Collectors.toList()));
+        return Collections.enumeration(matches);
     }
 
 }

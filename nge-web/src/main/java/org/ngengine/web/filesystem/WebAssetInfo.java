@@ -62,8 +62,17 @@ public class WebAssetInfo extends AssetInfo{
         }
         try{
             NGEHttpResponseStream req = NGEPlatform.get().httpRequestStream("GET", url.toString(), null, null, null).await();
+            if (!req.status()) {
+                try {
+                    req.body().close();
+                } catch (Exception ignored) {
+                    // Preserve the HTTP failure as the useful asset error.
+                }
+                throw new AssetLoadException("HTTP " + req.statusCode() + " while reading URL " + url);
+            }
             return req.body;
          } catch (Exception ex) {
+            if (ex instanceof AssetLoadException) throw (AssetLoadException) ex;
             throw new AssetLoadException("Failed to read URL " + url, ex);
         }
     }
