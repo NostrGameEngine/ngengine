@@ -17,7 +17,7 @@ public class TiledSoundsComponent extends AbstractAudioComponent {
     protected Transform getWorldTransform() {
         TiledObjectEntity entry = getInstanceOf(TiledObjectEntity.class);
         CoordinateSystem cs = getInstanceOf(CoordinateSystem.class);
-        if (entry != null) {
+        if (entry != null && cs != null) {
             cs.getCenterInGridSpace(entry, worldPosition);
             cs.gridToWorldSpace(worldPosition.x, worldPosition.y, worldPosition);
             cs.worldToPhysicsSpace(worldPosition.x, worldPosition.y, worldPosition);
