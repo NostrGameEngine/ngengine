@@ -47,12 +47,14 @@ import com.jme3.system.JmeSystem;
 import com.jme3.texture.Image;
 import com.jme3.texture.Texture;
 import com.jme3.texture.Texture2D;
+import com.jme3.texture.TextureArray;
 import com.jme3.texture.image.ColorSpace;
 import com.jme3.util.BufferUtils;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.ngengine.world2d.tiled.animation.Frame;
 import org.ngengine.world2d.tiled.core.TiledMap;
@@ -96,6 +98,28 @@ public class TilesetTexturePreparationTest {
         assertFalse(source.arrayBased);
         assertEquals(Texture.MinFilter.BilinearNoMipMaps, source.texture.getMinFilter());
         assertEquals(Texture.MagFilter.Bilinear, source.texture.getMagFilter());
+    }
+
+    @Test
+    public void prebuiltArrayDoesNotLoadTheAtlasFallback() {
+        Tileset tileset = new Tileset(4, 4, 0, 0);
+        TiledImageEntity image = new TiledImageEntity("atlas", null, "png", 4, 8);
+        image.setTextureArray(new TextureArray(Arrays.asList(
+                rgbaImage(4, 4, (byte) 1), rgbaImage(4, 4, (byte) 2))));
+        AtomicInteger fallbackLoads = new AtomicInteger();
+        image.setTextureSupplier(() -> {
+            fallbackLoads.incrementAndGet();
+            return atlasTexture();
+        });
+        tileset.setImage(image);
+        tileset.addTile(new Tile(0, 0, 4, 4));
+        tileset.addTile(new Tile(0, 4, 4, 4));
+
+        InstancedTilesetSource source = renderer().getPreferredTilesetSource(tileset);
+
+        assertTrue(source.arrayBased);
+        assertEquals(0, fallbackLoads.get());
+        assertNull(source.texture);
     }
 
     @Test
@@ -220,19 +244,32 @@ public class TilesetTexturePreparationTest {
 
     private static Tileset atlasTileset() {
         Tileset tileset = new Tileset(4, 4, 0, 0);
-        ByteBuffer data = BufferUtils.createByteBuffer(4 * 8 * 4);
-        for (int i = 0; i < data.capacity(); i++) {
-            data.put((byte) i);
-        }
-        data.flip();
-        Texture2D texture = new Texture2D(new Image(
-                Image.Format.RGBA8, 4, 8, data, ColorSpace.sRGB));
+        Texture2D texture = atlasTexture();
         TiledImageEntity image = new TiledImageEntity("atlas", null, "png", 4, 8);
         image.setTexture(texture);
         tileset.setImage(image);
         tileset.addTile(new Tile(0, 0, 4, 4));
         tileset.addTile(new Tile(0, 4, 4, 4));
         return tileset;
+    }
+
+    private static Texture2D atlasTexture() {
+        ByteBuffer data = BufferUtils.createByteBuffer(4 * 8 * 4);
+        for (int i = 0; i < data.capacity(); i++) {
+            data.put((byte) i);
+        }
+        data.flip();
+        return new Texture2D(new Image(
+                Image.Format.RGBA8, 4, 8, data, ColorSpace.sRGB));
+    }
+
+    private static Image rgbaImage(int width, int height, byte value) {
+        ByteBuffer data = BufferUtils.createByteBuffer(width * height * 4);
+        while (data.hasRemaining()) {
+            data.put(value);
+        }
+        data.flip();
+        return new Image(Image.Format.RGBA8, width, height, data, ColorSpace.sRGB);
     }
 
     private static Tile collectionTile(int width, int height, Image.Format format, int bytes) {

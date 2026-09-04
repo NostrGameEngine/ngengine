@@ -231,7 +231,7 @@ public final class TilesetLoader {
             return;
         }
 
-        TiledImageEntity image = imageLoader.load(node);
+        TiledImageEntity image = imageLoader.load(node, true);
         tileset.setImage(image);
         tileset.setImageSource(image.getSource());
 
@@ -241,12 +241,16 @@ public final class TilesetLoader {
         int tileSpacing = tileset.getSpacing();
 
         TileCutter cutter = new TileCutter(image.getWidth(), image.getHeight(), tileWidth, tileHeight, tileMargin, tileSpacing);
-        tileset.setColumns(cutter.getColumns());
-        tileset.setTileCount(cutter.getTileCount());
+        int declaredColumns = tileset.getColumns();
+        int declaredTileCount = tileset.getTileCount();
+        tileset.setColumns(declaredColumns > 0 ? declaredColumns : cutter.getColumns());
+        tileset.setTileCount(declaredTileCount > 0 ? declaredTileCount : cutter.getTileCount());
 
         Tile tile = cutter.getNextTile();
-        while (tile != null) {
+        int addedTiles = 0;
+        while (tile != null && addedTiles < tileset.getTileCount()) {
             tileset.addNewTile(tile);
+            addedTiles++;
             tile = cutter.getNextTile();
         }
     }

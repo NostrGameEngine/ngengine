@@ -196,6 +196,7 @@ public abstract class MapRenderer {
     private boolean s3tcSupported = true;
     private boolean etc1Supported = true;
     private boolean etc2Supported = true;
+    private boolean astcSupported = true;
     private final IdentityHashMap<TiledBase, Integer> transientCooldowns = new IdentityHashMap<>();
     private final IdentityHashMap<TiledBase, TransientSignature> transientSignatures = new IdentityHashMap<>();
     private final IdentityHashMap<TiledBase, String> transientReasons = new IdentityHashMap<>();
@@ -741,14 +742,17 @@ public abstract class MapRenderer {
         boolean etc1 = caps != null && (caps.contains(Caps.TextureCompressionETC1)
                 || caps.contains(Caps.TextureCompressionETC2));
         boolean etc2 = caps != null && caps.contains(Caps.TextureCompressionETC2);
+        boolean astc = caps != null && caps.contains(Caps.TextureCompressionASTC);
         if (textureArraysSupported == arrays && s3tcSupported == s3tc
-                && etc1Supported == etc1 && etc2Supported == etc2) {
+                && etc1Supported == etc1 && etc2Supported == etc2
+                && astcSupported == astc) {
             return;
         }
         textureArraysSupported = arrays;
         s3tcSupported = s3tc;
         etc1Supported = etc1;
         etc2Supported = etc2;
+        astcSupported = astc;
         instancedSourceCache.clear();
         invalidateTexturePreparedVisuals();
     }
@@ -1363,11 +1367,11 @@ public abstract class MapRenderer {
         }
         Tileset tileset = tile.getTileset();
         TiledImageEntity image = tileset.isImageBased() ? tileset.getImage() : tile.getImage();
-        if (image == null || image.getTexture() == null || image.getTrans() != null) {
+        if (image == null || image.getTrans() != null) {
             return false;
         }
         InstancedTilesetSource source = getInstancedTilesetSource(tileset);
-        return source.imageBased ? source.texture != null : source.arrayBased;
+        return source.arrayBased || (source.imageBased && source.texture != null);
     }
 
     private String findRequiredTextureArrayFailure(TiledTileLayer layer) {
@@ -1969,7 +1973,34 @@ public abstract class MapRenderer {
 
     private void prepareAtlasTilesetSource(InstancedTilesetSource source) {
         TiledImageEntity tiledImage = source.tileset.getImage();
-        source.texture = tiledImage == null ? null : tiledImage.getTexture();
+        if (tiledImage == null) {
+            source.arrayFailureReason = "Tileset atlas has no loaded image";
+            return;
+        }
+
+        int maxTileId = maxTileId(source.tileset);
+        TextureArray prebuiltArray = tiledImage.getTextureArray();
+        if (preferTextureArraysForTilesets && textureArraysSupported
+                && prebuiltArray != null && prebuiltArray.getImage() != null) {
+            Image arrayImage = prebuiltArray.getImage();
+            int layerCount = arrayImage.getData() == null ? 0 : arrayImage.getData().size();
+            if (maxTileId < layerCount && supportsArrayFormat(arrayImage.getFormat())) {
+                source.initializeLayerMap(maxTileId);
+                for (Tile tile : source.tileset) {
+                    if (tile != null) {
+                        source.setLayer(tile.getId(), tile.getId());
+                    }
+                }
+                configureArrayTexture(prebuiltArray);
+                source.textureArray = prebuiltArray;
+                source.arrayBased = true;
+                source.imageWidth = arrayImage.getWidth();
+                source.imageHeight = arrayImage.getHeight();
+                return;
+            }
+        }
+
+        source.texture = tiledImage.getTexture();
         if (source.texture == null || source.texture.getImage() == null) {
             source.arrayFailureReason = "Tileset atlas has no loaded image";
             return;
@@ -1988,8 +2019,8 @@ public abstract class MapRenderer {
             return;
         }
 
-        int maxTileId = maxTileId(source.tileset);
         source.initializeLayerMap(maxTileId);
+
         ArrayList<Image> layers = new ArrayList<>(source.tileset.size());
         for (Tile tile : source.tileset) {
             if (tile == null) {
@@ -2172,6 +2203,8 @@ public abstract class MapRenderer {
             case ETC2:
             case ETC2_ALPHA1:
                 return etc2Supported;
+            case ASTC_4x4:
+                return astcSupported;
             default:
                 return true;
         }
@@ -2217,9 +2250,6 @@ public abstract class MapRenderer {
         if (source != null && source.arrayBased && arrayLayer >= 0) {
             MatParam arrayParam = material.getParam(MaterialConst.COLOR_ARRAY);
             if (arrayParam == null || arrayParam.getValue() != source.textureArray) {
-                // Configure non-texture tile parameters once when the backing
-                // tileset changes, then switch the sampler define to the array.
-                materialFactory.setTile(material, visualTile);
                 clearMaterialParam(material, MaterialConst.COLOR_MAP);
                 material.setTexture(MaterialConst.COLOR_ARRAY, source.textureArray);
                 material.setBoolean(MaterialConst.USE_TILESET_IMAGE, true);

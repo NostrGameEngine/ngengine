@@ -35,10 +35,12 @@ package org.ngengine.world2d.tiled.loader;
 import com.jme3.asset.AssetInfo;
 import com.jme3.asset.AssetKey;
 import com.jme3.asset.AssetManager;
+import com.jme3.asset.BasisTextureKey;
 import com.jme3.asset.TextureKey;
 import com.jme3.texture.Image;
 import com.jme3.texture.Texture;
 import com.jme3.texture.Texture2D;
+import com.jme3.texture.TextureArray;
 import com.jme3.texture.plugins.StbImageLoader;
 
 import org.ngengine.world2d.tiled.core.entity.TiledImageEntity;
@@ -82,6 +84,18 @@ public final class ImageLoader {
      * @return the loaded image
      */
     public TiledImageEntity load(XmlNode node) {
+        return load(node, false);
+    }
+
+    /**
+     * Loads an image and, for atlas tilesets, also probes for a pre-sliced
+     * Basis texture-array sibling.
+     *
+     * @param node Tiled image element
+     * @param probeTextureArray whether to probe {@code source + ".basis"} as a texture array
+     * @return loaded image entity
+     */
+    public TiledImageEntity load(XmlNode node, boolean probeTextureArray) {
         String source = getAttributeValue(node, SOURCE);
         String trans = getAttributeValue(node, TRANS);
         String format = getAttributeValue(node, FORMAT);
@@ -89,11 +103,16 @@ public final class ImageLoader {
         int height = getAttribute(node, HEIGHT, 0);
 
         Texture2D texture = null;
+        TextureArray textureArray = null;
+        String assetPath = null;
         // load an image from file or decode from the CDATA.
         if (source != null) {
-            String assetPath = toJmeAssetPath(assetManager, assetKey, assetKey.getFolder() + source);
+            assetPath = toJmeAssetPath(assetManager, assetKey, assetKey.getFolder() + source);
             source = assetPath;
-            texture = loadTexture2D(assetPath);
+            textureArray = probeTextureArray ? loadTextureArray(assetPath) : null;
+            if (textureArray == null || width == 0 || height == 0) {
+                texture = loadTexture2D(assetPath, textureArray == null);
+            }
         } else {
             // embedded image data, decode from the <data> node text
             XmlNode item = getChildByTag(node, DATA);
@@ -109,7 +128,7 @@ public final class ImageLoader {
             }
         }
 
-        if (texture == null) {
+        if (texture == null && textureArray == null) {
             logger.log(Level.SEVERE, "Image source not found: " + source);
             throw new IllegalArgumentException("Image source not found: " + source);
         }
@@ -121,7 +140,13 @@ public final class ImageLoader {
         }
 
         TiledImageEntity image = new TiledImageEntity(source, trans, format, width, height);
-        image.setTexture(texture);
+        image.setTextureArray(textureArray);
+        if (texture != null) {
+            image.setTexture(texture);
+        } else {
+            final String fallbackPath = assetPath;
+            image.setTextureSupplier(() -> loadTexture2D(fallbackPath, false));
+        }
 
         return image;
     }
@@ -133,11 +158,12 @@ public final class ImageLoader {
      * @param source the source path
      * @return the loaded texture
      */
-    private Texture2D loadTexture2D(final String source) {
+    private Texture2D loadTexture2D(final String source, boolean preferCompressedSource) {
         Texture2D tex = null;
         try {
             TextureKey texKey = new TextureKey(source, true);
             texKey.setGenerateMips(false);
+            texKey.setPreferCompressedSource(preferCompressedSource);
             tex = (Texture2D) assetManager.loadTexture(texKey);
             tex.setWrap(Texture.WrapMode.EdgeClamp);
             tex.setMagFilter(Texture.MagFilter.Nearest);
@@ -146,6 +172,25 @@ public final class ImageLoader {
         }
 
         return tex;
+    }
+
+    private TextureArray loadTextureArray(final String source) {
+        String encodedSource = source + ".basis";
+        TextureKey textureKey = new BasisTextureKey(encodedSource, false);
+        textureKey.setTextureTypeHint(Texture.Type.TwoDimensionalArray);
+        textureKey.setGenerateMips(false);
+        textureKey.setPreferCompressedSource(false);
+        if (assetManager.locateAsset(textureKey) == null) {
+            return null;
+        }
+        try {
+            Texture texture = assetManager.loadTexture(textureKey);
+            return texture instanceof TextureArray ? (TextureArray) texture : null;
+        } catch (RuntimeException exception) {
+            logger.log(Level.FINE, "Compressed sibling is not a Tiled texture array: "
+                    + encodedSource, exception);
+            return null;
+        }
     }
 
     private Texture2D loadTexture2D(final byte[] data) {
