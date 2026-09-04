@@ -95,6 +95,20 @@ public class GLImageFormatsTest {
     }
 
     @Test
+    public void testWebGlUsesLegacyLuminanceFormatsWithoutTextureSwizzle() {
+        EnumSet<Caps> caps = EnumSet.of(Caps.WebGL, Caps.OpenGLES20,
+                Caps.OpenGLES30, Caps.CoreProfile);
+
+        GLImageFormat[][] formats = GLImageFormats.getFormatsForCaps(caps);
+
+        GLImageFormat luminanceAlpha = formats[0][Image.Format.Luminance8Alpha8.ordinal()];
+        assertEquals(GL.GL_LUMINANCE_ALPHA, luminanceAlpha.internalFormat);
+        assertEquals(GL.GL_LUMINANCE_ALPHA, luminanceAlpha.format);
+        assertEquals(GL.GL_UNSIGNED_BYTE, luminanceAlpha.dataType);
+        assertTrue(!luminanceAlpha.swizzleRequired);
+    }
+
+    @Test
     public void testGles3CoreFormatsRemainMapped() {
         EnumSet<Caps> caps = EnumSet.of(Caps.OpenGLES20, Caps.OpenGLES30,
                 Caps.CoreProfile, Caps.Srgb, Caps.FloatTexture,

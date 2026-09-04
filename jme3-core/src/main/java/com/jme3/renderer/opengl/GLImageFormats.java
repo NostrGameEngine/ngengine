@@ -144,15 +144,33 @@ public final class GLImageFormats {
         
         // Core Profile Formats (supported by both OpenGL Core 3.3 and OpenGL ES 3.0+)
         if (coreProfile) {
-            formatSwiz(formatToGL,     Format.Alpha8,               GL3.GL_R8,                 GL.GL_RED,       GL.GL_UNSIGNED_BYTE, true, false, true);
-            formatSwiz(formatToGL,     Format.Luminance8,           GL3.GL_R8,                 GL.GL_RED,       GL.GL_UNSIGNED_BYTE, true, false, true);
-            formatSwiz(formatToGL,     Format.Luminance8Alpha8,     GL3.GL_RG8,                GL3.GL_RG,       GL.GL_UNSIGNED_BYTE, true, false, true);
+            if (webgl) {
+                // WebGL 2 accepts the legacy upload formats but does not expose
+                // GL_TEXTURE_SWIZZLE_*. Keep their native sampling semantics.
+                format(formatToGL, Format.Alpha8, GL.GL_ALPHA,
+                        GL.GL_ALPHA, GL.GL_UNSIGNED_BYTE, false, false, true);
+                format(formatToGL, Format.Luminance8, GL.GL_LUMINANCE,
+                        GL.GL_LUMINANCE, GL.GL_UNSIGNED_BYTE, false, false, true);
+                format(formatToGL, Format.Luminance8Alpha8, GL.GL_LUMINANCE_ALPHA,
+                        GL.GL_LUMINANCE_ALPHA, GL.GL_UNSIGNED_BYTE, false, false, true);
+            } else {
+                formatSwiz(formatToGL, Format.Alpha8, GL3.GL_R8,
+                        GL.GL_RED, GL.GL_UNSIGNED_BYTE, true, false, true);
+                formatSwiz(formatToGL, Format.Luminance8, GL3.GL_R8,
+                        GL.GL_RED, GL.GL_UNSIGNED_BYTE, true, false, true);
+                formatSwiz(formatToGL, Format.Luminance8Alpha8, GL3.GL_RG8,
+                        GL3.GL_RG, GL.GL_UNSIGNED_BYTE, true, false, true);
+            }
             formatSwiz(formatToGL,     Format.Luminance16F,         GL3.GL_R16F,               GL.GL_RED,       halfFloatFormat, colorRenderableHalfFloatR, false, filterableHalfFloat);
             formatSwiz(formatToGL,     Format.Luminance32F,         GL3.GL_R32F,               GL.GL_RED,       GL.GL_FLOAT, colorRenderableFloatR, false, filterableFloat);
             formatSwiz(formatToGL,     Format.Luminance16FAlpha16F, GL3.GL_RG16F,              GL3.GL_RG,       halfFloatFormat, colorRenderableHalfFloatRG, false, filterableHalfFloat);
             
-            formatSrgbSwiz(formatToGL, Format.Luminance8,           GLExt.GL_SRGB8_EXT,        GL.GL_RED,       GL.GL_UNSIGNED_BYTE, opengl, false, true);
-            formatSrgbSwiz(formatToGL, Format.Luminance8Alpha8,     GLExt.GL_SRGB8_ALPHA8_EXT, GL3.GL_RG,       GL.GL_UNSIGNED_BYTE, opengl || opengles3 || webgl, false, true);
+            if (!webgl) {
+                formatSrgbSwiz(formatToGL, Format.Luminance8, GLExt.GL_SRGB8_EXT,
+                        GL.GL_RED, GL.GL_UNSIGNED_BYTE, opengl, false, true);
+                formatSrgbSwiz(formatToGL, Format.Luminance8Alpha8, GLExt.GL_SRGB8_ALPHA8_EXT,
+                        GL3.GL_RG, GL.GL_UNSIGNED_BYTE, opengl || opengles3, false, true);
+            }
         }
         
         if (caps.contains(Caps.OpenGL20)||opengles3) {
