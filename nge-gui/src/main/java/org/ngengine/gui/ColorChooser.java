@@ -56,7 +56,6 @@ import org.ngengine.gui.nav.FocusListener;
 import org.ngengine.gui.nav.ScrollDirection;
 import org.ngengine.gui.style.ElementId;
 import org.ngengine.gui.style.Styles;
-import java.awt.Color;
 
 
 /**
@@ -79,10 +78,10 @@ public class ColorChooser extends Panel {
     static {
         defaultTexture.getImage().setData(BufferUtils.createByteBuffer(256 * 256 * 4));
         ImageRaster raster = ImageRaster.create(defaultTexture.getImage());
+        ColorRGBA color = new ColorRGBA();
         for( int i = 0; i < 256; i++ ) {
             for( int j = 0; j < 256; j++ ) {
-                Color hsb = Color.getHSBColor(i/255f, j/255f, 0.5f);
-                raster.setPixel(i, j, toJmeColor(hsb));
+                raster.setPixel(i, j, hsbToRgb(i/255f, j/255f, 0.5f, color));
             }
         }
     }
@@ -213,8 +212,8 @@ public class ColorChooser extends Panel {
         this.sIndex = s;
         this.bIndex = b;
 
-        Color awtColor = Color.getHSBColor(hIndex, sIndex, bIndex);
-        ((VersionedHolder<ColorRGBA>)model).setObject(toJmeColor(awtColor));
+        ((VersionedHolder<ColorRGBA>)model).setObject(
+                hsbToRgb(hIndex, sIndex, bIndex, new ColorRGBA()));
     }
 
     protected void updateBrightness() {
@@ -222,39 +221,87 @@ public class ColorChooser extends Panel {
         updateModelValue(hIndex, sIndex, v);
     }
 
-    protected static ColorRGBA toJmeColor( Color clr ) {
-        float r = clr.getRed() / 255f;
-        float g = clr.getGreen() / 255f;
-        float b = clr.getBlue() / 255f;
-        return new ColorRGBA(r, g, b, 1);
-    }
-
     protected void updateColorView() {
 
         ColorRGBA c = model.getObject();
+        Vector3f hsb = rgbToHsb(c, new Vector3f());
 
-        int r = (int)Math.round(c.getRed() * 255);
-        int g = (int)Math.round(c.getGreen() * 255);
-        int b = (int)Math.round(c.getBlue() * 255);
-        float[] hsb = Color.RGBtoHSB(r, g, b, null);
+        this.hIndex = hsb.x;
+        this.sIndex = hsb.y;
+        this.bIndex = hsb.z;
 
-        this.hIndex = hsb[0];
-        this.sIndex = hsb[1];
-        this.bIndex = hsb[2];
-
-        updateColorView(hsb[0], hsb[1], hsb[2]);
+        updateColorView(hsb.x, hsb.y, hsb.z);
     }
 
     protected void updateColorView( float h, float s, float v ) {
 
-        Color awtColor = Color.getHSBColor(h, s, v);
-        valueColor.setColor(toJmeColor(awtColor));
+        valueColor.setColor(hsbToRgb(h, s, v, new ColorRGBA()));
 
         // Now we need to get the B of the HSB to set that one
         brightness.getModel().setValue(v * 100);
  
         Vector3f range = colors.getSize();       
         crosshair.setLocalTranslation(h * range.x - crosshairOffset.x, s * range.y - range.y + crosshairOffset.y, crosshairOffset.z);
+    }
+
+    static ColorRGBA hsbToRgb(float hue, float saturation, float brightness, ColorRGBA store) {
+        if (saturation == 0) {
+            return store.set(brightness, brightness, brightness, 1);
+        }
+
+        float normalizedHue = hue - (float)Math.floor(hue);
+        float scaledHue = normalizedHue * 6;
+        int sector = (int)scaledHue;
+        float fraction = scaledHue - sector;
+        float p = brightness * (1 - saturation);
+        float q = brightness * (1 - saturation * fraction);
+        float t = brightness * (1 - saturation * (1 - fraction));
+
+        switch (sector) {
+            case 0:
+                return store.set(brightness, t, p, 1);
+            case 1:
+                return store.set(q, brightness, p, 1);
+            case 2:
+                return store.set(p, brightness, t, 1);
+            case 3:
+                return store.set(p, q, brightness, 1);
+            case 4:
+                return store.set(t, p, brightness, 1);
+            default:
+                return store.set(brightness, p, q, 1);
+        }
+    }
+
+    static Vector3f rgbToHsb(ColorRGBA color, Vector3f store) {
+        float red = color.r;
+        float green = color.g;
+        float blue = color.b;
+        float maximum = Math.max(red, Math.max(green, blue));
+        float minimum = Math.min(red, Math.min(green, blue));
+        float brightness = maximum;
+        float saturation = maximum == 0 ? 0 : (maximum - minimum) / maximum;
+        float hue = 0;
+
+        if (saturation != 0) {
+            float range = maximum - minimum;
+            float redDistance = (maximum - red) / range;
+            float greenDistance = (maximum - green) / range;
+            float blueDistance = (maximum - blue) / range;
+            if (red == maximum) {
+                hue = blueDistance - greenDistance;
+            } else if (green == maximum) {
+                hue = 2 + redDistance - blueDistance;
+            } else {
+                hue = 4 + greenDistance - redDistance;
+            }
+            hue /= 6;
+            if (hue < 0) {
+                hue += 1;
+            }
+        }
+
+        return store.set(hue, saturation, brightness);
     }
 
     private class SwatchListener implements FocusListener {
