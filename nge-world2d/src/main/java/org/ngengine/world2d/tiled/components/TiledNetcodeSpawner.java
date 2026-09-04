@@ -173,15 +173,19 @@ public class TiledNetcodeSpawner implements NetcodeSpawner {
         String syncComponentClass = resolveSyncComponentClassName(entity, requestedComponentId);
         if (syncComponentClass != null && !syncComponentClass.isEmpty()) {
             Component mounted = TiledComponentReflectionMounting.mountByClassName(componentManager, syncComponentClass, entity);
-            if (mounted instanceof NetcodeFragment) {
+            if (mounted instanceof NetcodeFragment && mounted.getComponentManager() != null) {
                 return (NetcodeFragment) mounted;
+            }
+            if (mounted != null) {
+                return null;
             }
         }
         TiledObjectSyncComponent sync = componentManager.getComponent(TiledObjectSyncComponent.class);
         if (sync == null) {
-            sync = Components.mount(entity, new TiledObjectSyncComponent()).enable().get();
+            Components.mount(entity, new TiledObjectSyncComponent()).enable();
+            sync = componentManager.getComponent(TiledObjectSyncComponent.class);
         }
-        return sync;
+        return sync != null && sync.getComponentManager() != null ? sync : null;
     }
 
     private @Nullable Component mountComponent(TiledObjectEntity entity, String componentType) {

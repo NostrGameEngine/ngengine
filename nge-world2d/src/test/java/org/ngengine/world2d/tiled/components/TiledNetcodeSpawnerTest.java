@@ -142,6 +142,37 @@ public class TiledNetcodeSpawnerTest {
     }
 
     @Test
+    public void objectSnapshotDoesNotExposeCustomSyncBeforeManagerAttachment() throws Exception {
+        TiledNetcodeSpawner spawner = new TiledNetcodeSpawner();
+        TiledObjectEntity entity = new TiledObjectEntity(BigInteger.valueOf(78), 0, 0, 16, 16);
+
+        Object pending = invoke(
+            spawner,
+            "ensureObjectSyncComponent",
+            new Class<?>[] { TiledObjectEntity.class, String.class },
+            entity,
+            RecordingNetcodeComponent.class.getName()
+        );
+
+        assertNull(pending);
+        RecordingNetcodeComponent component = entity.getComponentManager().getComponent(RecordingNetcodeComponent.class);
+        assertNotNull(component);
+        assertNull(component.getComponentManager());
+
+        entity.getComponentManager().setParent(new TestComponentManager());
+        entity.getComponentManager().update(null, null, null, entity, 0f);
+
+        Object attached = invoke(
+            spawner,
+            "ensureObjectSyncComponent",
+            new Class<?>[] { TiledObjectEntity.class, String.class },
+            entity,
+            RecordingNetcodeComponent.class.getName()
+        );
+        assertEquals(component, attached);
+    }
+
+    @Test
     public void localOnlyEntitiesKeepLocalAuthorityWhenNetcodeManagerExists() {
         TiledObjectEntity entity = new TiledObjectEntity(BigInteger.valueOf(-1), 0, 0, 16, 16);
         Components.mount(entity, new NetcodeManagerComponent());

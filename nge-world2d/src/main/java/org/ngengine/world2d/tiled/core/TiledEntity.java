@@ -70,12 +70,14 @@ public abstract class TiledEntity extends TiledBase implements ComponentManagerP
                 }
                 if (syncComponentClass != null && !syncComponentClass.isEmpty()) {
                     if (TiledComponentReflectionMounting.mountByClassName(componentManager, syncComponentClass, this) == null) {
-                        componentManager.addComponent(new TiledObjectSyncComponent());
-                        componentManager.enableComponent(TiledObjectSyncComponent.class);
+                        TiledObjectSyncComponent syncComponent = new TiledObjectSyncComponent();
+                        componentManager.addComponent(syncComponent);
+                        componentManager.enableComponent(syncComponent);
                     }
                 } else {
-                    componentManager.addComponent(new TiledObjectSyncComponent());
-                    componentManager.enableComponent(TiledObjectSyncComponent.class);
+                    TiledObjectSyncComponent syncComponent = new TiledObjectSyncComponent();
+                    componentManager.addComponent(syncComponent);
+                    componentManager.enableComponent(syncComponent);
                 }
             }
             TiledComponentReflectionMounting.mountFromProperty(this, componentManager);
