@@ -38,9 +38,9 @@ import com.jme3.asset.AssetManager;
 import com.jme3.export.Savable;
 import com.jme3.export.binary.BinaryExporter;
 import com.jme3.export.binary.BinaryImporter;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.List;
 import java.util.logging.Level;
@@ -100,10 +100,11 @@ public class DataStore {
      *            the object to store, must be a {@link Savable} or serializable object
      * @throws IOException
      */
-    public void write(String key, Savable value) throws IOException {        
-        try (OutputStream os = store.write(key + ".j3o").await()) {
+    public void write(String key, Savable value) throws IOException {
+        try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
             BinaryExporter exporter = BinaryExporter.getInstance();
             exporter.save(value, os);
+            store.writeFully(key + ".j3o", os.toByteArray()).await();
         } catch (Throwable e) {
             throw new IOException("Failed to write to store: " + key, e);
         }
