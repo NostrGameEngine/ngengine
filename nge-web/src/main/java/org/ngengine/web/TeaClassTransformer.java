@@ -135,8 +135,24 @@ public class TeaClassTransformer implements ClassHolderTransformer {
                 ClassHolder classPatchHolder = getClassHolder(FieldPatch.class, context);
                 transferMethods(clazz, classPatchHolder, cls, context);
                 System.out.println(clazz.getName() + " patched");
-            } else if (clzName.equals("java.lang.Class")) {
-                ClassHolder classPatchHolder = getClassHolder(ClassPatch.class, context);
+            } else if (clzName.equals("java.lang.Math")) {
+                ClassHolder classPatchHolder = getClassHolder(MathPatch.class, context);
+                transferMethods(clazz, classPatchHolder, cls, context);
+                System.out.println(clazz.getName() + " patched");
+            } else if (clzName.equals("java.lang.Integer")) {
+                ClassHolder classPatchHolder = getClassHolder(IntegerPatch.class, context);
+                transferMethods(clazz, classPatchHolder, cls, context);
+                System.out.println(clazz.getName() + " patched");
+            } else if (clzName.equals("java.lang.Long")) {
+                ClassHolder classPatchHolder = getClassHolder(LongPatch.class, context);
+                transferMethods(clazz, classPatchHolder, cls, context);
+                System.out.println(clazz.getName() + " patched");
+            } else if (clzName.equals("java.lang.System")) {
+                ClassHolder classPatchHolder = getClassHolder(SystemPatch.class, context);
+                transferMethods(clazz, classPatchHolder, cls, context);
+                System.out.println(clazz.getName() + " patched");
+            } else if (clzName.equals("java.lang.reflect.Array")) {
+                ClassHolder classPatchHolder = getClassHolder(ArrayPatch.class, context);
                 transferMethods(clazz, classPatchHolder, cls, context);
                 System.out.println(clazz.getName() + " patched");
             }

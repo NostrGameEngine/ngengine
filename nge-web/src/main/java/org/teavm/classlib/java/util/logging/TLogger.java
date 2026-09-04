@@ -23,7 +23,6 @@ import org.teavm.classlib.java.lang.TObject;
 import org.teavm.classlib.java.lang.TThrowable;
 import org.teavm.classlib.java.util.THashMap;
 import org.teavm.classlib.java.util.TMap;
-import org.teavm.jso.JSBody;
 import org.teavm.jso.JSExceptions;
 import org.teavm.jso.JSObject;
 import org.teavm.jso.impl.JS;
@@ -69,7 +68,9 @@ public class TLogger {
         if (record.getThrown() != null) {
             try{
                 JSObject jsExc = JSExceptions.getJSException(record.getThrown());
-                if(jsExc!=null) errorJSO(jsExc);
+                if (jsExc != null) {
+                    JS.invoke(JS.global("console"), JS.wrap("error"), jsExc);
+                }
             } catch (Throwable ex){
                 // ignore
             }
@@ -86,23 +87,11 @@ public class TLogger {
         } else {
             message = "[" + name + "] " + message;
             if (record.getLevel().intValue() >= TLevel.SEVERE.intValue()) {
-                if (PlatformDetector.isWebAssemblyGC()) {
-                    JS.invoke(JS.global("console"), JS.wrap("error"), JS.wrap(message));
-                } else {
-                    error(message);
-                }
+                JS.invoke(JS.global("console"), JS.wrap("error"), JS.wrap(message));
             } else if (record.getLevel().intValue() >= TLevel.WARNING.intValue()) {
-                if (PlatformDetector.isWebAssemblyGC()) {
-                    JS.invoke(JS.global("console"), JS.wrap("warn"), JS.wrap(message));
-                } else {
-                    warn(message);
-                }
+                JS.invoke(JS.global("console"), JS.wrap("warn"), JS.wrap(message));
             } else {
-                if (PlatformDetector.isWebAssemblyGC()) {
-                    JS.invoke(JS.global("console"), JS.wrap("info"), JS.wrap(message));
-                } else {
-                    infoImpl(message);
-                }
+                JS.invoke(JS.global("console"), JS.wrap("info"), JS.wrap(message));
             }
         }
 
@@ -320,28 +309,4 @@ public class TLogger {
         this.parent = parent;
     }
 
-    @JSBody(params = "message", script = ""
-            + "if (console) {"
-                + "console.info(message);"
-            + "}")
-    private static native void infoImpl(String message);
-
-    @JSBody(params = "message", script = ""
-            + "if (console) {"
-                + "console.warn(message);"
-            + "}")
-    private static native void warn(String message);
-
-    @JSBody(params = "message", script = ""
-            + "if (console) {"
-                + "console.error(message);"
-            + "}")
-    private static native void error(String message);
-
-
-    @JSBody(params = "message", script = ""
-            + "if (console) {"
-                + "console.error(message);"
-            + "}")
-    private static native void errorJSO(JSObject message);
 }
