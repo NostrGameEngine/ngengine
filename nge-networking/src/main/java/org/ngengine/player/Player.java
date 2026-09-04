@@ -317,6 +317,9 @@ public class Player {
             GamerTag gamerTag = null;
             if (gamerTag == null) {
                 ExternalIdentity id = ids.getExternalIdentity("gamertag");
+                if (id == null) {
+                    return null;
+                }
                 try {
                     gamerTag = GamerTag.parse(getUID(), id.getIdentity());
                 } catch (Exception e) {
