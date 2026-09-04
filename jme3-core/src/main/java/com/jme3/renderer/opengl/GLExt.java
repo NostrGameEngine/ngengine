@@ -112,6 +112,8 @@ public interface GLExt {
     public static final int GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT = 0x8E8F;
     public static final int GL_COMPRESSED_RGBA_BPTC_UNORM = 0x8E8C;
     public static final int GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM = 0x8E8D;
+    public static final int GL_COMPRESSED_RGBA_ASTC_4X4_KHR = 0x93B0;
+    public static final int GL_COMPRESSED_SRGB8_ALPHA8_ASTC_4X4_KHR = 0x93D0;
 
     public static final int GL_DEBUG_SOURCE_API = 0x8246;
     public static final int GL_DEBUG_SOURCE_WINDOW_SYSTEM = 0x8247;

@@ -319,6 +319,9 @@ public class LegacyApplication implements Application, SystemListener {
         }
 
         renderer = context.getRenderer();
+        if (assetManager != null && renderer != null) {
+            assetManager.setRendererCaps(renderer.getCaps());
+        }
     }
 
     private void initAudio() {

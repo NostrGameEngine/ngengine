@@ -544,6 +544,11 @@ public final class GLRenderer implements Renderer {
             caps.add(Caps.TextureCompressionRGTC);
         }
 
+        if (hasAnyExtension("GL_KHR_texture_compression_astc_ldr",
+                "WEBGL_compressed_texture_astc")) {
+            caps.add(Caps.TextureCompressionASTC);
+        }
+
         if (hasExtension("GL_ARB_ES3_compatibility")
                 || caps.contains(Caps.OpenGL43)
                 || caps.contains(Caps.OpenGLES30)

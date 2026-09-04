@@ -50,9 +50,11 @@ import java.io.InputStream;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -67,6 +69,7 @@ public class DesktopAssetManager implements AssetManager {
 
     private static final Logger logger = Logger.getLogger(AssetManager.class.getName());
     private ShaderGenerator shaderGenerator;
+    private volatile Set<Caps> rendererCaps = Collections.emptySet();
 
     private final ImplHandler handler = new ImplHandler(this);
 
@@ -89,6 +92,18 @@ public class DesktopAssetManager implements AssetManager {
             loadConfigFile(configFile);
         }
         logger.fine("DesktopAssetManager created.");
+    }
+
+    @Override
+    public void setRendererCaps(Collection<Caps> caps) {
+        rendererCaps = caps == null || caps.isEmpty()
+                ? Collections.emptySet()
+                : Collections.unmodifiableSet(EnumSet.copyOf(caps));
+    }
+
+    @Override
+    public Set<Caps> getRendererCaps() {
+        return rendererCaps;
     }
 
     private void loadConfigFile(URL configFile) {
@@ -406,6 +421,28 @@ public class DesktopAssetManager implements AssetManager {
 
     @Override
     public Texture loadTexture(TextureKey key) {
+        String name = key.getName();
+        if (key.isPreferCompressedSource() && key.isFlipY() && name != null
+                && !name.endsWith(".basis") && !name.endsWith(".ktx2")) {
+            boolean withAlpha = !(key instanceof BasisTextureKey)
+                    || ((BasisTextureKey) key).isWithAlpha();
+            BasisTextureKey basisKey = new BasisTextureKey(
+                    name + ".basis", false, withAlpha);
+            basisKey.setGenerateMips(key.isGenerateMips());
+            basisKey.setAnisotropy(key.getAnisotropy());
+            basisKey.setTextureTypeHint(key.getTextureTypeHint());
+            basisKey.setPreferCompressedSource(false);
+            if (handler.tryLocate(basisKey) != null) {
+                try {
+                    return loadAsset(basisKey);
+                } catch (AssetLoadException exception) {
+                    logger.log(Level.WARNING,
+                            "Unable to load compressed texture sibling " + basisKey
+                                    + "; falling back to " + key,
+                            exception);
+                }
+            }
+        }
         return loadAsset(key);
     }
 

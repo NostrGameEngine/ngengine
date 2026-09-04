@@ -46,8 +46,11 @@ import com.jme3.texture.Texture;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * <code>AssetManager</code> provides an interface for managing the data assets
@@ -85,6 +88,25 @@ import java.util.List;
  * so that modifications to one instance do not leak onto others.
  */
 public interface AssetManager {
+
+    /**
+     * Updates the renderer capabilities available to asset loaders.
+     * Loaders for universal GPU formats can use these capabilities to choose
+     * a native transcode target instead of expanding every texture to RGBA.
+     *
+     * @param caps capabilities exposed by the active renderer
+     */
+    default void setRendererCaps(Collection<Caps> caps) {
+    }
+
+    /**
+     * Returns the capabilities of the renderer associated with this manager.
+     *
+     * @return an immutable capability set, or an empty set before renderer initialization
+     */
+    default Set<Caps> getRendererCaps() {
+        return Collections.emptySet();
+    }
     
     /**
      * Adds a {@link ClassLoader} that is used to load {@link Class classes}

@@ -133,6 +133,7 @@ public final class ImageRegionSlicer {
             case DXT3:
             case DXT5:
             case ETC2:
+            case ASTC_4x4:
                 return 16;
             default:
                 return 0;

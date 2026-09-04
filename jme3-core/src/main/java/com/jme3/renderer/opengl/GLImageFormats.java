@@ -388,6 +388,22 @@ public final class GLImageFormats {
             formatComp(formatToGL, Format.BC6H_UF16, GLExt.GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT, GL.GL_RGB, GL.GL_UNSIGNED_BYTE, false, false, true);
             formatComp(formatToGL, Format.BC7_UNORM, GLExt.GL_COMPRESSED_RGBA_BPTC_UNORM, GL.GL_RGBA, GL.GL_UNSIGNED_INT, false, false, true);
             formatComp(formatToGL, Format.BC7_UNORM_SRGB, GLExt.GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM, GL.GL_RGBA, GL.GL_UNSIGNED_INT, false, false, true);
+            if (caps.contains(Caps.Srgb)) {
+                formatCompSrgb(formatToGL, Format.BC7_UNORM,
+                        GLExt.GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM,
+                        GL.GL_RGBA, GL.GL_UNSIGNED_INT, false, false, true);
+            }
+        }
+
+        if (caps.contains(Caps.TextureCompressionASTC)) {
+            formatComp(formatToGL, Format.ASTC_4x4,
+                    GLExt.GL_COMPRESSED_RGBA_ASTC_4X4_KHR,
+                    GL.GL_RGBA, GL.GL_UNSIGNED_BYTE, false, false, true);
+            if (caps.contains(Caps.Srgb)) {
+                formatCompSrgb(formatToGL, Format.ASTC_4x4,
+                        GLExt.GL_COMPRESSED_SRGB8_ALPHA8_ASTC_4X4_KHR,
+                        GL.GL_RGBA, GL.GL_UNSIGNED_BYTE, false, false, true);
+            }
         }
         
         // Integer formats

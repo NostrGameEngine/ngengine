@@ -60,6 +60,7 @@ public class TextureKey extends AssetKey<Texture> {
     private boolean flipY;
     private int anisotropy;
     private Texture.Type textureTypeHint = Texture.Type.TwoDimensional;
+    private boolean preferCompressedSource = true;
 
     public TextureKey(String name, boolean flipY) {
         super(name);
@@ -123,6 +124,26 @@ public class TextureKey extends AssetKey<Texture> {
         this.anisotropy = anisotropy;
     }
 
+    /**
+     * Returns whether a generated universal-compression sibling should be
+     * preferred when one is available.
+     *
+     * @return {@code true} to try {@code original-name.basis} first
+     */
+    public boolean isPreferCompressedSource() {
+        return preferCompressedSource;
+    }
+
+    /**
+     * Selects whether this texture may be loaded from a generated
+     * {@code .basis} sibling before falling back to its original source.
+     *
+     * @param preferCompressedSource whether to prefer the compressed sibling
+     */
+    public void setPreferCompressedSource(boolean preferCompressedSource) {
+        this.preferCompressedSource = preferCompressedSource;
+    }
+
     public boolean isGenerateMips() {
         return generateMips;
     }
@@ -173,6 +194,9 @@ public class TextureKey extends AssetKey<Texture> {
         if (this.textureTypeHint != other.textureTypeHint) {
             return false;
         }
+        if (this.preferCompressedSource != other.preferCompressedSource) {
+            return false;
+        }
         return true;
     }
 
@@ -184,6 +208,7 @@ public class TextureKey extends AssetKey<Texture> {
         hash = 17 * hash + (this.flipY ? 1 : 0);
         hash = 17 * hash + this.anisotropy;
         hash = 17 * hash + (this.textureTypeHint != null ? this.textureTypeHint.hashCode() : 0);
+        hash = 17 * hash + (this.preferCompressedSource ? 1 : 0);
         return hash;
     }
 
@@ -195,6 +220,7 @@ public class TextureKey extends AssetKey<Texture> {
         oc.write(generateMips, "generate_mips", false);
         oc.write(anisotropy, "anisotropy", 0);
         oc.write(textureTypeHint, "tex_type", Type.TwoDimensional);
+        oc.write(preferCompressedSource, "prefer_compressed_source", true);
 
         // Backwards compat
         oc.write(textureTypeHint == Type.CubeMap, "as_cubemap", false);
@@ -208,6 +234,7 @@ public class TextureKey extends AssetKey<Texture> {
         generateMips = ic.readBoolean("generate_mips", false);
         anisotropy = ic.readInt("anisotropy", 0);
         boolean asCube = ic.readBoolean("as_cubemap", false);
+        preferCompressedSource = ic.readBoolean("prefer_compressed_source", true);
 
         if (asCube) {
             // Backwards compat

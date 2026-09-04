@@ -408,6 +408,11 @@ public enum Caps {
     TextureCompressionRGTC,
 
     /**
+     * Supports KHR ASTC low-dynamic-range texture compression.
+     */
+    TextureCompressionASTC,
+
+    /**
      * Supports OpenGL ES 2.
      */
     OpenGLES20,

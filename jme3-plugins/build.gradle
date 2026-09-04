@@ -17,6 +17,7 @@ dependencies {
     implementation libs.stb.image
     implementation libs.imagewebp
     implementation libs.stb.truetype
+    implementation "org.ngengine.basis:jbasis-universal-decoder:1.0.0-SNAPSHOT"
     implementation(libs.nanosvg.chicory.java) {
         exclude group: 'com.dylibso.chicory'
     }

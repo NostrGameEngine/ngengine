@@ -213,6 +213,12 @@ public class Image extends NativeObject implements Savable /*, Cloneable*/ {
          * BPTC compression BC7 SRGB Alpha
          */
         BC7_UNORM_SRGB(8, false, true, false),
+
+        /**
+         * KHR ASTC low-dynamic-range compression with 4-by-4 pixel blocks.
+         * Requires {@link Caps#TextureCompressionASTC}.
+         */
+        ASTC_4x4(8, false, true, false),
         
         /**
          * Luminance-Alpha Texture Compression. 
