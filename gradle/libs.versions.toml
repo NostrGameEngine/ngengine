@@ -68,7 +68,7 @@ slf4j = "2.0.12"
 spotbugs = "4.9.8"
 spotbugsPlugin = "6.5.5"
 spotlessPlugin = "8.4.0"
-teavm = "0.13.0"
+teavm = "0.16.0-SNAPSHOT"
 googleMaterial = "1.4.0"
 androidx-fragment-testing = "1.8.9"
 
@@ -263,5 +263,5 @@ jacoco = { id = "jacoco", version.ref = "jacoco" }
 nexus-publish = { id = "io.github.gradle-nexus.publish-plugin", version.ref = "gradleNexusPublish" }
 spotbugs = { id = "com.github.spotbugs", version.ref = "spotbugsPlugin" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotlessPlugin" }
-teavm = { id = "org.teavm", version.ref = "teavm" }
+teavm = { id = "org.ngengine.teavm", version.ref = "teavm" }
 test-retry = { id = "org.gradle.test-retry", version.ref = "gradleTestRetry" }

@@ -17,12 +17,12 @@ dependencies {
     implementation project(':jme3-core')
     implementation project(':jme3-terrain')
 
-        implementation "org.teavm:teavm-jso:${teaVmVersion}"
-    implementation "org.teavm:teavm-jso-apis:${teaVmVersion}"
-    implementation "org.teavm:teavm-metaprogramming-api:${teaVmVersion}"
-    implementation "org.teavm:teavm-classlib:${teaVmVersion}"
-    implementation "org.teavm:teavm-tooling:${teaVmVersion}"
-    implementation "org.teavm:teavm-core:${teaVmVersion}"
+    api "org.ngengine:teavm-jso:${teaVmVersion}"
+    api "org.ngengine:teavm-jso-apis:${teaVmVersion}"
+    api "org.ngengine:teavm-metaprogramming-api:${teaVmVersion}"
+    api "org.ngengine:teavm-classlib:${teaVmVersion}"
+    api "org.ngengine:teavm-tooling:${teaVmVersion}"
+    api "org.ngengine:teavm-core:${teaVmVersion}"
 }
 
 
