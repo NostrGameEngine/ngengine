@@ -360,7 +360,8 @@ public class Styles {
         Map<String,Object> attributeMap =  getEncodedAnnotationData(obj, c, mapName);;
         List<Method> results = new ArrayList<Method>();
         for( Method m : c.getMethods() ) {
-            if( m.isAnnotationPresent(annType) || (attributeMap!=null && attributeMap.containsKey(m.getName())) ) {
+            if( m.isAnnotationPresent(annType)
+                    || (attributeMap != null && attributeMap.containsKey(getMethodKey(m))) ) {
                 results.add(m);
             }
         }
@@ -381,7 +382,7 @@ public class Styles {
         } else {
             Map<String,Object> attributeMap = getEncodedAnnotationData(obj, m.getDeclaringClass(), "lemurStyleAttributeMap");
             if(attributeMap!=null){
-                Map<String,Object> attr = (Map<String,Object>)attributeMap.get(m.getName());
+                Map<String,Object> attr = (Map<String,Object>)attributeMap.get(getMethodKey(m));
                 if(attr!=null){
                     String value = (String)attr.get("value");
                     boolean lookupDefault = NGEUtils.safeBool(attr.getOrDefault("lookupDefault", true));
@@ -391,6 +392,33 @@ public class Styles {
             }           
         }
         return null;
+    }
+
+    private String getMethodKey(Method method) {
+        StringBuilder result = new StringBuilder(method.getName()).append('(');
+        for (Class<?> parameterType : method.getParameterTypes()) {
+            result.append(getTypeDescriptor(parameterType));
+        }
+        return result.append(')').append(getTypeDescriptor(method.getReturnType())).toString();
+    }
+
+    private String getTypeDescriptor(Class<?> type) {
+        if (type.isArray()) {
+            return type.getName().replace('.', '/');
+        }
+        if (!type.isPrimitive()) {
+            return "L" + type.getName().replace('.', '/') + ";";
+        }
+        if (type == void.class) return "V";
+        if (type == boolean.class) return "Z";
+        if (type == byte.class) return "B";
+        if (type == char.class) return "C";
+        if (type == short.class) return "S";
+        if (type == int.class) return "I";
+        if (type == long.class) return "J";
+        if (type == float.class) return "F";
+        if (type == double.class) return "D";
+        throw new IllegalArgumentException("Unsupported primitive type: " + type);
     }
     
 
@@ -478,7 +506,11 @@ public class Styles {
                     m.invoke(o, value);
                 }
             } catch( Throwable e ) {
-                throw new RuntimeException("Error applying attribute:" + attribute + " to:" + o, e);
+                String valueType = value != null ? value.getClass().getName() : "null";
+                throw new RuntimeException("Error applying style attribute '" + attribute.value
+                        + "' using " + m.getDeclaringClass().getName() + "." + m.getName()
+                        + "(" + type.getName() + ") with value type " + valueType
+                        + " to " + o, e);
             }
         }
     }
