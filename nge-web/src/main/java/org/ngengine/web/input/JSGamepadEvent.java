@@ -1,0 +1,63 @@
+/**
+ * Copyright (c) 2025-2026, Nostr Game Engine
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
+ * the BSD 3-Clause License.
+ */
+package org.ngengine.web.input;
+
+import org.teavm.jso.JSBody;
+import org.teavm.jso.dom.events.Event;
+
+/** Cloneable browser Gamepad API state forwarded by the web front end. */
+public interface JSGamepadEvent extends Event {
+
+    @JSBody(script = "return this.index | 0;")
+    int getGamepadIndex();
+
+    @JSBody(script = "return String(this.id || '');")
+    String getGamepadId();
+
+    @JSBody(script = "return String(this.mapping || '');")
+    String getMapping();
+
+    @JSBody(script = "return this.axes ? this.axes.length : (this.axisCount | 0);")
+    int getAxisCount();
+
+    @JSBody(params = "index", script = "return this.axes && this.axes[index] !== undefined ? this.axes[index] : 0;")
+    float getAxis(int index);
+
+    @JSBody(script = "return this.buttons ? this.buttons.length : (this.buttonCount | 0);")
+    int getButtonCount();
+
+    @JSBody(params = "index", script = "return this.buttons && this.buttons[index] !== undefined ? this.buttons[index] : 0;")
+    float getButtonValue(int index);
+
+    @JSBody(params = "index", script = "return !!(this.pressed && this.pressed[index]);")
+    boolean isButtonPressed(int index);
+}

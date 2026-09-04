@@ -75,6 +75,8 @@ public class WebContext implements JmeContext, Runnable {
 
     protected static final String THREAD_NAME = "jME3 Web Main";
 
+    private static volatile WebContext activeContext;
+
     protected AtomicBoolean created = new AtomicBoolean(false);
     protected AtomicBoolean needClose = new AtomicBoolean(false);
     protected final Object createdLock = new Object();
@@ -246,7 +248,11 @@ public class WebContext implements JmeContext, Runnable {
 
 
         logger.fine("sRGB: "+settings.isGammaCorrection());
-        renderer.setMainFrameBufferSrgb(settings.isGammaCorrection()); 
+        // Gamma correction on WebGL is performed explicitly by WebGLBlit.frag
+        // when copying the linear RGBA16F target to the browser-managed canvas.
+        // WebGL has no GL_FRAMEBUFFER_SRGB write-control toggle, so requesting
+        // an sRGB default framebuffer here is both redundant and unsupported.
+        renderer.setMainFrameBufferSrgb(false);
         renderer.setLinearizeSrgbImages(settings.isGammaCorrection());
             
         logger.fine("WebGL renderer started!");
@@ -257,8 +263,11 @@ public class WebContext implements JmeContext, Runnable {
     }
 
     private void doDestroy() {
-          listener.destroy();
+        listener.destroy();
         timer = null;
+        if (activeContext == this) {
+            activeContext = null;
+        }
    
         logger.fine("WebGL destroyed.");
     }
@@ -289,7 +298,13 @@ public class WebContext implements JmeContext, Runnable {
         if(canvasTarget!=null&&(internalTargetW!=w||internalTargetH!=h)){
             canvasTarget.setWidth(w);
             canvasTarget.setHeight(h);
-            listener.reshape(w, h);
+            // The two-argument SystemListener callback is retained only for
+            // backward compatibility and LegacyApplication intentionally
+            // ignores it. Report both logical and framebuffer dimensions so
+            // RenderManager updates its cameras and viewports after a browser
+            // resize. The web backend currently renders at devicePixelRatio
+            // 1, therefore the two sizes are identical here.
+            listener.reshape(w, h, w, h);
             internalTargetW = w;
             internalTargetH = h;
         }
@@ -309,9 +324,6 @@ public class WebContext implements JmeContext, Runnable {
 
             WebBinds.toggleFullscreen(settings.isFullscreen());
      
-            Thread.yield();
-
-
             int w = internalTargetW;
             int h = internalTargetH;
 
@@ -351,18 +363,21 @@ public class WebContext implements JmeContext, Runnable {
                     logger.info("Update blit material");
                     auxiliaryFrameBufferRefreshed = false;
                 }
-                Thread.yield();
-   
-
                 gl.setFrameBuffer(null);
+                // Binding the browser-managed default framebuffer does not
+                // update GLRenderer's viewport because that framebuffer has
+                // no jME FrameBuffer object carrying its dimensions. The
+                // scene pass can therefore leave the viewport at a stale
+                // logical size after the canvas has been resized, confining
+                // the final image to the lower-left corner. WebGLBlit.vert
+                // operates directly in clip space, so restoring the physical
+                // drawing-buffer viewport is sufficient for this pass.
+                gl.setViewPort(0, 0, w, h);
                 blitGeom.updateGeometricState();
                 renderManager.renderGeometry(blitGeom);
-                
-                Thread.yield();
             } else {
                 listener.update();
             }
-            Thread.yield();
 
          } catch(Throwable e){
             logger.log(Level.SEVERE, "Error in WebGL context: "+e.getMessage(), e);
@@ -379,7 +394,8 @@ public class WebContext implements JmeContext, Runnable {
     long pingDelta = 0;
 
     @Override
-    public void run() {            
+    public void run() {
+        activeContext = this;
         doInit();  
 
         Object lock = new Object();
@@ -449,7 +465,15 @@ public class WebContext implements JmeContext, Runnable {
     @Override
     public void destroy(boolean waitFor) {
         needClose.set(true);
-     }
+    }
+
+    /** Requests an orderly shutdown of the browser context, if one is active. */
+    public static void requestExit() {
+        WebContext context = activeContext;
+        if (context != null) {
+            context.destroy(false);
+        }
+    }
 
     @Override
     public void create(boolean waitFor) {

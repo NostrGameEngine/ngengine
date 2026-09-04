@@ -35,13 +35,18 @@ package org.ngengine.web;
 import org.ngengine.web.context.WebCanvasElement;
 import org.ngengine.web.context.WebContext.CanvasResizeHandler;
 import org.ngengine.web.context.WebContext.CanvasSwapHandler;
-import org.teavm.jso.JSByRef;
 import org.teavm.jso.JSClass;
+import org.teavm.jso.JSByRef;
 import org.teavm.jso.JSFunctor;
 import org.teavm.jso.JSModule;
 import org.teavm.jso.JSObject;
 import org.teavm.jso.JSTopLevel;
 import org.teavm.jso.core.JSArray;
+import org.teavm.jso.core.JSBoolean;
+import org.teavm.jso.core.JSNumber;
+import org.teavm.jso.core.JSPromise;
+import org.teavm.jso.core.JSString;
+import org.teavm.jso.core.JSUndefined;
 import org.teavm.jso.dom.events.EventListener;
 import org.teavm.jso.function.JSConsumer;
 import org.teavm.jso.typedarrays.Float32Array;
@@ -56,18 +61,30 @@ public class WebBinds implements JSObject {
 
     @JSTopLevel
     @JSModule("./org/ngengine/web/WebBinds.js")
-    public static native void decodeImageAsync( @JSByRef byte[] data, String filename, int targetWidth, int targetHeight, JSConsumer<WebDecodedImage> resolve, JSConsumer<String> reject);
+    public static native void decodeImageAsync(@JSByRef(optional = true) byte[] data, String filename,
+            int targetWidth, int targetHeight, JSConsumer<WebDecodedImage> resolve, JSConsumer<JSString> reject);
+
+    @JSTopLevel
+    @JSModule("./org/ngengine/web/WebBinds.js")
+    public static native JSPromise<WebDecodedImage> decodeImagePromise(
+            @JSByRef(optional = true) byte[] data, String filename, int targetWidth, int targetHeight);
 
   
 
     @JSTopLevel
     @JSModule("./org/ngengine/web/WebBinds.js")
-    public static native void decodeHdrImageAsync( @JSByRef byte[] data, String filename, JSConsumer<WebHdrDecodedImage> resolve, JSConsumer<String> reject);
+    public static native void decodeHdrImageAsync(@JSByRef(optional = true) byte[] data, String filename,
+            JSConsumer<WebHdrDecodedImage> resolve, JSConsumer<JSString> reject);
+
+    @JSTopLevel
+    @JSModule("./org/ngengine/web/WebBinds.js")
+    public static native JSPromise<WebHdrDecodedImage> decodeHdrImagePromise(
+            @JSByRef(optional = true) byte[] data, String filename);
 
   
     @JSTopLevel
     @JSModule("./org/ngengine/web/WebBinds.js")
-    public static native void loadScriptAsync(String script, JSConsumer<String> resolve, JSConsumer<String> reject);
+    public static native void loadScriptAsync(String script, JSConsumer<JSString> resolve, JSConsumer<JSString> reject);
 
 
     @JSTopLevel
@@ -121,6 +138,20 @@ public class WebBinds implements JSObject {
     @JSModule("./org/ngengine/web/WebBinds.js")
     public static native void removeInputEventListener(String event, EventListener fun);
 
+    @JSTopLevel
+    @JSModule("./org/ngengine/web/WebBinds.js")
+    public static native void showSoftKeyboardAsync(boolean show, JSConsumer<JSBoolean> resolve,
+            JSConsumer<JSString> reject);
+
+    @JSTopLevel
+    @JSModule("./org/ngengine/web/WebBinds.js")
+    public static native void refreshGamepads();
+
+    @JSTopLevel
+    @JSModule("./org/ngengine/web/WebBinds.js")
+    public static native void setGamepadRumble(int gamepadIndex, float amountHigh, float amountLow,
+            int durationMillis);
+
 
     // @JSTopLevel
     // @JSModule("./org/ngengine/web/WebBinds.js")
@@ -128,7 +159,7 @@ public class WebBinds implements JSObject {
 
     @JSTopLevel
     @JSModule("./org/ngengine/web/WebBinds.js")
-    public static native void waitNextFrame(JSConsumer<Void> callback);
+    public static native void waitNextFrame(JSConsumer<JSUndefined> callback);
 
 
     // @JSTopLevel
@@ -137,7 +168,7 @@ public class WebBinds implements JSObject {
 
     @JSTopLevel
     @JSModule("./org/ngengine/web/WebBinds.js")
-    public static native void getRenderTargetAsync(JSConsumer<WebCanvasElement> resolve, JSConsumer<String> reject);
+    public static native void getRenderTargetAsync(JSConsumer<WebCanvasElement> resolve, JSConsumer<JSString> reject);
 
 
 
@@ -145,7 +176,8 @@ public class WebBinds implements JSObject {
 
     @JSTopLevel
     @JSModule("./org/ngengine/web/WebBinds.js")
-    public static native void createAudioContextAsync(int sampleRate, int id, JSConsumer<Void> resolve, JSConsumer<String> reject);
+    public static native void createAudioContextAsync(int sampleRate, int id, JSConsumer<JSUndefined> resolve,
+            JSConsumer<JSString> reject);
 
     @JSTopLevel
     @JSModule("./org/ngengine/web/WebBinds.js")
@@ -154,7 +186,8 @@ public class WebBinds implements JSObject {
     // Audio buffer management
     @JSTopLevel
     @JSModule("./org/ngengine/web/WebBinds.js")
-    public static native void createAudioBufferAsync(int ctxId, int id, JSArray<Float32Array> f32channelData, int lengthInSamples, int sampleRate, JSConsumer<Void> resolve, JSConsumer<String> reject);
+    public static native void createAudioBufferAsync(int ctxId, int id, JSArray<Float32Array> f32channelData,
+            int lengthInSamples, int sampleRate, JSConsumer<JSUndefined> resolve, JSConsumer<JSString> reject);
 
     @JSTopLevel
     @JSModule("./org/ngengine/web/WebBinds.js")
@@ -163,7 +196,8 @@ public class WebBinds implements JSObject {
     // Audio source management
     @JSTopLevel
     @JSModule("./org/ngengine/web/WebBinds.js")
-    public static native void createAudioSourceAsync(int ctxId, int id, JSConsumer<Void> resolve, JSConsumer<String> reject);
+    public static native void createAudioSourceAsync(int ctxId, int id, JSConsumer<JSUndefined> resolve,
+            JSConsumer<JSString> reject);
 
     @JSTopLevel
     @JSModule("./org/ngengine/web/WebBinds.js")
@@ -172,7 +206,8 @@ public class WebBinds implements JSObject {
     // Source property setters
     @JSTopLevel
     @JSModule("./org/ngengine/web/WebBinds.js")
-    public static native void setAudioBufferAsync(int ctxId, int srcId, int bufId, JSConsumer<Void> resolve, JSConsumer<String> reject);
+    public static native void setAudioBufferAsync(int ctxId, int srcId, int bufId,
+            JSConsumer<JSUndefined> resolve, JSConsumer<JSString> reject);
 
     @JSTopLevel
     @JSModule("./org/ngengine/web/WebBinds.js")
@@ -229,20 +264,24 @@ public class WebBinds implements JSObject {
     // Playback control
     @JSTopLevel
     @JSModule("./org/ngengine/web/WebBinds.js")
-    public static native void playAudioSourceAsync(int ctxId, int srcId, JSConsumer<Void> resolve, JSConsumer<String> reject);
+    public static native void playAudioSourceAsync(int ctxId, int srcId, JSConsumer<JSUndefined> resolve,
+            JSConsumer<JSString> reject);
 
     @JSTopLevel
     @JSModule("./org/ngengine/web/WebBinds.js")
-    public static native void pauseAudioSourceAsync(int ctxId, int srcId, JSConsumer<Void> resolve, JSConsumer<String> reject);
+    public static native void pauseAudioSourceAsync(int ctxId, int srcId, JSConsumer<JSUndefined> resolve,
+            JSConsumer<JSString> reject);
 
     @JSTopLevel
     @JSModule("./org/ngengine/web/WebBinds.js")
-    public static native void stopAudioSourceAsync(int ctxId, int srcId, JSConsumer<Void> resolve, JSConsumer<String> reject);
+    public static native void stopAudioSourceAsync(int ctxId, int srcId, JSConsumer<JSUndefined> resolve,
+            JSConsumer<JSString> reject);
 
     // Getters
     @JSTopLevel
     @JSModule("./org/ngengine/web/WebBinds.js")
-    public static native void getAudioPlaybackRateAsync(int ctxId, int srcId, JSConsumer<Float> resolve, JSConsumer<String> reject);
+    public static native void getAudioPlaybackRateAsync(int ctxId, int srcId, JSConsumer<JSNumber> resolve,
+            JSConsumer<JSString> reject);
 
 
     @JSFunctor
@@ -265,16 +304,16 @@ public class WebBinds implements JSObject {
 
     @JSTopLevel
     @JSModule("./org/ngengine/web/WebBinds.js")
-    public static native void getBaseURLAsync(JSConsumer<String> resolve, JSConsumer<String> reject);
+    public static native void getBaseURLAsync(JSConsumer<JSString> resolve, JSConsumer<JSString> reject);
 
 
     @JSTopLevel
     @JSModule("./org/ngengine/web/WebBinds.js")
-    public static native void connectNip07BackendAsync(JSConsumer<Void> resolve, JSConsumer<String> reject);
+    public static native void connectNip07BackendAsync(JSConsumer<JSUndefined> resolve, JSConsumer<JSString> reject);
 
     @JSTopLevel
     @JSModule("./org/ngengine/web/WebBinds.js")
-    public static native void connectWebRTCBackendAsync(JSConsumer<Void> resolve, JSConsumer<String> reject);
+    public static native void connectWebRTCBackendAsync(JSConsumer<JSUndefined> resolve, JSConsumer<JSString> reject);
 
     @JSTopLevel
     @JSModule("./org/ngengine/web/WebBinds.js")
@@ -288,6 +327,6 @@ public class WebBinds implements JSObject {
 
     @JSTopLevel
     @JSModule("./org/ngengine/web/WebBinds.js")
-    public static native void connectClipboardBackendAsync(JSConsumer<Void> resolve, JSConsumer<String> reject);
+    public static native void connectClipboardBackendAsync(JSConsumer<JSUndefined> resolve,
+            JSConsumer<JSString> reject);
 }
-

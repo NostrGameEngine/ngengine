@@ -33,7 +33,9 @@
 package org.ngengine.web.input;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 import org.teavm.jso.browser.Window;
@@ -47,6 +49,7 @@ import com.jme3.input.TouchInput;
 import com.jme3.input.event.MouseButtonEvent;
 import com.jme3.input.event.MouseMotionEvent;
 import com.jme3.input.event.TouchEvent;
+import com.jme3.input.virtual.VirtualKeyboard;
 import com.jme3.system.AppSettings;
 
 import org.ngengine.web.WebBinds;
@@ -69,10 +72,11 @@ public class WebTouchInput implements TouchInput{
         }
     };
     private static class TouchStatus {
-        boolean undefinedPos;
+        boolean undefinedPos = true;
         int xPos, yPos;
     }
-    private final List<TouchStatus> touchStatus = new ArrayList<>();
+    private final Map<Integer, TouchStatus> touchStatus = new HashMap<>();
+    private int simulatedMousePointerId = -1;
     private final List<MouseMotionEvent> mouseMotionEvents = new ArrayList<>();
     private final List<MouseButtonEvent> mouseButtonEvents = new ArrayList<>();
     
@@ -93,6 +97,7 @@ public class WebTouchInput implements TouchInput{
         WebBinds.addInputEventListener("touchmove", webListener);
         WebBinds.addInputEventListener("touchcancel", webListener);
         WebBinds.addInputEventListener("touchend", webListener);
+        WebBinds.addInputEventListener("inputreset", webListener);
   
         initialized = true;
     }
@@ -101,17 +106,17 @@ public class WebTouchInput implements TouchInput{
     @Override
     public void update() {
         for (TouchEvent te : touchEvents) {
-            listener.onTouchEvent(te);
+            if (listener != null) listener.onTouchEvent(te);
         }
         touchEvents.clear();
 
         for (MouseMotionEvent mme : mouseMotionEvents) {
-            listener.onMouseMotionEvent(mme);
+            if (listener != null) listener.onMouseMotionEvent(mme);
         }
         mouseMotionEvents.clear();
 
         for (MouseButtonEvent mbe : mouseButtonEvents) {
-            listener.onMouseButtonEvent(mbe);
+            if (listener != null) listener.onMouseButtonEvent(mbe);
         }
         mouseButtonEvents.clear();
 
@@ -124,6 +129,8 @@ public class WebTouchInput implements TouchInput{
         WebBinds.removeInputEventListener("touchmove", webListener);
         WebBinds.removeInputEventListener("touchcancel", webListener);
         WebBinds.removeInputEventListener("touchend", webListener);
+        WebBinds.removeInputEventListener("inputreset", webListener);
+        cancelInputState();
 
         initialized = false;
     }
@@ -167,11 +174,13 @@ public class WebTouchInput implements TouchInput{
     public void setOmitHistoricEvents(boolean dontSendHistory) {
     }
           
-    private TouchStatus getTouchStatus(int index) {
-        while (touchStatus.size() <= index) {
-            touchStatus.add(new TouchStatus());
+    private TouchStatus getTouchStatus(int pointerId) {
+        TouchStatus status = touchStatus.get(pointerId);
+        if (status == null) {
+            status = new TouchStatus();
+            touchStatus.put(pointerId, status);
         }
-        return touchStatus.get(index);
+        return status;
     }
 
     private void scheduleEvent(TouchEvent.Type t, JSTouchEvent ev, boolean simulateMouse) {
@@ -179,7 +188,11 @@ public class WebTouchInput implements TouchInput{
         WebCanvasElement canvas = canvasSupplier.get();
         for (int i = 0; i < nTouches; i++) {
             JSTouch touch = ev.getChangedTouch(i);
-            TouchStatus s = getTouchStatus((int) touch.getIdentifier());
+            int pointerId = (int) touch.getIdentifier();
+            TouchStatus s = getTouchStatus(pointerId);
+            if (t == TouchEvent.Type.DOWN) {
+                s.undefinedPos = true;
+            }
             int x = touch.getClientX();
             int y = touch.getClientY();
                           
@@ -192,9 +205,16 @@ public class WebTouchInput implements TouchInput{
             s.undefinedPos = false;
 
             long time = getInputTimeNanos();
-            int pointerId = (int) touch.getIdentifier();
             boolean consumed = false;
-            if (joyInput != null) {
+            VirtualKeyboard keyboard = VirtualKeyboard.getInstance();
+            if (t == TouchEvent.Type.DOWN) {
+                consumed = keyboard.onPointerDown(0, x, y, time);
+            } else if (t == TouchEvent.Type.MOVE) {
+                consumed = keyboard.onPointerMove(0, x, y, time);
+            } else if (t == TouchEvent.Type.UP) {
+                consumed = keyboard.onPointerUp(0, x, y, time);
+            }
+            if (!consumed && joyInput != null) {
                 if (t == TouchEvent.Type.DOWN) {
                     consumed = joyInput.onPointerDown(pointerId, x, y, time);
                 } else if (t == TouchEvent.Type.MOVE) {
@@ -204,20 +224,32 @@ public class WebTouchInput implements TouchInput{
                 }
             }
             if (consumed) {
+                if (t == TouchEvent.Type.UP) {
+                    touchStatus.remove(pointerId);
+                    if (simulatedMousePointerId == pointerId) {
+                        simulatedMousePointerId = -1;
+                    }
+                }
                 continue;
             }
             TouchEvent te = new TouchEvent(t, x, y, dX, dY);
             te.setTime(time);
             te.setPressure(touch.getForce());
+            te.setPointerId(pointerId);
             touchEvents.add(te);
 
-            if (simulateMouse) {
+            if (simulateMouse && t == TouchEvent.Type.DOWN && simulatedMousePointerId < 0) {
+                simulatedMousePointerId = pointerId;
+            }
+            if (simulateMouse && simulatedMousePointerId == pointerId) {
                 if(canvas!=null){
                     if (flipX) {
                         x = canvas.getWidth() - x;
+                        dX = -dX;
                     }
                     if (flipY) {
                         y = canvas.getHeight() - y;
+                        dY = -dY;
                     }
                 }
                 if (t == TouchEvent.Type.DOWN) {
@@ -236,24 +268,51 @@ public class WebTouchInput implements TouchInput{
                 }
             }
 
+            if (t == TouchEvent.Type.UP) {
+                touchStatus.remove(pointerId);
+                if (simulatedMousePointerId == pointerId) {
+                    simulatedMousePointerId = -1;
+                }
+            }
+
         }
         // ev.preventDefault();     
     }
 
     private void handleWebEvent(Event evt) {
 
+        if (evt.getType().equals("inputreset")) {
+            cancelInputState();
+            return;
+        }
+
         if (evt.getType().equals("touchstart")) {
             scheduleEvent(TouchEvent.Type.DOWN, (JSTouchEvent) evt,this.isSimulateMouse());
         } else if (evt.getType().equals("touchcancel")) {
-            if (joyInput != null && joyInput.onPointerCancel(getInputTimeNanos())) {
-                return;
-            }
             scheduleEvent(TouchEvent.Type.UP, (JSTouchEvent) evt,this.isSimulateMouse());
         } else if( evt.getType().equals("touchend")) {
             scheduleEvent(TouchEvent.Type.UP, (JSTouchEvent) evt,this.isSimulateMouse());
         } else if (evt.getType().equals("touchmove")) {
             scheduleEvent(TouchEvent.Type.MOVE, (JSTouchEvent) evt,this.isSimulateMouse());
         }
+    }
+
+    private void cancelInputState() {
+        long time = getInputTimeNanos();
+        VirtualKeyboard.getInstance().onPointerUp(0, 0f, 0f, time);
+        if (joyInput != null) {
+            joyInput.onPointerCancel(time);
+        }
+        if (simulatedMousePointerId >= 0) {
+            TouchStatus status = touchStatus.get(simulatedMousePointerId);
+            int x = status != null ? status.xPos : 0;
+            int y = status != null ? status.yPos : 0;
+            MouseButtonEvent event = new MouseButtonEvent(MouseInput.BUTTON_LEFT, false, x, y);
+            event.setTime(time);
+            mouseButtonEvents.add(event);
+        }
+        touchStatus.clear();
+        simulatedMousePointerId = -1;
     }
 
 }

@@ -5,6 +5,8 @@ import Nip07Proxy from "./org/ngengine/web/Nip07Proxy.js";
 import WindowHooks from "./org/ngengine/web/Window.js";
 import WebRTCProxy from "./org/ngengine/web/WebRTCProxy.js";
 import ClipboardProxy from "./org/ngengine/web/ClipboardProxy.js";
+import { findMissingWebWorkerRequirements } from "./org/ngengine/web/WebWorkerSupport.js";
+import loadRuntime from "./runtime.js";
 
 
 
@@ -12,7 +14,8 @@ import ClipboardProxy from "./org/ngengine/web/ClipboardProxy.js";
 let loadingAnimationTimer = null;
 let loadingAnimation = null;
 let render = true;
-let fullscreen = false;
+let fullscreenRequested = false;
+let fullscreenWarningIssued = false;
 
 function animLoop(){
     window.requestAnimationFrame(()=>{
@@ -57,41 +60,71 @@ function bind(canvas, renderTarget){
 }
 
 
+function requestAppFullscreen(canvas){
+    const target = document.documentElement || canvas;
+    if (!fullscreenRequested || document.fullscreenElement === target) return;
+    if (!document.fullscreenEnabled || typeof target.requestFullscreen !== "function") {
+        if (!fullscreenWarningIssued) {
+            fullscreenWarningIssued = true;
+            console.warn("NGE web: fullscreen was requested, but the Fullscreen API is unavailable.");
+        }
+        return;
+    }
+    const request = target.requestFullscreen();
+    if (request && typeof request.catch === "function") {
+        request.catch(error => {
+            console.warn("NGE web: fullscreen request was rejected by the browser.", error);
+        });
+    }
+}
+
 function showFullscreenButton(config, canvas, show){
-    if(!config.showFullScreenButton) return;
-    if(fullscreen === show) return;
-    fullscreen = show;
-    if(show){
+    const requested = Boolean(show);
+    if (fullscreenRequested !== requested) {
+        fullscreenRequested = requested;
+        fullscreenWarningIssued = false;
+        if (!requested && document.fullscreenElement && document.exitFullscreen) {
+            const exit = document.exitFullscreen();
+            if (exit && typeof exit.catch === "function") exit.catch(() => {});
+        }
+    }
+
+    const button = document.querySelector("#ngeFullscreenButton");
+    if(!config.showFullScreenButton){
+        if(button) button.remove();
+        return;
+    }
+    if(requested && !button){
         const el = document.createElement("div");
         el.setAttribute("id", "ngeFullscreenButton");
         el.innerHTML = '<span class="ngeFullscreenIcon"></span>';  
         document.body.appendChild(el);
         el.addEventListener("click", (e) => {
-            if (fullscreen) {
-                canvas.requestFullscreen();
-            }  
+            e.stopPropagation();
+            requestAppFullscreen(canvas);
         });
-    }else if(!show && button){
-        const button = document.querySelector("#ngeFullscreenButton");
-        if(button){
-            button.remove();
-        }
+    }else if(!requested && button){
+        button.remove();
     }   
 }
 
 function tweakConfig(config){
     if(!config) config = {};
-    if(typeof config.run_in_worker !== "undefined" && typeof config.runInWebWorker === "undefined"){
-        config.runInWebWorker = config.run_in_worker;
-    }    
     if(typeof config.is_capacitor === "undefined"){
         config.is_capacitor = typeof Capacitor !== "undefined" && Capacitor.getPlatform
     };
-    if(typeof config.runInWebWorker === "undefined"){
-        config.runInWebWorker = !config.is_capacitor;
+    if(typeof config.enableWebWorker === "undefined"){
+        config.enableWebWorker = typeof config.enable_web_worker === "undefined"
+            ? !config.is_capacitor
+            : Boolean(config.enable_web_worker);
     }
-    if(typeof config.use_offscreen_canvas === "undefined"){
-        config.use_offscreen_canvas = config.runInWebWorker;
+    if(typeof config.webRuntime === "undefined"){
+        config.webRuntime = config.web_runtime || "wasm-gc";
+    }
+    if(typeof config.webJavaScriptFallback === "undefined"){
+        config.webJavaScriptFallback = typeof config.web_javascript_fallback === "undefined"
+            ? true
+            : Boolean(config.web_javascript_fallback);
     }
     if(typeof config.canvasSelector === "undefined"){
         config.canvasSelector = 'canvas#nge';
@@ -110,6 +143,9 @@ export default async function launch(config){
     Binds.addEventListener("toggleFullscreen", (v) => {
         showFullscreenButton(config, canvas,v);
     });
+    // Browsers only allow requestFullscreen() while handling a user gesture.
+    // Remember the application preference and honor it on the next canvas click.
+    canvas.addEventListener("click", () => requestAppFullscreen(canvas), true);
 
     // make canvas always full screen
     let resizeTimeout = null;
@@ -144,8 +180,49 @@ export default async function launch(config){
         Binds.fireEvent("webglcontextrestored");
     });
 
+    let worker = null;
+    let runInWorker = false;
+    let renderTarget = canvas;
+    if (config.enableWebWorker) {
+        const missing = findMissingWebWorkerRequirements(globalThis, canvas);
+        if (missing.length > 0) {
+            console.warn(
+                `NGE web: Web Worker cannot be used because these requirements are unavailable: ${missing.join(", ")}. `
+                + "Falling back to the main thread."
+            );
+        } else {
+            try {
+                worker = new Worker("./worker.js", { type: "module" });
+                worker.addEventListener("error", event => {
+                    console.error("NGE worker error", event.message, event.error);
+                });
+                worker.addEventListener("messageerror", event => {
+                    console.error("NGE worker message error", event.data);
+                });
+                worker.addEventListener("message", event => {
+                    if (event.data && event.data.type === "nge-worker-error") {
+                        console.error(
+                            `NGE worker ${event.data.kind}: ${event.data.message}`,
+                            event.data.stack || ""
+                        );
+                    }
+                });
+                renderTarget = canvas.transferControlToOffscreen();
+                runInWorker = true;
+            } catch (error) {
+                if (worker) {
+                    worker.terminate();
+                    worker = null;
+                }
+                console.warn(
+                    "NGE web: Web Worker initialization failed. Falling back to the main thread.",
+                    error
+                );
+            }
+        }
+    }
+
     // Bind client actions
-    const renderTarget = config.use_offscreen_canvas ? canvas.transferControlToOffscreen() : canvas;
     bind(canvas, renderTarget);
 
 
@@ -165,20 +242,22 @@ export default async function launch(config){
     canvas.style.visibility = 'visible';
     console.log("Starting nge...");
     renderLoadingAnimation();
-    if (config.runInWebWorker) {
+    if (runInWorker) {
+        console.info("NGE web: executing on a Web Worker with SharedArrayBuffer.");
         Binds.addEventListener("ready", () => {
             console.log("NGE worker is ready");
-            Binds.fireEvent("main", []).then(() => {
+            Binds.fireEvent("main", { args: [], config }).then(() => {
                 resize();
             })
         });
-        const worker = new Worker("./worker.js", { type: 'module' });
         Binds.registerWorker(worker);
 
     } else {
-        const { main } = await import("./webapp.js");
+        console.info("NGE web: executing on the main thread.");
+        const runtime = await loadRuntime(config);
         Binds.addEventListener("ready", () => {
-            main([]);
+            console.log(`Starting NGE with TeaVM ${runtime.backend}`);
+            runtime.main([]);
             resize();
         });
         Binds.fireEvent("ready");

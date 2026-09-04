@@ -48,6 +48,7 @@ import com.jme3.input.MouseInput;
 import com.jme3.input.RawInputListener;
 import com.jme3.input.event.MouseButtonEvent;
 import com.jme3.input.event.MouseMotionEvent;
+import com.jme3.input.virtual.VirtualKeyboard;
 
 import org.ngengine.web.WebBinds;
 import org.ngengine.web.context.WebCanvasElement;
@@ -60,6 +61,8 @@ public class WebMouseInput implements MouseInput {
     private int xPos = 0, yPos = 0, wheelPos;
     private boolean undefinedPos = true;
     private boolean initialized = false;
+    private boolean pointerLockRequested = false;
+    private final boolean[] pressedButtons = new boolean[3];
     private final List<MouseMotionEvent> mouseMotionEvents = new ArrayList<>();
     private final List<MouseButtonEvent> mouseButtonEvents = new ArrayList<>();
     @SuppressWarnings("rawtypes")
@@ -79,7 +82,9 @@ public class WebMouseInput implements MouseInput {
         WebBinds.addInputEventListener("mousemove", webListener);
         WebBinds.addInputEventListener("wheel", webListener);
         WebBinds.addInputEventListener("mousedown", webListener);
-        WebBinds.addInputEventListener("mouseup", webListener); 
+        WebBinds.addInputEventListener("mouseup", webListener);
+        WebBinds.addInputEventListener("inputreset", webListener);
+        WebBinds.togglePointerLock(false);
 
         initialized = true;
     }
@@ -91,6 +96,9 @@ public class WebMouseInput implements MouseInput {
         WebBinds.removeInputEventListener("wheel", webListener);
         WebBinds.removeInputEventListener("mousedown", webListener);
         WebBinds.removeInputEventListener("mouseup", webListener);
+        WebBinds.removeInputEventListener("inputreset", webListener);
+        pointerLockRequested = false;
+        WebBinds.togglePointerLock(false);
 
         initialized = false;
     }
@@ -102,6 +110,10 @@ public class WebMouseInput implements MouseInput {
 
     private void handleWebEvent(Event evt) {
         if (listener == null) return;
+        if ("inputreset".equals(evt.getType())) {
+            releaseInputState();
+            return;
+        }
         if (evt.getType().equals("mousemove")) {
             MouseEvent ev = (MouseEvent) evt;
 
@@ -127,7 +139,7 @@ public class WebMouseInput implements MouseInput {
             // if (!(xPos >= 0 && yPos >= 0 && xPos <= canvas.getWidth() && yPos <= canvas.getHeight())) return;
             MouseMotionEvent mme = new MouseMotionEvent((int) xPos, (int) yPos, (int) dX, (int) dY, 0, 0);
             mme.setTime(getInputTimeNanos());
-            if (joyInput != null && joyInput.onPointerMove(MOUSE_POINTER_ID, xPos, yPos, mme.getTime())) {
+            if (onPointerMove(xPos, yPos, mme.getTime())) {
                 return;
             }
             mouseMotionEvents.add(mme);
@@ -151,39 +163,86 @@ public class WebMouseInput implements MouseInput {
             // if (!(xPos >= 0 && yPos >= 0 && xPos <= canvas.getWidth() && yPos <= canvas.getHeight())) return;
 
             MouseEvent ev = (MouseEvent) evt;
+            updatePointerPosition(ev);
             int button = ev.getButton();
             boolean isPressed = true;
             int jmeButton = KeyMapper.jsMouseButtonToJme(button);
             if (jmeButton != -1) {
                 long time = getInputTimeNanos();
-                if (joyInput != null && joyInput.onPointerDown(MOUSE_POINTER_ID, xPos, yPos, time)) {
+                if (onPointerDown(xPos, yPos, time)) {
                     return;
                 }
                 MouseButtonEvent mbe = new MouseButtonEvent(jmeButton, isPressed, (int) xPos, (int) yPos);
                 mbe.setTime(time);
 
                 mouseButtonEvents.add(mbe);
+                pressedButtons[jmeButton] = true;
 
             }
         } else if (evt.getType().equals("mouseup")) {
             // if (!(xPos >= 0 && yPos >= 0 && xPos <= canvas.getWidth() && yPos <= canvas.getHeight())) return;
 
             MouseEvent ev = (MouseEvent) evt;
+            updatePointerPosition(ev);
             int button = ev.getButton();
             boolean isPressed = false;
             int jmeButton = KeyMapper.jsMouseButtonToJme(button);
             if (jmeButton != -1) {
                 long time = getInputTimeNanos();
-                if (joyInput != null && joyInput.onPointerUp(MOUSE_POINTER_ID, xPos, yPos, time)) {
+                if (onPointerUp(xPos, yPos, time)) {
                     return;
                 }
                 MouseButtonEvent mbe = new MouseButtonEvent(jmeButton, isPressed, (int) xPos, (int) yPos);
                 mbe.setTime(time);
 
                 mouseButtonEvents.add(mbe);
+                pressedButtons[jmeButton] = false;
             }
         }
 
+    }
+
+    private void updatePointerPosition(MouseEvent event) {
+        xPos = (int) event.getClientX();
+        yPos = (int) event.getClientY();
+        undefinedPos = false;
+    }
+
+    private boolean onPointerDown(float x, float y, long time) {
+        if (VirtualKeyboard.getInstance().onPointerDown(0, x, y, time)) {
+            return true;
+        }
+        return joyInput != null && joyInput.onPointerDown(MOUSE_POINTER_ID, x, y, time);
+    }
+
+    private boolean onPointerMove(float x, float y, long time) {
+        if (VirtualKeyboard.getInstance().onPointerMove(0, x, y, time)) {
+            return true;
+        }
+        return joyInput != null && joyInput.onPointerMove(MOUSE_POINTER_ID, x, y, time);
+    }
+
+    private boolean onPointerUp(float x, float y, long time) {
+        if (VirtualKeyboard.getInstance().onPointerUp(0, x, y, time)) {
+            return true;
+        }
+        return joyInput != null && joyInput.onPointerUp(MOUSE_POINTER_ID, x, y, time);
+    }
+
+    private void releaseInputState() {
+        long time = getInputTimeNanos();
+        VirtualKeyboard.getInstance().onPointerUp(0, xPos, yPos, time);
+        if (joyInput != null) {
+            joyInput.onPointerCancel(time);
+        }
+        for (int button = 0; button < pressedButtons.length; button++) {
+            if (!pressedButtons[button]) continue;
+            MouseButtonEvent event = new MouseButtonEvent(button, false, xPos, yPos);
+            event.setTime(time);
+            mouseButtonEvents.add(event);
+            pressedButtons[button] = false;
+        }
+        undefinedPos = true;
     }
 
     private boolean isLocked() {
@@ -193,27 +252,19 @@ public class WebMouseInput implements MouseInput {
     @Override
     public void update() {
         boolean lock = !cursorVisible;
-
-        WebBinds.togglePointerLock(lock);
-
-        // if (cursorVisible != canvasCursorVisible) {
-        //     undefinedPos = true;
-
-            // if (lock) {
-            // PointerLockOptions options = PointerLockOptions.create();
-            // // options.setUnadjustedMovement(true);
-            // canvas.requestPointerLock(options);
-            // } else
-            // canvas.exitPointerLock();
-        // }
+        if (lock != pointerLockRequested) {
+            pointerLockRequested = lock;
+            undefinedPos = true;
+            WebBinds.togglePointerLock(lock);
+        }
 
         for (MouseMotionEvent mme : mouseMotionEvents) {
-            listener.onMouseMotionEvent(mme);
+            if (listener != null) listener.onMouseMotionEvent(mme);
         }
         mouseMotionEvents.clear();
 
         for (MouseButtonEvent mbe : mouseButtonEvents) {
-            listener.onMouseButtonEvent(mbe);
+            if (listener != null) listener.onMouseButtonEvent(mbe);
         }
         mouseButtonEvents.clear();
     }

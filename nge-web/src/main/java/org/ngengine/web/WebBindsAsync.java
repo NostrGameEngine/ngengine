@@ -46,7 +46,7 @@ public class WebBindsAsync {
         WebBinds.decodeImageAsync(data, filename, targetWidth, targetHeight, (res) -> {
             callback.complete(res);
         }, (rej) -> {
-            callback.error(new Exception(rej));
+            callback.error(new Exception(rej.stringValue()));
         });
     }
 
@@ -57,7 +57,7 @@ public class WebBindsAsync {
         WebBinds.decodeHdrImageAsync(data, filename,  (res) -> {
             callback.complete(res);
         }, (rej) -> {
-            callback.error(new Exception(rej));
+            callback.error(new Exception(rej.stringValue()));
         });
     }
 
@@ -67,9 +67,9 @@ public class WebBindsAsync {
 
     private static void loadScript(String script, AsyncCallback<String> callback) {
         WebBinds.loadScriptAsync(script, (res) -> {
-            callback.complete(res);
+            callback.complete(res.stringValue());
         }, (rej) -> {
-            callback.error(new Exception(rej));
+            callback.error(new Exception(rej.stringValue()));
         });
     }
 
@@ -83,7 +83,7 @@ public class WebBindsAsync {
         WebBinds.getRenderTargetAsync( (res) -> {
             callback.complete(res);
         }, (rej) -> {
-            callback.error(new Exception(rej));
+            callback.error(new Exception(rej.stringValue()));
         });
     }
 
@@ -95,9 +95,9 @@ public class WebBindsAsync {
 
     private static void createAudioContext(int sampleRate,int id, AsyncCallback<Void> callback) {
         WebBinds.createAudioContextAsync(sampleRate, id, (res) -> {
-            callback.complete(res);
+            callback.complete(null);
         }, (rej) -> {
-            callback.error(new Exception(rej));
+            callback.error(new Exception(rej.stringValue()));
         });
     }
 
@@ -106,9 +106,9 @@ public class WebBindsAsync {
 
     private static void createAudioBuffer(int ctxId,int id, JSArray<Float32Array> f32channelData, int lengthInSamples, int sampleRate, AsyncCallback<Void> callback) {
         WebBinds.createAudioBufferAsync(ctxId, id, f32channelData, lengthInSamples, sampleRate, (res) -> {
-            callback.complete(res);
+            callback.complete(null);
         }, (rej) -> {
-            callback.error(new Exception(rej));
+            callback.error(new Exception(rej.stringValue()));
         });
     }
 
@@ -117,9 +117,9 @@ public class WebBindsAsync {
 
     private static void createAudioSource(int ctxId,int id, AsyncCallback<Void> callback) {
         WebBinds.createAudioSourceAsync(ctxId, id, (res) -> {
-            callback.complete(res);
+            callback.complete(null);
         }, (rej) -> {
-            callback.error(new Exception(rej));
+            callback.error(new Exception(rej.stringValue()));
         });
     }
 
@@ -128,9 +128,9 @@ public class WebBindsAsync {
 
     private static void getAudioPlaybackRate(int ctxId, int srcId, AsyncCallback<Float> callback) {
         WebBinds.getAudioPlaybackRateAsync(ctxId, srcId, (res) -> {
-            callback.complete(res);
+            callback.complete(res.floatValue());
         }, (rej) -> {
-            callback.error(new Exception(rej));
+            callback.error(new Exception(rej.stringValue()));
         });
     }
     
@@ -140,9 +140,9 @@ public class WebBindsAsync {
 
     private static void setAudioBuffer(int ctxId, int srcId, int bufId, AsyncCallback<Void> callback) {
         WebBinds.setAudioBufferAsync(ctxId, srcId, bufId, (res) -> {
-            callback.complete(res);
+            callback.complete(null);
         }, (rej) -> {
-            callback.error(new Exception(rej));
+            callback.error(new Exception(rej.stringValue()));
         });
     }
 
@@ -151,9 +151,9 @@ public class WebBindsAsync {
 
     private static void playAudioSource(int ctxId, int srcId, AsyncCallback<Void> callback) {
         WebBinds.playAudioSourceAsync(ctxId, srcId, (res) -> {
-            callback.complete(res);
+            callback.complete(null);
         }, (rej) -> {
-            callback.error(new Exception(rej));
+            callback.error(new Exception(rej.stringValue()));
         });
     }
 
@@ -161,9 +161,9 @@ public class WebBindsAsync {
     public static native void pauseAudioSource(int ctxId, int srcId);
     private static void pauseAudioSource(int ctxId, int srcId, AsyncCallback<Void> callback) {
         WebBinds.pauseAudioSourceAsync(ctxId, srcId, (res) -> {
-            callback.complete(res);
+            callback.complete(null);
         }, (rej) -> {
-            callback.error(new Exception(rej));
+            callback.error(new Exception(rej.stringValue()));
         });
     }
 
@@ -171,9 +171,9 @@ public class WebBindsAsync {
     public static native void stopAudioSource(int ctxId, int srcId);
     private static void stopAudioSource(int ctxId, int srcId, AsyncCallback<Void> callback) {
         WebBinds.stopAudioSourceAsync(ctxId, srcId, (res) -> {
-            callback.complete(res);
+            callback.complete(null);
         }, (rej) -> {
-            callback.error(new Exception(rej));
+            callback.error(new Exception(rej.stringValue()));
         });
     }
 
@@ -181,41 +181,41 @@ public class WebBindsAsync {
     public static native String getBaseURL();
     private static void getBaseURL(AsyncCallback<String> callback) {
         WebBinds.getBaseURLAsync( (res) -> {
-            callback.complete(res.toString());
+            callback.complete(res.stringValue());
         }, (rej) -> {
-            callback.error(new Exception(rej));
+            callback.error(new Exception(rej.stringValue()));
         });
     }
 
 
     @Async
     public static native void connectNip07Backend();
-    private static void connectNip07Backend(AsyncCallback<String> callback) {
+    private static void connectNip07Backend(AsyncCallback<Void> callback) {
         WebBinds.connectNip07BackendAsync( (res) -> {
-            callback.complete(res.toString());
+            callback.complete(null);
         }, (rej) -> {
-            callback.error(new Exception(rej));
+            callback.error(new Exception(rej.stringValue()));
         }); 
     }
 
     @Async
     public static native void connectWebRTCBackend();
-    private static void connectWebRTCBackend(AsyncCallback<String> callback) {
+    private static void connectWebRTCBackend(AsyncCallback<Void> callback) {
         WebBinds.connectWebRTCBackendAsync( (res) -> {
-            callback.complete(res.toString());
+            callback.complete(null);
         }, (rej) -> {
-            callback.error(new Exception(rej));
+            callback.error(new Exception(rej.stringValue()));
         }); 
     }
 
 
     @Async
     public static native void connectClipboardBackend();
-    private static void connectClipboardBackend(AsyncCallback<String> callback) {
+    private static void connectClipboardBackend(AsyncCallback<Void> callback) {
         WebBinds.connectClipboardBackendAsync( (res) -> {
-            callback.complete(res.toString());
+            callback.complete(null);
         }, (rej) -> {
-            callback.error(new Exception(rej));
+            callback.error(new Exception(rej.stringValue()));
         });
     }
 }

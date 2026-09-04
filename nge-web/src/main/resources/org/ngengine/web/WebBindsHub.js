@@ -1,6 +1,15 @@
+import {
+    canUseSharedEvents,
+    createSharedEventWriter,
+    createSharedEventWriterForBuffer,
+    startSharedEventReader
+} from "./SharedEvents.js";
+
 const LISTENERS = {};
 const WORKERS = [];
+const SHARED_WRITERS = new Map();
 const PENDING_RESPONSES = {};
+let SHARED_PARENT_WRITER = null;
 let RESPONSE_COUNTER = 0;
 
 function isWorker() {
@@ -23,11 +32,9 @@ function makeTransferableList(args) {
         for (const a of args) {
             if (a instanceof ArrayBuffer) {
                 transferables.push(a);
-            } else if (typeof SharedArrayBuffer !== 'undefined' && a instanceof SharedArrayBuffer) {
-                transferables.push(a);
             } else if (ArrayBuffer.isView(a) && a.buffer) { // Float32Array, Uint8Array, DataView, etc.
                 const buf = a.buffer;
-                if (buf instanceof ArrayBuffer || (typeof SharedArrayBuffer !== 'undefined' && buf instanceof SharedArrayBuffer)) {
+                if (buf instanceof ArrayBuffer) {
                     transferables.push(buf);
                 }
             } else if (a instanceof MessagePort) {
@@ -54,7 +61,14 @@ function makeTransferableList(args) {
 async function onEvent(e, source){
     checkEvent(e);
     if(!e.data) return;
-    if(e.data.type === "event" && e.data.event) {
+    if(e.data.type === "shared-events" && isWorker() && (e.data.toWorker || e.data.buffer)) {
+        startSharedEventReader(e.data.toWorker || e.data.buffer, (event, args) => {
+            callListeners(event, ...(args || []));
+        });
+        if (e.data.toMain) {
+            SHARED_PARENT_WRITER = createSharedEventWriterForBuffer(e.data.toMain);
+        }
+    } else if(e.data.type === "event" && e.data.event) {
         const id = e.data.id;
         const results = callListeners(e.data.event, ...(e.data.args || []));
         if(id) {
@@ -96,12 +110,26 @@ if(isWorker()){
 }
     
 
-function registerWorker(worker){
+function registerWorker(worker, options = {}){
+    if(!canUseSharedEvents()) {
+        throw new Error("A Web Worker requires SharedArrayBuffer and cross-origin isolation");
+    }
     WORKERS.push(worker);
     worker.addEventListener("message", (e) => {
         onEvent(e,worker).catch((err) => {
             console.warn("Error handling event", err);
         });
+    });
+    const toWorker = createSharedEventWriter(options.sharedEventBufferBytes);
+    const toMain = createSharedEventWriter(options.sharedEventBufferBytes);
+    SHARED_WRITERS.set(worker, toWorker);
+    startSharedEventReader(toMain.buffer, (event, args) => {
+        callListeners(event, ...(args || []));
+    });
+    worker.postMessage({
+        type: "shared-events",
+        toWorker: toWorker.buffer,
+        toMain: toMain.buffer
     });
 }
 
@@ -161,6 +189,10 @@ function fireEvent(event, ...args){
     // send to each worker
     for(const w of WORKERS){
          try {
+            const sharedWriter = SHARED_WRITERS.get(w);
+            if(sharedWriter && sharedWriter.writeEvent(event, args || [])) {
+                continue;
+            }
             const id = String(RESPONSE_COUNTER++);
             results.push(waitResponse(id));
             w.postMessage({ type: "event", event: event, args: args||[], id }, makeTransferableList(args) ); 
@@ -170,12 +202,15 @@ function fireEvent(event, ...args){
     }
 
     if(isWorker()){
+        if (SHARED_PARENT_WRITER && SHARED_PARENT_WRITER.writeEvent(event, args || [])) {
+            return results.length === 0 ? Promise.resolve(null) : Promise.race(results);
+        }
         const id = String(RESPONSE_COUNTER++);
         results.push(waitResponse(id));
         self.postMessage({ type: "event", event: event, args: args||[] , id}, makeTransferableList(args) );
     }
 
-    return Promise.race(results);
+    return results.length === 0 ? Promise.resolve(null) : Promise.race(results);
 }
 
 
@@ -192,4 +227,3 @@ function removeEventListener(event, listener){
 
 
 export default { addEventListener, fireEvent, registerWorker , removeEventListener };
- 

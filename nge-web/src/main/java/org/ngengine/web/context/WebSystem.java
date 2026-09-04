@@ -34,6 +34,7 @@ package org.ngengine.web.context;
 
 import com.jme3.asset.AssetManager;
 import com.jme3.audio.AudioRenderer;
+import com.jme3.input.virtual.VirtualKeyboard;
 import com.jme3.plugins.json.Json;
 import com.jme3.system.JmeSystemDelegate;
 import com.jme3.system.Platform;
@@ -41,6 +42,7 @@ import com.jme3.system.AppSettings;
 import com.jme3.system.JmeContext;
 import com.jme3.system.JmeContext.Type;
 import com.jme3.util.res.Resources;
+import com.jme3.util.BufferAllocatorFactory;
 import org.ngengine.web.audio.WebAudioRenderer;
 import org.ngengine.web.filesystem.WebLocator;
 import org.ngengine.web.filesystem.WebResourceLoader;
@@ -57,10 +59,12 @@ import org.ngengine.web.json.TeaJSONParser;
 
 public class WebSystem extends JmeSystemDelegate {
     protected final static Logger logger = Logger.getLogger(WebSystem.class.getName());
+    private int softKeyboardRequest;
 
     public WebSystem() {
         super();    
         System.setProperty("nge-platforms.allowLoopbackInURIs", "true");
+        BufferAllocatorFactory.setBufferAllocatorSupplier(HeapAllocator::new);
  
         // System.out.println(System.getProperty(Resources.PROPERTY_RESOURCE_LOADER_IMPLEMENTATION));
         // System.out.println(System.getProperty(Json.PROPERTY_JSON_PARSER_IMPLEMENTATION));
@@ -107,7 +111,29 @@ public class WebSystem extends JmeSystemDelegate {
 
     @Override
     public void showSoftKeyboard(boolean show) {
-       logger.warning("Unimplemented method 'showSoftKeyboard'");
+        int request = ++softKeyboardRequest;
+        if (!show) {
+            VirtualKeyboard.getInstance().setVisible(false);
+        }
+        WebBinds.showSoftKeyboardAsync(show, nativeKeyboard -> {
+            if (request != softKeyboardRequest) {
+                return;
+            }
+            boolean hasNativeKeyboard = nativeKeyboard.booleanValue();
+            VirtualKeyboard.getInstance().setVisible(show && !hasNativeKeyboard);
+            if (show && !hasNativeKeyboard) {
+                logger.info("Native web keyboard unavailable; using the NGE on-screen keyboard.");
+            }
+        }, error -> {
+            if (request != softKeyboardRequest) {
+                return;
+            }
+            VirtualKeyboard.getInstance().setVisible(show);
+            if (show) {
+                logger.warning("Native web keyboard failed; using the NGE on-screen keyboard: "
+                        + error.stringValue());
+            }
+        });
     }
 
 
@@ -129,6 +155,7 @@ public class WebSystem extends JmeSystemDelegate {
         assetManager.registerLoader(com.jme3.texture.plugins.DDSLoader.class, "dds");
         assetManager.registerLoader(com.jme3.texture.plugins.PFMLoader.class, "pfm");
         assetManager.registerLoader(com.jme3.texture.plugins.StbImageLoader.class, "jpg", "bmp", "gif", "png", "jpeg", "tga", "psd", "hdr");
+        assetManager.registerLoader(com.jme3.texture.plugins.BasisTextureLoader.class, "basis", "ktx2");
         assetManager.registerLoader(com.jme3.export.binary.BinaryLoader.class, "j3o", "j3f");
         assetManager.registerLoader(com.jme3.scene.plugins.OBJLoader.class, "obj");
         assetManager.registerLoader(com.jme3.scene.plugins.MTLLoader.class, "mtl");
