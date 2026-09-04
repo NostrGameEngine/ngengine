@@ -238,8 +238,9 @@ public class TeaClassTransformer implements ClassHolderTransformer {
                     AnnotationValue lookupDefaultA = anno.getValue("lookupDefault");
                     data.put("value", valueA == null ? null : valueA.getString());
                     data.put("lookupDefault", lookupDefaultA == null ? true : lookupDefaultA.getBoolean());
-                    attributeMap.putIfAbsent(m.getName(), data);
-                    System.out.println("Found StyleAttribute: " + m.getName() + " in " + root.getName());
+                    String methodKey = m.getDescriptor().toString();
+                    attributeMap.putIfAbsent(methodKey, data);
+                    System.out.println("Found StyleAttribute: " + methodKey + " in " + root.getName());
                 }
             }
         }
