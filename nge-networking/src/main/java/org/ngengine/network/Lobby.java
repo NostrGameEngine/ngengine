@@ -38,10 +38,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.CopyOnWriteArraySet;
 import org.ngengine.nostr4j.keypair.NostrPrivateKey;
 import org.ngengine.nostr4j.keypair.NostrPublicKey;
 import org.ngengine.nostr4j.nip49.Nip49;
@@ -55,7 +55,7 @@ public class Lobby implements Cloneable, Serializable {
     private final NostrPublicKey owner;
     protected String roomRawData; // used for filtering
     protected final Map<String, String> data = new HashMap<>();
-    private final Set<NostrPublicKey> bannedPeers = new CopyOnWriteArraySet<>();
+    private final Set<NostrPublicKey> bannedPeers = Collections.synchronizedSet(new HashSet<>());
     protected final Instant expiration;
     protected final Instant creationTime;
     private volatile Instant latestSnapshotTime;
@@ -174,7 +174,9 @@ public class Lobby implements Cloneable, Serializable {
     }
 
     final Collection<NostrPublicKey> getBannedPeersSnapshot() {
-        return Collections.unmodifiableList(new ArrayList<>(bannedPeers));
+        synchronized (bannedPeers) {
+            return Collections.unmodifiableList(new ArrayList<>(bannedPeers));
+        }
     }
 
     protected final boolean addBannedPeer(NostrPublicKey peer) {
@@ -186,9 +188,12 @@ public class Lobby implements Cloneable, Serializable {
     }
 
     protected final String serializeBannedPeers() {
-        ArrayList<String> encoded = new ArrayList<>(bannedPeers.size());
-        for (NostrPublicKey peer : bannedPeers) {
-            encoded.add(peer.asHex());
+        ArrayList<String> encoded;
+        synchronized (bannedPeers) {
+            encoded = new ArrayList<>(bannedPeers.size());
+            for (NostrPublicKey peer : bannedPeers) {
+                encoded.add(peer.asHex());
+            }
         }
         Collections.sort(encoded);
         return String.join(",", encoded);
@@ -237,20 +242,22 @@ public class Lobby implements Cloneable, Serializable {
     }
 
     private void loadBannedPeers(String encoded) {
-        bannedPeers.clear();
-        if (encoded == null || encoded.trim().isEmpty()) {
-            return;
-        }
-        String[] peers = encoded.split(",");
-        for (String peer : peers) {
-            String normalized = peer.trim();
-            if (normalized.isEmpty()) {
-                continue;
+        synchronized (bannedPeers) {
+            bannedPeers.clear();
+            if (encoded == null || encoded.trim().isEmpty()) {
+                return;
             }
-            try {
-                bannedPeers.add(NostrPublicKey.fromHex(normalized));
-            } catch (RuntimeException ignored) {
-                // Ignore malformed entries received from remote lobby metadata.
+            String[] peers = encoded.split(",");
+            for (String peer : peers) {
+                String normalized = peer.trim();
+                if (normalized.isEmpty()) {
+                    continue;
+                }
+                try {
+                    bannedPeers.add(NostrPublicKey.fromHex(normalized));
+                } catch (RuntimeException ignored) {
+                    // Ignore malformed entries received from remote lobby metadata.
+                }
             }
         }
     }
