@@ -32,7 +32,7 @@
 
 package org.ngengine.world2d.tiled.util;
 
-import org.jbox2d.common.Vec2;
+import org.box2d4j.b2Vec2;
 
 import com.jme3.math.Vector2f;
 import com.jme3.util.TempVars;
@@ -71,7 +71,7 @@ public interface CoordinateSystem {
 
     void worldToPhysicsSpace(float x, float y, Vector2f out);
 
-    default void worldToPhysicsSpace(Vector2f c, Vec2 out){
+    default void worldToPhysicsSpace(Vector2f c, b2Vec2 out){
         try(TempVars vars = TempVars.get()){
             Vector2f tmp = vars.vect2d;
             worldToPhysicsSpace(c.x,c.y, tmp);
@@ -82,7 +82,7 @@ public interface CoordinateSystem {
    
     void physicsToWorldSpace(float x, float y, Vector2f out);
 
-    void physicsToWorldSpace(Vec2 physicsWorldCoords, Vector2f out);
+    void physicsToWorldSpace(b2Vec2 physicsWorldCoords, Vector2f out);
     public default void physicsToWorldSpace(Vector2f physicsWorldCoords, Vector2f out){
         physicsToWorldSpace(physicsWorldCoords.x, physicsWorldCoords.y, out);
     }
@@ -147,13 +147,13 @@ public interface CoordinateSystem {
         return out;
     }
 
-    default Vec2 worldToPhysicsSpace(Vector2f worldCoords) {
-        Vec2 out = new Vec2();
+    default b2Vec2 worldToPhysicsSpace(Vector2f worldCoords) {
+        b2Vec2 out = new b2Vec2();
         worldToPhysicsSpace(worldCoords, out);
         return out;
     }
 
-    default Vector2f physicsToWorldSpace(Vec2 physicsWorldCoords) {
+    default Vector2f physicsToWorldSpace(b2Vec2 physicsWorldCoords) {
         Vector2f out = new Vector2f();
         physicsToWorldSpace(physicsWorldCoords, out);
         return out;

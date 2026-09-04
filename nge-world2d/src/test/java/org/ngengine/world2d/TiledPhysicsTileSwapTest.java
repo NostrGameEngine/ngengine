@@ -7,8 +7,14 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import org.jbox2d.common.Vec2;
-import org.jbox2d.dynamics.World;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.box2d4j.b2BodyId;
+import org.box2d4j.b2Circle;
+import org.box2d4j.b2ShapeDef;
+import org.box2d4j.b2ShapeId;
+import org.box2d4j.b2Vec2;
+import org.box2d4j.b2WorldId;
 import org.junit.jupiter.api.Test;
 import org.ngengine.config.NGEAppSettings;
 import org.ngengine.world2d.box2d.TiledPhysicsComponent;
@@ -18,7 +24,22 @@ import org.ngengine.world2d.tiled.core.TiledObjectLayer;
 import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
 import org.ngengine.world2d.tiled.core.tileset.Tile;
 
+import static org.box2d4j.B2.*;
+
 class TiledPhysicsTileSwapTest {
+    @Test
+    void destroyedContactShapeIsIgnored() {
+        b2WorldId world = b2CreateWorld(b2DefaultWorldDef());
+        b2BodyId body = b2CreateBody(world, b2DefaultBodyDef());
+        b2ShapeDef shapeDef = b2DefaultShapeDef();
+        shapeDef.userData = new Object();
+        b2ShapeId shape = b2CreateCircleShape(body, shapeDef, new b2Circle(new b2Vec2(), 1f));
+        b2DestroyShape(shape, false);
+
+        assertNull(TiledWorld2dManagerComponent.getShapeUserDataIfValid(shape));
+        b2DestroyWorld(world);
+    }
+
     @Test
     void refreshPhysicsIsSafeBeforeTheComponentIsAttached() {
         TiledPhysicsComponent physics = new TiledPhysicsComponent();
@@ -31,7 +52,7 @@ class TiledPhysicsTileSwapTest {
         TiledMap map = new TiledMap(1, 1);
         map.setTileWidth(64);
         map.setTileHeight(64);
-        World physicsWorld = new World(new Vec2());
+        b2WorldId physicsWorld = b2CreateWorld(b2DefaultWorldDef());
         TiledWorld2d world = new TiledWorld2d("test", map, physicsWorld, 1, null);
 
         Tile closed = tileWithCollision(true);
@@ -42,7 +63,7 @@ class TiledPhysicsTileSwapTest {
 
         physics.refreshPhysics();
         assertNotNull(physics.getBody());
-        assertNotNull(physics.getBody().getFixtureList());
+        assertTrue(b2Body_GetShapeCount(physics.getBody()) > 0);
 
         door.setTile(open);
         physics.refreshPhysics();
@@ -51,7 +72,7 @@ class TiledPhysicsTileSwapTest {
         door.setTile(closed.copy());
         physics.refreshPhysics();
         assertNotNull(physics.getBody());
-        assertNotNull(physics.getBody().getFixtureList());
+        assertTrue(b2Body_GetShapeCount(physics.getBody()) > 0);
     }
 
     @Test
@@ -59,24 +80,75 @@ class TiledPhysicsTileSwapTest {
         TiledMap map = new TiledMap(1, 1);
         map.setTileWidth(64);
         map.setTileHeight(64);
-        World physicsWorld = new World(new Vec2());
+        b2WorldId physicsWorld = b2CreateWorld(b2DefaultWorldDef());
         TiledWorld2d world = new TiledWorld2d("test", map, physicsWorld, 1, null);
         TiledObjectEntity door = new TiledObjectEntity(1, 32, 64, tileWithCollision(true));
         TestPhysicsComponent physics = new TestPhysicsComponent(map, world);
         physics.attach(door);
         physics.refreshPhysics();
 
-        org.jbox2d.dynamics.Body originalBody = physics.getBody();
+        b2BodyId originalBody = physics.getBody();
         assertNotNull(originalBody);
-        assertNotNull(originalBody.getFixtureList());
+        assertTrue(b2Body_GetShapeCount(originalBody) > 0);
 
         physics.setCollisionEnabled(false);
-        assertFalse(originalBody.isActive());
+        assertFalse(b2Body_IsEnabled(originalBody));
 
         physics.setCollisionEnabled(true);
         assertSame(originalBody, physics.getBody());
-        assertTrue(originalBody.isActive());
-        assertNotNull(originalBody.getFixtureList());
+        assertTrue(b2Body_IsEnabled(originalBody));
+        assertTrue(b2Body_GetShapeCount(originalBody) > 0);
+    }
+
+    @Test
+    void externallyDestroyedBodyIsRecreatedInsteadOfDereferenced() {
+        TiledMap map = new TiledMap(1, 1);
+        map.setTileWidth(64);
+        map.setTileHeight(64);
+        b2WorldId physicsWorld = b2CreateWorld(b2DefaultWorldDef());
+        TiledWorld2d world = new TiledWorld2d("test", map, physicsWorld, 1, null);
+        TiledObjectEntity entity = new TiledObjectEntity(1, 32, 64, tileWithCollision(true));
+        TestPhysicsComponent physics = new TestPhysicsComponent(map, world);
+        physics.attach(entity);
+        physics.refreshPhysics();
+
+        b2BodyId destroyedBody = physics.getBody();
+        b2DestroyBody(destroyedBody);
+        assertFalse(physics.hasBody());
+
+        assertDoesNotThrow(physics::refreshPhysics);
+        assertTrue(physics.hasBody());
+        assertFalse(B2_ID_EQUALS(destroyedBody, physics.getBody()));
+    }
+
+    @Test
+    void bodyDestructionRequestedDuringStepIsDeferredAndIdempotent() {
+        TiledMap map = new TiledMap(1, 1);
+        b2WorldId physicsWorld = b2CreateWorld(b2DefaultWorldDef());
+        TiledWorld2d world = new TiledWorld2d("test", map, physicsWorld, 1, null);
+        b2BodyId body = b2CreateBody(physicsWorld, b2DefaultBodyDef());
+
+        world.beginPhysicsStep();
+        world.destroyPhysics(body);
+        world.destroyPhysics(body);
+        assertTrue(b2Body_IsValid(body));
+
+        assertDoesNotThrow(world::endPhysicsStep);
+        assertFalse(b2Body_IsValid(body));
+        b2DestroyWorld(physicsWorld);
+    }
+
+    @Test
+    void worldLifecycleMutationIsDeferredUntilTheFrameUpdateEnds() {
+        TiledWorld2dManagerComponent manager = new TiledWorld2dManagerComponent((String) null);
+        AtomicBoolean executed = new AtomicBoolean();
+
+        manager.beginWorldUpdate();
+        manager.runAfterWorldUpdate(() -> executed.set(true));
+        assertFalse(executed.get());
+
+        manager.endWorldUpdate();
+        assertTrue(executed.get());
     }
 
     @Test

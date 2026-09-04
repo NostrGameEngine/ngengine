@@ -2,8 +2,8 @@ package org.ngengine.world2d.box2d;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import org.jbox2d.collision.shapes.PolygonShape;
-import org.jbox2d.dynamics.FixtureDef;
+import org.box2d4j.b2Polygon;
+import org.box2d4j.b2Vec2;
 import org.junit.jupiter.api.Test;
 import org.ngengine.world2d.box2d.Box2dPhysicsFactory.PhysicsDef;
 import org.ngengine.world2d.tiled.core.TiledBase;
@@ -21,8 +21,8 @@ public class TestBox2dPhysicsFactory {
 
     @Test
     public void tileCollisionRectangleRotationAffectsFixtureVertices() {
-        PolygonShape unrotated = collisionShapeForTileCollision(0);
-        PolygonShape rotated = collisionShapeForTileCollision(90);
+        b2Polygon unrotated = collisionShapeForTileCollision(0);
+        b2Polygon rotated = collisionShapeForTileCollision(90);
 
         assertEquals(40f, width(unrotated), 0.001f);
         assertEquals(10f, height(unrotated), 0.001f);
@@ -30,7 +30,7 @@ public class TestBox2dPhysicsFactory {
         assertEquals(40f, height(rotated), 0.001f);
     }
 
-    private PolygonShape collisionShapeForTileCollision(float rotationDegrees) {
+    private b2Polygon collisionShapeForTileCollision(float rotationDegrees) {
         TiledMap map = new TiledMap(1, 1);
         map.setTileWidth(64);
         map.setTileHeight(64);
@@ -46,26 +46,25 @@ public class TestBox2dPhysicsFactory {
         PhysicsDef def = Box2dPhysicsFactory.createBody(new IdentityCoordinateSystem(), map, tileEntity);
         def = Box2dPhysicsFactory.createFixtures(def, new IdentityCoordinateSystem(), map, tileEntity);
         assertEquals(1, def.getFixtureDefs().size());
-        FixtureDef fixture = def.getFixtureDefs().get(0);
-        return (PolygonShape) fixture.shape;
+        return def.getFixtureDefs().get(0).getPolygon();
     }
 
-    private float width(PolygonShape shape) {
+    private float width(b2Polygon shape) {
         float min = Float.POSITIVE_INFINITY;
         float max = Float.NEGATIVE_INFINITY;
-        for (int i = 0; i < shape.m_count; i++) {
-            min = Math.min(min, shape.m_vertices[i].x);
-            max = Math.max(max, shape.m_vertices[i].x);
+        for (int i = 0; i < shape.count; i++) {
+            min = Math.min(min, shape.vertices[i].x);
+            max = Math.max(max, shape.vertices[i].x);
         }
         return max - min;
     }
 
-    private float height(PolygonShape shape) {
+    private float height(b2Polygon shape) {
         float min = Float.POSITIVE_INFINITY;
         float max = Float.NEGATIVE_INFINITY;
-        for (int i = 0; i < shape.m_count; i++) {
-            min = Math.min(min, shape.m_vertices[i].y);
-            max = Math.max(max, shape.m_vertices[i].y);
+        for (int i = 0; i < shape.count; i++) {
+            min = Math.min(min, shape.vertices[i].y);
+            max = Math.max(max, shape.vertices[i].y);
         }
         return max - min;
     }
@@ -112,7 +111,7 @@ public class TestBox2dPhysicsFactory {
         }
 
         @Override
-        public void physicsToWorldSpace(org.jbox2d.common.Vec2 physicsWorldCoords, Vector2f out) {
+        public void physicsToWorldSpace(b2Vec2 physicsWorldCoords, Vector2f out) {
             out.set(physicsWorldCoords.x, physicsWorldCoords.y);
         }
 

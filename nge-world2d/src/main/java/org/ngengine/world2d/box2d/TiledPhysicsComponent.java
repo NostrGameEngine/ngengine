@@ -32,29 +32,24 @@
 
 package org.ngengine.world2d.box2d;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.logging.Logger;
 
-import org.jbox2d.common.Vec2;
-// import org.example.Box2DPhysicsFactory;
-import org.jbox2d.dynamics.Body;
-import org.jbox2d.dynamics.BodyType;
-import org.jbox2d.dynamics.Filter;
-import org.jbox2d.dynamics.Fixture;
-import org.jbox2d.dynamics.FixtureDef;
-import org.jbox2d.dynamics.World;
+import org.box2d4j.b2BodyId;
+import org.box2d4j.b2Filter;
+import org.box2d4j.b2ShapeId;
+import org.box2d4j.b2Vec2;
+import org.box2d4j.b2WorldId;
 import org.ngengine.Components;
 import org.ngengine.components.AbstractComponent;
 import org.ngengine.components.Component;
 import org.ngengine.components.ComponentManager;
 import org.ngengine.components.fragments.LogicFragment;
-import org.ngengine.network.components.NetcodeManagerComponent;
 import org.ngengine.platform.NGEUtils;
 import org.ngengine.world2d.PropertiesKeys;
 import org.ngengine.world2d.TiledWorld2d;
 import org.ngengine.world2d.TiledWorld2dManagerComponent;
 import org.ngengine.world2d.box2d.Box2dPhysicsFactory.PhysicsDef;
+import org.ngengine.world2d.box2d.Box2dPhysicsFactory.PhysicsShapeDef;
 import org.ngengine.world2d.debug.Box2dFixtureDebugDumper;
 
 import com.jme3.math.Vector2f;
@@ -74,14 +69,16 @@ import org.ngengine.world2d.tiled.enums.ObjectShape;
 import org.ngengine.world2d.tiled.enums.Orientation;
 import org.ngengine.world2d.tiled.util.CoordinateSystem;
 
+import static org.box2d4j.B2.*;
+
 public class TiledPhysicsComponent extends AbstractComponent
         implements  LogicFragment, TiledEntityLogicFragment, TiledEntityLifecycleFragment {
 
     private final Logger logger = Logger.getLogger(TiledPhysicsComponent.class.getName());
     private static final double WARP_EPSILON = 0.0001d;
      
-    private Body body;
-    private World bodyWorld;
+    private b2BodyId body;
+    private b2WorldId bodyWorld;
 
     private Tile lastTile;
     private double entityX = Double.MIN_VALUE, entityY = Double.MIN_VALUE;
@@ -93,10 +90,8 @@ public class TiledPhysicsComponent extends AbstractComponent
 
     private PhysicsDef def;
     private final Vector2f worldPos = new Vector2f();
-    private final Vec2 tmpVec2 = new Vec2();
+    private final b2Vec2 tmpVec2 = new b2Vec2();
     private float worldRot;
-    private int collisionGroup;
-    private int collisionMask;
     private boolean debugFixturesDumped;
     private boolean collisionEnabled = true;
 
@@ -112,8 +107,8 @@ public class TiledPhysicsComponent extends AbstractComponent
     }
 
     public Vector2f getPhysicsWorldPosition(){
-        if (body != null) {
-            Vec2 v2 = body.getPosition();
+        if (hasBody()) {
+            b2Vec2 v2 = b2Body_GetPosition(body);
             worldPos.set(v2.x, v2.y);
         }
         return worldPos;
@@ -122,11 +117,8 @@ public class TiledPhysicsComponent extends AbstractComponent
     public void setPhysicsWorldPosition(Vector2f pos){
 
         this.worldPos.set(pos);
-        if (body != null) {
-            Vec2 v2 = body.getPosition();
-            v2.x = pos.x;
-            v2.y = pos.y;
-            body.setTransform(v2, body.getAngle());
+        if (hasBody()) {
+            b2Body_SetTransform(body, tmpVec2.set(pos.x, pos.y), b2Body_GetRotation(body));
         }
 
         // TiledMap tiledMap = getInstanceOf(TiledMap.class);
@@ -147,16 +139,16 @@ public class TiledPhysicsComponent extends AbstractComponent
     }
 
     public float getPhysicsWorldRotation(){
-        if (body != null) {
-            worldRot = body.getAngle();
+        if (hasBody()) {
+            worldRot = b2Rot_GetAngle(b2Body_GetRotation(body));
         }
         return worldRot;
     }
 
     public void setPhysicsWorldRotation(float rot){
         this.worldRot = rot;
-        if (body != null) {
-            body.setTransform( body.getPosition(), rot);
+        if (hasBody()) {
+            b2Body_SetTransform(body, b2Body_GetPosition(body), b2MakeRot(rot));
         }
         TiledObjectEntity entity = getInstanceOf(TiledObjectEntity.class);
         if(entity!=null){
@@ -185,7 +177,8 @@ public class TiledPhysicsComponent extends AbstractComponent
         }
         TiledWorld2d world = getInstanceOf(TiledWorld2d.class);
         TiledEntity entity = getInstanceOf(TiledEntity.class);
-        if (world == null || entity == null || world.getPhysics() == null) {
+        if (world == null || entity == null || world.getPhysics() == null
+                || !b2World_IsValid(world.getPhysics())) {
             return;
         }
         world.runAfterPhysicsStep(() -> updatePhysics(manager, world.getPhysics(), entity));
@@ -200,9 +193,13 @@ public class TiledPhysicsComponent extends AbstractComponent
      */
     public void setCollisionEnabled(boolean enabled) {
         collisionEnabled = enabled;
-        if (body != null) {
-            if (body.isActive() != enabled) {
-                body.setActive(enabled);
+        if (hasBody()) {
+            if (b2Body_IsEnabled(body) != enabled) {
+                if (enabled) {
+                    b2Body_Enable(body);
+                } else {
+                    b2Body_Disable(body);
+                }
             }
         } else if (enabled) {
             refreshPhysics();
@@ -217,45 +214,58 @@ public class TiledPhysicsComponent extends AbstractComponent
     private final Vector2f linearVelocity = new Vector2f();
 
     public Vector2f getLinearVelocity() {
-        if (body != null) {
-            Vec2 v2 = body.getLinearVelocity();
+        if (hasBody()) {
+            b2Vec2 v2 = b2Body_GetLinearVelocity(body);
             linearVelocity.set(v2.x, v2.y);
         }
         return linearVelocity;
     }
 
     public float getAngularVelocity() {
-        if (body != null) {
-            return body.getAngularVelocity();
+        if (hasBody()) {
+            return b2Body_GetAngularVelocity(body);
         }
         return 0f;
     }
 
     public void setLinearVelocity(Vector2f linearVelocity) {
-        if (body != null) {
-            Vec2 v2 = body.getLinearVelocity();
-            v2.x = linearVelocity.x;
-            v2.y = linearVelocity.y;
-            body.setLinearVelocity(v2);
+        if (hasBody()) {
+            b2Body_SetLinearVelocity(body, tmpVec2.set(linearVelocity.x, linearVelocity.y));
         }
     }
 
     public void setAngularVelocity(float angularVelocity) {
-        if (body != null) {
-            body.setAngularVelocity(angularVelocity);
+        if (hasBody()) {
+            b2Body_SetAngularVelocity(body, angularVelocity);
         }
     }
 
-    public World getBodyWorld() {
+    public b2WorldId getBodyWorld() {
         return bodyWorld;
     }
    
-    public Body getBody() {
+    public b2BodyId getBody() {
         return body;
     }
 
-    protected void updatePhysics(ComponentManager mng, World phy, TiledEntity entity ) {
+    protected void updatePhysics(ComponentManager mng, b2WorldId phy, TiledEntity entity ) {
         // World phy = world.getPhysics();
+        if (phy == null || !b2World_IsValid(phy)) {
+            body = null;
+            bodyWorld = null;
+            def = null;
+            setUpdateNeeded();
+            return;
+        }
+        if (body != null && !hasBody()) {
+            // A world/body teardown outside this component can invalidate the
+            // opaque Box2D handle while leaving the Java reference non-null.
+            // Drop every dependent handle before considering a rebuild.
+            body = null;
+            bodyWorld = null;
+            def = null;
+            setUpdateNeeded();
+        }
         
         CoordinateSystem coords = getInstanceOf(CoordinateSystem.class);
         TiledMap tiledMap = getInstanceOf(TiledMap.class);
@@ -303,22 +313,19 @@ public class TiledPhysicsComponent extends AbstractComponent
 
         if (isUpdateNeeded()) {
 
-            if(this.body!=null){
-                Fixture oldFx = this.body.getFixtureList();
-                List<Fixture> toRemove = new ArrayList<>();
-                while(oldFx!=null){
-                    toRemove.add(oldFx);
-                    oldFx = oldFx.getNext();
-                }
-                for(Fixture fx : toRemove){
-                    this.body.destroyFixture(fx);
+            if (hasBody()) {
+                int shapeCount = b2Body_GetShapeCount(body);
+                b2ShapeId[] shapes = new b2ShapeId[shapeCount];
+                b2Body_GetShapes(body, shapes, shapes.length);
+                for (b2ShapeId shape : shapes) {
+                    b2DestroyShape(shape, false);
                 }
                 debugFixturesDumped = false;
             }
 
             if(def==null) {
                 def = Box2dPhysicsFactory.createBody(coords, tiledMap, entity);
-                this.body = phy.createBody(def.getBodyDef());
+                this.body = b2CreateBody(phy, def.getBodyDef());
             }
 
            
@@ -361,11 +368,12 @@ public class TiledPhysicsComponent extends AbstractComponent
             //     }
             // }
 
-            for (FixtureDef fd : def.getFixtureDefs()) {
-                Fixture fx = this.body.createFixture(fd);
+            for (PhysicsShapeDef fd : def.getFixtureDefs()) {
+                b2ShapeId fx = fd.createShape(body);
 
-                TiledObjectEntity fxEntry = ((Box2dUserData) fx.getUserData()).getCollision();
-                TiledBase bodyEntity = ((Box2dUserData) fx.getUserData()).getEntity();
+                Box2dUserData userData = (Box2dUserData) b2Shape_GetUserData(fx);
+                TiledObjectEntity fxEntry = userData.getCollision();
+                TiledBase bodyEntity = userData.getEntity();
 
                 Object categoryBits = fxEntry.getProperty(PropertiesKeys.phy.categoryBits);
                 if (categoryBits == null) {
@@ -383,14 +391,13 @@ public class TiledPhysicsComponent extends AbstractComponent
                 }
                 if (groupIndex == null) groupIndex = "0";
 
-                Filter filterfx = new Filter();
+                b2Filter filterfx = b2Shape_GetFilter(fx);
                 
                 
-                filterfx.categoryBits = Integer.parseInt(NGEUtils.safeString(categoryBits).replace("0x", ""),
-                        16);
-                filterfx.maskBits = Integer.parseInt(NGEUtils.safeString(maskBits).replace("0x", ""), 16);
-                filterfx.groupIndex = Short.parseShort(NGEUtils.safeString(groupIndex));
-                fx.setFilterData(filterfx);                
+                filterfx.categoryBits = Long.parseUnsignedLong(stripHexPrefix(categoryBits), 16);
+                filterfx.maskBits = Long.parseUnsignedLong(stripHexPrefix(maskBits), 16);
+                filterfx.groupIndex = Integer.parseInt(NGEUtils.safeString(groupIndex));
+                b2Shape_SetFilter(fx, filterfx);
             }
 
             // if (this.body != null && this.bodyWorld != null) {
@@ -402,14 +409,18 @@ public class TiledPhysicsComponent extends AbstractComponent
             clearUpdateNeeded();
         }
 
-        if (body != null) {
-            if (body.isActive() != collisionEnabled) {
-                body.setActive(collisionEnabled);
+        if (hasBody()) {
+            if (b2Body_IsEnabled(body) != collisionEnabled) {
+                if (collisionEnabled) {
+                    b2Body_Enable(body);
+                } else {
+                    b2Body_Disable(body);
+                }
             }
             applyNetworkAuthorityBodyMode(mng, entity);
 
             double newX = 0, newY = 0, newAngle = 0;
-            boolean isDynamic = body.getType() == BodyType.DYNAMIC;
+            boolean isDynamic = b2Body_GetType(body) == b2_dynamicBody;
 
             if (entity instanceof TiledObjectEntity) {
                 TiledObjectEntity obj = (TiledObjectEntity) entity;
@@ -452,17 +463,16 @@ public class TiledPhysicsComponent extends AbstractComponent
                    coords.gridToWorldSpace(pos.x, pos.y, pos);
 
                     logger.finest("Warping physics body for entity: " + entity);
-                    Vec2 vb = body.getPosition();
-                    coords.worldToPhysicsSpace(pos, vb);
-                    body.setTransform(vb, (float) Math.toRadians(newAngle) + baseAngle);
+                    coords.worldToPhysicsSpace(pos, tmpVec2);
+                    b2Body_SetTransform(body, tmpVec2, b2MakeRot((float) Math.toRadians(newAngle) + baseAngle));
 
                     entityX = newX;
                     entityY = newY;
                     entityAngle = newAngle;
                 } else if (isDynamic) {
                     // sync entity to physics body
-                    Vec2 vb = body.getPosition();
-                    float angle = body.getAngle();
+                    b2Vec2 vb = b2Body_GetPosition(body);
+                    float angle = b2Rot_GetAngle(b2Body_GetRotation(body));
                     if (entity instanceof TiledObjectEntity) {
                         TiledObjectEntity obj = (TiledObjectEntity) entity;
                         coords.physicsToWorldSpace(vb, pos);
@@ -498,10 +508,11 @@ public class TiledPhysicsComponent extends AbstractComponent
             return;
         }
 
-        Fixture fixture = body.getFixtureList();
-        while (fixture != null) {
-            Box2dFixtureDebugDumper.dumpFixture(coords, body, fixture);
-            fixture = fixture.getNext();
+        int shapeCount = b2Body_GetShapeCount(body);
+        b2ShapeId[] shapes = new b2ShapeId[shapeCount];
+        b2Body_GetShapes(body, shapes, shapeCount);
+        for (b2ShapeId shape : shapes) {
+            Box2dFixtureDebugDumper.dumpFixture(coords, body, shape);
         }
         debugFixturesDumped = true;
     }
@@ -517,33 +528,33 @@ public class TiledPhysicsComponent extends AbstractComponent
     }
 
     private void applyNetworkAuthorityBodyMode(ComponentManager mng, TiledBase entry) {
-        if (body == null) {
+        if (!hasBody()) {
             return;
         }
-        BodyType configuredType = def != null && def.getBodyDef() != null && def.getBodyDef().type != null
+        int configuredType = def != null && def.getBodyDef() != null
             ? def.getBodyDef().type
-            : body.getType();
+            : b2Body_GetType(body);
 
 
         TiledObjectSyncComponent syncC = getInstanceOf(TiledObjectSyncComponent.class);
             
         boolean hasAuthority = syncC==null||syncC.checkAuthority();        
 
-        BodyType current = body.getType();
+        int current = b2Body_GetType(body);
         if (!hasAuthority) {
-            if (current != BodyType.STATIC && current != BodyType.KINEMATIC) {
-                body.setType(BodyType.KINEMATIC);
-                body.setLinearVelocity(new Vec2(0f, 0f));
-                body.setAngularVelocity(0f);
+            if (current != b2_staticBody && current != b2_kinematicBody) {
+                b2Body_SetType(body, b2_kinematicBody);
+                b2Body_SetLinearVelocity(body, tmpVec2.set(0f, 0f));
+                b2Body_SetAngularVelocity(body, 0f);
             }
             return;
         }
 
         // Local authority (or no network session): leave STATIC as-is,
         // but recover DYNAMIC from temporary KINEMATIC proxy mode.
-        if (current == BodyType.KINEMATIC && configuredType != BodyType.KINEMATIC) {
-            body.setType(configuredType);
-            body.setAwake(true);
+        if (current == b2_kinematicBody && configuredType != b2_kinematicBody) {
+            b2Body_SetType(body, configuredType);
+            b2Body_SetAwake(body, true);
         }
     }
 
@@ -582,12 +593,17 @@ public class TiledPhysicsComponent extends AbstractComponent
         TiledWorld2d world = getInstanceOf(TiledWorld2d.class);
         if(world!=null){
             Box2dHelper.apply(world.getPhysics(), entity);
-            updatePhysics(mng, world.getPhysics(), (TiledEntity)entity);
+            world.runAfterPhysicsStep(() -> updatePhysics(mng, world.getPhysics(), (TiledEntity) entity));
         }
     }
 
     public boolean hasBody() {
-        return this.body != null;
+        return body != null && !B2_IS_NULL(body) && b2Body_IsValid(body);
+    }
+
+    private static String stripHexPrefix(Object value) {
+        String text = NGEUtils.safeString(value);
+        return text.startsWith("0x") || text.startsWith("0X") ? text.substring(2) : text;
     }
 
     @Override

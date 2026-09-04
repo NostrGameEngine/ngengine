@@ -86,8 +86,7 @@ import java.util.logging.Logger;
 import org.ngengine.world2d.tiled.animation.AnimatedTileControl;
 import org.ngengine.world2d.tiled.components.TiledComponentManager;
 
-import org.jbox2d.collision.shapes.ShapeType;
-import org.jbox2d.common.Vec2;
+import org.box2d4j.b2Vec2;
 import org.ngengine.components.ComponentManager;
 import org.ngengine.components.ComponentManagerProvider;
 import org.ngengine.platform.NGEPlatform;
@@ -3008,15 +3007,15 @@ public abstract class MapRenderer {
         coordinateSystem.worldToPhysicsSpace(x, y, out);
     }
 
-    public Vec2 worldToPhysicsSpace(Vector2f worldCoords) {
+    public b2Vec2 worldToPhysicsSpace(Vector2f worldCoords) {
         return coordinateSystem.worldToPhysicsSpace(worldCoords);
     }
 
-    public void  physicsToWorldSpace(Vec2 physicsWorldCoords, Vector2f out){
+    public void  physicsToWorldSpace(b2Vec2 physicsWorldCoords, Vector2f out){
         coordinateSystem.physicsToWorldSpace(physicsWorldCoords, out);
     }
 
-    public Vector2f physicsToWorldSpace(Vec2 physicsWorldCoords) {
+    public Vector2f physicsToWorldSpace(b2Vec2 physicsWorldCoords) {
         return coordinateSystem.physicsToWorldSpace(physicsWorldCoords);
     }
 

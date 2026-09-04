@@ -475,7 +475,7 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
             Vector2f c = vars.vect2d;
             TiledPhysicsComponent physics = mng.getComponent(TiledPhysicsComponent.class);
             float z;
-            if (physics != null && physics.getBody() != null) {
+            if (physics != null && physics.hasBody()) {
                 Vector2f objectPositionGrid = vars.vect2d2;
                 Vector2f objectPositionWorld = vars.vect2d3;
 

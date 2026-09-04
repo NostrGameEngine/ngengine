@@ -36,22 +36,24 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.jbox2d.callbacks.ContactImpulse;
-import org.jbox2d.callbacks.ContactListener;
-import org.jbox2d.collision.Manifold;
-import org.jbox2d.common.Vec2;
-import org.jbox2d.dynamics.Fixture;
-import org.jbox2d.dynamics.World;
-import org.jbox2d.dynamics.contacts.Contact;
-import org.jbox2d.pooling.normal.DefaultWorldPool;
+import org.box2d4j.b2ContactBeginTouchEvent;
+import org.box2d4j.b2ContactEndTouchEvent;
+import org.box2d4j.b2ContactEvents;
+import org.box2d4j.b2ShapeId;
+import org.box2d4j.b2Vec2;
+import org.box2d4j.b2WorldDef;
+import org.box2d4j.b2WorldId;
 import org.ngengine.AsyncAssetManager;
 import org.ngengine.components.AbstractComponent;
 import org.ngengine.components.Component;
@@ -89,16 +91,23 @@ import org.ngengine.world2d.tiled.renderer.factory.MaterialFactory;
 import org.ngengine.world2d.tiled.renderer.factory.SpriteFactory;
 import jakarta.annotation.Nullable;
 
+import static org.box2d4j.B2.b2CreateWorld;
+import static org.box2d4j.B2.b2DefaultWorldDef;
+import static org.box2d4j.B2.b2DestroyWorld;
+import static org.box2d4j.B2.b2Shape_GetUserData;
+import static org.box2d4j.B2.b2Shape_IsValid;
+import static org.box2d4j.B2.b2World_IsValid;
+import static org.box2d4j.B2.b2World_GetContactEvents;
+import static org.box2d4j.B2.b2World_Step;
+
 /**
  * Component that manages one or more Tiled worlds
  */
 public class TiledWorld2dManagerComponent extends AbstractComponent
-        implements  RenderFragment, LogicFragment, ContactListener, AsyncAssetLoadingFragment {
+        implements RenderFragment, LogicFragment, AsyncAssetLoadingFragment {
     private static Logger logger = Logger.getLogger(TiledWorld2dManagerComponent.class.getName());
     public static final String PHYSICS_DEBUG_SETTING = "PhysicsDebug";
     private static final float SNAPSHOT_MAX_POSITION_ERROR = 0.02f;
-    private static final int DEFAULT_WORLD_POOL_SIZE = 2048;
-    private static final int DEFAULT_WORLD_POOL_CONTAINER_SIZE = 256;
     private static final MapRenderer.Listener EMPTY_RENDER_LISTENER = new MapRenderer.Listener() {
         @Override
         public void beforeMapRender(float tpf, TiledMap map) {
@@ -129,6 +138,10 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
     private Map<String, TiledWorld2d> loadedMapsRO = Collections.unmodifiableMap(loadedMaps);
     private final Map<String, TransformQuantizer> transformQuantizers = new LinkedHashMap<>();
     private final ArrayList<TiledWorld2dRenderTarget> activeRenderTargets = new ArrayList<>();
+    private final ArrayDeque<Runnable> postWorldUpdateQueue = new ArrayDeque<>();
+    private final Set<String> pendingWorldUnloads = new HashSet<>();
+    private final Set<TiledObjectEntity> updatedObjects = Collections.newSetFromMap(new IdentityHashMap<>());
+    private boolean worldUpdateInProgress;
     private List<Consumer<TiledWorld2d>> worldLoadListener = new ArrayList<>();
 
     private String defaultMapName;
@@ -234,7 +247,9 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
         if (ppm < 0) ppm = 32;
 
         SpriteFactory spriteFactory = spriteFactorySupplier.apply(getComponentManager(), map);
-        World phy = new World(new Vec2(0, 0), createWorldPool(map));
+        b2WorldDef worldDef = b2DefaultWorldDef();
+        worldDef.gravity = new b2Vec2(0f, 0f);
+        b2WorldId phy = b2CreateWorld(worldDef);
         TiledWorld2d l = new TiledWorld2d(name, map, phy, ppm, spriteFactory);
         TiledWorld2dManagerComponent world = this;
         l.listener = new MapRenderer.Listener() {
@@ -273,147 +288,6 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
             // }
 
         };
-        l.contactListener = new ContactListener(){
-
-            private TiledEntity[] tmp = new TiledEntity[4];
-            private TiledEntity[]  getTiledComponentManagers(Contact c){
-                Fixture fx = c.getFixtureA();
-
-                Object fxData = fx.getUserData();
-                Box2dUserData ud;
-                TiledEntity entity;
-                TiledEntity collision;
-
-
-                if(fxData!=null&&fxData instanceof Box2dUserData){                 
-                    ud = (Box2dUserData)fxData;
-                    entity = ud.getEntity();
-                    tmp[0] = entity;
-                    collision = ud.getCollision();
-                    tmp[2] = collision;
-                }
-
-                fx = c.getFixtureB();
-                fxData = fx.getUserData();
-
-                if(fxData!=null&&fxData instanceof Box2dUserData){                
-                    ud = (Box2dUserData) fx.getUserData();                    
-                    entity = ud.getEntity();
-                    tmp[1] = entity;
-                    collision = ud.getCollision();
-                    tmp[3] = collision;
-                }
-
-                return tmp;
-
-            }
-
-            private void clear(){
-                tmp[0] = null;
-                tmp[1] = null;
-                tmp[2] = null;
-                tmp[3] = null;
-            }
-
-            @Override
-            public void beginContact(Contact contact) {
-                TiledEntity mngs[] = getTiledComponentManagers(contact);
-                if(mngs[0] == null || mngs[1] == null)      return;
-                for(int i = 0; i< 2; i++){
-                    TiledEntity e = mngs[i];
-                    if(e!=null){
-                        TiledComponentManager mng = e.getComponentManager();
- 
-                        if(mng!=null){
-                            mng.beginContact(
-                                mngs[0], 
-                                mngs[1],
-                                (TiledObjectEntity)mngs[2],
-                                (TiledObjectEntity)mngs[3],    
-                                contact
-                            );
-                        }
-                    }
-                }
-                clear();
-                
-            }
-
-            @Override
-            public void endContact(Contact contact) {
-   
-                TiledEntity mngs[] = getTiledComponentManagers(contact);
-                if(mngs[0] == null || mngs[1] == null)      return;
-                for(int i = 0; i< 2; i++){
-                    TiledEntity e = mngs[i];
-                    if(e!=null){
-                        TiledComponentManager mng = e.getComponentManager();
-                        if(mng!=null){
-                            mng.endContact(
-                                mngs[0], 
-                                mngs[1],
-                                (TiledObjectEntity)mngs[2],
-                                (TiledObjectEntity)mngs[3],    
-                                contact
-                            );
-                        }
-                    }
-                }             
-                clear();
-            }
-
-            @Override
-            public void preSolve(Contact contact, Manifold oldManifold) {
- 
-                TiledEntity mngs[] = getTiledComponentManagers(contact);
-                if(mngs[0] == null || mngs[1] == null)      return;
-                for(int i = 0; i< 2; i++){
-                    TiledEntity e = mngs[i];
-                    if(e!=null){
-                        TiledComponentManager mng = e.getComponentManager();
-                        if(mng!=null){
-                            mng.preSolve(
-                                mngs[0], 
-                                mngs[1],
-                                (TiledObjectEntity)mngs[2],
-                                (TiledObjectEntity)mngs[3],    
-                                contact, oldManifold
-                            );
-                        }
-                    }
-                }
-
-                clear();
-            }
-
-            @Override
-            public void postSolve(Contact contact, ContactImpulse impulse) {
-             
-                TiledEntity mngs[] = getTiledComponentManagers(contact);
-                if(mngs[0] == null || mngs[1] == null)      return;
-
-                for(int i = 0; i< 2; i++){
-                    TiledEntity e = mngs[i];
-                    if(e!=null){
-                        TiledComponentManager mng = e.getComponentManager();
-                        if(mng!=null){
-                            mng.postSolve(
-                                mngs[0], 
-                                mngs[1],
-                                (TiledObjectEntity)mngs[2],
-                                (TiledObjectEntity)mngs[3],    
-                                contact, impulse
-                            );
-                        }
-                    }
-                }
-                clear();
-            }
-
-        };
-
-        phy.setContactListener(l.contactListener);
-
         loadedMaps.put(name, l);
         transformQuantizers.put(name, buildTransformQuantizer(map));
         for(Consumer<TiledWorld2d> listener : worldLoadListener){
@@ -422,18 +296,21 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
         return l;
     }
 
-    private DefaultWorldPool createWorldPool(TiledMap map) {
-        int poolSize = NGEUtils.safeInt(map.getPropertyOrDefault("physics.poolSize", String.valueOf(DEFAULT_WORLD_POOL_SIZE)));
-        int poolContainerSize = NGEUtils.safeInt(map.getPropertyOrDefault("physics.poolContainerSize", String.valueOf(DEFAULT_WORLD_POOL_CONTAINER_SIZE)));
-        poolSize = Math.max(poolSize, World.WORLD_POOL_SIZE);
-        poolContainerSize = Math.max(poolContainerSize, World.WORLD_POOL_CONTAINER_SIZE);
-        return new DefaultWorldPool(poolSize, poolContainerSize);
-    }
-
     public void unloadWorld(String name) {
         String mapNameAndPath[] = getMapNameAndPath(name);
         name = mapNameAndPath[0];
         String mapPath = mapNameAndPath[1];
+
+        if (worldUpdateInProgress) {
+            String queuedName = name;
+            if (pendingWorldUnloads.add(queuedName)) {
+                runAfterWorldUpdate(() -> {
+                    pendingWorldUnloads.remove(queuedName);
+                    unloadWorld(queuedName);
+                });
+            }
+            return;
+        }
 
         TiledWorld2d map = loadedMaps.remove(name);
         if (map != null) {
@@ -441,6 +318,9 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
             map.clearPhysicsStepState();
             disableWorldComponentManagers(map.getMap());
             map.detachRenderTargets();
+            if (map.getPhysics() != null && b2World_IsValid(map.getPhysics())) {
+                b2DestroyWorld(map.getPhysics());
+            }
         }
         AsyncAssetManager assetManager = getInstanceOf(AsyncAssetManager.class);
         if (assetManager != null) {
@@ -595,6 +475,9 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
 
     @Override
     public void updateAppLogic(ComponentManager mng, float tpf) {
+        beginWorldUpdate();
+        updatedObjects.clear();
+        try {
         Collection<TiledWorld2d> worlds = loadedMaps.values();
         RenderManager renderManager = getInstanceOf(RenderManager.class);
 
@@ -616,18 +499,16 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
                             TiledTileEntity tile = tl.getTileAt(x, y);
                             if (tile != null) {
                                 onEntityUpdate(tpf, world, layer, tile);
-                                tile.updateTileAnimation(tpf);
+                                if (tl.getTileAt(x, y) == tile) {
+                                    tile.updateTileAnimation(tpf);
+                                }
                             }
                         }
                     }
 
                 } else if (layer instanceof TiledObjectLayer) {
                     TiledObjectLayer og = (TiledObjectLayer) layer;
-                    for (TiledObjectEntity obj : og.getObjects()) {
-                        onEntityUpdate(tpf, world, layer, obj);
-                        obj.updateTileAnimation(tpf);
-                         
-                    }
+                    updateObjectLayer(tpf, world, og);
                     
                 }
             }
@@ -635,11 +516,17 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
 
         for (TiledWorld2d map : worlds) {
 
-            World physics = map.getPhysics();
+            b2WorldId physics = map.getPhysics();
+            if (physics != null && !b2World_IsValid(physics)) {
+                logger.warning("Unloading Tiled world with an invalid Box2D world handle: " + map.getName());
+                unloadWorld(map);
+                continue;
+            }
             if (physics != null) {
                 map.beginPhysicsStep();
                 try {
-                    physics.step(tpf, 8, 3);
+                    b2World_Step(physics, tpf, 8);
+                    dispatchContactEvents(map);
                 } finally {
                     map.endPhysicsStep();
                 }
@@ -673,6 +560,40 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
             AssetManager assetManager = getInstanceOf(AssetManager.class);
             Box2dDebugger.update(mainRunner, assetManager, worlds, tpf, getSettings());
         }
+        } finally {
+            endWorldUpdate();
+        }
+    }
+
+    void runAfterWorldUpdate(Runnable operation) {
+        if (operation == null) {
+            return;
+        }
+        if (!worldUpdateInProgress) {
+            operation.run();
+            return;
+        }
+        postWorldUpdateQueue.addLast(operation);
+    }
+
+    void beginWorldUpdate() {
+        worldUpdateInProgress = true;
+    }
+
+    void endWorldUpdate() {
+        worldUpdateInProgress = false;
+        flushPostWorldUpdateQueue();
+    }
+
+    private void flushPostWorldUpdateQueue() {
+        while (!postWorldUpdateQueue.isEmpty()) {
+            Runnable operation = postWorldUpdateQueue.pollFirst();
+            try {
+                operation.run();
+            } catch (RuntimeException exception) {
+                logger.log(Level.SEVERE, "Post-world-update operation failed", exception);
+            }
+        }
     }
  
 
@@ -681,24 +602,77 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
         return new TiledWorld2dManagerComponent(defaultMapName, spriteFactorySupplier);
     }
 
-    @Override
-    public void beginContact(Contact contact) {
+    private final TiledEntity[] contactEntities = new TiledEntity[4];
 
+    private void dispatchContactEvents(TiledWorld2d world) {
+        b2ContactEvents events = b2World_GetContactEvents(world.getPhysics());
+        for (int i = 0; i < events.beginCount; i++) {
+            b2ContactBeginTouchEvent event = events.beginEvents[i];
+            if (resolveContactEntities(event.shapeIdA, event.shapeIdB)) {
+                dispatchBeginContact(event);
+            }
+            clearContactEntities();
+        }
+        for (int i = 0; i < events.endCount; i++) {
+            b2ContactEndTouchEvent event = events.endEvents[i];
+            if (resolveContactEntities(event.shapeIdA, event.shapeIdB)) {
+                dispatchEndContact(event);
+            }
+            clearContactEntities();
+        }
     }
 
-    @Override
-    public void endContact(Contact contact) {
-
+    private boolean resolveContactEntities(b2ShapeId shapeA, b2ShapeId shapeB) {
+        resolveContactEntity(shapeA, 0, 2);
+        resolveContactEntity(shapeB, 1, 3);
+        return contactEntities[0] != null && contactEntities[1] != null;
     }
 
-    @Override
-    public void preSolve(Contact contact, Manifold oldManifold) {
-
+    private void resolveContactEntity(b2ShapeId shapeId, int entityIndex, int collisionIndex) {
+        Object userData = getShapeUserDataIfValid(shapeId);
+        if (userData instanceof Box2dUserData) {
+            Box2dUserData data = (Box2dUserData) userData;
+            contactEntities[entityIndex] = data.getEntity();
+            contactEntities[collisionIndex] = data.getCollision();
+        }
     }
 
-    @Override
-    public void postSolve(Contact contact, ContactImpulse impulse) {
+    static Object getShapeUserDataIfValid(b2ShapeId shapeId) {
+        // Box2D can report an end-contact event for a shape that was destroyed
+        // during the same step. Its ID is useful as an event token but must not
+        // be dereferenced after destruction.
+        if (shapeId == null || !b2Shape_IsValid(shapeId)) {
+            return null;
+        }
+        return b2Shape_GetUserData(shapeId);
+    }
 
+    private void dispatchBeginContact(b2ContactBeginTouchEvent event) {
+        for (int i = 0; i < 2; i++) {
+            TiledComponentManager manager = contactEntities[i].getComponentManager();
+            if (manager != null) {
+                manager.beginContact(contactEntities[0], contactEntities[1],
+                        (TiledObjectEntity) contactEntities[2],
+                        (TiledObjectEntity) contactEntities[3], event);
+            }
+        }
+    }
+
+    private void dispatchEndContact(b2ContactEndTouchEvent event) {
+        for (int i = 0; i < 2; i++) {
+            TiledComponentManager manager = contactEntities[i].getComponentManager();
+            if (manager != null) {
+                manager.endContact(contactEntities[0], contactEntities[1],
+                        (TiledObjectEntity) contactEntities[2],
+                        (TiledObjectEntity) contactEntities[3], event);
+            }
+        }
+    }
+
+    private void clearContactEntities() {
+        for (int i = 0; i < contactEntities.length; i++) {
+            contactEntities[i] = null;
+        }
     }
 
     private void updateParent(TiledMap map, TiledLayer layer, TiledEntity entity) {
@@ -749,6 +723,23 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
             // cm.setParent( getParentManager(map, layer));
             updateParent(map, layer, entity);
             cm.update(lmap, map, layer, entity, tpf);
+        }
+    }
+
+    void updateObjectLayer(float tpf, TiledWorld2d world, TiledObjectLayer layer) {
+        for (TiledObjectEntity object : layer.getObjects()) {
+            // SafeArrayList iterators intentionally retain a stable snapshot. An
+            // entity removed by an earlier component update can therefore still
+            // occur later in this traversal. Do not update (and consequently
+            // re-enable) a component manager after its entity was detached or
+            // moved to another layer during the same frame.
+            if (object.getObjectGroup() != layer || !updatedObjects.add(object)) {
+                continue;
+            }
+            onEntityUpdate(tpf, world, layer, object);
+            if (object.getObjectGroup() == layer) {
+                object.updateTileAnimation(tpf);
+            }
         }
     }
 

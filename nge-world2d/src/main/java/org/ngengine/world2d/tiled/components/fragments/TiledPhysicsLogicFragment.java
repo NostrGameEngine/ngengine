@@ -32,10 +32,8 @@
 
 package org.ngengine.world2d.tiled.components.fragments;
 
-import org.jbox2d.callbacks.ContactImpulse;
-import org.jbox2d.collision.Manifold;
-import org.jbox2d.dynamics.World;
-import org.jbox2d.dynamics.contacts.Contact;
+import org.box2d4j.b2ContactBeginTouchEvent;
+import org.box2d4j.b2ContactEndTouchEvent;
 import org.ngengine.components.ComponentManager;
 import org.ngengine.components.fragments.Fragment;
 
@@ -54,7 +52,7 @@ public interface TiledPhysicsLogicFragment extends Fragment{
         TiledBase collider,
         @Nullable TiledObjectEntity entityCollisionObject,
         @Nullable TiledObjectEntity colliderCollisionObject,
-        Contact contact
+        b2ContactBeginTouchEvent contact
     );
 	
 	/**
@@ -67,55 +65,7 @@ public interface TiledPhysicsLogicFragment extends Fragment{
         TiledBase collider,
         @Nullable TiledObjectEntity entityCollisionObject,
         @Nullable TiledObjectEntity colliderCollisionObject,
-        Contact contact
+        b2ContactEndTouchEvent contact
     );
-	
-	/**
-	 * This is called after a contact is updated. This allows you to inspect a
-	 * contact before it goes to the solver. If you are careful, you can modify the
-	 * contact manifold (e.g. disable contact).
-	 * A copy of the old manifold is provided so that you can detect changes.
-	 * Note: this is called only for awake bodies.
-	 * Note: this is called even when the number of contact points is zero.
-	 * Note: this is not called for sensors.
-	 * Note: if you set the number of contact points to zero, you will not
-	 * get an EndContact callback. However, you may get a BeginContact callback
-	 * the next step.
-	 * Note: the oldManifold parameter is pooled, so it will be the same object for every callback
-	 * for each thread.
-	 * @param contact
-	 * @param oldManifold
-	 */
-	public void beforeTiledPhysicsSolve(
-        ComponentManager mng,
-        TiledBase entity,
-        TiledBase collider,
-        @Nullable TiledObjectEntity entityCollisionObject,
-        @Nullable TiledObjectEntity colliderCollisionObject,    
-        Contact contact, Manifold oldManifold
-    );
-	
-	/**
-	 * This lets you inspect a contact after the solver is finished. This is useful
-	 * for inspecting impulses.
-	 * Note: the contact manifold does not include time of impact impulses, which can be
-	 * arbitrarily large if the sub-step is small. Hence the impulse is provided explicitly
-	 * in a separate data structure.
-	 * Note: this is only called for contacts that are touching, solid, and awake.
-	 * @param contact
-	 * @param impulse this is usually a pooled variable, so it will be modified after
-	 * this call
-	 */
-	public void afterTiledPhysicsSolve(
-        ComponentManager mng,
-        TiledBase entity,
-        TiledBase collider,
-        @Nullable TiledObjectEntity entityCollisionObject,
-        @Nullable TiledObjectEntity colliderCollisionObject,    
-        Contact contact, ContactImpulse impulse
-    );
-
-
-    // public void updateTiledPhysicsLogicAsync(ComponentManager mng, float tpf, World physics);
 
 }

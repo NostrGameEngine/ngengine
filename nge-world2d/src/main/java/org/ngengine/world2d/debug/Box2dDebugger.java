@@ -1,35 +1,10 @@
 /**
  * Copyright (c) 2025-2026, Nostr Game Engine
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- * 
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- * 
- * 3. Neither the name of the copyright holder nor the names of its
- *    contributors may be used to endorse or promote products derived from
- *    this software without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
- * Nostr Game Engine is a fork of the jMonkeyEngine, which is licensed under
- * the BSD 3-Clause License. 
+ * modification, are permitted provided that the conditions in the project
+ * license are met.
  */
-
 package org.ngengine.world2d.debug;
 
 import java.util.ArrayList;
@@ -37,171 +12,170 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
-import org.jbox2d.collision.shapes.CircleShape;
-import org.jbox2d.collision.shapes.PolygonShape;
-import org.jbox2d.collision.shapes.Shape;
-import org.jbox2d.common.Vec2;
-import org.jbox2d.dynamics.Body;
-import org.jbox2d.dynamics.BodyType;
-import org.jbox2d.dynamics.Fixture;
-import org.jbox2d.dynamics.World;
+import org.box2d4j.b2DebugDraw;
+import org.box2d4j.b2Transform;
+import org.box2d4j.b2Vec2;
+import org.box2d4j.b2WorldId;
 import org.ngengine.config.NGEAppSettings;
 import org.ngengine.runner.Runner;
 import org.ngengine.world2d.TiledWorld2d;
+import org.ngengine.world2d.tiled.renderer.shape.Polyline;
+import org.ngengine.world2d.tiled.util.CoordinateSystem;
 
 import com.jme3.asset.AssetManager;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.FastMath;
-import com.jme3.math.Quaternion;
 import com.jme3.math.Vector2f;
 import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
-import com.jme3.util.TempVars;
 
-import org.ngengine.world2d.tiled.renderer.shape.Polyline;
-import org.ngengine.world2d.tiled.renderer.shape.Rect;
-import org.ngengine.world2d.tiled.util.CoordinateSystem;
+import static org.box2d4j.B2.b2TransformPoint;
+import static org.box2d4j.B2.b2World_Draw;
 
-public class Box2dDebugger {
+/** Draws Box2D4J shapes through the engine's regular scene graph. */
+public final class Box2dDebugger {
+    private static final Map<b2WorldId, Node> nodes = new HashMap<>();
 
-    
-    private static Map<World,Node> nodes = new HashMap<>();
-    private static final Set<World> dumpedFixtureWorlds = ConcurrentHashMap.newKeySet();
+    private Box2dDebugger() {
+    }
 
-    public static Node getDebugNode(World world) {
+    public static Node getDebugNode(b2WorldId world) {
         return nodes.get(world);
     }
 
-
-    public static void update(Runner mainRunner, AssetManager assetManager,
-            Collection<TiledWorld2d> tworlds, float tpf) {
-        update(mainRunner, assetManager, tworlds, tpf, null);
+    public static void update(
+            Runner mainRunner,
+            AssetManager assetManager,
+            Collection<TiledWorld2d> worlds,
+            float tpf) {
+        update(mainRunner, assetManager, worlds, tpf, null);
     }
 
-    public static void update(Runner mainRunner, AssetManager assetManager,
-            Collection<TiledWorld2d> tworlds, float tpf, NGEAppSettings settings) {
-        Map<World,Node> newNodes = new HashMap<>(); // TODO: in multithreading use ConcurrentHashMap
-        for (TiledWorld2d tworld : tworlds) {
-            CoordinateSystem coords = tworld.getCoordinateSystem();
-            World world = tworld.getPhysics();
-            boolean dumpFixtures = shouldDumpFixtures(world, settings);
-            Node rootNode = new Node("DebugPhysicsWorld_" + System.currentTimeMillis());
-            newNodes.put(world, rootNode);
-            Body body = world.getBodyList();
-            while (body != null) {
-                try (TempVars vars = TempVars.get()) {
-                    Vector2f pos = vars.vect2d;
-                    Rect mesh = new Rect(10f, 10f, false);
-                    Geometry geom = new Geometry("DebugPhysicsBody", mesh);
-                    Material mat = new Material(assetManager, com.jme3.material.Materials.UNSHADED);
-                    mat.setColor("Color", ColorRGBA.Red);
-                    mat.getAdditionalRenderState().setDepthTest(false);
-                    mat.getAdditionalRenderState().setDepthWrite(false);
-                    geom.setMaterial(mat);
+    public static void update(
+            Runner mainRunner,
+            AssetManager assetManager,
+            Collection<TiledWorld2d> worlds,
+            float tpf,
+            NGEAppSettings settings) {
+        Map<b2WorldId, Node> updatedNodes = new HashMap<>();
+        for (TiledWorld2d tiledWorld : worlds) {
+            b2WorldId world = tiledWorld.getPhysics();
+            CoordinateSystem coordinates = tiledWorld.getCoordinateSystem();
+            Node root = new Node("DebugPhysicsWorld");
+            root.setQueueBucket(Bucket.Translucent);
+            updatedNodes.put(world, root);
 
-                    Node debugNode = new Node("BodyNode"+body.hashCode());
-                    debugNode.attachChild(geom);
-                    debugNode.setQueueBucket(Bucket.Translucent);
-                    rootNode.attachChild(debugNode);
-
-                    Fixture fixture = body.getFixtureList();
-                    while (fixture != null) {
-                        Shape shape = fixture.getShape();
-                        if (dumpFixtures) {
-                            Box2dFixtureDebugDumper.dumpFixture(coords, body, fixture);
-                        }
-                        Geometry geometry = null;
-                        if (shape instanceof PolygonShape) {
-                            PolygonShape poly = (PolygonShape) shape;
-                            int count = poly.getVertexCount();
-                            List<Vector2f> vertices = new ArrayList<>(count);
-                            for (int i = 0; i < count; i++) {
-                                Vec2 vec = body.getWorldPoint(poly.getVertex(i));
-                                coords.physicsToWorldSpace(vec, pos);
-                                Vector2f v = new Vector2f(pos.x, pos.y);
-                                vertices.add(v);
-                            }
-                            Polyline m = new Polyline(vertices, true);
-                            geometry = new Geometry("Polygon", m);
-
-                        } else if (shape instanceof CircleShape) {
-                            CircleShape cir = (CircleShape) shape;
-                            Vec2 vec = new Vec2(cir.m_radius, cir.m_radius);
-                            coords.physicsToWorldSpace(vec, pos);
-
-                            float radius = Math.max(pos.x, pos.y);
-                            vec = body.getWorldPoint(cir.m_p);
-                            coords.physicsToWorldSpace(vec, pos);
-
-                            int segments = 16;
-                            List<Vector2f> vertices = new ArrayList<>(segments);
-                            for (int i = 0; i < segments; i++) {
-                                float angle = ((float) i / (float) segments) * FastMath.TWO_PI;
-                                float x = pos.x + FastMath.cos(angle) * radius;
-                                float y = pos.y + FastMath.sin(angle) * radius;
-                                Vector2f v = new Vector2f(x, y);
-                                vertices.add(v);
-                            }
-                            Polyline m = new Polyline(vertices, true);
-                            geometry = new Geometry("Circle", m);
-                        }
-
-                        if (geometry != null) {
-                            Material material = new Material(assetManager,
-                                    com.jme3.material.Materials.UNSHADED);
-                            if (fixture.isSensor()) {
-                                material.setColor("Color", ColorRGBA.Magenta);
-                            } else {
-                                if (body.getType() == BodyType.STATIC) {
-                                    material.setColor("Color",
-                                            body.isAwake() ? ColorRGBA.White : ColorRGBA.Gray);
-                                } else {
-                                    material.setColor("Color",
-                                            body.isAwake() ? ColorRGBA.Yellow : ColorRGBA.Orange);
-                                }
-                            }
-                            material.getAdditionalRenderState().setDepthTest(false);
-                            material.getAdditionalRenderState().setDepthWrite(false);
-                            geometry.setMaterial(material);
-                            debugNode.attachChild(geometry);
-                        }
-                        fixture = fixture.getNext();
-                    }
-          
- 
-                    debugNode.setLocalTranslation(0, 0, 0);
-                    debugNode.setLocalRotation(Quaternion.IDENTITY);
-                }
-
-                body = body.getNext();
-            }
-
-
-            
-
+            b2DebugDraw draw = createDebugDraw(root, assetManager, coordinates);
+            draw.drawShapes = true;
+            draw.drawJoints = true;
+            b2World_Draw(world, draw);
         }
 
-        // TODO: if multithreading is implemented, this should run in runner
         nodes.clear();
-        nodes.putAll(newNodes);
-
-        for(Node node: nodes.values()) {
-          node.updateLogicalState(tpf);
+        nodes.putAll(updatedNodes);
+        for (Node node : nodes.values()) {
+            node.updateLogicalState(tpf);
             node.updateGeometricState();
         }
-
     }
 
-    private static boolean shouldDumpFixtures(World world, NGEAppSettings settings) {
-        if (!Box2dFixtureDebugDumper.isEnabled(settings)) {
-            return false;
+    private static b2DebugDraw createDebugDraw(
+            Node root,
+            AssetManager assetManager,
+            CoordinateSystem coordinates) {
+        b2DebugDraw draw = new b2DebugDraw();
+        draw.DrawPolygonFcn = (vertices, count, color) -> attachPolyline(
+                root, assetManager, coordinates, vertices, count, null, true, color);
+        draw.DrawSolidPolygonFcn = (transform, vertices, count, radius, color) -> attachPolyline(
+                root, assetManager, coordinates, vertices, count, transform, true, color);
+        draw.DrawCircleFcn = (center, radius, color) -> attachCircle(
+                root, assetManager, coordinates, center, radius, color);
+        draw.DrawSolidCircleFcn = (transform, radius, color) -> attachCircle(
+                root, assetManager, coordinates, transform.p, radius, color);
+        draw.DrawSolidCapsuleFcn = (p1, p2, radius, color) -> {
+            attachSegment(root, assetManager, coordinates, p1, p2, color);
+            attachCircle(root, assetManager, coordinates, p1, radius, color);
+            attachCircle(root, assetManager, coordinates, p2, radius, color);
+        };
+        draw.DrawSegmentFcn = (p1, p2, color) -> attachSegment(
+                root, assetManager, coordinates, p1, p2, color);
+        return draw;
+    }
+
+    private static void attachPolyline(
+            Node root,
+            AssetManager assetManager,
+            CoordinateSystem coordinates,
+            b2Vec2[] vertices,
+            int count,
+            b2Transform transform,
+            boolean closed,
+            int color) {
+        List<Vector2f> converted = new ArrayList<>(count);
+        Vector2f world = new Vector2f();
+        for (int i = 0; i < count; i++) {
+            b2Vec2 point = transform == null ? vertices[i] : b2TransformPoint(transform, vertices[i]);
+            coordinates.physicsToWorldSpace(point, world);
+            converted.add(world.clone());
         }
-        return dumpedFixtureWorlds.add(world);
+        attach(root, assetManager, new Polyline(converted, closed), color);
     }
 
+    private static void attachCircle(
+            Node root,
+            AssetManager assetManager,
+            CoordinateSystem coordinates,
+            b2Vec2 center,
+            float radius,
+            int color) {
+        int segments = 16;
+        b2Vec2 point = new b2Vec2();
+        Vector2f world = new Vector2f();
+        List<Vector2f> vertices = new ArrayList<>(segments);
+        for (int i = 0; i < segments; i++) {
+            float angle = ((float) i / segments) * FastMath.TWO_PI;
+            point.set(
+                    center.x + FastMath.cos(angle) * radius,
+                    center.y + FastMath.sin(angle) * radius);
+            coordinates.physicsToWorldSpace(point, world);
+            vertices.add(world.clone());
+        }
+        attach(root, assetManager, new Polyline(vertices, true), color);
+    }
+
+    private static void attachSegment(
+            Node root,
+            AssetManager assetManager,
+            CoordinateSystem coordinates,
+            b2Vec2 p1,
+            b2Vec2 p2,
+            int color) {
+        Vector2f world = new Vector2f();
+        List<Vector2f> vertices = new ArrayList<>(2);
+        coordinates.physicsToWorldSpace(p1, world);
+        vertices.add(world.clone());
+        coordinates.physicsToWorldSpace(p2, world);
+        vertices.add(world.clone());
+        attach(root, assetManager, new Polyline(vertices, false), color);
+    }
+
+    private static void attach(Node root, AssetManager assetManager, Polyline mesh, int packedColor) {
+        Geometry geometry = new Geometry("DebugPhysicsShape", mesh);
+        Material material = new Material(assetManager, com.jme3.material.Materials.UNSHADED);
+        material.setColor("Color", unpackColor(packedColor));
+        material.getAdditionalRenderState().setDepthTest(false);
+        material.getAdditionalRenderState().setDepthWrite(false);
+        geometry.setMaterial(material);
+        root.attachChild(geometry);
+    }
+
+    private static ColorRGBA unpackColor(int color) {
+        float r = ((color >>> 16) & 0xFF) / 255f;
+        float g = ((color >>> 8) & 0xFF) / 255f;
+        float b = (color & 0xFF) / 255f;
+        return new ColorRGBA(r, g, b, 1f);
+    }
 }

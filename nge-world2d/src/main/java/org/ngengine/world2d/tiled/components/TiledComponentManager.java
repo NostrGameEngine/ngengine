@@ -35,10 +35,9 @@ package org.ngengine.world2d.tiled.components;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import org.jbox2d.callbacks.ContactImpulse;
-import org.jbox2d.collision.Manifold;
-import org.jbox2d.dynamics.World;
-import org.jbox2d.dynamics.contacts.Contact;
+import org.box2d4j.b2ContactBeginTouchEvent;
+import org.box2d4j.b2ContactEndTouchEvent;
+import org.box2d4j.b2WorldId;
 import org.ngengine.components.AbstractComponentManager;
 import org.ngengine.components.Component;
 import org.ngengine.components.ComponentMount;
@@ -106,7 +105,7 @@ public class TiledComponentManager extends AbstractComponentManager {
             // go through TiledWorld2dRenderTarget.
             return null;
         }
-        if (type == World.class) {
+        if (type == b2WorldId.class) {
             if (loadedMap != null) {
                 return type.cast(loadedMap.getPhysics());
             } else {
@@ -246,7 +245,7 @@ public class TiledComponentManager extends AbstractComponentManager {
 
     public void beginContact(TiledBase entityA, TiledBase entityB,
             @Nullable TiledObjectEntity colliderA, @Nullable TiledObjectEntity colliderB,
-            Contact contact) {
+            b2ContactBeginTouchEvent contact) {
         TiledBase thisEntity = getInstanceOf(TiledBase.class);
         if (entityA != thisEntity && entityB != thisEntity) return;
         if (thisEntity != entityA) {
@@ -270,7 +269,7 @@ public class TiledComponentManager extends AbstractComponentManager {
     }
 
     public void endContact(TiledBase entityA, TiledBase entityB, @Nullable TiledObjectEntity colliderA,
-            @Nullable TiledObjectEntity colliderB, Contact contact) {
+            @Nullable TiledObjectEntity colliderB, b2ContactEndTouchEvent contact) {
         TiledBase thisEntity = getInstanceOf(TiledBase.class);
         if (entityA != thisEntity && entityB != thisEntity) return;
         if (thisEntity != entityA) {
@@ -290,55 +289,6 @@ public class TiledComponentManager extends AbstractComponentManager {
 
                 physicsMng.afterTiledPhysicsContact(this, cmp, entityA, entityB, colliderA, colliderB,
                         contact);
-            }
-        }
-    }
-
-    public void preSolve(TiledBase entityA, TiledBase entityB, @Nullable TiledObjectEntity colliderA,
-            @Nullable TiledObjectEntity colliderB, Contact contact, Manifold oldManifold) {
-        TiledBase thisEntity = getInstanceOf(TiledBase.class);
-        if (entityA != thisEntity && entityB != thisEntity) return;
-        if (thisEntity != entityA) {
-            TiledBase temp = entityA;
-            entityA = entityB;
-            entityB = temp;
-
-            TiledObjectEntity tempC = colliderA;
-            colliderA = colliderB;
-            colliderB = tempC;
-        }
-        for (ComponentMount mount : this.componentMounts) {
-            if (!mount.enabled) continue;
-            Component cmp = mount.component;
-
-            for (TiledPhysicsUpdater physicsMng : physicsManagers) {
-
-                physicsMng.beforeTiledPhysicsSolve(this, cmp, entityA, entityB, colliderA, colliderB, contact,
-                        oldManifold);
-            }
-        }
-    }
-
-    public void postSolve(TiledBase entityA, TiledBase entityB, @Nullable TiledObjectEntity colliderA,
-            @Nullable TiledObjectEntity colliderB, Contact contact, ContactImpulse impulse) {
-        TiledBase thisEntity = getInstanceOf(TiledBase.class);
-        if (entityA != thisEntity && entityB != thisEntity) return;
-        if (thisEntity != entityA) {
-            TiledBase temp = entityA;
-            entityA = entityB;
-            entityB = temp;
-
-            TiledObjectEntity tempC = colliderA;
-            colliderA = colliderB;
-            colliderB = tempC;
-        }
-        for (ComponentMount mount : this.componentMounts) {
-            if (!mount.enabled) continue;
-            Component cmp = mount.component;
-            for (TiledPhysicsUpdater physicsMng : physicsManagers) {
-
-                physicsMng.afterTiledPhysicsSolve(this, cmp, entityA, entityB, colliderA, colliderB, contact,
-                        impulse);
             }
         }
     }

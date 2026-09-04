@@ -10,12 +10,12 @@ package org.ngengine.world2d.debug;
 
 import java.util.Locale;
 
-import org.jbox2d.collision.shapes.CircleShape;
-import org.jbox2d.collision.shapes.PolygonShape;
-import org.jbox2d.collision.shapes.Shape;
-import org.jbox2d.common.Vec2;
-import org.jbox2d.dynamics.Body;
-import org.jbox2d.dynamics.Fixture;
+import org.box2d4j.b2BodyId;
+import org.box2d4j.b2Circle;
+import org.box2d4j.b2Polygon;
+import org.box2d4j.b2ShapeId;
+import org.box2d4j.b2Transform;
+import org.box2d4j.b2Vec2;
 import org.ngengine.config.NGEAppSettings;
 import org.ngengine.world2d.box2d.Box2dUserData;
 import org.ngengine.world2d.tiled.core.TiledEntity;
@@ -24,6 +24,8 @@ import org.ngengine.world2d.tiled.core.tileset.Tile;
 import org.ngengine.world2d.tiled.util.CoordinateSystem;
 
 import com.jme3.math.Vector2f;
+
+import static org.box2d4j.B2.*;
 
 public final class Box2dFixtureDebugDumper {
     public static final String SETTING = "PhysicsFixtureDebug";
@@ -41,16 +43,16 @@ public final class Box2dFixtureDebugDumper {
         return settings != null && settings.getBoolean(SETTING, false);
     }
 
-    public static void dumpFixture(CoordinateSystem coords, Body body, Fixture fixture) {
-        Shape shape = fixture.getShape();
-        Bounds bounds = worldBounds(coords, body, shape);
+    public static void dumpFixture(CoordinateSystem coords, b2BodyId body, b2ShapeId fixture) {
+        int shapeType = b2Shape_GetType(fixture);
+        Bounds bounds = worldBounds(coords, body, fixture, shapeType);
         System.out.println(String.format(
                 Locale.ROOT,
                 "[Box2DPhysicsFixture] body=%s fixture=%s sensor=%s type=%s bounds=[%.2f,%.2f]-[%.2f,%.2f] %s",
                 Integer.toHexString(System.identityHashCode(body)),
                 Integer.toHexString(System.identityHashCode(fixture)),
-                fixture.isSensor(),
-                shape.getType(),
+                b2Shape_IsSensor(fixture),
+                shapeType,
                 bounds.minX,
                 bounds.minY,
                 bounds.maxX,
@@ -58,24 +60,25 @@ public final class Box2dFixtureDebugDumper {
                 sourceSummary(fixture)));
     }
 
-    private static Bounds worldBounds(CoordinateSystem coords, Body body, Shape shape) {
+    private static Bounds worldBounds(CoordinateSystem coords, b2BodyId body, b2ShapeId shape, int shapeType) {
         Bounds bounds = new Bounds();
-        Vec2 physics = new Vec2();
+        b2Transform transform = b2Body_GetTransform(body);
+        b2Vec2 physics;
         Vector2f world = new Vector2f();
 
-        if (shape instanceof PolygonShape) {
-            PolygonShape poly = (PolygonShape) shape;
-            for (int i = 0; i < poly.getVertexCount(); i++) {
-                body.getWorldPointToOut(poly.getVertex(i), physics);
+        if (shapeType == b2_polygonShape) {
+            b2Polygon poly = b2Shape_GetPolygon(shape);
+            for (int i = 0; i < poly.count; i++) {
+                physics = b2TransformPoint(transform, poly.vertices[i]);
                 coords.physicsToWorldSpace(physics, world);
                 bounds.include(world.x, world.y);
             }
-        } else if (shape instanceof CircleShape) {
-            CircleShape cir = (CircleShape) shape;
-            body.getWorldPointToOut(cir.m_p, physics);
+        } else if (shapeType == b2_circleShape) {
+            b2Circle cir = b2Shape_GetCircle(shape);
+            physics = b2TransformPoint(transform, cir.center);
             coords.physicsToWorldSpace(physics, world);
 
-            Vec2 radiusPhysics = new Vec2(cir.m_radius, cir.m_radius);
+            b2Vec2 radiusPhysics = new b2Vec2(cir.radius, cir.radius);
             Vector2f radiusWorld = new Vector2f();
             coords.physicsToWorldSpace(radiusPhysics, radiusWorld);
             float radius = Math.max(Math.abs(radiusWorld.x), Math.abs(radiusWorld.y));
@@ -85,8 +88,8 @@ public final class Box2dFixtureDebugDumper {
         return bounds;
     }
 
-    private static String sourceSummary(Fixture fixture) {
-        Object userData = fixture.getUserData();
+    private static String sourceSummary(b2ShapeId fixture) {
+        Object userData = b2Shape_GetUserData(fixture);
         if (!(userData instanceof Box2dUserData)) {
             return "source=" + userData;
         }

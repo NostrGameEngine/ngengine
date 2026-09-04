@@ -10,9 +10,9 @@ package org.ngengine.world2d.box2d;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.jbox2d.dynamics.Body;
-import org.jbox2d.dynamics.BodyType;
-import org.jbox2d.dynamics.contacts.Contact;
+import org.box2d4j.b2BodyId;
+import org.box2d4j.b2ContactData;
+import org.box2d4j.b2Vec2;
 import org.ngengine.Components;
 import org.ngengine.components.AbstractComponent;
 import org.ngengine.components.ComponentManager;
@@ -23,6 +23,8 @@ import org.ngengine.world2d.tiled.components.fragments.TiledEntityLogicFragment;
 import org.ngengine.world2d.tiled.core.TiledBase;
 
 import com.jme3.math.FastMath;
+
+import static org.box2d4j.B2.*;
 
 /**
  * Plays short positional scrape samples while a dynamic Tiled body moves in
@@ -55,6 +57,15 @@ public class TiledPhysicsDragSoundComponent extends AbstractComponent implements
     private float interval;
     private float pitchVariation;
     private TiledSoundsComponent sounds;
+    private b2ContactData[] contactData = new b2ContactData[0];
+
+    @Override
+    protected void onAttached() {
+        ComponentManager manager = getComponentManager();
+        if (manager != null && manager.getComponent(TiledSoundsComponent.class) == null) {
+            Components.mount(manager, new TiledSoundsComponent()).enable();
+        }
+    }
 
     @Override
     protected void onEnable(ComponentManager mng, boolean firstTime) {
@@ -71,7 +82,12 @@ public class TiledPhysicsDragSoundComponent extends AbstractComponent implements
         );
         sounds = Components.get(mng, TiledSoundsComponent.class).get();
         if (sounds == null) {
-            sounds = Components.mount(mng, new TiledSoundsComponent()).enable().get();
+            Components.mount(mng, new TiledSoundsComponent()).enable();
+            return;
+        }
+        if (sounds.getComponentManager() == null) {
+            sounds = null;
+            return;
         }
         for (String path : paths) {
             configure(sounds.get(path));
@@ -92,11 +108,12 @@ public class TiledPhysicsDragSoundComponent extends AbstractComponent implements
             return;
         }
         TiledPhysicsComponent physics = getInstanceOf(TiledPhysicsComponent.class);
-        Body body = physics != null ? physics.getBody() : null;
+        b2BodyId body = physics != null ? physics.getBody() : null;
         if (body == null
-                || !body.isActive()
-                || body.getType() != BodyType.DYNAMIC
-                || body.getLinearVelocity().lengthSquared() < minSpeedSquared
+                || !b2Body_IsValid(body)
+                || !b2Body_IsEnabled(body)
+                || b2Body_GetType(body) != b2_dynamicBody
+                || lengthSquared(b2Body_GetLinearVelocity(body)) < minSpeedSquared
                 || !hasTouchingContact(body)) {
             return;
         }
@@ -118,16 +135,32 @@ public class TiledPhysicsDragSoundComponent extends AbstractComponent implements
         return sound;
     }
 
-    private boolean hasTouchingContact(Body body) {
-        for (org.jbox2d.dynamics.contacts.ContactEdge edge = body.getContactList();
-                edge != null;
-                edge = edge.next) {
-            Contact contact = edge.contact;
-            if (contact != null && contact.isTouching()) {
+    private boolean hasTouchingContact(b2BodyId body) {
+        int capacity = b2Body_GetContactCapacity(body);
+        ensureContactCapacity(capacity);
+        int count = b2Body_GetContactData(body, contactData, capacity);
+        for (int i = 0; i < count; i++) {
+            if (contactData[i].manifold.pointCount > 0) {
                 return true;
             }
         }
         return false;
+    }
+
+    private void ensureContactCapacity(int capacity) {
+        if (contactData.length >= capacity) {
+            return;
+        }
+        b2ContactData[] expanded = new b2ContactData[capacity];
+        System.arraycopy(contactData, 0, expanded, 0, contactData.length);
+        for (int i = contactData.length; i < expanded.length; i++) {
+            expanded[i] = new b2ContactData();
+        }
+        contactData = expanded;
+    }
+
+    private static float lengthSquared(b2Vec2 value) {
+        return value.x * value.x + value.y * value.y;
     }
 
     private void parsePaths(String value) {

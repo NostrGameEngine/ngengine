@@ -14,6 +14,7 @@ import org.ngengine.world2d.tiled.components.fragments.TiledEntityLogicFragment;
 import org.ngengine.world2d.tiled.core.TiledBase;
 import org.ngengine.world2d.tiled.core.entity.TiledObjectEntity;
 import org.ngengine.world2d.tiled.util.CoordinateSystem;
+import org.box2d4j.b2Vec2;
 
 import com.jme3.app.Application;
 import com.jme3.audio.AudioListenerState;
@@ -21,7 +22,8 @@ import com.jme3.audio.Listener;
 import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
-import org.jbox2d.common.Vec2;
+
+import static org.box2d4j.B2.b2Body_GetPosition;
 
 /**
  * Anchors the application audio listener to a Tiled object in physics space.
@@ -80,8 +82,8 @@ public class TiledAudioListenerComponent extends AbstractComponent
         }
 
         TiledPhysicsComponent physics = getInstanceOf(TiledPhysicsComponent.class);
-        if (physics != null && physics.getBody() != null) {
-            Vec2 center = physics.getBody().getWorldCenter();
+        if (physics != null && physics.hasBody()) {
+            b2Vec2 center = b2Body_GetPosition(physics.getBody());
             physicsPosition.set(center.x, center.y);
         } else {
             coordinates.getCenterInGridSpace(entity, gridPosition);

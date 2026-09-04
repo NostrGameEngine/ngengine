@@ -34,7 +34,10 @@ package org.ngengine.world2d.box2d;
 
 import java.util.List;
 
-import org.jbox2d.dynamics.World;
+import org.box2d4j.b2WorldId;
+import org.box2d4j.b2BodyId;
+import org.box2d4j.b2JointId;
+import org.box2d4j.b2ShapeId;
 import org.ngengine.Components;
 
 import org.ngengine.world2d.tiled.core.TiledLayer;
@@ -48,7 +51,30 @@ import org.ngengine.world2d.tiled.core.entity.TiledTileEntity;
 import org.ngengine.world2d.tiled.core.tileset.Tile;
 import org.ngengine.world2d.tiled.enums.ObjectShape;
 
+import static org.box2d4j.B2.b2World_IsValid;
+
 public class Box2dHelper {
+    public static boolean sameBody(b2BodyId first, b2BodyId second) {
+        return first == second || first != null && second != null
+                && first.index1 == second.index1
+                && first.world0 == second.world0
+                && first.generation == second.generation;
+    }
+
+    public static boolean sameShape(b2ShapeId first, b2ShapeId second) {
+        return first == second || first != null && second != null
+                && first.index1 == second.index1
+                && first.world0 == second.world0
+                && first.generation == second.generation;
+    }
+
+    public static boolean sameJoint(b2JointId first, b2JointId second) {
+        return first == second || first != null && second != null
+                && first.index1 == second.index1
+                && first.world0 == second.world0
+                && first.generation == second.generation;
+    }
+
     public static boolean isPhysicsEnabled(TiledObjectEntity object) {
         Object physics = object.getProperty("physics");
         if (physics instanceof Boolean) {
@@ -74,14 +100,14 @@ public class Box2dHelper {
         return false;
     }
 
-    public static void applyControl(TiledEntity entity,  World phy) {
+    public static void applyControl(TiledEntity entity, b2WorldId phy) {
         if (!Components.has(entity, TiledPhysicsComponent.class)) {
             TiledPhysicsComponent phyComp = new TiledPhysicsComponent();
             Components.mount(entity, phyComp).enable();
         }
     }
 
-    public static void applyToLayer(TiledLayer entity,  World phy) {
+    public static void applyToLayer(TiledLayer entity, b2WorldId phy) {
         if (entity instanceof TiledTileLayer) {
             TiledTileLayer layer = (TiledTileLayer) entity;
             for (int y = 0; y < layer.getHeight(); y++) {
@@ -113,9 +139,9 @@ public class Box2dHelper {
         }
     }
 
-    public static void apply(World phy, TiledBase entity) {
+    public static void apply(b2WorldId phy, TiledBase entity) {
 
-        if (phy != null) {
+        if (phy != null && b2World_IsValid(phy)) {
             if (entity instanceof TiledMap) {
                 List<TiledLayer> layers = ((TiledMap) entity).getLayers();
                 for (int i = 0; i < layers.size(); i++) {

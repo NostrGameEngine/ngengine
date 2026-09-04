@@ -44,10 +44,9 @@ import java.util.WeakHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.jbox2d.callbacks.ContactListener;
-import org.jbox2d.dynamics.Body;
-import org.jbox2d.dynamics.World;
-import org.jbox2d.dynamics.joints.Joint;
+import org.box2d4j.b2BodyId;
+import org.box2d4j.b2JointId;
+import org.box2d4j.b2WorldId;
 import org.ngengine.components.ComponentManager;
 import org.ngengine.components.ComponentManagerProvider;
 
@@ -61,6 +60,11 @@ import org.ngengine.world2d.tiled.util.CoordinateSystem;
 import org.ngengine.world2d.tiled.util.TiledCoordinateSystem;
 import jakarta.annotation.Nullable;
 
+import static org.box2d4j.B2.b2Body_IsValid;
+import static org.box2d4j.B2.b2DestroyBody;
+import static org.box2d4j.B2.b2DestroyJoint;
+import static org.box2d4j.B2.b2Joint_IsValid;
+
 /**
  * A tiled world instance, contains everything needed to render the world, its 
  * scenegraph, physics and tiled map data.
@@ -69,19 +73,18 @@ public class TiledWorld2d implements ComponentManagerProvider {
     private static final Logger logger = Logger.getLogger(TiledWorld2d.class.getName());
     private final String name;
     private final TiledMap map;
-    private final World physics;
+    private final b2WorldId physics;
     private final int ppm;
     private final SpriteFactory spriteFactory;
     private final TiledCoordinateSystem coordinateSystem;
     private final Map<PovRenderer, TiledWorld2dRenderTarget> renderTargets = new WeakHashMap<>();
     protected MapRenderer.Listener listener;
-    protected ContactListener contactListener;
     protected Collection<PovRenderer> povRenderers = new WeakCollection<>();
     protected Collection<PovRenderer> povRenderersRO = Collections.unmodifiableCollection(povRenderers);
     private final Deque<Runnable> postPhysicsStepQueue = new ArrayDeque<>();
     private boolean physicsStepInProgress;
     
-    TiledWorld2d(String name, TiledMap map, World physics, int ppm, SpriteFactory spriteFactory) {
+    TiledWorld2d(String name, TiledMap map, b2WorldId physics, int ppm, SpriteFactory spriteFactory) {
         this.name = name;
         this.map = map;
         this.physics = physics;
@@ -97,15 +100,6 @@ public class TiledWorld2d implements ComponentManagerProvider {
      */
     public MapRenderer.Listener getRenderListener(){
         return listener;
-    }
-
-    /**
-     * Returns the Box2D contact listener installed for this world.
-     *
-     * @return the contact listener, or {@code null} when none has been installed
-     */
-    public ContactListener getContactListener(){
-        return contactListener;
     }
 
     /**
@@ -194,7 +188,7 @@ public class TiledWorld2d implements ComponentManagerProvider {
      *
      * @return the physics world
      */
-    public World getPhysics() {
+    public b2WorldId getPhysics() {
         return physics;
     }
 
@@ -364,14 +358,13 @@ public class TiledWorld2d implements ComponentManagerProvider {
      *
      * @param body the body to destroy, ignored when {@code null}
      */
-    public void destroyPhysics(@Nullable Body body) {
+    public void destroyPhysics(@Nullable b2BodyId body) {
         if (body == null) {
             return;
         }
         runAfterPhysicsStep(() -> {
-            World bodyWorld = body.getWorld();
-            if (bodyWorld != null) {
-                bodyWorld.destroyBody(body);
+            if (b2Body_IsValid(body)) {
+                b2DestroyBody(body);
             }
         });
     }
@@ -381,17 +374,13 @@ public class TiledWorld2d implements ComponentManagerProvider {
      *
      * @param joint the joint to destroy, ignored when {@code null}
      */
-    public void destroyPhysics(@Nullable Joint joint) {
+    public void destroyPhysics(@Nullable b2JointId joint) {
         if (joint == null) {
             return;
         }
         runAfterPhysicsStep(() -> {
-            World jointWorld = joint.getBodyA() != null ? joint.getBodyA().getWorld() : null;
-            if (jointWorld == null && joint.getBodyB() != null) {
-                jointWorld = joint.getBodyB().getWorld();
-            }
-            if (jointWorld != null) {
-                jointWorld.destroyJoint(joint);
+            if (b2Joint_IsValid(joint)) {
+                b2DestroyJoint(joint);
             }
         });
     }

@@ -32,7 +32,7 @@
 
 package org.ngengine.world2d.tiled.util;
 
-import org.jbox2d.common.Vec2;
+import org.box2d4j.b2Vec2;
 
 import com.jme3.math.Vector2f;
 import com.jme3.util.TempVars;
@@ -79,7 +79,7 @@ public final class TiledCoordinateSystem implements CoordinateSystem {
     private boolean staggerEven;
     private int staggerIndex;
     private double layerDistance = 16f;
-    private final Vec2 physicsTmp = new Vec2();
+    private final b2Vec2 physicsTmp = new b2Vec2();
 
     /**
      * Creates the coordinate system matching a map orientation.
@@ -276,7 +276,7 @@ public final class TiledCoordinateSystem implements CoordinateSystem {
     }
 
     @Override
-    public void physicsToWorldSpace(Vec2 physicsWorldCoords, Vector2f out) {
+    public void physicsToWorldSpace(b2Vec2 physicsWorldCoords, Vector2f out) {
         out.x = physicsWorldCoords.x * ppm;
         out.y = physicsWorldCoords.y * ppm;
     }
