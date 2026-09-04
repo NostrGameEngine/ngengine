@@ -297,6 +297,7 @@ subprojects {
 }
 
 def nativeImagePluginBuild = gradle.includedBuild('jme3-nativeimage-plugin')
+def basisPluginBuild = gradle.includedBuild('jme3-basis-plugin')
 def nativeImagePluginPublishTasks = [
         publish                                      : ':publish',
         publishToMavenLocal                         : ':publishToMavenLocal',
@@ -317,6 +318,7 @@ subprojects {
         String includedTaskPath = nativeImagePluginPublishTasks[task.name]
         if (includedTaskPath != null) {
             task.dependsOn nativeImagePluginBuild.task(includedTaskPath)
+            task.dependsOn basisPluginBuild.task(includedTaskPath)
         }
     }
 }
@@ -330,6 +332,7 @@ gradle.projectsEvaluated {
         def rootTask = tasks.findByName(rootTaskName)
         if (rootTask != null) {
             rootTask.dependsOn nativeImagePluginBuild.task(includedTaskPath)
+            rootTask.dependsOn basisPluginBuild.task(includedTaskPath)
         }
     }
 }

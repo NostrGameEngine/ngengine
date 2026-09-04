@@ -1,5 +1,6 @@
 pluginManagement {
     includeBuild 'jme3-nativeimage-plugin'
+    includeBuild 'jme3-basis-plugin'
     repositories {
         mavenCentral()
         gradlePluginPortal()

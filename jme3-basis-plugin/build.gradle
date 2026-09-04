@@ -1,0 +1,157 @@
+plugins {
+    id 'java-gradle-plugin'
+    id 'maven-publish'
+    id 'signing'
+    id 'io.github.gradle-nexus.publish-plugin' version '2.0.0'
+}
+
+def rootProperties = new Properties()
+file('../gradle.properties').withInputStream {
+    rootProperties.load(it)
+}
+
+ext {
+    jmeVersion = findProperty('jmeVersion') ?: rootProperties.getProperty('jmeVersion')
+    jmeVersionName = findProperty('jmeVersionName') ?: rootProperties.getProperty('jmeVersionName', '')
+    useCommitHashAsVersionName = findProperty('useCommitHashAsVersionName') ?: rootProperties.getProperty('useCommitHashAsVersionName', 'false')
+    includeBranchInVersion = findProperty('includeBranchInVersion') ?: rootProperties.getProperty('includeBranchInVersion', 'false')
+    includeTimestampInVersion = findProperty('includeTimestampInVersion') ?: rootProperties.getProperty('includeTimestampInVersion', 'false')
+}
+
+apply from: file('../version.gradle')
+
+group = 'org.ngengine'
+version = jmeFullVersion
+def basisEncoderVersion = findProperty('basisEncoderVersion')
+        ?: (version.toString().endsWith('-SNAPSHOT') ? '1.0.0-SNAPSHOT' : '1.0.0')
+
+nexusPublishing {
+    repositories {
+        sonatype {
+            nexusUrl.set(uri('https://ossrh-staging-api.central.sonatype.com/service/local/'))
+            snapshotRepositoryUrl.set(uri('https://central.sonatype.com/repository/maven-snapshots/'))
+            username = findProperty('sonatypeUsername') ?: findProperty('centralUsername') ?: 'Unknown user'
+            password = findProperty('sonatypePassword') ?: findProperty('centralPassword') ?: 'Unknown password'
+            packageGroup = 'org.ngengine'
+        }
+    }
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url = uri('https://central.sonatype.com/repository/maven-snapshots/') }
+}
+
+dependencies {
+    implementation gradleApi()
+    implementation "org.ngengine.basis:basis-gradle-plugin:${basisEncoderVersion}"
+
+    testImplementation platform('org.junit:junit-bom:5.10.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation gradleTestKit()
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+java {
+    withSourcesJar()
+    withJavadocJar()
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+gradlePlugin {
+    website = 'https://ngengine.org'
+    vcsUrl = 'https://github.com/riccardobl/ngengine'
+    plugins {
+        tiledBasisTextureEncoder {
+            id = 'org.ngengine.tiled-basis-texture-encoder'
+            displayName = 'Nostr Game Engine Tiled Basis Texture Encoder'
+            description = 'Encodes ordinary textures and Tiled atlas tilesets as mipmapped Basis Universal texture arrays.'
+            implementationClass = 'org.ngengine.gradle.basis.NgeBasisTextureEncoderPlugin'
+            tags.set(['ngengine', 'basis-universal', 'ktx2', 'tiled', 'texture-array'])
+        }
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+}
+
+publishing {
+    publications.withType(MavenPublication).configureEach {
+        pom {
+            name = 'Nostr Game Engine Tiled Basis Texture Encoder Gradle Plugin'
+            description = 'Build-time Basis Universal and KTX2 encoding with automatic Tiled atlas texture-array generation.'
+            url = 'https://ngengine.org'
+            inceptionYear = '2026'
+            scm {
+                url = 'https://github.com/riccardobl/ngengine'
+                connection = 'scm:git:git://github.com/riccardobl/ngengine.git'
+                developerConnection = 'scm:git:git@github.com:riccardobl/ngengine.git'
+            }
+            licenses {
+                license {
+                    name = 'New BSD (3-clause) License'
+                    url = 'http://opensource.org/licenses/BSD-3-Clause'
+                    distribution = 'repo'
+                }
+            }
+            developers {
+                developer {
+                    id = 'ngengine'
+                    name = 'Nostr Game Engine Team'
+                }
+                developer {
+                    id = 'jMonkeyEngine'
+                    name = 'jMonkeyEngine Team'
+                }
+            }
+        }
+    }
+
+    repositories {
+        maven {
+            name = 'Dist'
+            url = file('../dist/maven')
+        }
+        maven {
+            credentials {
+                username = hasProperty('centralUsername') ? centralUsername : 'Unknown user'
+                password = hasProperty('centralPassword') ? centralPassword : 'Unknown password'
+            }
+            name = 'Central'
+            url = 'https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/'
+        }
+        maven {
+            credentials {
+                username = hasProperty('centralUsername') ? centralUsername : 'Unknown user'
+                password = hasProperty('centralPassword') ? centralPassword : 'Unknown password'
+            }
+            name = 'SNAPSHOT'
+            url = 'https://central.sonatype.com/repository/maven-snapshots/'
+        }
+    }
+}
+
+tasks.register('install') {
+    dependsOn 'publishToMavenLocal'
+}
+
+signing {
+    def signingKey = gradle.rootProject.findProperty('signingKey')
+    def signingPassword = gradle.rootProject.findProperty('signingPassword')
+    useInMemoryPgpKeys(signingKey, signingPassword)
+    sign publishing.publications
+}
+
+tasks.withType(Sign).configureEach {
+    onlyIf { gradle.rootProject.hasProperty('signingKey') }
+}
