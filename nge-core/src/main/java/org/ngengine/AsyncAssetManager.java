@@ -47,7 +47,6 @@ import com.jme3.audio.AudioKey;
 import com.jme3.font.BitmapFont;
 import com.jme3.material.Material;
 import com.jme3.post.FilterPostProcessor;
-import com.jme3.renderer.Caps;
 import com.jme3.scene.Spatial;
 import com.jme3.shader.ShaderGenerator;
 import com.jme3.texture.Texture;
@@ -62,6 +61,10 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import java.util.Collection;
+import com.jme3.renderer.Caps;
+import java.util.Set;
 
 import org.ngengine.runner.MainThreadRunner;
 import org.ngengine.runner.PassthroughRunner;
@@ -108,6 +111,16 @@ public class AsyncAssetManager implements AssetManager, Closeable {
     protected AsyncAssetManager(AssetManager assetManager, Runner callbackRunner) {
         this.assetManager = assetManager;
         this.callbackRunner = callbackRunner;
+    }
+
+    @Override
+    public void setRendererCaps(Collection<Caps> caps) {
+        assetManager.setRendererCaps(caps);
+    }
+
+    @Override
+    public Set<Caps> getRendererCaps() {
+        return assetManager.getRendererCaps();
     }
 
     public <T> void runInLoaderThread(Function<AsyncAssetManager, T> function, BiConsumer<T, Throwable> callback) {
