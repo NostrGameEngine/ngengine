@@ -829,7 +829,11 @@ public class NavigatorLayerTest {
 
         assertEquals(true, navigator.isHardwareCursor());
         assertEquals(true, navigator.isCursorVisible());
+        assertEquals(true, navigator.isCursorActive());
         assertNull(navigator.getCursor());
+
+        navigator.update(15.1f);
+        assertEquals(true, navigator.isCursorActive());
 
         navigator.setSimulateCursor(true);
         assertEquals(true, navigator.updateSimulatedCursorPosition(10, 20));

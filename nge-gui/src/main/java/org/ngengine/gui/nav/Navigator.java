@@ -189,11 +189,15 @@ public class Navigator implements GuiContextHandler, NavigatorListenerProvider {
     public void setCursor(boolean visible) {
         if (visible) {
             cursorEnabled = true;
-            cursorActive = false;
+            // A native cursor does not need the activity-driven lifetime used
+            // by the simulated cursor. Hiding it while an interactive window
+            // is open can also request pointer lock on browser backends.
+            cursorActive = cursorHardware;
             simulatedCursorActive = false;
             cursorIdleTime = 0f;
             if (cursorHardware) {
                 setCursorSpatial(null);
+                cursorActive = true;
             } else {
                 setCursorSpatial(createDefaultCursor());
             }
@@ -448,7 +452,7 @@ public class Navigator implements GuiContextHandler, NavigatorListenerProvider {
     }
 
     public void update(float tpf) {
-        if (cursorActive && cursorAutoHideDelay >= 0f) {
+        if (cursorActive && !cursorHardware && cursorAutoHideDelay >= 0f) {
             cursorIdleTime += Math.max(tpf, 0f);
             if (cursorIdleTime >= cursorAutoHideDelay) {
                 cursorActive = false;

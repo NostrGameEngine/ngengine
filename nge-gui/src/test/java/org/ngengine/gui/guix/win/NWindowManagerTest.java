@@ -67,6 +67,21 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class NWindowManagerTest {
 
     @Test
+    public void unregisterClosesGuiContextExplicitly() {
+        initializeGui();
+        ViewPort vp = new ViewPort("gui-explicit-cleanup", new Camera(800, 600));
+        Node guiNode = new Node("GuiNode");
+        guiNode.setQueueBucket(Bucket.Gui);
+        vp.attachScene(guiNode);
+        GuiContext context = NGEGui.register(vp, true);
+
+        NGEGui.unregister(vp);
+
+        assertTrue(context.isClosed());
+        assertFalse(NGEGui.isRegistered(vp));
+    }
+
+    @Test
     public void closingWindowTwiceNotifiesHideOnce() {
         TestWindowManager manager = newManager("gui-idempotent-close");
         TestWindow window = manager.showWindow(TestWindow.class);
@@ -86,6 +101,23 @@ public class NWindowManagerTest {
         window.close();
 
         assertEquals(1, hides.get());
+    }
+
+    @Test
+    public void fitContentWindowUsesItsCalculatedSizeAtTheGuiRoot() {
+        TestWindowManager manager = newManager("gui-fit-content-window");
+        Node guiNode = (Node) manager.getContext().getGuiNode();
+        FitContentWindow window = manager.showWindow(FitContentWindow.class);
+
+        for (int i = 0; i < 4; i++) {
+            guiNode.updateLogicalState(0.016f);
+            guiNode.updateGeometricState();
+        }
+
+        assertTrue(window.getSize().x >= 320f);
+        assertTrue(window.getSize().y >= 200f);
+        assertTrue(window.getSize().x < manager.getLogicalWidth());
+        assertTrue(window.getSize().y < manager.getLogicalHeight());
     }
 
     @Test
@@ -338,7 +370,7 @@ public class NWindowManagerTest {
     }
 
     @Test
-    public void hardwareCursorVisibilityFollowsNavigatorActivity() throws Exception {
+    public void hardwareCursorRemainsVisibleWhileWindowIsInteractive() throws Exception {
         initializeGui();
 
         ViewPort vp = new ViewPort("gui-hardware-cursor-autohide", new Camera(800, 600));
@@ -357,14 +389,14 @@ public class NWindowManagerTest {
         component.setInteractionEnabled(true);
         manager.showWindow(TestWindow.class);
 
-        assertFalse(component.physicalCursorVisible);
+        assertTrue(component.physicalCursorVisible);
 
         assertTrue(navigator.updateCursorPosition(10, 20));
         component.updateAppLogic(null, 0);
         assertTrue(component.physicalCursorVisible);
 
         component.updateAppLogic(null, 15.1f);
-        assertFalse(component.physicalCursorVisible);
+        assertTrue(component.physicalCursorVisible);
 
         assertTrue(navigator.updateCursorPosition(30, 40));
         component.updateAppLogic(null, 0);
@@ -683,6 +715,19 @@ public class NWindowManagerTest {
     public static class TestWindow extends NWindow<Void> {
         @Override
         protected void compose(Vector3f size, Void args) throws Throwable {
+        }
+    }
+
+    public static class FitContentWindow extends NWindow<Void> {
+        public FitContentWindow() {
+            setSize(new Vector3f(800f, 600f, 0f));
+        }
+
+        @Override
+        protected void compose(Vector3f size, Void args) throws Throwable {
+            setWithTitleBar(false);
+            setFitContent(true);
+            getContent().setPreferredSize(320f, 200f);
         }
     }
 

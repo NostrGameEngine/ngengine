@@ -50,8 +50,6 @@ import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.ngengine.platform.NGEPlatform;
-
 import com.jme3.asset.AssetManager;
 import com.jme3.bounding.BoundingBox;
 import com.jme3.bounding.BoundingSphere;
@@ -78,7 +76,7 @@ import org.ngengine.gui.nav.FocusTarget;
 import org.ngengine.gui.nav.Navigator;
 import org.ngengine.gui.nav.PopupHandler;
 
-public class GuiContext {
+public class GuiContext implements Closeable {
     private final static Logger log = Logger.getLogger(GuiContext.class.getName());
     private static final float PICK_DISTANCE_EPSILON = 0.001f;
 
@@ -93,6 +91,7 @@ public class GuiContext {
     private InputDevice inputDevice;
     private float inputCoordinateWidth = -1f;
     private float inputCoordinateHeight = -1f;
+    private boolean closed;
 
     public static interface GuiContextHandler extends Closeable{
         public void update( float tpf );
@@ -138,24 +137,44 @@ public class GuiContext {
         this.optionPanelHandler = new OptionPanelState(popupHandler);
         this.gammaEnabled = sRGB;
         setupGuiComparators();
-        NGEPlatform.get().registerFinalizer(vp, () -> {
-            try{
-                this.popupHandler.close();
-            }catch(Exception e){
-                log.log(Level.WARNING, "Error closing popup handler", e);
-            }
-            try{
-                this.animationHandler.close();
-            }catch(Exception e){
-                log.log(Level.WARNING, "Error closing animation handler", e);
-            }
-            try{
-                this.navigator.close();
-            }catch(Exception e){
-                log.log(Level.WARNING, "Error closing navigator", e);
-            }
-        });
+    }
 
+    /**
+     * Releases the handlers owned by this GUI context. GUI teardown is explicit
+     * because finalizer callbacks may run between frames and must not mutate the
+     * active window stack.
+     */
+    @Override
+    public void close() {
+        if (closed) {
+            return;
+        }
+        closed = true;
+        inputOwners.clear();
+        try {
+            popupHandler.close();
+        } catch (Exception error) {
+            log.log(Level.WARNING, "Error closing popup handler", error);
+        }
+        try {
+            animationHandler.close();
+        } catch (Exception error) {
+            log.log(Level.WARNING, "Error closing animation handler", error);
+        }
+        try {
+            navigator.close();
+        } catch (Exception error) {
+            log.log(Level.WARNING, "Error closing navigator", error);
+        }
+        try {
+            imeComposer.close();
+        } catch (Exception error) {
+            log.log(Level.WARNING, "Error closing IME composer", error);
+        }
+    }
+
+    public boolean isClosed() {
+        return closed;
     }
 
     public OptionPanelState getOptionPanelHandler() {
@@ -367,10 +386,12 @@ public class GuiContext {
     }
 
     public void onDisabled() {
+        if (closed) return;
         navigator.unfocus(navigator.getFocus());
     }
 
     public void update(float tpf) {
+        if (closed) return;
         navigator.update(tpf);
         popupHandler.update(tpf);
         animationHandler.update(tpf);

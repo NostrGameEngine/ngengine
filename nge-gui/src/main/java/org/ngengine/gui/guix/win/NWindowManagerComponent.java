@@ -332,9 +332,9 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
     public NWindowManager closeManager(NWindowManager manager) {
         manager.closeAll();
         manager.clearBackground();
-        NGEGui.unregister(manager.getViewPort());
         manager.setInputHandler(null);
         windowManagers.remove(manager);
+        NGEGui.unregister(manager.getViewPort());
         return manager;
     }
     
@@ -567,13 +567,13 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
         interactionActive = false;
         lastInputDevice = null;
         setPhysicalCursorVisible(false);
-        for(NWindowManager manager : windowManagers) {
+        for(NWindowManager manager : new ArrayList<>(windowManagers)) {
             manager.closeAll();
             manager.clearBackground();
             manager.setInputHandler(null);
+            windowManagers.remove(manager);
             NGEGui.unregister(manager.getViewPort());
         }
-        windowManagers.clear();
         if (defaultGuiViewPort != null) {
             ViewPortManager vpm = getInstanceOf(ViewPortManager.class);
             if (vpm != null) {

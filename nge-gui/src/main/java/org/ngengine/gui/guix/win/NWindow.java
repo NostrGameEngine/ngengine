@@ -312,6 +312,10 @@ public abstract class NWindow<T> extends Container implements GuiUpdateListener,
             setPreferredSize(new Vector3f(w, h, 0));
         } else {
             setPreferredSize(null);
+            // Top-level windows have no parent layout to apply their preferred
+            // size. A web viewport can also assign the full canvas size before
+            // composition, so fit-content must replace the actual size too.
+            setSize(getPreferredSize());
         }
         return true;
     }

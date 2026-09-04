@@ -323,7 +323,7 @@ public class NGEGui {
         if (vp == null) return;
         Map<ViewPort, GuiContext> contexts = contextsThreadLocal.get();
         GuiContext s = contexts.remove(vp);
-        if (s != null) s.onDisabled();
+        if (s != null) s.close();
     }
 
     public static GuiContext get(Spatial sp) {
