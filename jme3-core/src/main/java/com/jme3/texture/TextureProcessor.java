@@ -55,6 +55,8 @@ public class TextureProcessor implements AssetProcessor {
                 img.setData(3, pos_y);
             }
             tex = new TextureCubeMap();
+        } else if (texKey.getTextureTypeHint() == Texture.Type.TwoDimensionalArray) {
+            tex = new TextureArray();
         } else if (texKey.getTextureTypeHint() == Texture.Type.ThreeDimensional) {
             tex = new Texture3D();
         } else {
