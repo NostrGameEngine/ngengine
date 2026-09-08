@@ -181,10 +181,17 @@ jobs:
           NGE_USE_SNAPSHOT_DEPENDENCIES: ${{ github.ref == 'refs/heads/next2' || github.base_ref == 'next2' }}
         run: |
           # Normal build plus ZIP distribution and merged javadoc
-          ./gradlew -PuseCommitHashAsVersionName=true \
-          -PuseSnapshotDependencies="$NGE_USE_SNAPSHOT_DEPENDENCIES" \
-          -x checkstyleMain -x checkstyleTest \
-          build mergedJavadoc
+          for attempt in 1 2 3; do
+            if ./gradlew -PuseCommitHashAsVersionName=true \
+              -PuseSnapshotDependencies="$NGE_USE_SNAPSHOT_DEPENDENCIES" \
+              -x checkstyleMain -x checkstyleTest build mergedJavadoc; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            sleep $((attempt * 30))
+          done
 
           if [ "${{ matrix.deploy }}" = "true" ] && [ "$NGE_CAN_PUBLISH" = "true" ];
           then
