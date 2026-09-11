@@ -32,9 +32,10 @@
 package com.jme3.util.struct.fields;
 
 import com.jme3.math.Matrix3f;
+import com.jme3.util.struct.MutableStructField;
 import com.jme3.util.struct.StructField;
 
-public class Matrix3fField extends StructField<Matrix3f> {
+public class Matrix3fField extends StructField<Matrix3f> implements MutableStructField<Matrix3f> {
 
     public Matrix3fField(int position, String name, Matrix3f value) {
         super(position, name, value);
@@ -45,8 +46,16 @@ public class Matrix3fField extends StructField<Matrix3f> {
      * 
      * @return
      */
+    @Override
     public Matrix3f getValueForUpdate() {
         isUpdateNeeded = true;
         return value;
+    }
+
+    @Override
+    public void setToZero() {
+        if (!valueEquals(Matrix3f.ZERO)) {
+            getValueForUpdate().set(Matrix3f.ZERO);
+        }
     }
 }

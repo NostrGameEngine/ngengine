@@ -1,5 +1,6 @@
 package com.jme3.util;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -11,6 +12,7 @@ import java.nio.ByteBuffer;
 
 import com.jme3.export.binary.BinaryExporter;
 import com.jme3.export.binary.BinaryImporter;
+import com.jme3.math.Matrix3f;
 import com.jme3.shader.bufferobject.BufferObject;
 import com.jme3.shader.bufferobject.BufferRegion;
 import com.jme3.shader.bufferobject.DirtyRegionsIterator;
@@ -313,5 +315,71 @@ public class StructTest {
         assertEquals(19, bo.getRegion(2).getEnd());
         assertEquals(20, bo.getRegion(3).getStart());
         assertEquals(31, bo.getRegion(3).getEnd());
+    }
+
+    @Test
+    public void testSetToZeroResetsEveryField() {
+        TestStruct test = new TestStruct();
+        for (StructField<?> field : StructUtils.getFields(test)) {
+            field.setToZero();
+        }
+
+        assertEquals(0, test.intField0.getValue());
+        assertEquals(0f, test.floatField1.getValue());
+        assertArrayEquals(new Float[] { 0f, 0f, 0f }, test.floatFieldArray2.getValue());
+        assertEquals(Boolean.FALSE, test.boolField6.getValue());
+        assertEquals(0, test.structField3.getValue().subIntField0.getValue());
+        assertEquals(0f, test.structField3.getValue().subFloatField1.getValue());
+        for (SubStruct sub : test.structArrayField5.getValue()) {
+            assertEquals(0, sub.subIntField0.getValue());
+            assertEquals(0f, sub.subFloatField1.getValue());
+        }
+    }
+
+    @Test
+    public void testSetToZeroOnNestedStructFields() {
+        TestStruct test = new TestStruct();
+
+        test.structField3.setToZero();
+        assertEquals(0, test.structField3.getValue().subIntField0.getValue());
+        assertEquals(0f, test.structField3.getValue().subFloatField1.getValue());
+
+        test.structArrayField5.setToZero();
+        for (SubStruct sub : test.structArrayField5.getValue()) {
+            assertEquals(0, sub.subIntField0.getValue());
+            assertEquals(0f, sub.subFloatField1.getValue());
+        }
+    }
+
+    @Test
+    public void testSetToZeroOnlyMarksChangedFields() {
+        TestStruct test = new TestStruct();
+        for (StructField<?> field : StructUtils.getFields(test)) {
+            field.setToZero();
+            field.clearUpdateNeeded();
+        }
+
+        for (StructField<?> field : StructUtils.getFields(test)) {
+            field.setToZero();
+            assertFalse(field.isUpdateNeeded(), field.getName() + " is already zero");
+        }
+    }
+
+    @Test
+    public void testMatrixArrayFieldHoldsZeroMatrices() {
+        Matrix3fArrayField field = new Matrix3fArrayField(0, "matrices", 2);
+        assertEquals(Matrix3f.ZERO, field.getValue()[0]);
+        assertEquals(Matrix3f.ZERO, field.getValue()[1]);
+
+        field.getValueForUpdate()[0].set(new Matrix3f(1f, 2f, 3f, 4f, 5f, 6f, 7f, 8f, 9f));
+        field.clearUpdateNeeded();
+        field.setToZero();
+
+        assertEquals(Matrix3f.ZERO, field.getValue()[0]);
+        assertTrue(field.isUpdateNeeded());
+
+        field.clearUpdateNeeded();
+        field.setToZero();
+        assertFalse(field.isUpdateNeeded());
     }
 }

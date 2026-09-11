@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2024 jMonkeyEngine
+ * Copyright (c) 2009-2026 jMonkeyEngine
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -20,7 +20,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -29,55 +29,19 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package com.jme3.util.struct.fields;
+package com.jme3.util.struct;
 
-import java.util.Arrays;
-
-import com.jme3.math.Vector4f;
-import com.jme3.util.struct.MutableStructField;
-import com.jme3.util.struct.StructField;
-
-public class Vector4fArrayField extends StructField<Vector4f[]> implements MutableStructField<Vector4f[]> {
-    
-    public Vector4fArrayField(int position, String name, Vector4f[] value) {
-        super(position, name, value);
-        initializeToZero();
-    }
-
-    public Vector4fArrayField(int position, String name, int length) {
-        super(position, name, new Vector4f[length]);
-        initializeToZero();
-    }
-
-    private void initializeToZero() {
-        for (int i = 0; i < value.length; i++) {
-            if (value[i] == null) value[i] = new Vector4f();
-        }
-    }
+/**
+ * A {@link StructField} whose value can be replaced.
+ *
+ * @param <T> the field value type
+ */
+public interface ValueStructField<T> {
 
     /**
-     * Get value and mark field for update
-     * 
-     * @return
+     * Replaces the field value and marks this field as needing an update.
+     *
+     * @param value the new value
      */
-    @Override
-    public Vector4f[] getValueForUpdate() {
-        isUpdateNeeded = true;
-        return value;
-    }
-
-    @Override
-    public boolean valueEquals(Object candidate) {
-        return candidate instanceof Vector4f[] && Arrays.equals(value, (Vector4f[]) candidate);
-    }
-
-    @Override
-    public void setToZero() {
-        for (int i = 0; i < value.length; i++) {
-            if (!Vector4f.ZERO.equals(value[i])) {
-                value[i].set(Vector4f.ZERO);
-                isUpdateNeeded = true;
-            }
-        }
-    }
+    void setValue(T value);
 }

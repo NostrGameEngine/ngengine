@@ -32,8 +32,8 @@
 package com.jme3.util.struct.fields;
 
 import com.jme3.util.struct.StructField;
-
-public class FloatField extends StructField<Float> {
+import com.jme3.util.struct.ValueStructField;
+public class FloatField extends StructField<Float> implements ValueStructField<Float> {
 
     public FloatField(int position, String name, Float value) {
         super(position, name, value);
@@ -44,8 +44,16 @@ public class FloatField extends StructField<Float> {
      * 
      * @param value
      */
+    @Override
     public void setValue(Float value) {
         isUpdateNeeded = true;
         this.value = value;
+    }
+
+    @Override
+    public void setToZero() {
+        if (!valueEquals(0f)) {
+            setValue(0f);
+        }
     }
 }

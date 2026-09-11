@@ -69,6 +69,7 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -100,7 +101,9 @@ public class Material implements CloneableSmartAsset, Cloneable, Savable {
     private boolean transparent = false;
     private boolean receivesShadows = false;
     private int sortingId = -1;
-    private transient MatParamUniformBuffer matParamUniformBuffer;
+
+    // Track material param ubo used by shaders/techniques    
+    private transient WeakHashMap<Shader, MatParamUniformBuffer> paramsBlockBuffers;
 
     /**
      * Manages and tracks texture and buffer binding units for rendering.
@@ -248,7 +251,7 @@ public class Material implements CloneableSmartAsset, Cloneable, Savable {
                 Map.Entry<String, MatParam> entry = paramValues.getEntry(i);
                 mat.paramValues.put(entry.getKey(), entry.getValue().clone());
             }
-            mat.matParamUniformBuffer = null;
+            mat.paramsBlockBuffers = null;
 
             mat.sortingId = -1;
             
@@ -575,6 +578,15 @@ public class Material implements CloneableSmartAsset, Cloneable, Savable {
         }
 
         paramValues.remove(name);
+
+        // Clear the parameter in every UBO that stores it
+        if (paramsBlockBuffers != null) {
+            VarType type = def.getMaterialParam(name).getVarType();
+            for (MatParamUniformBuffer buffer : paramsBlockBuffers.values()) {
+                buffer.clear(name, type);
+            }
+        }
+        
         if (matParam instanceof MatParamTexture) {
             sortingId = -1;
         }
@@ -855,11 +867,16 @@ public class Material implements CloneableSmartAsset, Cloneable, Savable {
         sortingId = -1;
     }
 
-    private MatParamUniformBuffer getMatParamUniformBuffer() {
-        if (matParamUniformBuffer == null) {
-            matParamUniformBuffer = new MatParamUniformBuffer();
+    private MatParamUniformBuffer getMatParamUniformBuffer(Shader shader) {
+        if (paramsBlockBuffers == null) {
+            paramsBlockBuffers = new WeakHashMap<>();
         }
-        return matParamUniformBuffer;
+        MatParamUniformBuffer buffer = paramsBlockBuffers.get(shader);
+        if (buffer == null || !buffer.isCurrent(shader)) {
+            buffer = new MatParamUniformBuffer(shader);
+            paramsBlockBuffers.put(shader, buffer);
+        }
+        return buffer;
     }
 
     private void applyOverrides(Renderer renderer, Shader shader, SafeArrayList<MatParamOverride> overrides,
@@ -875,9 +892,8 @@ public class Material implements CloneableSmartAsset, Cloneable, Savable {
 
             if (override.getValue() != null) {
                 updateShaderMaterialParameter(renderer, type, shader, override, bindUnits, true, matParamBuffer);
-            } else if (matParamBuffer.clear(override)) {
-                // The override intentionally clears a parameter stored in the UBO.
             } else {
+                matParamBuffer.clear(override.getName(), type);
                 Uniform uniform = shader.getUniform(override.getPrefixedName());
                 uniform.clearValue();
             }
@@ -932,8 +948,8 @@ public class Material implements CloneableSmartAsset, Cloneable, Savable {
 
         bindUnits.textureUnit = 0;
         bindUnits.bufferUnit = 0;
-        MatParamUniformBuffer matParamBuffer = getMatParamUniformBuffer();
-        matParamBuffer.begin(shader);
+        MatParamUniformBuffer matParamBuffer = getMatParamUniformBuffer(shader);
+        matParamBuffer.begin();
 
         if (worldOverrides != null) {
             applyOverrides(renderer, shader, worldOverrides, bindUnits, matParamBuffer);
@@ -947,7 +963,7 @@ public class Material implements CloneableSmartAsset, Cloneable, Savable {
             VarType type = param.getVarType();
             updateShaderMaterialParameter(renderer, type, shader, param, bindUnits, false, matParamBuffer);
         }
-        matParamBuffer.finish(shader);
+        matParamBuffer.finish();
 
         // TODO: HACKY HACK remove this when texture unit is handled by the uniform.
         return bindUnits;

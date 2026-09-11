@@ -159,6 +159,14 @@ public class StructUtils {
         return setBufferLayout(fields, serializer, out);
     }
 
+    /**
+     * Computes the buffer regions for an ordered list of fields.
+     *
+     * @param fields fields in position order
+     * @param serializer the layout serializer
+     * @param out the buffer object to define the regions on
+     * @return the passed buffer object
+     */
     public static BufferObject setBufferLayout(List<StructField<?>> fields, BufferLayout serializer, BufferObject out) {
 
         int pos = -1;

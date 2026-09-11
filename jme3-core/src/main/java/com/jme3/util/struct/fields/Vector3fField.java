@@ -32,9 +32,10 @@
 package com.jme3.util.struct.fields;
 
 import com.jme3.math.Vector3f;
+import com.jme3.util.struct.MutableStructField;
 import com.jme3.util.struct.StructField;
 
-public class Vector3fField extends StructField<Vector3f> {
+public class Vector3fField extends StructField<Vector3f> implements MutableStructField<Vector3f> {
 
     public Vector3fField(int position, String name, Vector3f value) {
         super(position, name, value);
@@ -45,8 +46,16 @@ public class Vector3fField extends StructField<Vector3f> {
      * 
      * @return
      */
+    @Override
     public Vector3f getValueForUpdate() {
         isUpdateNeeded = true;
         return value;
+    }
+
+    @Override
+    public void setToZero() {
+        if (!valueEquals(Vector3f.ZERO)) {
+            getValueForUpdate().set(Vector3f.ZERO);
+        }
     }
 }

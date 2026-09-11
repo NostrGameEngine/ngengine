@@ -32,8 +32,9 @@
 package com.jme3.util.struct.fields;
 
 import com.jme3.util.struct.StructField;
+import com.jme3.util.struct.ValueStructField;
 
-public class IntField extends StructField<Integer> {
+public class IntField extends StructField<Integer> implements ValueStructField<Integer> {
 
     public IntField(int position, String name, Integer value) {
         super(position, name, value);
@@ -44,8 +45,16 @@ public class IntField extends StructField<Integer> {
      * 
      * @param value
      */
+    @Override
     public void setValue(Integer value) {
         isUpdateNeeded = true;
         this.value = value;
+    }
+
+    @Override
+    public void setToZero() {
+        if (!valueEquals(0)) {
+            setValue(0);
+        }
     }
 }

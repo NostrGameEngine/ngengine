@@ -32,9 +32,15 @@
 package com.jme3.util.struct.fields;
 
 import com.jme3.math.ColorRGBA;
+import com.jme3.util.struct.MutableStructField;
 import com.jme3.util.struct.StructField;
 
-public class ColorRGBAArrayField extends StructField<ColorRGBA[]> {
+import java.util.Arrays;
+
+public class ColorRGBAArrayField extends StructField<ColorRGBA[]> implements MutableStructField<ColorRGBA[]> {
+
+    /** ColorRGBA has no zero constant of its own. */
+    private static final ColorRGBA ZERO = new ColorRGBA(0f, 0f, 0f, 0f);
 
     public ColorRGBAArrayField(int position, String name, ColorRGBA[] value) {
         super(position, name, value);
@@ -57,8 +63,24 @@ public class ColorRGBAArrayField extends StructField<ColorRGBA[]> {
      * 
      * @return
      */
+    @Override
     public ColorRGBA[] getValueForUpdate() {
         isUpdateNeeded = true;
         return value;
+    }
+
+    @Override
+    public boolean valueEquals(Object candidate) {
+        return candidate instanceof ColorRGBA[] && Arrays.equals(value, (ColorRGBA[]) candidate);
+    }
+
+    @Override
+    public void setToZero() {
+        for (int i = 0; i < value.length; i++) {
+            if (!ZERO.equals(value[i])) {
+                value[i].set(ZERO);
+                isUpdateNeeded = true;
+            }
+        }
     }
 }

@@ -71,6 +71,14 @@ public final class Shader extends NativeObject {
     private final ListMap<String, Attribute> namedAttribs;
 
     /**
+     * The material parameter block declared by this shader, or null when the
+     * shader declares none. Parsed lazily and cached, see
+     * {@link #getParamsBlock()}.
+     */
+    private ShaderParamsBlock paramsBlock;
+    private boolean paramsBlockParsed;
+
+    /**
      * Type of shader. The shader will control the pipeline of its type.
      */
     public static enum ShaderType {
@@ -278,6 +286,7 @@ public final class Shader extends NativeObject {
             shaderSource.setDefines(defines);
         }
         shaderSourceList.add(shaderSource);
+        invalidateParamsBlock();
         setUpdateNeeded();
     }
 
@@ -481,5 +490,24 @@ public final class Shader extends NativeObject {
     @Override
     public long getUniqueId() {
         return ((long)OBJTYPE_SHADER << 32) | (0xffffffffL & (long)id);
+    }
+
+    /**
+     * Returns the material parameter block declared by this shader, parsing it
+     * on first use.
+     *
+     * @return the parsed block, or null if this shader declares none
+     */
+    public ShaderParamsBlock getParamsBlock() {
+        if (!paramsBlockParsed) {
+            paramsBlock = ShaderParamsBlock.parse(this);
+            paramsBlockParsed = true;
+        }
+        return paramsBlock;
+    }
+
+    private void invalidateParamsBlock() {
+        paramsBlockParsed = false;
+        paramsBlock = null;
     }
 }

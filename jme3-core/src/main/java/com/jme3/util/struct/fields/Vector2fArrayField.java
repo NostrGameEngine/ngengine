@@ -31,10 +31,13 @@
  */
 package com.jme3.util.struct.fields;
 
+import java.util.Arrays;
+
 import com.jme3.math.Vector2f;
+import com.jme3.util.struct.MutableStructField;
 import com.jme3.util.struct.StructField;
 
-public class Vector2fArrayField extends StructField<Vector2f[]> {
+public class Vector2fArrayField extends StructField<Vector2f[]> implements MutableStructField<Vector2f[]> {
 
     public Vector2fArrayField(int position, String name, Vector2f[] value) {
         super(position, name, value);
@@ -57,8 +60,24 @@ public class Vector2fArrayField extends StructField<Vector2f[]> {
      * 
      * @return
      */
+    @Override
     public Vector2f[] getValueForUpdate() {
         isUpdateNeeded = true;
         return value;
+    }
+
+    @Override
+    public boolean valueEquals(Object candidate) {
+        return candidate instanceof Vector2f[] && Arrays.equals(value, (Vector2f[]) candidate);
+    }
+
+    @Override
+    public void setToZero() {
+        for (int i = 0; i < value.length; i++) {
+            if (!Vector2f.ZERO.equals(value[i])) {
+                value[i].set(Vector2f.ZERO);
+                isUpdateNeeded = true;
+            }
+        }
     }
 }

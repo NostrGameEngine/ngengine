@@ -31,9 +31,12 @@
  */
 package com.jme3.util.struct.fields;
 
+import java.util.Arrays;
+
+import com.jme3.util.struct.MutableStructField;
 import com.jme3.util.struct.StructField;
 
-public class IntArrayField extends StructField<Integer[]> {
+public class IntArrayField extends StructField<Integer[]> implements MutableStructField<Integer[]> {
 
     public IntArrayField(int position, String name, Integer[] value) {
         super(position, name, value);
@@ -56,8 +59,36 @@ public class IntArrayField extends StructField<Integer[]> {
      * 
      * @return
      */
+    @Override
     public Integer[] getValueForUpdate() {
         isUpdateNeeded = true;
         return value;
+    }
+
+    @Override
+    public boolean valueEquals(Object candidate) {
+        if (candidate instanceof int[]) {
+            int[] source = (int[]) candidate;
+            if (source.length != value.length) {
+                return false;
+            }
+            for (int i = 0; i < value.length; i++) {
+                if (value[i] == null || value[i] != source[i]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return candidate instanceof Integer[] && Arrays.equals(value, (Integer[]) candidate);
+    }
+
+    @Override
+    public void setToZero() {
+        for (int i = 0; i < value.length; i++) {
+            if (value[i] != 0) {
+                value[i] = 0;
+                isUpdateNeeded = true;
+            }
+        }
     }
 }

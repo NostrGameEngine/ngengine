@@ -31,9 +31,13 @@
  */
 package com.jme3.util.struct.fields;
 
+import java.util.Arrays;
+
+import com.jme3.math.FastMath;
+import com.jme3.util.struct.MutableStructField;
 import com.jme3.util.struct.StructField;
 
-public class FloatArrayField extends StructField<Float[]> {
+public class FloatArrayField extends StructField<Float[]> implements MutableStructField<Float[]> {
 
     public FloatArrayField(int position, String name, Float[] value) {
         super(position, name, value);
@@ -56,8 +60,36 @@ public class FloatArrayField extends StructField<Float[]> {
      * 
      * @return
      */
+    @Override
     public Float[] getValueForUpdate() {
         isUpdateNeeded = true;
         return value;
+    }
+
+    @Override
+    public boolean valueEquals(Object candidate) {
+        if (candidate instanceof float[]) {
+            float[] source = (float[]) candidate;
+            if (source.length != value.length) {
+                return false;
+            }
+            for (int i = 0; i < value.length; i++) {
+                if (value[i] == null || FastMath.compare(source[i], value[i]) != 0) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return candidate instanceof Float[] && Arrays.equals(value, (Float[]) candidate);
+    }
+
+    @Override
+    public void setToZero() {
+        for (int i = 0; i < value.length; i++) {
+            if (FastMath.compare(value[i], 0f) != 0) {
+                value[i] = 0f;
+                isUpdateNeeded = true;
+            }
+        }
     }
 }

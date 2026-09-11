@@ -31,10 +31,13 @@
  */
 package com.jme3.util.struct.fields;
 
+import java.util.Arrays;
+
 import com.jme3.math.Matrix4f;
+import com.jme3.util.struct.MutableStructField;
 import com.jme3.util.struct.StructField;
 
-public class Matrix4fArrayField extends StructField<Matrix4f[]> {
+public class Matrix4fArrayField extends StructField<Matrix4f[]> implements MutableStructField<Matrix4f[]> {
 
     public Matrix4fArrayField(int position, String name, Matrix4f[] value) {
         super(position, name, value);
@@ -48,7 +51,7 @@ public class Matrix4fArrayField extends StructField<Matrix4f[]> {
 
     private void initializeToZero() {
         for (int i = 0; i < value.length; i++) {
-            if (value[i] == null) value[i] = new Matrix4f();
+            if (value[i] == null) value[i] = new Matrix4f(Matrix4f.ZERO);
         }
     }
 
@@ -57,8 +60,24 @@ public class Matrix4fArrayField extends StructField<Matrix4f[]> {
      * 
      * @return
      */
+    @Override
     public Matrix4f[] getValueForUpdate() {
         isUpdateNeeded = true;
         return value;
+    }
+
+    @Override
+    public boolean valueEquals(Object candidate) {
+        return candidate instanceof Matrix4f[] && Arrays.equals(value, (Matrix4f[]) candidate);
+    }
+
+    @Override
+    public void setToZero() {
+        for (int i = 0; i < value.length; i++) {
+            if (!Matrix4f.ZERO.equals(value[i])) {
+                value[i].set(Matrix4f.ZERO);
+                isUpdateNeeded = true;
+            }
+        }
     }
 }
