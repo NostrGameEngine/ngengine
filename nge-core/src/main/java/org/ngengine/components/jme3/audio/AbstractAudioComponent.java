@@ -78,6 +78,7 @@ public abstract class AbstractAudioComponent  extends AbstractComponent implemen
         MainThreadRunner mainRunner = getInstanceOf(MainThreadRunner.class);
         return sounds.computeIfAbsent(key, (k)->{
             Sound s = new Sound(am, k);
+            s.setAudioMixer(getInstanceOf(AudioMixerComponent.class));
             s.preload(mainRunner, am);
             s.setAudioRendererProvider(()->{
                 return getInstanceOf(AudioRenderer.class);

@@ -79,7 +79,7 @@ public class Sound implements AudioSource, JmeCloneable, Savable {
     public static final int SAVABLE_VERSION = 1;
     private boolean loop = false;
     private float volume = 1;
-    private AudioCategory audioCategory = AudioCategory.SOUND_EFFECT;
+    private String audioCategory = AudioCategory.SOUND_EFFECT;
     private float pitch = 1;
     private float timeOffset = 0;
     private Filter dryFilter;
@@ -101,18 +101,17 @@ public class Sound implements AudioSource, JmeCloneable, Savable {
     private boolean velocityFromTranslation = false;
     private float lastTpf;
     private Supplier<AudioRenderer> rendererProvider;
+    private transient AudioMixerComponent mixer;
     private Transform worldTransform = new Transform();
     private transient AsyncTask<AudioData> loadTask;
     private AssetManager assetManager;
     
 
     Sound() {
-        AudioMixer.register(this);
     }
    
    
     Sound(AssetManager assetManager, AudioKey audioKey) {
-        AudioMixer.register(this);
         setAudioData(null, audioKey);
         this.assetManager = assetManager;
     }
@@ -121,6 +120,24 @@ public class Sound implements AudioSource, JmeCloneable, Savable {
     void setAudioRendererProvider(Supplier<AudioRenderer> rendererProvider){
         this.rendererProvider = rendererProvider;
     } 
+
+    /**
+     * Attaches this sound to an application mixer, which then applies its
+     * category master gain and keeps the sound updated when the gain changes.
+     *
+     * @param mixer the mixer of the owning component manager, or null to leave
+     *              the source gain unscaled
+     */
+    protected void setAudioMixer(AudioMixerComponent mixer) {
+        AudioMixerComponent previous = this.mixer;
+        this.mixer = mixer;
+        if (previous != null && previous != mixer) {
+            previous.unregister(this);
+        }
+        if (mixer != null) {
+            mixer.register(this);
+        }
+    }
 
     public void preload(Runner mainRunner, AsyncAssetManager assetManager){   
         if(audioKey == null) return; // key unset
@@ -386,7 +403,8 @@ public class Sound implements AudioSource, JmeCloneable, Savable {
      */
     @Override
     public final float getVolume() {
-        return AudioMixer.apply(audioCategory, volume);
+        AudioMixerComponent currentMixer = mixer;
+        return currentMixer == null ? volume : currentMixer.apply(audioCategory, volume);
     }
 
     /**
@@ -414,12 +432,27 @@ public class Sound implements AudioSource, JmeCloneable, Savable {
             getRenderer().updateSourceParam(this, AudioParam.Volume);
     }
 
-    public final AudioCategory getAudioCategory() {
+    /**
+     * Returns the gain group of this sound, see {@link AudioCategory}.
+     *
+     * @return the category name
+     */
+    public final String getAudioCategory() {
         return audioCategory;
     }
 
-    public final void setAudioCategory(AudioCategory audioCategory) {
-        this.audioCategory = audioCategory != null ? audioCategory : AudioCategory.SOUND_EFFECT;
+    /**
+     * Sets the gain group of this sound. Any name is accepted; only
+     * {@link AudioCategory#MUSIC} follows the music master gain, everything else
+     * shares the sound-effects gain. A null or empty name selects
+     * {@link AudioCategory#SOUND_EFFECT}.
+     *
+     * @param audioCategory the category name
+     */
+    public final void setAudioCategory(String audioCategory) {
+        this.audioCategory = (audioCategory == null || audioCategory.isEmpty())
+                ? AudioCategory.SOUND_EFFECT
+                : audioCategory;
         if (channel >= 0) {
             getRenderer().updateSourceParam(this, AudioParam.Volume);
         }
@@ -798,7 +831,7 @@ public class Sound implements AudioSource, JmeCloneable, Savable {
         oc.write(audioKey, "audio_key", null);
         oc.write(loop, "looping", false);
         oc.write(volume, "volume", 1);
-        oc.write(audioCategory.name(), "audio_category", AudioCategory.SOUND_EFFECT.name());
+        oc.write(audioCategory, "audio_category", AudioCategory.SOUND_EFFECT);
         oc.write(pitch, "pitch", 1);
         oc.write(timeOffset, "time_offset", 0);
         oc.write(dryFilter, "dry_filter", null);
@@ -826,12 +859,8 @@ public class Sound implements AudioSource, JmeCloneable, Savable {
         audioKey = (AudioKey) ic.readSavable("audio_key", null);
         loop = ic.readBoolean("looping", false);
         volume = ic.readFloat("volume", 1);
-        String categoryName = ic.readString("audio_category", AudioCategory.SOUND_EFFECT.name());
-        try {
-            audioCategory = AudioCategory.valueOf(
-                categoryName != null ? categoryName : AudioCategory.SOUND_EFFECT.name()
-            );
-        } catch (IllegalArgumentException ignored) {
+        audioCategory = ic.readString("audio_category", AudioCategory.SOUND_EFFECT);
+        if (audioCategory == null || audioCategory.isEmpty()) {
             audioCategory = AudioCategory.SOUND_EFFECT;
         }
         pitch = ic.readFloat("pitch", 1);

@@ -8,14 +8,25 @@
 package org.ngengine.components.jme3.audio;
 
 /**
- * Logical mixer category assigned to a {@link Sound}.
+ * Predefined gain groups assigned to a {@link Sound}.
  *
- * <p>Interface sounds intentionally share the sound-effects master gain. The
- * separate value lets controls keep their own per-sound trim while exposing a
- * simple two-slider user interface: music and sound effects.</p>
+ * <p>A category is a plain string, so a game can use its own name (for example
+ * {@code "voice"}). Only {@link #MUSIC} is special and follows the music master
+ * gain of the {@link AudioMixerComponent}; every other category shares the
+ * sound-effects gain, which keeps a simple two-slider user interface while each
+ * sound keeps its own trim.</p>
  */
-public enum AudioCategory {
-    MUSIC,
-    SOUND_EFFECT,
-    UI
+public final class AudioCategory {
+
+    /** Follows the music master gain. */
+    public static final String MUSIC = "MUSIC";
+
+    /** Follows the sound-effects master gain. */
+    public static final String SOUND_EFFECT = "SOUND_EFFECT";
+
+    /** Interface sounds, sharing the sound-effects master gain. */
+    public static final String UI = "UI";
+
+    private AudioCategory() {
+    }
 }
