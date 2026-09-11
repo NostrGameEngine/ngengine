@@ -183,7 +183,8 @@ public class VirtualJoystick extends AbstractJoystick {
                 return existingCapture != null;
             }
 
-            for (Element element : layout.getAxisElements()) {
+            VirtualJoystickLayout currentLayout = layout;
+            for (Element element : currentLayout.getAxisElements()) {
                 if (element.visible && element.contains(x, y)) {
                     captures.put(pointerId, new Capture(element, true));
                     updateAxisCapture(element, x, y, time);
@@ -191,7 +192,7 @@ public class VirtualJoystick extends AbstractJoystick {
                 }
             }
 
-            for (Element element : layout.getButtons()) {
+            for (Element element : currentLayout.getButtons()) {
                 if (element.visible && element.contains(x, y)) {
                     captures.put(pointerId, new Capture(element, false));
                     if (isToggleButton(element.id)) {
