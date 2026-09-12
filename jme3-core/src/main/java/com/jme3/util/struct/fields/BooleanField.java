@@ -32,8 +32,9 @@
 package com.jme3.util.struct.fields;
 
 import com.jme3.util.struct.StructField;
+import com.jme3.util.struct.ValueStructField;
 
-public class BooleanField extends StructField<Boolean> {
+public class BooleanField extends StructField<Boolean> implements ValueStructField<Boolean> {
 
     public BooleanField(int position, String name, Boolean value) {
         super(position, name, value);
@@ -44,8 +45,16 @@ public class BooleanField extends StructField<Boolean> {
      * 
      * @param value
      */
+    @Override
     public void setValue(Boolean value) {
         isUpdateNeeded = true;
         this.value = value;
+    }
+
+    @Override
+    public void setToZero() {
+        if (!valueEquals(Boolean.FALSE)) {
+            setValue(Boolean.FALSE);
+        }
     }
 }

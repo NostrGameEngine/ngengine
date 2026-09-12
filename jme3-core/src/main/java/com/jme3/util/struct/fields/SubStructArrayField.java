@@ -36,6 +36,7 @@ import java.lang.reflect.Constructor;
 
 import com.jme3.util.struct.Struct;
 import com.jme3.util.struct.StructField;
+import com.jme3.util.struct.StructUtils;
 
 public class SubStructArrayField<T extends Struct> extends StructField<T[]> {
 
@@ -59,6 +60,15 @@ public class SubStructArrayField<T extends Struct> extends StructField<T[]> {
                 value[i] = constructor.newInstance();
             } catch (Exception e) {
                 throw new RuntimeException("Can't create new instance of " + structClass + " default constructor is missing? ",e);
+            }
+        }
+    }
+
+    @Override
+    public void setToZero() {
+        for (T struct : value) {
+            for (StructField<?> field : StructUtils.getFields(struct)) {
+                field.setToZero();
             }
         }
     }

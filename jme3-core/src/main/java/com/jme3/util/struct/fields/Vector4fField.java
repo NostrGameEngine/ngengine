@@ -31,10 +31,13 @@
  */
 package com.jme3.util.struct.fields;
 
+import com.jme3.math.ColorRGBA;
+import com.jme3.math.FastMath;
 import com.jme3.math.Vector4f;
+import com.jme3.util.struct.MutableStructField;
 import com.jme3.util.struct.StructField;
 
-public class Vector4fField extends StructField<Vector4f> {
+public class Vector4fField extends StructField<Vector4f> implements MutableStructField<Vector4f> {
 
     public Vector4fField(int position, String name, Vector4f value) {
         super(position, name, value);
@@ -45,8 +48,29 @@ public class Vector4fField extends StructField<Vector4f> {
      * 
      * @return
      */
+    @Override
     public Vector4f getValueForUpdate() {
         isUpdateNeeded = true;
         return value;
+    }
+
+    @Override
+    public boolean valueEquals(Object candidate) {
+        if (candidate instanceof ColorRGBA) {
+            ColorRGBA color = (ColorRGBA) candidate;
+            Vector4f vec4 = value;
+            return FastMath.compare(vec4.x, color.r) == 0
+                    && FastMath.compare(vec4.y, color.g) == 0
+                    && FastMath.compare(vec4.z, color.b) == 0
+                    && FastMath.compare(vec4.w, color.a) == 0;
+        }
+        return super.valueEquals(candidate);
+    }
+
+    @Override
+    public void setToZero() {
+        if (!valueEquals(Vector4f.ZERO)) {
+            getValueForUpdate().set(Vector4f.ZERO);
+        }
     }
 }

@@ -31,9 +31,12 @@
  */
 package com.jme3.util.struct.fields;
 
+import java.util.Arrays;
+
+import com.jme3.util.struct.MutableStructField;
 import com.jme3.util.struct.StructField;
 
-public class BooleanArrayField extends StructField<Boolean[]> {
+public class BooleanArrayField extends StructField<Boolean[]> implements MutableStructField<Boolean[]> {
 
     public BooleanArrayField(int position, String name, Boolean[] value) {
         super(position, name, value);
@@ -56,8 +59,36 @@ public class BooleanArrayField extends StructField<Boolean[]> {
      * 
      * @return
      */
+    @Override
     public Boolean[] getValueForUpdate() {
         isUpdateNeeded = true;
         return value;
+    }
+
+    @Override
+    public boolean valueEquals(Object candidate) {
+        if (candidate instanceof boolean[]) {
+            boolean[] source = (boolean[]) candidate;
+            if (source.length != value.length) {
+                return false;
+            }
+            for (int i = 0; i < value.length; i++) {
+                if (value[i] == null || value[i] != source[i]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return candidate instanceof Boolean[] && Arrays.equals(value, (Boolean[]) candidate);
+    }
+
+    @Override
+    public void setToZero() {
+        for (int i = 0; i < value.length; i++) {
+            if (Boolean.TRUE.equals(value[i])) {
+                value[i] = Boolean.FALSE;
+                isUpdateNeeded = true;
+            }
+        }
     }
 }

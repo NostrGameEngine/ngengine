@@ -31,6 +31,8 @@
  */
 package com.jme3.util.struct;
 
+import java.util.Objects;
+
 /**
  * A field of a struct
  * 
@@ -114,6 +116,23 @@ public abstract class StructField<T> {
     public void clearUpdateNeeded() {
         isUpdateNeeded = false;
     }
+
+    /**
+     * Tests whether the given value is equal to the value of this field.
+     *
+     * @param candidate the value to compare with (may be null)
+     * @return true if the candidate has the same value as this field
+     */
+    public boolean valueEquals(Object candidate) {
+        return Objects.equals(value, candidate);
+    }
+
+    /**
+     * Resets this field to the zero value of its type, marking the field for
+     * update only when the value actually changed.
+     */
+    public abstract void setToZero();
+
 
     /**
      * Get simple name of the field

@@ -157,11 +157,6 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
         worldLoadListener.remove(listener);
     }
 
-    public TiledWorld2dManagerComponent onWorldLoad(Consumer<TiledWorld2d> listener) {
-        addWorldLoadListener(listener);
-        return this;
-    }
-
     public TiledWorld2d getDefaultWorld() {
         TiledWorld2d map = loadedMaps.get(defaultMapName);
         if (map == null && loadedMaps.size() > 0) {

@@ -32,9 +32,12 @@
 package com.jme3.util.struct.fields;
 
 import com.jme3.math.Quaternion;
+import com.jme3.util.struct.MutableStructField;
 import com.jme3.util.struct.StructField;
 
-public class QuaternionArrayField extends StructField<Quaternion[]> {
+import java.util.Arrays;
+
+public class QuaternionArrayField extends StructField<Quaternion[]> implements MutableStructField<Quaternion[]> {
 
     public QuaternionArrayField(int position, String name, Quaternion[] value) {
         super(position, name, value);
@@ -48,7 +51,7 @@ public class QuaternionArrayField extends StructField<Quaternion[]> {
 
     private void initializeToZero() {
         for (int i = 0; i < value.length; i++) {
-            if (value[i] == null) value[i] = new Quaternion();
+            if (value[i] == null) value[i] = new Quaternion(Quaternion.ZERO);
         }
     }
 
@@ -57,8 +60,24 @@ public class QuaternionArrayField extends StructField<Quaternion[]> {
      * 
      * @return
      */
+    @Override
     public Quaternion[] getValueForUpdate() {
         isUpdateNeeded = true;
         return value;
+    }
+
+    @Override
+    public boolean valueEquals(Object candidate) {
+        return candidate instanceof Quaternion[] && Arrays.equals(value, (Quaternion[]) candidate);
+    }
+
+    @Override
+    public void setToZero() {
+        for (int i = 0; i < value.length; i++) {
+            if (!Quaternion.ZERO.equals(value[i])) {
+                value[i].set(Quaternion.ZERO);
+                isUpdateNeeded = true;
+            }
+        }
     }
 }

@@ -32,9 +32,10 @@
 package com.jme3.util.struct.fields;
 
 import com.jme3.math.Quaternion;
+import com.jme3.util.struct.MutableStructField;
 import com.jme3.util.struct.StructField;
 
-public class QuaternionField extends StructField<Quaternion> {
+public class QuaternionField extends StructField<Quaternion> implements MutableStructField<Quaternion> {
 
     public QuaternionField(int position, String name, Quaternion value) {
         super(position, name, value);
@@ -45,8 +46,16 @@ public class QuaternionField extends StructField<Quaternion> {
      * 
      * @return
      */
+    @Override
     public Quaternion getValueForUpdate() {
         isUpdateNeeded = true;
         return value;
+    }
+
+    @Override
+    public void setToZero() {
+        if (!valueEquals(Quaternion.ZERO)) {
+            getValueForUpdate().set(Quaternion.ZERO);
+        }
     }
 }
