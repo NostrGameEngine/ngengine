@@ -126,7 +126,11 @@ public class TeaClassTransformer implements ClassHolderTransformer {
         try {
             Class<?> clazz = Thread.currentThread().getContextClassLoader().loadClass(clzName);
 
-            if (clzName.equals("java.io.Reader")) {
+            if (clzName.equals("java.lang.ClassLoader")) {
+                ClassHolder classPatchHolder = getClassHolder(ClassLoaderPatch.class, context);
+                transferMethods(clazz, classPatchHolder, cls, context);
+                System.out.println(clazz.getName() + " patched");
+            } else if (clzName.equals("java.io.Reader")) {
                 ClassHolder classPatchHolder = getClassHolder(ReaderPatch.class, context);
                 cls.getInterfaces().add("java.lang.Readable");
                 transferMethods(clazz, classPatchHolder, cls, context);

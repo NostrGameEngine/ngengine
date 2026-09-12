@@ -26,7 +26,7 @@ function freeAudioContext(id){
         ctx.nge.convolver.disconnect();
         for(const src of Object.values(ctx.nge.sources)){
             if(src.node){
-                src.node.stop();
+                if (src.started) src.node.stop();
                 src.node.disconnect();
             }
             if(src.panner) src.panner.disconnect();
@@ -171,7 +171,11 @@ function playAudioSource(ctxId, srcId){
     src.startTime = ctx.currentTime;
     src.node.start(0, src.pausedAt);
     src.started = true;
+    const playingNode = src.node;
     src.node.addEventListener('ended', ()=>{
+        // stop/pause replace the node; freeing a source/context retires it.
+        if (instances[ctxId] !== ctx || ctx.nge.sources[srcId] !== src
+                || src.node !== playingNode) return;
         src.started = false;
         Binds.fireEvent("audioSourceEnded", ctxId, srcId);
     }, { once: true });

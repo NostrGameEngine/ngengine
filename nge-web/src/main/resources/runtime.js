@@ -31,6 +31,7 @@ async function loadWasmGCRuntime(config) {
         ?? config.web_stack_deobfuscator
         ?? false;
     const instance = await teaVM.wasmGC.load("./webapp.wasm", {
+        scheduler: { timeSliceMillis: config.web_scheduler_budget_ms ?? 4 },
         stackDeobfuscator: { enabled: Boolean(stackDeobfuscator) }
     });
     if (!instance.exports || typeof instance.exports.main !== "function") {

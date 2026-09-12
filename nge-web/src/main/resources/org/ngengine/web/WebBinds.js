@@ -120,8 +120,15 @@ export const setPageTitle = (title) => {
     Binds.fireEvent("setPageTitle", title);
 }
 
+export const reloadPage = () => {
+    Binds.fireEvent("reloadPage");
+}
+
+let lastFullscreenRequest;
 export const toggleFullscreen = (v) =>{
+    if (v === lastFullscreenRequest) return;
     Binds.fireEvent("toggleFullscreen", v);
+    lastFullscreenRequest = v;
 }
 
 export const togglePointerLock = (v) =>{
@@ -130,20 +137,112 @@ export const togglePointerLock = (v) =>{
 
  
 
-export const waitNextFrame = (callback) => {
-    const l = () => {
-        try{
-            Binds.removeEventListener("render", l);
-        } catch(e){
-            console.warn("Error removing render listener in waitNextFrame", e);
-        }
-        try{
+const pendingFrameWaits = []; // Alternating callback and monotonic deadline.
+const readyFrameWaits = [];
+let frameWaitTimer = null;
+let frameWaitListening = false;
+let frameWaitFlushing = false;
+let nativeFrameRequest = null;
+let nativeFramesAvailable = typeof globalThis.requestAnimationFrame === 'function'
+    && typeof globalThis.cancelAnimationFrame === 'function';
+let frameContextLost = false;
+
+Binds.addEventListener('webglcontextlost', () => {
+    frameContextLost = true;
+    if (nativeFrameRequest !== null) {
+        globalThis.cancelAnimationFrame(nativeFrameRequest);
+        nativeFrameRequest = null;
+    }
+});
+Binds.addEventListener('webglcontextrestored', () => {
+    frameContextLost = false;
+    if (pendingFrameWaits.length > 0) requestFrameWake();
+});
+
+function completeFrameWaits(deadline) {
+    if (frameWaitFlushing) return;
+    frameWaitFlushing = true;
+    let read = 0;
+    while (read < pendingFrameWaits.length && pendingFrameWaits[read + 1] <= deadline) {
+        readyFrameWaits.push(pendingFrameWaits[read]);
+        read += 2;
+    }
+    pendingFrameWaits.copyWithin(0, read);
+    pendingFrameWaits.length -= read;
+    // Detach the batch before invoking callbacks: a resumed game loop can
+    // immediately register another wait, which belongs to the next frame.
+    for (let i = 0; i < readyFrameWaits.length; i++) {
+        const callback = readyFrameWaits[i];
+        readyFrameWaits[i] = null;
+        try {
             callback();
-        } catch(e){
-            console.error("Error in waitNextFrame callback", e);
+        } catch (error) {
+            console.error("Error in waitNextFrame callback", error);
         }
     }
-    Binds.addEventListener("render", l);
+    readyFrameWaits.length = 0;
+    frameWaitFlushing = false;
+}
+
+function onFrameWaitRender() {
+    completeFrameWaits(Infinity);
+}
+
+function onNativeFrame() {
+    nativeFrameRequest = null;
+    completeFrameWaits(Infinity);
+}
+
+function frameWaitWatchdog() {
+    frameWaitTimer = null;
+    // A suspended native frame must not complete a later wait after this fallback.
+    if (pendingFrameWaits.length > 0 && pendingFrameWaits[1] <= performance.now()
+            && nativeFrameRequest !== null) {
+        globalThis.cancelAnimationFrame(nativeFrameRequest);
+        nativeFrameRequest = null;
+    }
+    completeFrameWaits(performance.now());
+    if (pendingFrameWaits.length > 0) {
+        requestFrameWake();
+        if (frameWaitTimer === null) {
+            frameWaitTimer = setTimeout(frameWaitWatchdog,
+                Math.max(0, pendingFrameWaits[1] - performance.now()));
+        }
+    } else if (frameWaitListening) {
+        Binds.removeEventListener("render", onFrameWaitRender);
+        frameWaitListening = false;
+    }
+}
+
+function requestFrameWake() {
+    if (frameContextLost) return;
+    if (nativeFramesAvailable) {
+        if (nativeFrameRequest !== null) return;
+        try {
+            nativeFrameRequest = globalThis.requestAnimationFrame(onNativeFrame);
+            Binds.setNativeFrameWait(true);
+            return;
+        } catch (error) {
+            // Some worker environments expose the API without an owner Window.
+            nativeFramesAvailable = false;
+            Binds.setNativeFrameWait(false);
+        }
+    }
+    if (!frameWaitListening) {
+        Binds.addEventListener("render", onFrameWaitRender);
+        frameWaitListening = true;
+    }
+}
+
+export const waitNextFrame = (callback) => {
+    pendingFrameWaits.push(callback, performance.now() + 100);
+    requestFrameWake();
+    // One shared watchdog keeps hidden-tab shutdown/input progressing. Normal
+    // frames leave it armed instead of allocating and cancelling a timer each time.
+    if (frameWaitTimer === null) {
+        frameWaitTimer = setTimeout(frameWaitWatchdog,
+            Math.max(0, pendingFrameWaits[1] - performance.now()));
+    }
 }
 
 // export const fireEventAsync = (event, args, res,rej) => {
@@ -195,6 +294,11 @@ export const setGamepadRumble = (gamepadIndex, amountHigh, amountLow, durationMi
 // audio
 export const addAudioEndListener = (fun) => {
     Binds.addEventListener("audioSourceEnded", fun);
+    return fun;
+};
+
+export const removeAudioEndListener = (fun) => {
+    Binds.removeEventListener("audioSourceEnded", fun);
 };
 
 export const createAudioContextAsync = (sampleRate, id, res, rej) => {
@@ -202,7 +306,7 @@ export const createAudioContextAsync = (sampleRate, id, res, rej) => {
 };
 
 export const freeAudioContext = (id) => {
-    Binds.fireEvent("freeAudioContext", id);
+    Binds.notify("freeAudioContext", id);
 };
 
 export const createAudioBufferAsync = (ctxId, id, f32channelData, lengthInSamples, sampleRate, res, rej) => {
@@ -210,7 +314,7 @@ export const createAudioBufferAsync = (ctxId, id, f32channelData, lengthInSample
 };
 
 export const freeAudioBuffer = (ctxId, bufId) => {
-    Binds.fireEvent("freeAudioBuffer", ctxId, bufId);
+    Binds.notify("freeAudioBuffer", ctxId, bufId);
 };
 
 export const createAudioSourceAsync = (ctxId, id,  res, rej) => {
@@ -218,7 +322,7 @@ export const createAudioSourceAsync = (ctxId, id,  res, rej) => {
 };
 
 export const freeAudioSource = (ctxId, srcId) => {
-    Binds.fireEvent("freeAudioSource", ctxId, srcId);
+    Binds.notify("freeAudioSource", ctxId, srcId);
 };
 
 export const setAudioBufferAsync = (ctxId, srcId, bufId, res, rej) => {
@@ -226,55 +330,55 @@ export const setAudioBufferAsync = (ctxId, srcId, bufId, res, rej) => {
 };
 
 export const setAudioPositional = (ctxId, srcId, v) => {
-    Binds.fireEvent("setAudioPositional", ctxId, srcId, v);
+    Binds.notify("setAudioPositional", ctxId, srcId, v);
 };
 
 export const setContextAudioEnv = (ctxId, i8data) => {
-    Binds.fireEvent("setContextAudioEnv", ctxId, i8data);
+    Binds.notify("setContextAudioEnv", ctxId, i8data);
 };
 
 export const setAudioPosition = (ctxId, srcId, x, y, z) => {
-    Binds.fireEvent("setAudioPosition", ctxId, srcId, x, y, z);
+    Binds.notify("setAudioPosition", ctxId, srcId, x, y, z);
 };
 
 export const setAudioVelocity = (ctxId, srcId, x, y, z) => {
-    Binds.fireEvent("setAudioVelocity", ctxId, srcId, x, y, z);
+    Binds.notify("setAudioVelocity", ctxId, srcId, x, y, z);
 };
 
 export const setAudioMaxDistance = (ctxId, srcId, v) => {
-    Binds.fireEvent("setAudioMaxDistance", ctxId, srcId, v);
+    Binds.notify("setAudioMaxDistance", ctxId, srcId, v);
 };
 
 export const setAudioRefDistance = (ctxId, srcId, v) => {
-    Binds.fireEvent("setAudioRefDistance", ctxId, srcId, v);
+    Binds.notify("setAudioRefDistance", ctxId, srcId, v);
 };
 
 export const setAudioDirection = (ctxId, srcId, x, y, z) => {
-    Binds.fireEvent("setAudioDirection", ctxId, srcId, x, y, z);
+    Binds.notify("setAudioDirection", ctxId, srcId, x, y, z);
 };
 
 export const setAudioConeInnerAngle = (ctxId, srcId, v) => {
-    Binds.fireEvent("setAudioConeInnerAngle", ctxId, srcId, v);
+    Binds.notify("setAudioConeInnerAngle", ctxId, srcId, v);
 };
 
 export const setAudioConeOuterAngle = (ctxId, srcId, v) => {
-    Binds.fireEvent("setAudioConeOuterAngle", ctxId, srcId, v);
+    Binds.notify("setAudioConeOuterAngle", ctxId, srcId, v);
 };
 
 export const setAudioConeOuterGain = (ctxId, srcId, v) => {
-    Binds.fireEvent("setAudioConeOuterGain", ctxId, srcId, v);
+    Binds.notify("setAudioConeOuterGain", ctxId, srcId, v);
 };
 
 export const setAudioLoop = (ctxId, srcId, v) => {
-    Binds.fireEvent("setAudioLoop", ctxId, srcId, v);
+    Binds.notify("setAudioLoop", ctxId, srcId, v);
 };
 
 export const setAudioPitch = (ctxId, srcId, v) => {
-    Binds.fireEvent("setAudioPitch", ctxId, srcId, v);
+    Binds.notify("setAudioPitch", ctxId, srcId, v);
 };
 
 export const setAudioVolume = (ctxId, srcId, v) => {
-    Binds.fireEvent("setAudioVolume", ctxId, srcId, v);
+    Binds.notify("setAudioVolume", ctxId, srcId, v);
 };
 
 export const getAudioPlaybackRateAsync = (ctxId, srcId, res, rej) => {
@@ -299,7 +403,7 @@ export const setAudioContextListener = (
     dx, dy, dz, 
     ux, uy, uz
 ) => {
-    Binds.fireEvent("setAudioContextListener", 
+    Binds.notify("setAudioContextListener",
         ctxId, 
         px, py, pz, 
         0,0,0,

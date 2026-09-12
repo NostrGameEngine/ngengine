@@ -85,7 +85,7 @@ public final class DisplayScaleUtils {
         if (mode == AppSettings.DISPLAY_SCALE_NATIVE_PIXELS) {
             return AppSettings.DISPLAY_SCALE_NATIVE_PIXELS;
         }
-        if (mode < AppSettings.DISPLAY_SCALE_DPI_AWARE) {
+        if (mode <= AppSettings.DISPLAY_SCALE_DISABLED) {
             return AppSettings.DISPLAY_SCALE_DISABLED;
         }
         return mode;
@@ -96,11 +96,12 @@ public final class DisplayScaleUtils {
     }
 
     public static boolean isDpiAwareMode(float mode) {
-        return mode >= AppSettings.DISPLAY_SCALE_DPI_AWARE;
+        return mode > AppSettings.DISPLAY_SCALE_DISABLED;
     }
 
     public static boolean isEmulatedScaleMode(float mode) {
-        return mode > AppSettings.DISPLAY_SCALE_DPI_AWARE;
+        return mode > AppSettings.DISPLAY_SCALE_DISABLED
+                && mode != AppSettings.DISPLAY_SCALE_DPI_AWARE;
     }
 
     public static boolean isDisabledMode(float mode) {

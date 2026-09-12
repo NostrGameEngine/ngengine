@@ -180,6 +180,17 @@ public class JmeSystem {
     }
 
     /**
+     * Reports a handheld phone/tablet form factor suitable for on-screen game controls.
+     * Web backends use the browser's mobile classification. Connected gamepads are a separate policy.
+     *
+     * @return true for a mobile device
+     */
+    public static boolean isMobileDevice() {
+        checkDelegate();
+        return systemDelegate.isMobileDevice();
+    }
+
+    /**
      * Determine which Platform (operating system and architecture) the
      * application is running on.
      *

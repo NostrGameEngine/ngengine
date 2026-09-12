@@ -8,6 +8,8 @@ varying vec2 texCoord;
  
 void main() {
     vec4 texVal = getColor(m_Texture, texCoord);
+    #ifdef SRGB
     texVal.rgb = linearToSrgb(texVal.rgb);
+    #endif
     gl_FragColor = texVal;
 }

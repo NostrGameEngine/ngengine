@@ -2,10 +2,13 @@ package com.jme3.system.android;
 
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.os.Build;
 import android.os.Environment;
 import android.os.Vibrator;
+import android.view.Display;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import com.jme3.audio.AudioRenderer;
@@ -24,6 +27,7 @@ import com.jme3.util.res.Resources;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.reflect.Field;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -34,6 +38,11 @@ public class JmeAndroidSystem extends JmeSystemDelegate {
 
     private static View view;
     private static Vibrator vibrator;
+    private Context mobileDeviceContext;
+    private boolean handheldTouchDevice;
+    private Class<?> mobileConfigurationClass;
+    private Field desktopModeField;
+    private int desktopModeEnabled;
 
     static {
         try {
@@ -118,6 +127,65 @@ public class JmeAndroidSystem extends JmeSystemDelegate {
         initialized = true;
         System.setProperty("org.xml.sax.driver", "org.xmlpull.v1.sax2.Driver");
         logger.log(Level.INFO, getBuildInfo());
+    }
+
+    @Override
+    public boolean isMobileDevice() {
+        View currentView = view;
+        if (currentView == null) {
+            mobileDeviceContext = null;
+            return false;
+        }
+        Context context = currentView.getContext();
+        if (context != mobileDeviceContext) {
+            PackageManager packages = context.getPackageManager();
+            handheldTouchDevice = packages.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN)
+                    && !packages.hasSystemFeature(PackageManager.FEATURE_PC)
+                    && !packages.hasSystemFeature(PackageManager.FEATURE_TELEVISION)
+                    && !packages.hasSystemFeature(PackageManager.FEATURE_LEANBACK_ONLY)
+                    && !packages.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE)
+                    && !packages.hasSystemFeature(PackageManager.FEATURE_WATCH)
+                    && !packages.hasSystemFeature("org.chromium.arc")
+                    && !packages.hasSystemFeature("org.chromium.arc.device_management");
+            mobileDeviceContext = context;
+        }
+        // Hardware family is stable; UI mode and the hosting display can change at runtime.
+        Configuration configuration = context.getResources().getConfiguration();
+        int mode = configuration.uiMode & Configuration.UI_MODE_TYPE_MASK;
+        if (!handheldTouchDevice || mode != Configuration.UI_MODE_TYPE_NORMAL || isDesktopMode(configuration)) {
+            return false;
+        }
+        return Build.VERSION.SDK_INT < 17 || DisplayApi17.isDefaultDisplay(currentView);
+    }
+
+    boolean isDesktopMode(Object configuration) {
+        // Samsung's DeX extension is optional. Resolve it once, including the unsupported case.
+        if (mobileConfigurationClass != configuration.getClass()) {
+            mobileConfigurationClass = configuration.getClass();
+            desktopModeField = null;
+            try {
+                desktopModeEnabled = mobileConfigurationClass.getField("SEM_DESKTOP_MODE_ENABLED").getInt(null);
+                desktopModeField = mobileConfigurationClass.getField("semDesktopModeEnabled");
+            } catch (NoSuchFieldException | IllegalAccessException | IllegalArgumentException | SecurityException ignored) {
+                // Standard Android has no vendor desktop-mode field.
+            }
+        }
+        if (desktopModeField != null) {
+            try {
+                return desktopModeField.getInt(configuration) == desktopModeEnabled;
+            } catch (IllegalAccessException | IllegalArgumentException ignored) {
+                desktopModeField = null;
+            }
+        }
+        return false;
+    }
+
+    // Keep the API-17 display lookup off the legacy Android path.
+    static final class DisplayApi17 {
+        static boolean isDefaultDisplay(View view) {
+            Display display = view.getDisplay();
+            return display != null && display.getDisplayId() == Display.DEFAULT_DISPLAY;
+        }
     }
 
     @Override

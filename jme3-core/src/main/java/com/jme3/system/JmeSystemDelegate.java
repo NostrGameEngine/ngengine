@@ -293,6 +293,16 @@ public abstract class JmeSystemDelegate implements HapticDevice {
         throw new UnsupportedOperationException("Unsupported architecture: " + arch);
     }
 
+    /**
+     * Reports a handheld phone/tablet form factor suitable for on-screen game controls.
+     * Backends must identify the device rather than infer this from its operating system.
+     *
+     * @return false when the device family is unknown or not handheld
+     */
+    public boolean isMobileDevice() {
+        return false;
+    }
+
     public Platform getPlatform() {
         String os = System.getProperty("os.name").toLowerCase();
         String arch = System.getProperty("os.arch").toLowerCase();

@@ -35,6 +35,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DisplayScaleUtilsTest {
 
@@ -44,6 +45,19 @@ class DisplayScaleUtilsTest {
                 AppSettings.DISPLAY_SCALE_DPI_AWARE, 1280, 720, 2560, 1440, 2f, 2f);
 
         assertArrayEquals(new int[] {1280, 720}, size);
+    }
+
+    @Test
+    void fractionalRenderScaleKeepsDpiAwareLogicalCoordinates() {
+        float mode = DisplayScaleUtils.normalizeDisplayScaleMode(0.75f);
+        int[] size = DisplayScaleUtils.resolveLogicalSize(
+                mode, 1280, 720, 2560, 1440, 2f, 2f);
+
+        assertEquals(0.75f, mode);
+        assertArrayEquals(new int[] {1280, 720}, size);
+        assertTrue(DisplayScaleUtils.isDpiAwareMode(mode));
+        assertTrue(DisplayScaleUtils.isEmulatedScaleMode(mode));
+        assertTrue(DisplayScaleUtils.requestsHighDensityFramebuffer(mode));
     }
 
     @Test

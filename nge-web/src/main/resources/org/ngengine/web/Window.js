@@ -226,6 +226,13 @@ function bindGamepads(){
 
 function bind(canvas, renderTarget){
 
+    let reloadRequested = false;
+    Binds.addEventListener("reloadPage", () => {
+        if (reloadRequested) return;
+        reloadRequested = true;
+        window.location.reload();
+    });
+
     Binds.addEventListener("getRenderTarget", ()=>{
         return renderTarget;
     });

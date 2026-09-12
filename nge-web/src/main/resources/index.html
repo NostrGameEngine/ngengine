@@ -231,6 +231,31 @@
             overflow: hidden;
         }
 
+        #ngeSplash .workerPreference {
+            position: fixed;
+            bottom: max(12px, env(safe-area-inset-bottom));
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.3rem;
+            font-size: 12px;
+            text-transform: none;
+            white-space: nowrap;
+            opacity: 0.55;
+            cursor: pointer;
+        }
+
+        #ngeSplash .workerPreference:hover,
+        #ngeSplash .workerPreference:focus-within {
+            opacity: 1;
+        }
+
+        #ngeSplash .workerPreference input {
+            accent-color: var(--text-color);
+        }
+
 
         @media (orientation: landscape) and (max-height: 600px) {
            #ngeSplash {
@@ -260,6 +285,10 @@
         <div>
             <button disabled id="play">Play</button>
         </div>
+        <label class="workerPreference" title="Use a Web Worker when supported. Uncheck to run on the main thread for this launch.">
+            <input type="checkbox" id="useWebWorker" disabled />
+            Use Web Worker
+        </label>
     </div>
 </body>
 

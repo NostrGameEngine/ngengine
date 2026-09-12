@@ -50,7 +50,6 @@ import com.jme3.input.event.TouchEvent;
 import com.jme3.system.JmeSystem;
 import com.jme3.system.Platform;
 
-import java.lang.reflect.Method;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -256,20 +255,14 @@ public interface InputHandlerFragment extends Fragment {
         if (JmeSystem.getPlatform().getOs() != Platform.Os.Web) {
             return false;
         }
-        try {
-            Class<?> webInfo = Class.forName("org.ngengine.web.WebPlatformInfo");
-            Method method = webInfo.getMethod("isMobileView");
-            return Boolean.TRUE.equals(method.invoke(null));
-        } catch (Throwable ignored) {
-            return false;
-        }
+        return JmeSystem.isMobileDevice();
     }
 
     default boolean showOnScreenJoystick(ComponentManager mng, Joystick[] joysticks) {
         if (hasPhysicalJoystick(joysticks)) {
             return false;
         }
-        return isMobilePlatform() || isMobileWebView();
+        return JmeSystem.isMobileDevice();
     }
 
     default boolean controlsOnScreenJoystick(ComponentManager mng, Joystick[] joysticks) {

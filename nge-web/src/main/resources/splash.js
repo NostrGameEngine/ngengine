@@ -177,7 +177,8 @@ async function startPreloader(splashEl){
                     canSkip ? "Skip and Play" : null
                 );
                 
-                if (event.data.done >= event.data.total) {
+                if (event.data.complete === true || (event.data.complete === undefined
+                        && canSkip && event.data.done >= event.data.total)) {
                     ready(splashEl);
                 }
             }
@@ -247,10 +248,24 @@ async function main(){
     }
     const config = await loadConfig();
 
+    const workerToggle = splashEl.querySelector("#useWebWorker");
+    if (workerToggle) {
+        const isCapacitor = config.is_capacitor ?? (typeof Capacitor !== "undefined"
+            && Capacitor.getPlatform && Capacitor.getPlatform() !== "web");
+        workerToggle.checked = Boolean(config.enableWebWorker ?? config.enable_web_worker ?? !isCapacitor);
+        workerToggle.disabled = false;
+    }
+
     const button = splashEl.querySelector("button#play");
     button.addEventListener("click", (e) => {
         ready(splashEl);
-        launchWebApp(splashEl, config);
+        // Override both aliases for this launch only; leave the app configuration unchanged.
+        const launchConfig = workerToggle ? {
+            ...config,
+            enableWebWorker: workerToggle.checked,
+            enable_web_worker: workerToggle.checked
+        } : config;
+        launchWebApp(splashEl, launchConfig);
     });
 
     updateProgress(splashEl, "", null, null, null, null, "Starting...", null);

@@ -40,6 +40,20 @@ import org.teavm.jso.typedarrays.Float32Array;
 
 public class WebBindsAsync {
     @Async
+    public static native void waitNextFrame();
+
+    private static void waitNextFrame(AsyncCallback<Void> callback) {
+        WebBinds.waitNextFrame(ignored -> callback.complete(null));
+    }
+
+    @Async
+    public static native void delay(int millis);
+
+    private static void delay(int millis, AsyncCallback<Void> callback) {
+        WebBinds.runWithDelay(ignored -> callback.complete(null), millis);
+    }
+
+    @Async
     public static native WebDecodedImage decodeImage(byte[] data, String filename, int targetWidth, int targetHeight);
 
     private static void decodeImage( byte[] data, String filename, int targetWidth, int targetHeight, AsyncCallback<WebDecodedImage> callback) {

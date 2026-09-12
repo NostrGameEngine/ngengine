@@ -244,11 +244,11 @@ public class WebTouchInput implements TouchInput{
             if (simulateMouse && simulatedMousePointerId == pointerId) {
                 if(canvas!=null){
                     if (flipX) {
-                        x = canvas.getWidth() - x;
+                        x = canvas.getClientWidth() - x;
                         dX = -dX;
                     }
                     if (flipY) {
-                        y = canvas.getHeight() - y;
+                        y = canvas.getClientHeight() - y;
                         dY = -dY;
                     }
                 }

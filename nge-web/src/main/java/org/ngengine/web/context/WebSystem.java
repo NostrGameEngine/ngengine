@@ -54,6 +54,7 @@ import java.nio.ByteBuffer;
 import java.util.logging.Logger;
 
 import org.ngengine.web.WebBinds;
+import org.ngengine.web.WebPlatformInfo;
 import org.ngengine.web.WebBindsAsync;
 import org.ngengine.web.json.TeaJSONParser;
 
@@ -174,6 +175,11 @@ public class WebSystem extends JmeSystemDelegate {
         return new SyncAssetManager(am);
     }
     
+    @Override
+    public boolean isMobileDevice() {
+        return WebPlatformInfo.isMobileView();
+    }
+
     public Platform getPlatform() {      
         return Platform.Web;      
     }

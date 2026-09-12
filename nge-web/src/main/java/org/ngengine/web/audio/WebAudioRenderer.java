@@ -34,6 +34,7 @@ package org.ngengine.web.audio;
 
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.Map.Entry;
@@ -44,6 +45,7 @@ import java.util.logging.Logger;
 import org.ngengine.web.WebBinds;
 import org.ngengine.web.WebBindsAsync;
 import org.teavm.jso.core.JSArray;
+import org.teavm.jso.JSObject;
 import org.teavm.jso.typedarrays.Float32Array;
 import org.teavm.jso.typedarrays.Int8Array;
 import com.jme3.audio.AudioData;
@@ -57,6 +59,7 @@ import com.jme3.audio.Listener;
 import com.jme3.audio.ListenerParam;
 import com.jme3.audio.AudioSource.Status;
 import com.jme3.math.Vector3f;
+import com.jme3.math.Quaternion;
 import com.jme3.util.NativeObject;
 
 public class WebAudioRenderer implements AudioRenderer {
@@ -64,21 +67,36 @@ public class WebAudioRenderer implements AudioRenderer {
     private static final int SAMPLE_RATE = 44100;
 
     private AtomicInteger idCounter = new AtomicInteger(1);
-    private Map<Integer, AudioSource> audioSourceIdMap = new WeakHashMap<>();
+    private Map<Integer, AudioSource> audioSourceIdMap = new HashMap<>();
     private Map<AudioData, Integer> audioDataIds = new WeakHashMap<>();
     private Set<Integer> otherIds = new HashSet<>();
     private Map<Integer, Runnable> freeMap = new ConcurrentHashMap<>();
     private int ctxId = NativeObject.INVALID_ID;
+    private JSObject audioEndListener;
+    private boolean disposed;
+    private Listener listener;
+    private boolean listenerDirty;
+    private boolean listenerTransformValid;
+    private final Vector3f listenerLocation = new Vector3f();
+    private final Quaternion listenerRotation = new Quaternion();
+    private final Vector3f listenerDirection = new Vector3f();
+    private final Vector3f listenerUp = new Vector3f();
 
     @Override
     public void initialize() {
-        WebBinds.addAudioEndListener((ctxId,srcId)->{
-            if(ctxId!=getContextId())return ;
+        if (audioEndListener != null) return;
+        disposed = false;
+        audioEndListener = WebBinds.addAudioEndListener((ctxId,srcId)->{
+            // End events may already be queued when the renderer is disposed.
+            if(disposed || ctxId != this.ctxId) return;
             AudioSource src = (AudioSource) audioSourceIdMap.get(srcId);
             if(src==null) return;
-            if(src.getStatus()==AudioSource.Status.Paused) return;
-            src.setStatus(Status.Stopped);
-            src.setChannel(-1);
+            if(src.getChannel() == srcId && src.getStatus()==AudioSource.Status.Paused) return;
+            // An instance finishing must not stop another playback of this node.
+            if (src.getChannel() == srcId) {
+                src.setStatus(Status.Stopped);
+                src.setChannel(-1);
+            }
             Runnable free = freeMap.remove(srcId);
             if(free != null) free.run();
         });
@@ -251,7 +269,11 @@ public class WebAudioRenderer implements AudioRenderer {
  
     @Override
     public void setListener(Listener listener) {
-        listener.setRenderer(this);     
+        if (this.listener != null) this.listener.setRenderer(null);
+        this.listener = listener;
+        listenerDirty = listener != null;
+        listenerTransformValid = false;
+        if (listener != null) listener.setRenderer(this);
     }
 
     @Override
@@ -303,7 +325,11 @@ public class WebAudioRenderer implements AudioRenderer {
         if (src.getStatus() == AudioSource.Status.Stopped) return;
         if (src.getChannel() == -1) return;
         src.setStatus(AudioSource.Status.Stopped);
-        WebBindsAsync.stopAudioSource(getContextId(), src.getChannel());
+        int channel = src.getChannel();
+        src.setChannel(-1);
+        WebBindsAsync.stopAudioSource(getContextId(), channel);
+        Runnable free = freeMap.remove(channel);
+        if (free != null) free.run();
         if (src.getAudioData() instanceof AudioStream) {
             AudioStream stream = (AudioStream) src.getAudioData();
             if (stream.isSeekable()) {
@@ -338,16 +364,31 @@ public class WebAudioRenderer implements AudioRenderer {
 
     @Override
     public void update(float tpf) {
-   
+        if (disposed || !listenerDirty || listener == null) return;
+        listenerDirty = false;
+        Vector3f position = listener.getLocation();
+        Quaternion rotation = listener.getRotation();
+        if (listenerTransformValid && listenerLocation.equals(position) && listenerRotation.equals(rotation)) return;
+        listenerLocation.set(position);
+        listenerRotation.set(rotation);
+        listenerRotation.getRotationColumn(2, listenerDirection);
+        listenerRotation.getRotationColumn(1, listenerUp);
+        sendListenerTransform(listenerLocation, listenerDirection, listenerUp);
+        listenerTransformValid = true;
     }
 
     
     @Override
     public void updateListenerParam(Listener listener, ListenerParam param) {
-        Vector3f pos = listener.getLocation();
-        Vector3f vel = listener.getVelocity();
-        Vector3f dir = listener.getDirection();
-        Vector3f up = listener.getUp();
+        // Position and rotation are commonly assigned separately every frame.
+        // Flush their final state once during the audio tick; unchanged assignments
+        // need neither a worker round trip nor temporary direction/up vectors.
+        if (listener == this.listener && (param == ListenerParam.Position || param == ListenerParam.Rotation)) {
+            listenerDirty = true;
+        }
+    }
+
+    protected void sendListenerTransform(Vector3f pos, Vector3f dir, Vector3f up) {
         WebBinds.setAudioContextListener(
             getContextId(), 
             pos.x, pos.y, pos.z, 
@@ -385,6 +426,15 @@ public class WebAudioRenderer implements AudioRenderer {
 
     @Override
     public void cleanup() {
+        disposed = true;
+        if (listener != null) listener.setRenderer(null);
+        listener = null;
+        listenerDirty = false;
+        listenerTransformValid = false;
+        if (audioEndListener != null) {
+            WebBinds.removeAudioEndListener(audioEndListener);
+            audioEndListener = null;
+        }
         Runnable[] cleanupActions = freeMap.values().toArray(new Runnable[0]);
         freeMap.clear();
         for (Runnable cleanupAction : cleanupActions) cleanupAction.run();

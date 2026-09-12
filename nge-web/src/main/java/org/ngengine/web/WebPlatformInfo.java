@@ -45,16 +45,6 @@ public final class WebPlatformInfo {
             + "  return nav.userAgentData.mobile;"
             + "}"
             + "var ua = typeof nav.userAgent === 'string' ? nav.userAgent : '';"
-            + "var mobileUa = /Android|iPhone|iPad|iPod|IEMobile|Opera Mini|Mobile/i.test(ua);"
-            + "var coarse = false;"
-            + "if (typeof matchMedia === 'function') {"
-            + "  coarse = matchMedia('(pointer: coarse)').matches || matchMedia('(hover: none)').matches;"
-            + "}"
-            + "var touch = !!(nav.maxTouchPoints && nav.maxTouchPoints > 0);"
-            + "var narrow = false;"
-            + "if (typeof window !== 'undefined') {"
-            + "  narrow = Math.min(window.innerWidth || 0, window.innerHeight || 0) <= 900;"
-            + "}"
-            + "return !!(mobileUa || ((coarse || touch) && narrow));")
+            + "return /Android|iPhone|iPad|iPod|IEMobile|Opera Mini|Mobile/i.test(ua);")
     public static native boolean isMobileView();
 }

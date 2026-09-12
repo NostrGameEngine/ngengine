@@ -7,6 +7,8 @@ import {
 
 const LISTENERS = {};
 const WORKERS = [];
+const NATIVE_FRAME_WORKERS = new Set();
+let nativeFrameWait = false;
 const SHARED_WRITERS = new Map();
 const PENDING_RESPONSES = {};
 let SHARED_PARENT_WRITER = null;
@@ -61,16 +63,20 @@ function makeTransferableList(args) {
 async function onEvent(e, source){
     checkEvent(e);
     if(!e.data) return;
-    if(e.data.type === "shared-events" && isWorker() && (e.data.toWorker || e.data.buffer)) {
+    if(e.data.type === "frame-wait-mode" && WORKERS.includes(source)) {
+        if (e.data.native === true) NATIVE_FRAME_WORKERS.add(source);
+        else NATIVE_FRAME_WORKERS.delete(source);
+    } else if(e.data.type === "shared-events" && isWorker() && (e.data.toWorker || e.data.buffer)) {
         startSharedEventReader(e.data.toWorker || e.data.buffer, (event, args) => {
-            callListeners(event, ...(args || []));
+            notifyListeners(event, args || []);
         });
         if (e.data.toMain) {
             SHARED_PARENT_WRITER = createSharedEventWriterForBuffer(e.data.toMain);
         }
     } else if(e.data.type === "event" && e.data.event) {
         const id = e.data.id;
-        const results = callListeners(e.data.event, ...(e.data.args || []));
+        const results = id ? callListeners(e.data.event, ...(e.data.args || []))
+            : notifyListeners(e.data.event, e.data.args || []);
         if(id) {
             if(results.length === 0) {
                 source.postMessage({ type: "response", id: id, ignored: true, error: "No listeners for "+e.data.event , event: e.data.event });
@@ -124,7 +130,7 @@ function registerWorker(worker, options = {}){
     const toMain = createSharedEventWriter(options.sharedEventBufferBytes);
     SHARED_WRITERS.set(worker, toWorker);
     startSharedEventReader(toMain.buffer, (event, args) => {
-        callListeners(event, ...(args || []));
+        notifyListeners(event, args || []);
     });
     worker.postMessage({
         type: "shared-events",
@@ -188,6 +194,7 @@ function fireEvent(event, ...args){
 
     // send to each worker
     for(const w of WORKERS){
+         if (event === 'render' && NATIVE_FRAME_WORKERS.has(w)) continue;
          try {
             const sharedWriter = SHARED_WRITERS.get(w);
             if(sharedWriter && sharedWriter.writeEvent(event, args || [])) {
@@ -215,6 +222,38 @@ function fireEvent(event, ...args){
 
 
 
+function notifyListeners(event, args) {
+    for (const listener of LISTENERS[event] || []) {
+        try {
+            const result = listener(...args);
+            if (result && typeof result.then === 'function') {
+                Promise.resolve(result).catch(error => console.error('Error in event listener', event, error));
+            }
+        } catch (error) {
+            console.error('Error in event listener', event, error);
+        }
+    }
+}
+
+function notify(event, ...args) {
+    notifyListeners(event, args);
+    for (const worker of WORKERS) {
+        if (event === 'render' && NATIVE_FRAME_WORKERS.has(worker)) continue;
+        if (!SHARED_WRITERS.get(worker)?.writeEvent(event, args)) {
+            worker.postMessage({ type: 'event', event, args }, makeTransferableList(args));
+        }
+    }
+    if (isWorker() && !SHARED_PARENT_WRITER?.writeEvent(event, args)) {
+        self.postMessage({ type: 'event', event, args }, makeTransferableList(args));
+    }
+}
+
+function setNativeFrameWait(enabled) {
+    if (!isWorker() || nativeFrameWait === enabled) return;
+    nativeFrameWait = enabled;
+    self.postMessage({ type: 'frame-wait-mode', native: enabled });
+}
+
 function removeEventListener(event, listener){
     const f = LISTENERS[event];
     if(f) {
@@ -226,4 +265,4 @@ function removeEventListener(event, listener){
 }
 
 
-export default { addEventListener, fireEvent, registerWorker , removeEventListener };
+export default { addEventListener, fireEvent, notify, setNativeFrameWait, registerWorker, removeEventListener };

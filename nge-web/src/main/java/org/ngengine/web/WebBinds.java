@@ -93,6 +93,10 @@ public class WebBinds implements JSObject {
 
     @JSTopLevel
     @JSModule("./org/ngengine/web/WebBinds.js")
+    public static native void reloadPage();
+
+    @JSTopLevel
+    @JSModule("./org/ngengine/web/WebBinds.js")
     public static native void toggleFullscreen(boolean v);
 
     @JSTopLevel
@@ -291,7 +295,11 @@ public class WebBinds implements JSObject {
 
     @JSTopLevel
     @JSModule("./org/ngengine/web/WebBinds.js")
-    public static native void addAudioEndListener(AudioEndEvent fun);
+    public static native JSObject addAudioEndListener(AudioEndEvent fun);
+
+    @JSTopLevel
+    @JSModule("./org/ngengine/web/WebBinds.js")
+    public static native void removeAudioEndListener(JSObject listener);
 
     @JSTopLevel
     @JSModule("./org/ngengine/web/WebBinds.js")

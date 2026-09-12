@@ -1629,10 +1629,10 @@ public final class AppSettings extends HashMap<String, Object> {
      * If {@link #setDisplayScaleMode(float)} was not called, this method
      * returns {@link #DISPLAY_SCALE_DISABLED}.
      * <p>
-     * Values greater than {@link #DISPLAY_SCALE_DPI_AWARE} mean emulated display
-     * scaling. For example, {@code 1.5f} keeps DPI-aware application coordinates
-     * while rendering on-screen content to an intermediate framebuffer sized
-     * {@code physicalFramebufferSize * 1.5}.
+     * Positive values other than {@link #DISPLAY_SCALE_DPI_AWARE} mean emulated
+     * display scaling. For example, {@code 0.75f} or {@code 1.5f} keep DPI-aware
+     * application coordinates while rendering on-screen content to an intermediate
+     * framebuffer sized {@code physicalFramebufferSize * mode}.
      *
      * @return the active display scale mode
      */
@@ -1650,11 +1650,11 @@ public final class AppSettings extends HashMap<String, Object> {
      * <p>
      * Use {@link #DISPLAY_SCALE_DISABLED},
      * {@link #DISPLAY_SCALE_NATIVE_PIXELS}, or
-     * {@link #DISPLAY_SCALE_DPI_AWARE} for built-in modes. Values below
-     * {@code 1.0}, except {@link #DISPLAY_SCALE_NATIVE_PIXELS}, are normalized
-     * to {@link #DISPLAY_SCALE_DISABLED}. Values above
-     * {@link #DISPLAY_SCALE_DPI_AWARE} enable emulated display scaling above the
-     * physical framebuffer size.
+     * {@link #DISPLAY_SCALE_DPI_AWARE} for built-in modes. Other positive values
+     * enable emulated render scaling while preserving DPI-aware logical coordinates.
+     * Values between {@code 0.0} and {@code 1.0} render below the physical
+     * framebuffer size; values above {@code 1.0} enable supersampling. Other
+     * negative values are normalized to {@link #DISPLAY_SCALE_DISABLED}.
      *
      * @param mode the desired mode
      */

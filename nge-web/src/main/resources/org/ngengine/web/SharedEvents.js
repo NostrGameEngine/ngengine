@@ -26,6 +26,7 @@ const WHEEL_CLIENT_X = 11;
 const WHEEL_CLIENT_Y = 12;
 const RESIZE_WIDTH = 13;
 const RESIZE_HEIGHT = 14;
+const RESIZE_PIXEL_RATIO = 15;
 
 const SHARED_EVENTS = new Set([
     "render",
@@ -136,6 +137,7 @@ function writerForViews(views) {
         if (event === "resizeRenderTarget") {
             views.state[RESIZE_WIDTH] = number(args[0]);
             views.state[RESIZE_HEIGHT] = number(args[1]);
+            views.state[RESIZE_PIXEL_RATIO] = number(args[2]);
             Atomics.add(views.header, RESIZE_SEQUENCE, 1);
             notify(views.header);
             return true;
@@ -248,7 +250,11 @@ export function startSharedEventReader(buffer, dispatch) {
         const nextResizeSequence = Atomics.load(views.header, RESIZE_SEQUENCE);
         if (nextResizeSequence !== resizeSequence) {
             resizeSequence = nextResizeSequence;
-            dispatch("resizeRenderTarget", [views.state[RESIZE_WIDTH], views.state[RESIZE_HEIGHT]]);
+            dispatch("resizeRenderTarget", [
+                views.state[RESIZE_WIDTH],
+                views.state[RESIZE_HEIGHT],
+                views.state[RESIZE_PIXEL_RATIO]
+            ]);
         }
 
         const nextMouseSequence = Atomics.load(views.header, MOUSE_SEQUENCE);

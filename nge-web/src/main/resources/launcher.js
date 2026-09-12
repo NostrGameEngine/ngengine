@@ -20,7 +20,7 @@ let fullscreenWarningIssued = false;
 function animLoop(){
     window.requestAnimationFrame(()=>{
         if(render){
-            Binds.fireEvent("render");
+            Binds.notify("render");
         }
         animLoop();
     });
@@ -154,12 +154,14 @@ export default async function launch(config){
             clearTimeout(resizeTimeout);
         }
         resizeTimeout = setTimeout(()=>{
-            let r = 1;
             canvas.style.width = window.innerWidth + 'px';
             canvas.style.height = window.innerHeight + 'px';
-            const width = window.innerWidth * r;
-            const height = window.innerHeight * r;
-            Binds.fireEvent("resizeRenderTarget", width, height);
+            const width = Math.max(Math.round(window.innerWidth), 1);
+            const height = Math.max(Math.round(window.innerHeight), 1);
+            const pixelRatio = Number.isFinite(window.devicePixelRatio) && window.devicePixelRatio > 0
+                ? window.devicePixelRatio
+                : 1;
+            Binds.fireEvent("resizeRenderTarget", width, height, pixelRatio);
             resizeTimeout = null;
         },100);     
     }

@@ -56,6 +56,7 @@ import org.ngengine.libjglios.core.LibJGLIOSLifecycleBridge;
  * @author normenhansen
  */
 public class JmeIosSystem extends JmeSystemDelegate {
+    private volatile Boolean mobileDevice;
 
     public JmeIosSystem() {
         setErrorMessageHandler((message) -> {
@@ -112,6 +113,23 @@ public class JmeIosSystem extends JmeSystemDelegate {
     public void initialize(AppSettings settings) {
         Logger.getLogger("").addHandler(new IosLogHandler());
 //                throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
+    public boolean isMobileDevice() {
+        if (mobileDevice == null) {
+            mobileDevice = queryMobileDevice();
+        }
+        return mobileDevice;
+    }
+
+    boolean queryMobileDevice() {
+        try {
+            return LibJGLIOSDeviceBridge.isMobileDevice();
+        } catch (LinkageError ignored) {
+            // Older native launchers and JVM-only runs cannot identify the device family.
+            return false;
+        }
     }
 
     @Override

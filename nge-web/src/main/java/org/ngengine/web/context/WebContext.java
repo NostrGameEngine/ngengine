@@ -79,6 +79,7 @@ public class WebContext implements JmeContext, Runnable {
 
     protected AtomicBoolean created = new AtomicBoolean(false);
     protected AtomicBoolean needClose = new AtomicBoolean(false);
+    private final AtomicBoolean restartRequested = new AtomicBoolean(false);
     protected final Object createdLock = new Object();
 
     protected AppSettings settings = new AppSettings(true);
@@ -102,10 +103,11 @@ public class WebContext implements JmeContext, Runnable {
 
     protected int canvasWidth;
     protected int canvasHeight;
+    protected float canvasPixelRatio = 1f;
 
     @JSFunctor
     public static interface CanvasResizeHandler extends JSObject {
-        void onResize(int width, int height);
+        void onResize(int width, int height, float pixelRatio);
     }
 
     @JSFunctor
@@ -137,12 +139,9 @@ public class WebContext implements JmeContext, Runnable {
 
 
     private void rebuildAuxiliaryFrameBufferIfNeeded(int width, int height) {
-        if(!settings.isResizable()){
-            width = settings.getWidth();
-            height = settings.getHeight();
-        }
-
-        int samples = settings.getSamples() <= 0?1:settings.getSamples();
+        // This attachment is sampled by the blit pass. Copied application
+        // settings may request canvas antialiasing, but not multisample textures.
+        int samples = 1;
         boolean srgb = settings.isGammaCorrection();
         boolean hasDepth = settings.getDepthBits() > 0;
         boolean hasStencil = settings.getStencilBits() > 0;
@@ -161,6 +160,8 @@ public class WebContext implements JmeContext, Runnable {
         // color target
         // we use an f16 render target to avoid losing precision before the sRGB conversion
         Texture2D colorTex = new Texture2D(new Image(srgb?Format.RGBA16F:Format.RGBA8, width, height, null, ColorSpace.Linear));
+        colorTex.setMagFilter(com.jme3.texture.Texture.MagFilter.Bilinear);
+        colorTex.setMinFilter(com.jme3.texture.Texture.MinFilter.BilinearNoMipMaps);
         if(samples>1){
             colorTex.getImage().setMultiSamples(samples);
         }
@@ -193,9 +194,10 @@ public class WebContext implements JmeContext, Runnable {
         canvasTarget  = WebBindsAsync.getRenderTarget();
 
 
-        WebBinds.addResizeRenderTargetListener((width,height)->{
+        WebBinds.addResizeRenderTargetListener((width,height,pixelRatio)->{
             canvasWidth = width;
             canvasHeight = height;
+            canvasPixelRatio = DisplayScaleUtils.sanitizeScale(pixelRatio);
         });
 
 
@@ -221,10 +223,12 @@ public class WebContext implements JmeContext, Runnable {
         attrs.setDrawingColorSpace(colorSpace);
         attrs.setPowerPreference("high-performance");
         attrs.setDepth(settings.getDepthBits()>0);
-        attrs.setAlpha(true);
-        attrs.setDesynchronized(true);
+        // The canvas is redrawn every frame. Keep it on the compositor's paced path
+        // and avoid preserving or blending a buffer whose previous contents are unused.
+        attrs.setAlpha(false);
+        attrs.setDesynchronized(false);
         attrs.setPremultipliedAlpha(false);
-        attrs.setPreserveDrawingBuffer(true);
+        attrs.setPreserveDrawingBuffer(false);
         attrs.setFailIfMajorPerformanceCaveat(false);
         attrs.setStencil(settings.getStencilBits()>0);
         attrs.setAntialias(hasAntialias);
@@ -278,40 +282,76 @@ public class WebContext implements JmeContext, Runnable {
         this.renderManager = rm;
     }
 
+    int logicalTargetW = 0;
+    int logicalTargetH = 0;
+    int framebufferTargetW = 0;
+    int framebufferTargetH = 0;
     int internalTargetW = 0;
     int internalTargetH = 0;
 
+    static int[] resolveCanvasSizes(float mode, int width, int height, float pixelRatio) {
+        int windowWidth = Math.max(width, 1);
+        int windowHeight = Math.max(height, 1);
+        float density = DisplayScaleUtils.requestsHighDensityFramebuffer(mode)
+                ? DisplayScaleUtils.sanitizeScale(pixelRatio)
+                : 1f;
+        int framebufferWidth = Math.max(Math.round(windowWidth * density), 1);
+        int framebufferHeight = Math.max(Math.round(windowHeight * density), 1);
+        int[] logicalSize = DisplayScaleUtils.resolveLogicalSize(mode, windowWidth, windowHeight,
+                framebufferWidth, framebufferHeight, density, density);
+        int renderWidth = DisplayScaleUtils.isEmulatedScaleMode(mode)
+                ? Math.max(Math.round(framebufferWidth * mode), 1)
+                : framebufferWidth;
+        int renderHeight = DisplayScaleUtils.isEmulatedScaleMode(mode)
+                ? Math.max(Math.round(framebufferHeight * mode), 1)
+                : framebufferHeight;
+        return new int[] {
+            logicalSize[0], logicalSize[1], framebufferWidth, framebufferHeight, renderWidth, renderHeight
+        };
+    }
+
     public void reshapeIfNeeded(){
-        int w = settings.getWidth();
-        int h = settings.getHeight();
+        int width = settings.getWidth();
+        int height = settings.getHeight();
         if(canvasWidth>0 && settings.isResizable()){
-            w = canvasWidth;
+            width = canvasWidth;
         }
         if(canvasHeight>0 && settings.isResizable()){
-            h = canvasHeight;
+            height = canvasHeight;
         }
 
-        if(settings.getWidth()!=w || settings.getHeight()!=h){
-            settings.setResolution(w, h);        
+        int[] sizes = resolveCanvasSizes(settings.getDisplayScaleMode(), width, height, canvasPixelRatio);
+        int logicalWidth = sizes[0];
+        int logicalHeight = sizes[1];
+        int framebufferWidth = sizes[2];
+        int framebufferHeight = sizes[3];
+        int renderWidth = sizes[4];
+        int renderHeight = sizes[5];
+
+        if(settings.getWidth()!=logicalWidth || settings.getHeight()!=logicalHeight){
+            settings.setResolution(logicalWidth, logicalHeight);
         }
 
-        if(canvasTarget!=null&&(internalTargetW!=w||internalTargetH!=h)){
-            canvasTarget.setWidth(w);
-            canvasTarget.setHeight(h);
-            // The two-argument SystemListener callback is retained only for
-            // backward compatibility and LegacyApplication intentionally
-            // ignores it. Report both logical and framebuffer dimensions so
-            // RenderManager updates its cameras and viewports after a browser
-            // resize. The web backend currently renders at devicePixelRatio
-            // 1, therefore the two sizes are identical here.
-            listener.reshape(w, h, w, h);
-            internalTargetW = w;
-            internalTargetH = h;
+        if(canvasTarget!=null&&(logicalTargetW!=logicalWidth||logicalTargetH!=logicalHeight
+                ||framebufferTargetW!=framebufferWidth||framebufferTargetH!=framebufferHeight
+                ||internalTargetW!=renderWidth||internalTargetH!=renderHeight)){
+            canvasTarget.setWidth(framebufferWidth);
+            canvasTarget.setHeight(framebufferHeight);
+            listener.reshape(logicalWidth, logicalHeight, renderWidth, renderHeight);
+            logicalTargetW = logicalWidth;
+            logicalTargetH = logicalHeight;
+            framebufferTargetW = framebufferWidth;
+            framebufferTargetH = framebufferHeight;
+            internalTargetW = renderWidth;
+            internalTargetH = renderHeight;
+            needAuxiliaryFrameBuffer = settings.isGammaCorrection()
+                    || renderWidth != framebufferWidth || renderHeight != framebufferHeight;
         }
     }
 
     private boolean loop() {
         try{
+            if (restartRequested.get()) return false;
             if(needClose.get()){
                 doDestroy();
                 return false;
@@ -343,9 +383,10 @@ public class WebContext implements JmeContext, Runnable {
                 if(blitMat==null){
                     blitMat = new Material(assetManager, "Common/MatDefs/Post/WebGLBlit.j3md");
                     blitMat.getAdditionalRenderState().setDepthTest(false);
-                    blitMat.getAdditionalRenderState().setDepthWrite(false);            
+                    blitMat.getAdditionalRenderState().setDepthWrite(false);
                     logger.info("Rebuild blit material");
                 }
+                blitMat.setBoolean("Srgb", settings.isGammaCorrection());
 
                 if(blitGeom==null){
                     blitGeom = new Picture("blit surface");
@@ -372,7 +413,7 @@ public class WebContext implements JmeContext, Runnable {
                 // the final image to the lower-left corner. WebGLBlit.vert
                 // operates directly in clip space, so restoring the physical
                 // drawing-buffer viewport is sufficient for this pass.
-                gl.setViewPort(0, 0, w, h);
+                gl.setViewPort(0, 0, framebufferTargetW, framebufferTargetH);
                 blitGeom.updateGeometricState();
                 renderManager.renderGeometry(blitGeom);
             } else {
@@ -398,61 +439,74 @@ public class WebContext implements JmeContext, Runnable {
         activeContext = this;
         doInit();  
 
-        Object lock = new Object();
-        AtomicBoolean slept = new AtomicBoolean(false);
+        long lastReport = timer.getTime();
+        long measuredWork = 0;
+        long maximumWork = 0;
+        int measuredFrames = 0;
+        long previousFrameStart = -1;
+        long measuredIntervals = 0;
+        long maximumInterval = 0;
+        int intervalCount = 0;
+        boolean diagnostics = settings.getBoolean("WebFrameDiagnostics");
+        timeThen = timer.getTime();
         while(true){
+            long frameStart = timer.getTime();
             if(!loop())return;
             long timeNow = timer.getTime();
+            if (diagnostics) {
+                if (previousFrameStart >= 0) {
+                    long interval = frameStart - previousFrameStart;
+                    measuredIntervals += interval;
+                    maximumInterval = Math.max(maximumInterval, interval);
+                    intervalCount++;
+                }
+                previousFrameStart = frameStart;
+                long work = timeNow - frameStart;
+                measuredWork += work;
+                maximumWork = Math.max(maximumWork, work);
+                measuredFrames++;
+                if (timeNow - lastReport >= timer.getResolution() * 5) {
+                    logger.info("Web frame work: count=" + measuredFrames
+                            + " averageMs=" + measuredWork * 1000.0 / timer.getResolution() / measuredFrames
+                            + " maximumMs=" + maximumWork * 1000.0 / timer.getResolution()
+                            + " intervalAverageMs=" + measuredIntervals * 1000.0 / timer.getResolution() / Math.max(1, intervalCount)
+                            + " intervalMaximumMs=" + maximumInterval * 1000.0 / timer.getResolution());
+                    measuredWork = maximumWork = 0;
+                    measuredIntervals = maximumInterval = 0;
+                    intervalCount = 0;
+                    measuredFrames = 0;
+                    lastReport = timeNow;
+                }
+            }
 
             pingDelta += (timeNow - timeThen);
-            if(pingDelta>1000){
+            if(pingDelta >= timer.getResolution()){
                 WebBinds.pingFrontEnd();
                 pingDelta = 0;
             }
 
-            slept.set(false);
             if(settings.isVSync()){
-                WebBinds.waitNextFrame(n->{
-                    new Thread(()->{
-                        synchronized(lock){
-                            slept.set(true);
-                            lock.notifyAll();
-                        }
-                    }).start();
-                });
+                WebBindsAsync.waitNextFrame();
             } else {
-                int fps = settings.getFrameRate();
-                long gapTo = timer.getResolution() / fps + timeThen;
-                long sleepTime = gapTo - timeNow - timeLate;
-                if(sleepTime>0){
-                    WebBinds.runWithDelay(m->{
-                        new Thread(()->{
-                            synchronized(lock){
-                                slept.set(true);
-                                lock.notifyAll();
-                            }
-                        }).start();
-                    }, (int)(sleepTime/1_000_000l));
+                int delay = frameDelayMillis(frameStart, timer.getTime(), timer.getResolution(), settings.getFrameRate());
+                if(delay > 0){
+                    WebBindsAsync.delay(delay);
                 } else {
-                    slept.set(true);
-                }
-                if (gapTo < timeNow) {
-                    timeLate = timeNow - gapTo;
-                } else {
-                    timeLate = 0;
+                    Thread.yield();
                 }
             }
 
-            if(!slept.get()){
-                synchronized(lock){   
-                    try{
-                        lock.wait(100);
-                    }catch(InterruptedException ex){
-                    }
-                }   
-            }    
             timeThen = timeNow;
         }             
+    }
+
+    static int frameDelayMillis(long frameStart, long now, long resolution, int fps) {
+        if (fps <= 0) return 0;
+        // Pace start-to-start. The previous pre-sleep timestamp produced alternating
+        // short/long frames; missed deadlines must not create catch-up render bursts.
+        long remaining = resolution / fps - Math.max(0, now - frameStart);
+        if (remaining <= 0) return 0;
+        return (int) Math.max(1, (remaining * 1000 + resolution - 1) / resolution);
     }
 
     // @Async
@@ -464,10 +518,11 @@ public class WebContext implements JmeContext, Runnable {
 
     @Override
     public void destroy(boolean waitFor) {
-        needClose.set(true);
+        // Closing a browser application returns to its launcher instead of leaving a frozen canvas.
+        restart();
     }
 
-    /** Requests an orderly shutdown of the browser context, if one is active. */
+    /** Returns to the page launcher if a browser context is active. */
     public static void requestExit() {
         WebContext context = activeContext;
         if (context != null) {
@@ -487,6 +542,14 @@ public class WebContext implements JmeContext, Runnable {
 
     @Override
     public void restart() {
+        if (restartRequested.compareAndSet(false, true)) {
+            requestPageReload();
+        }
+    }
+
+    /** Recreate the page, worker and GPU resources together after settings are saved. */
+    protected void requestPageReload() {
+        WebBinds.reloadPage();
     }
 
     @Override
@@ -581,8 +644,8 @@ public class WebContext implements JmeContext, Runnable {
      */
     @Override
     public int getFramebufferHeight() {
-        if(auxiliaryFrameBuffer !=null)return auxiliaryFrameBuffer.getHeight();
-        if(canvasTarget!=null) return  canvasTarget.getClientHeight();
+        if(framebufferTargetH > 0) return framebufferTargetH;
+        if(canvasTarget!=null) return canvasTarget.getHeight();
         return 768;
     }
 
@@ -593,8 +656,8 @@ public class WebContext implements JmeContext, Runnable {
      */
     @Override
     public int getFramebufferWidth() {
-        if(auxiliaryFrameBuffer !=null)return auxiliaryFrameBuffer.getWidth();
-        if(canvasTarget!=null) return  canvasTarget.getClientWidth();
+        if(framebufferTargetW > 0) return framebufferTargetW;
+        if(canvasTarget!=null) return canvasTarget.getWidth();
         return 1024;
     }
 

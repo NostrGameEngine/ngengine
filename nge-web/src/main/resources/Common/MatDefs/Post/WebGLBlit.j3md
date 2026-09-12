@@ -5,6 +5,7 @@ MaterialDef BlitMat {
         Int NumSamples
         Int NumSamplesDepth
         Texture2D Texture
+        Boolean Srgb
     }
 
     Technique {
@@ -17,6 +18,7 @@ MaterialDef BlitMat {
         Defines {
             BOUND_DRAW_BUFFER: BoundDrawBuffer
             RESOLVE_MS : NumSamples
+            SRGB : Srgb
         }
 
     }

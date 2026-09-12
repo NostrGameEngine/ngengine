@@ -61,6 +61,7 @@
         "VSync",
         "FrameRate",
         "GammaCorrection",
+        "DisplayScaleMode",
         "Resizable",
         "X11PlatformPreferred"
     ]

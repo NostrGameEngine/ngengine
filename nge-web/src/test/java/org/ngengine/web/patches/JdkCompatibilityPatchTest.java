@@ -6,13 +6,26 @@ package org.ngengine.web.patches;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.Arrays;
+import java.util.NoSuchElementException;
 
 import org.junit.jupiter.api.Test;
 
 public class JdkCompatibilityPatchTest {
+
+    @Test
+    public void webClassPathEnumerationIsExplicitlyEmpty() throws Exception {
+        ClassLoaderPatch patch = new ClassLoaderPatch();
+        for (String name : new String[] {"", "com/jme3/network", "META-INF/services/example.Service"}) {
+            var resources = patch.getResources(name);
+            assertFalse(resources.hasMoreElements());
+            assertThrows(NoSuchElementException.class, resources::nextElement);
+        }
+        assertThrows(NullPointerException.class, () -> patch.getResources(null));
+    }
 
     @Test
     public void unsignedIntegerConversionMatchesTheJdk() {

@@ -56,6 +56,7 @@ import com.jme3.renderer.ViewPort;
 import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.Node;
 import com.jme3.system.AppSettings;
+import com.jme3.system.JmeSystem;
 import com.jme3.texture.Texture;
 
 import org.ngengine.gui.nav.DefaultNavigatorInputHandler;
@@ -737,8 +738,7 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
             return false;
         }
         return lastInputDevice instanceof TouchScreen
-                || InputHandlerFragment.isMobilePlatform()
-                || InputHandlerFragment.isMobileWebView();
+                || JmeSystem.isMobileDevice();
     }
 
     void onWindowStackChanged() {
@@ -752,7 +752,7 @@ public class NWindowManagerComponent extends AbstractComponent implements LogicF
     private void applyInteractionState() {
         interactionActive = false;
         boolean hardwareCursorVisible = false;
-        boolean directTouchUi = InputHandlerFragment.isMobilePlatform() || InputHandlerFragment.isMobileWebView();
+        boolean directTouchUi = JmeSystem.isMobileDevice();
         for (NWindowManager manager : windowManagers) {
             boolean managerCanInteract = canInteractWith(manager);
             interactionActive |= managerCanInteract;
