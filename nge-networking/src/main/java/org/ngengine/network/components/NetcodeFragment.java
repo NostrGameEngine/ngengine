@@ -2,8 +2,6 @@ package org.ngengine.network.components;
 
 import java.math.BigInteger;
 import java.time.Duration;
-import java.util.LinkedHashSet;
-import java.util.Set;
 import org.ngengine.components.Component;
 import org.ngengine.components.ComponentManager;
 import org.ngengine.components.fragments.ActionBasedFragment;
@@ -54,13 +52,12 @@ public interface NetcodeFragment  extends ActionBasedFragment<ActionMessage> {
         if (peer == null || peer.getRemotePeer() == null || peer.getRemotePeer().getPubkey() == null) {
             return false;
         }
-        Set<org.ngengine.nostr4j.keypair.NostrPublicKey> knownPeers = new LinkedHashSet<>(net.getKnownPeerPublicKeys());
-        knownPeers.add(peer.getRemotePeer().getPubkey());
+        NostrPublicKey remotePeer = peer.getRemotePeer().getPubkey();
         NostrPublicKey localPeer = net.getLocalPeerPublicKey();
         return NetcodeAuthorityAssignment.hasAuthority(
-            peer.getRemotePeer().getPubkey(),
+            remotePeer,
             getNetworkId(),
-            knownPeers,
+            net.getKnownPeerPublicKeysIncluding(remotePeer),
             localPeer
         );
     }

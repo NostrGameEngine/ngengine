@@ -12,7 +12,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
-import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -61,6 +60,7 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
     private @Nullable String turnServer;
     private LobbyManager lobbyManager;
     private P2PConnection connection;
+    private long connectionGeneration;
     private Lobby connectedLobby;
     
 
@@ -84,20 +84,24 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
     private @Nullable NostrPublicKey cachedKnownPeerLocalPublicKey;
     private @Nullable Set<NostrPublicKey> cachedKnownPeerPublicKeys;
     private @Nullable List<NostrPublicKey> cachedSortedKnownPeerPublicKeys;
-    private final Map<BigInteger, NostrPublicKey> cachedActiveOwners = new WeakHashMap<>();
+    private final Map<BigInteger, NostrPublicKey> cachedActiveOwners = new HashMap<>();
     private long orphanLifecycleTopologyVersion = Long.MIN_VALUE;
     private boolean orphanLifecycleDirty;
     private boolean hasPendingOrphans;
     private Duration networkOrphanGracePeriod = NetcodeFragment.DEFAULT_ORPHAN_GRACE_PERIOD;
 
     public void registerActionHandler(NetcodeFragment handler) {
-        if (registeredActionHandlers.putIfAbsent(handler, new RegisteredHandler()) == null) {
+        if (!registeredActionHandlers.containsKey(handler)) {
+            registeredActionHandlers.put(handler, new RegisteredHandler(handler));
             orphanLifecycleDirty = true;
         }
     }
 
     public void unregisterActionHandler(NetcodeFragment handler) {
-        registeredActionHandlers.remove(handler);
+        if (registeredActionHandlers.remove(handler) != null) {
+            cachedActiveOwners.remove(handler.getNetworkId());
+            orphanLifecycleDirty = true;
+        }
     }
 
     /**
@@ -138,12 +142,17 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
 
     private static final class RegisteredHandler {
         public long lastSnapshotNanos = Long.MIN_VALUE;
+        public final long snapshotIntervalNanos;
         public long authorityTopologyVersion = Long.MIN_VALUE;
         public long orphanedSinceNanos = Long.MIN_VALUE;
         public boolean authorityInitialized;
         public boolean orphanNotified;
         public @Nullable NostrPublicKey lastAuthorityOwner;
         public @Nullable NostrPublicKey orphanedOwner;
+
+        private RegisteredHandler(NetcodeFragment handler) {
+            snapshotIntervalNanos = handler.getNetworkBehavior().getSnapshotInterval().toNanos();
+        }
     }
 
    
@@ -311,7 +320,12 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
         disconnectFromLobby();
 
         // connect!
+        long generation = connectionGeneration;
         P2PConnection conn = lobbyManager.connectToLobby(lobby, passphrase);
+        if (generation != connectionGeneration) {
+            conn.close();
+            throw new java.util.concurrent.CancellationException("Lobby connection was cancelled.");
+        }
         conn.addConnectionListener(connectionListener);
         conn.addMessageListener(messageListener);
 
@@ -336,6 +350,7 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
     }
 
     public void disconnectFromLobby() {
+        connectionGeneration++;
         if (connection != null) {
             try {
                 connection.removeMessageListener(messageListener);
@@ -477,6 +492,17 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
         return cachedKnownPeerPublicKeys;
     }
 
+    /** Reuses the cached topology unless a sender arrived before its connection callback. */
+    Set<NostrPublicKey> getKnownPeerPublicKeysIncluding(@Nullable NostrPublicKey peer) {
+        Set<NostrPublicKey> knownPeers = getKnownPeerPublicKeys();
+        if (peer == null || knownPeers.contains(peer)) {
+            return knownPeers;
+        }
+        Set<NostrPublicKey> peersWithSender = new LinkedHashSet<>(knownPeers);
+        peersWithSender.add(peer);
+        return peersWithSender;
+    }
+
     private List<NostrPublicKey> getSortedKnownPeerPublicKeys() {
         getKnownPeerPublicKeys();
         return cachedSortedKnownPeerPublicKeys != null
@@ -567,7 +593,6 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
 
     @Override
     public void updateAppLogic(ComponentManager mng, float tpf) {
-        cleanupDetachedHandlers();
         while (!inboundMessages.isEmpty()) {
             InboundMessage inbound = inboundMessages.poll();
             if (inbound == null || inbound.getMessage() == null) {
@@ -578,13 +603,20 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
 
         long nowNanos = System.nanoTime();
         updateOrphanLifecycle(nowNanos);
-        for(Entry<NetcodeFragment, RegisteredHandler> entry : registeredActionHandlers.entrySet()){
+        Iterator<Entry<NetcodeFragment, RegisteredHandler>> handlers =
+            registeredActionHandlers.entrySet().iterator();
+        while (handlers.hasNext()) {
+            Entry<NetcodeFragment, RegisteredHandler> entry = handlers.next();
             NetcodeFragment handler = entry.getKey();
+            if (!isHandlerAttached(handler)) {
+                handlers.remove();
+                cachedActiveOwners.remove(handler.getNetworkId());
+                orphanLifecycleDirty = true;
+                continue;
+            }
             RegisteredHandler data = entry.getValue();
-            NetcodeBehavior behavior = handler.getNetworkBehavior();
-            long intervalNanos = behavior.getSnapshotInterval().toNanos();
             boolean needsSnapshot = data.lastSnapshotNanos == Long.MIN_VALUE
-                || nowNanos - data.lastSnapshotNanos >= intervalNanos;
+                || nowNanos - data.lastSnapshotNanos >= data.snapshotIntervalNanos;
 
             if (!needsSnapshot || !handler.checkAuthority()) {
                 continue;
@@ -759,22 +791,16 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
                 return;
             }
 
-     
             // Handler not found. Validate authority first.
             BigInteger networkId = snapshotMessage.getNetworkId();
-            java.util.Set<NostrPublicKey> knownPeers = new java.util.LinkedHashSet<>(getKnownPeerPublicKeys());
             NostrPublicKey senderKey = inbound.getFromPeer() != null
                 && inbound.getFromPeer().getRemotePeer() != null
                 ? inbound.getFromPeer().getRemotePeer().getPubkey()
                 : null;
-            if (senderKey != null) {
-                // The sender is an active connection even if connectionAdded callback has not been processed yet.
-                knownPeers.add(senderKey);
-            }
             boolean hasAuthority = NetcodeAuthorityAssignment.hasAuthority(
                 senderKey,
                 networkId,
-                knownPeers,
+                getKnownPeerPublicKeysIncluding(senderKey),
                 getLocalPeerPublicKey()
             );
 
@@ -805,6 +831,7 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
                 NetcodeFragment candidate = it.next();
                 if (!isHandlerAttached(candidate)) {
                     it.remove();
+                    cachedActiveOwners.remove(candidate.getNetworkId());
                     continue;
                 }
                 if(
@@ -853,6 +880,7 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
             NetcodeFragment h = it.next();
             if (!isHandlerAttached(h)) {
                 it.remove();
+                cachedActiveOwners.remove(h.getNetworkId());
                 continue;
             }
             if (
@@ -863,16 +891,6 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
             }
         }
         return null;
-    }
-
-    private void cleanupDetachedHandlers() {
-        Iterator<NetcodeFragment> it = registeredActionHandlers.keySet().iterator();
-        while (it.hasNext()) {
-            NetcodeFragment h = it.next();
-            if (!isHandlerAttached(h)) {
-                it.remove();
-            }
-        }
     }
 
     private boolean isHandlerAttached(@Nullable NetcodeFragment handler) {

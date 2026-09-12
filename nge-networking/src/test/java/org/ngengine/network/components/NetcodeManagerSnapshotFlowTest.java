@@ -1,6 +1,9 @@
 package org.ngengine.network.components;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Constructor;
@@ -8,9 +11,13 @@ import java.math.BigInteger;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
+import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,6 +25,7 @@ import org.ngengine.components.actions.ComponentAction;
 import org.ngengine.components.actions.ComponentActionFilter;
 import org.ngengine.network.RemotePeer;
 import org.ngengine.network.protocol.NetworkSafe;
+import org.ngengine.nostr4j.keypair.NostrPublicKey;
 
 import com.jme3.network.Message;
 
@@ -70,6 +78,7 @@ public class NetcodeManagerSnapshotFlowTest {
         private final BigInteger id = BigInteger.valueOf(42);
         private boolean authoritative = true;
         private boolean remoteAuthoritative;
+        private int behaviorResolutionCount;
 
         @Override
         public BigInteger getNetworkId() {
@@ -83,6 +92,7 @@ public class NetcodeManagerSnapshotFlowTest {
 
         @Override
         public NetcodeBehavior getNetworkBehavior() {
+            behaviorResolutionCount++;
             return new NetcodeBehavior(Duration.ofMillis(0));
         }
 
@@ -168,6 +178,58 @@ public class NetcodeManagerSnapshotFlowTest {
         handler.setValue(11);
         manager.updateAppLogic(null, 0f);
         assertEquals(9, manager.sentCount);
+    }
+
+    @Test
+    public void managerCachesSnapshotIntervalWhenHandlerIsRegistered() {
+        assertEquals(1, handler.behaviorResolutionCount);
+
+        manager.updateAppLogic(null, 0f);
+        manager.updateAppLogic(null, 0f);
+
+        assertEquals(1, handler.behaviorResolutionCount);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void managerUsesStrongActiveOwnerCache() throws Exception {
+        Field field = NetcodeManagerComponent.class.getDeclaredField("cachedActiveOwners");
+        field.setAccessible(true);
+
+        Map<BigInteger, ?> cache = (Map<BigInteger, ?>) field.get(manager);
+
+        assertEquals(HashMap.class, cache.getClass());
+        manager.resolveActiveOwnerPeerPublicKey(handler.getNetworkId());
+        assertTrue(cache.containsKey(handler.getNetworkId()));
+
+        manager.unregisterActionHandler(handler);
+
+        assertFalse(cache.containsKey(handler.getNetworkId()));
+    }
+
+    @Test
+    public void managerReusesCachedPeersUnlessTheSenderIsNotKnownYet() {
+        NostrPublicKey known = peer(1);
+        NostrPublicKey earlySender = peer(2);
+        Set<NostrPublicKey> cachedPeers = new LinkedHashSet<>();
+        cachedPeers.add(known);
+        NetcodeManagerComponent peerManager = new NetcodeManagerComponent() {
+            @Override
+            public Set<NostrPublicKey> getKnownPeerPublicKeys() {
+                return cachedPeers;
+            }
+        };
+
+        assertSame(cachedPeers, peerManager.getKnownPeerPublicKeysIncluding(known));
+        Set<NostrPublicKey> expanded = peerManager.getKnownPeerPublicKeysIncluding(earlySender);
+        assertEquals(2, expanded.size());
+        assertTrue(expanded.contains(known));
+        assertTrue(expanded.contains(earlySender));
+        assertFalse(cachedPeers.contains(earlySender));
+    }
+
+    private static NostrPublicKey peer(int value) {
+        return NostrPublicKey.fromHex(String.format("%064x", value));
     }
 
     @Test
