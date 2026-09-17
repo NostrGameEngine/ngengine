@@ -391,6 +391,7 @@ task mergedJavadoc(type: Javadoc, description: 'Creates Javadoc from all the pro
     options.stylesheetFile = file("javadocfiles/javadoc-style.css")
 
     source = mergedJavadocSubprojects.collect { project(it).sourceSets.main.allJava }
+    source += fileTree("jme3-android/src/androidx-stubs/java")
     classpath = files(mergedJavadocSubprojects.collect { project(it).sourceSets.main.compileClasspath })
 }
 
