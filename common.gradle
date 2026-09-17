@@ -26,7 +26,9 @@ java {
 
 // These adapters depend on tools/backends whose own classes require newer JVMs.
 // Advertise that runtime minimum without relaxing the Java 11 compiler contract.
-def backendJavaVersion = ['nge-web': 17, 'nge-web-bullet': 17, 'nge-examples': 21][project.name]
+def backendJavaVersion = ['nge-web': 17, 'nge-web-bullet': 17, 'nge-examples': 21,
+                         'jme3-screenshot-tests-desktop': 17,
+                         'jme3-screenshot-tests-proto-report': 17][project.name]
 if (backendJavaVersion != null) {
     ['compileClasspath', 'runtimeClasspath', 'apiElements', 'runtimeElements'].each { configurationName ->
         configurations.named(configurationName) {
