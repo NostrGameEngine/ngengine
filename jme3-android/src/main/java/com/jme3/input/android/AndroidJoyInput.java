@@ -203,6 +203,17 @@ public class AndroidJoyInput implements JoyInput {
         }
     }
 
+    /**
+     * Returns a bit mask of the pointer ids currently captured by the on-screen virtual
+     * joystick - see {@link VirtualJoystick#getCapturedPointerMask()}.
+     *
+     * @return the captured pointer ids as a bit mask, 0 if there is no virtual joystick
+     */
+    public long getCapturedPointerMask() {
+        VirtualJoystick joystick = virtualJoystick;
+        return joystick == null ? 0L : joystick.getCapturedPointerMask();
+    }
+
     public boolean onTouch(MotionEvent event) {
         VirtualJoystick joystick = virtualJoystick;
         if (joystick == null || inputHandler.getView() == null) {
