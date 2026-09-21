@@ -256,7 +256,7 @@ nifty-style-black = { module = "com.github.nifty-gui:nifty-style-black", version
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 okhttpAndroid = { module = "com.squareup.okhttp3:okhttp-android", version.ref = "okhttp" }
 slf4j-jdk14 = { module = "org.slf4j:slf4j-jdk14", version.ref = "slf4j" }
-spotbugs-gradle-plugin = { module = "com.github.spotbugs.snom:spotbugs-gradle-plugin", version.ref = "spotbugsPlugin" }
+spotbugs-gradle-plugin = "com.github.spotbugs.snom:spotbugs-gradle-plugin:6.5.11"
 vecmath = "javax.vecmath:vecmath:1.5.2"
 extent-reports = { module = "com.aventstack:extentreports", version = "5.1.2"}
 [bundles]
