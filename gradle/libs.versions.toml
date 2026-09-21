@@ -204,7 +204,7 @@ androidxStorage = { module = "androidx.test.services:storage" }
 androidxTestEspressoCore = "androidx.test.espresso:espresso-core:3.7.0"
 androidxFragmentTesting = { module ="androidx.fragment:fragment-testing", version.ref = "androidx-fragment-testing" }
 androidxFragmentTestingManifest = { module = "androidx.fragment:fragment-testing-manifest", version.ref = "androidx-fragment-testing" }
-androidxConstraintlayout = { module = "androidx.constraintlayout:constraintlayout", version = "2.1.1" }
+androidxConstraintlayout = { module = "androidx.constraintlayout:constraintlayout", version = "2.2.2" }
 asm = { module = "org.ow2.asm:asm", version.ref = "asm" }
 asm-tree = { module = "org.ow2.asm:asm-tree", version.ref = "asm" }
 bcprov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bcprov" }
