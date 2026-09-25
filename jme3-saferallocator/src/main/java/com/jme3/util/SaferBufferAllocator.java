@@ -1,230 +1,82 @@
 package com.jme3.util;
 
-import java.lang.ref.PhantomReference;
-import java.lang.ref.ReferenceQueue;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
-import java.util.logging.Level;
-import org.ngengine.saferalloc.SaferAlloc;
-import org.ngengine.saferalloc.SaferAllocFunctionPointers;
-import org.ngengine.saferalloc.SaferAllocNative;
+import org.ngengine.platform.NGEAllocator;
+import org.ngengine.platform.NGEPlatform;
 
+/** Retains the jME allocator API while NGE Platform owns native allocations. */
 public final class SaferBufferAllocator implements BufferAllocator {
     private static final Logger logger = Logger.getLogger(SaferBufferAllocator.class.getName());
-    private static final ReferenceQueue<ByteBuffer> refQueue = new ReferenceQueue<>();
-    private static final ConcurrentHashMap<Long, AllocationRef> allocations = new ConcurrentHashMap<>();
-
-    private static final Thread reaperThread = new Thread(SaferBufferAllocator::reapLoop,
-            "Safer Deallocator");
-
-    static {
-        reaperThread.setDaemon(true);
-        reaperThread.start();
-        SaferAlloc.ensureLoaded();
-    }
 
     public SaferBufferAllocator() {
         logger.info(getClass().getSimpleName() + " enabled!");
     }
 
-    private static void reapLoop() {
-        for (;;) {
-            try {
-                AllocationRef ref = (AllocationRef) refQueue.remove();
-                ref.freeFromQueue();
-                SaferAllocMemoryGuard.notifyGC();
-            } catch (InterruptedException e) {
-                return;
-            } catch (Throwable t) {
-                // Keep the reaper alive even if one cleanup fails.
-                logger.log(Level.SEVERE, "Error in reaper thread", t);
-            }
-        }
-    }
-
-    private static final class AllocationRef extends PhantomReference<ByteBuffer> {
-        private final long address;
-        private final AtomicBoolean retired = new AtomicBoolean(false);
-
-        private AllocationRef(ByteBuffer referent, long address) {
-            super(referent, refQueue);
-            this.address = address;
-        }
-
-        /**
-         * Used when native realloc has already taken care of the old allocation. Removes tracking without
-         * freeing again.
-         */
-        private void retireWithoutFree() {
-            if (!retired.compareAndSet(false, true)) {
-                return;
-            }
-            allocations.remove(address, this);
-            clear();
-        }
-
-        /**
-         * Explicit free or queued phantom cleanup.
-         */
-        private void freeNow() {
-            if (!retired.compareAndSet(false, true)) {
-                return;
-            }
-
-            boolean removed = allocations.remove(address, this);
-            clear();
-
-            if (removed) {
-                SaferAlloc.free(address);
-            }
-        }
-
-        private void freeFromQueue() {
-            freeNow();
-        }
-    }
-
-    private static ByteBuffer register(ByteBuffer buffer) {
-        if (buffer == null) {
-            return null;
-        }
-
-        long address = SaferAlloc.address(buffer);
-        if (address == 0L) {
-            throw new IllegalStateException("SaferAlloc returned null address for non-null buffer");
-        }
-
-        AllocationRef ref = new AllocationRef(buffer, address);
-        AllocationRef previous = allocations.put(address, ref);
-
-        if (previous != null) {
-            // This should normally not happen unless the old allocation was already
-            // logically retired (for example after realloc) or bookkeeping got out of sync.
-            // Never free here: the address now belongs to the new allocation.
-            previous.retireWithoutFree();
-        }
-
-        return buffer;
+    static NGEAllocator allocator() {
+        return NGEPlatform.get().getNativeAllocator();
     }
 
     public static long getMallocFunctionPointer() {
-        return SaferAllocFunctionPointers.malloc();
+        return allocator().mallocFunctionPointer();
     }
 
     public static long getCallocFunctionPointer() {
-        return SaferAllocFunctionPointers.calloc();
+        return allocator().callocFunctionPointer();
     }
 
     public static long getReallocFunctionPointer() {
-        return SaferAllocFunctionPointers.realloc();
+        return allocator().reallocFunctionPointer();
     }
 
     public static long getFreeFunctionPointer() {
-        return SaferAllocFunctionPointers.free();
+        return allocator().freeFunctionPointer();
     }
 
     public static long getAlignedAllocFunctionPointer() {
-        return SaferAllocFunctionPointers.alignedAlloc();
+        return allocator().alignedAllocFunctionPointer();
     }
 
     public static long getAlignedFreeFunctionPointer() {
-        return SaferAllocFunctionPointers.alignedFree();
+        return allocator().alignedFreeFunctionPointer();
     }
 
     public static long malloc(long size) {
-        if (size < 0) {
-            throw new IllegalArgumentException("size < 0");
-        }
-        SaferAllocMemoryGuard.beforeAlloc(size);
-        long pointer = SaferAllocNative.malloc(size);
-        if (pointer == 0L && size != 0) {
-            throw new OutOfMemoryError("SaferAlloc malloc failed: " + size);
-        }
-        return pointer;
+        return allocator().mallocRaw(size);
     }
 
     public static long calloc(long num, long size) {
-        if (num < 0 || size < 0) {
-            throw new IllegalArgumentException("num/size < 0");
-        }
-        if (num != 0 && size > Long.MAX_VALUE / num) {
-            throw new OutOfMemoryError("calloc overflow");
-        }
-
-        long requestedBytes = num * size;
-        SaferAllocMemoryGuard.beforeAlloc(requestedBytes);
-        long pointer = SaferAllocNative.calloc(num, size);
-        if (pointer == 0L && requestedBytes != 0) {
-            throw new OutOfMemoryError("SaferAlloc calloc failed: " + num + "*" + size);
-        }
-        return pointer;
+        return allocator().callocRaw(num, size);
     }
 
     public static long realloc(long ptr, long size) {
-        if (size < 0) {
-            throw new IllegalArgumentException("size < 0");
-        }
-        // saferalloc does not currently expose the old allocation size, so use the
-        // requested size as a conservative pressure estimate.
-        SaferAllocMemoryGuard.beforeAlloc(size);
-        long pointer = SaferAllocNative.realloc(ptr, size);
-        if (pointer == 0L && size != 0) {
-            throw new OutOfMemoryError("SaferAlloc realloc failed: " + size);
-        }
-        return pointer;
+        return allocator().reallocRaw(ptr, size);
     }
 
     public static void free(long ptr) {
-        if (ptr != 0L) {
-            SaferAllocNative.free(ptr);
-        }
+        allocator().freeRaw(ptr);
     }
 
     public static long alignedAlloc(long alignment, long size) {
-        if (alignment <= 0) {
-            throw new IllegalArgumentException("alignment <= 0");
-        }
-        if (size < 0) {
-            throw new IllegalArgumentException("size < 0");
-        }
-        SaferAllocMemoryGuard.beforeAlloc(size);
-        long pointer = SaferAllocNative.mallocAligned(size, alignment);
-        if (pointer == 0L && size != 0) {
-            throw new OutOfMemoryError("SaferAlloc aligned_alloc failed: " + size);
-        }
-        return pointer;
+        return allocator().mallocAlignedRaw(alignment, size);
     }
 
     public static void alignedFree(long ptr) {
-        if (ptr != 0L) {
-            SaferAllocNative.free(ptr);
-        }
+        allocator().freeAlignedRaw(ptr);
     }
 
     @Override
     public ByteBuffer allocate(int size) {
-        SaferAllocMemoryGuard.beforeAlloc(size);
-        ByteBuffer buffer = SaferAlloc.calloc(1, size);
+        ByteBuffer buffer = allocator().calloc(1, size);
         if (buffer == null) {
-            throw new OutOfMemoryError("Could not allocate " + size + " bytes through SaferAlloc");
+            throw new OutOfMemoryError("Could not allocate " + size + " bytes through NGE Platform");
         }
-        return register(buffer);
+        return buffer;
     }
 
     @Override
     public void destroyDirectBuffer(Buffer buffer) {
-        if (buffer == null) {
-            return;
-        }
-
-        long address = SaferAlloc.address(buffer);
-        AllocationRef ref = allocations.get(address);
-
-        if (ref != null) {
-            ref.freeNow();
-        }
+        allocator().freeBuffer(buffer);
     }
 }

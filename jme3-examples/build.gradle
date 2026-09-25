@@ -361,6 +361,7 @@ dependencies {
     // implementation project(':jme3-lwjgl')
     implementation project(':jme3-lwjgl3')
     implementation project(':jme3-saferallocator')
+    runtimeOnly libs.nge.platform.jvm.snapshot
     implementation project(':jme3-networking')
     implementation project(':jme3-plugins')
     implementation project(':jme3-plugins-json')
@@ -370,6 +371,9 @@ dependencies {
     implementation project(':jme3-testdata')
     runtimeOnly libs.nifty.examples // for the "all/intro.xml" example GUI
 }
+
+configurations.runtimeClasspath.attributes.attribute(
+        org.gradle.api.attributes.java.TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 21)
 
 jar.doFirst{
     manifest {

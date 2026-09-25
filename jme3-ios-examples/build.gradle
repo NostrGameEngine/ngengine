@@ -305,6 +305,7 @@ dependencies {
     implementation project(':jme3-core')
     implementation project(':jme3-ios')
     implementation project(':jme3-saferallocator')
+    implementation libs.nge.platform.ios.snapshot
     implementation libs.libjgliosCoreIos
     implementation libs.libjgliosGlesIos
     implementation libs.libjgliosSdl3Ios
@@ -322,6 +323,10 @@ dependencies {
         implementation project(':jme3-niftygui')
         implementation project(':jme3-terrain')
     }
+}
+
+configurations.matching { it.name in ['compileClasspath', 'runtimeClasspath'] }.configureEach {
+    attributes.attribute(org.gradle.api.attributes.java.TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 21)
 }
 
 tasks.named('compileJava') {

@@ -13,6 +13,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.ngengine.platform.NGEPlatform;
+import org.ngengine.platform.ios.IosPlatform;
 
 public final class IosTestChooserLauncher extends IosApplicationLauncher {
     private static final String CLASS_LIST_RESOURCE = "/jme3test/test-classes.txt";
@@ -24,6 +26,9 @@ public final class IosTestChooserLauncher extends IosApplicationLauncher {
 
     @Override
     public void start() {
+        if (!NGEPlatform.isSet()) {
+            NGEPlatform.set(new IosPlatform());
+        }
         activeLauncher = this;
         pendingClass = initialExampleClass();
         super.start();

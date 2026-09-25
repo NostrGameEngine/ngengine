@@ -110,6 +110,7 @@ nge-networking-snapshot = { module = "org.ngengine:nge-networking", version.ref 
 nge-platform-android-snapshot = { module = "org.ngengine:nge-platform-android", version.ref = "ngePlatformSnapshot" }
 nge-platform-common-snapshot = { module = "org.ngengine:nge-platform-common", version.ref = "ngePlatformSnapshot" }
 nge-platform-jvm-snapshot = { module = "org.ngengine:nge-platform-jvm", version.ref = "ngePlatformSnapshot" }
+nge-platform-ios-snapshot = { module = "org.ngengine:nge-platform-ios", version.ref = "ngePlatformSnapshot" }
 nge-platform-teavm-snapshot = { module = "org.ngengine:nge-platform-teavm", version.ref = "ngePlatformSnapshot" }
 nostr4j-snapshot = { module = "org.ngengine:nostr4j", version.ref = "nostr4jSnapshot" }
 nostr4j-turn-server-snapshot = { module = "org.ngengine:nostr4j-turn-server", version.ref = "nostr4jSnapshot" }

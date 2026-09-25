@@ -22,7 +22,14 @@ public final class LWJGLSaferAllocMemoryAllocator implements MemoryUtil.MemoryAl
     private final long fnAlignedFree;
 
     public static boolean isAvailable() {
-        return BINDINGS != null;
+        if (BINDINGS == null) {
+            return false;
+        }
+        try {
+            return BINDINGS.getMallocFunctionPointer() != 0L;
+        } catch (RuntimeException | LinkageError e) {
+            return false;
+        }
     }
 
     public LWJGLSaferAllocMemoryAllocator() {

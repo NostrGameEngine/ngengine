@@ -1,17 +1,28 @@
 package org.jmonkeyengine.jme3androidexamples;
 
 import android.os.Bundle;
+import android.content.Context;
 import com.jme3.app.AndroidHarnessFragment;
 import com.jme3.app.LegacyApplication;
 import com.jme3.system.AppSettings;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
+import org.ngengine.platform.NGEPlatform;
+import org.ngengine.platform.android.AndroidThreadedPlatform;
 
 /**
  * A placeholder fragment containing a jME GLSurfaceView.
  */
 public class JmeFragment extends AndroidHarnessFragment {
     private String appClass;
+
+    @Override
+    public void onAttach(Context context) {
+        if (!NGEPlatform.isSet()) {
+            NGEPlatform.set(new AndroidThreadedPlatform(context));
+        }
+        super.onAttach(context);
+    }
 
     public JmeFragment() {
         finishOnAppStop = true;

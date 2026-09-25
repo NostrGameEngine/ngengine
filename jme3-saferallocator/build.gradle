@@ -1,5 +1,15 @@
 dependencies {
     api project(':jme3-core')
 
-    implementation libs.bundles.saferalloc
+    implementation libs.nge.platform.common.snapshot
+    testRuntimeOnly libs.nge.platform.jvm.snapshot
+}
+
+configurations.testRuntimeClasspath.attributes.attribute(
+        org.gradle.api.attributes.java.TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 21)
+
+tasks.named('test') {
+    javaLauncher = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
 }
