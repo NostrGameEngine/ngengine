@@ -441,8 +441,8 @@ public class LobbyManager implements Closeable {
                         return;
                     }
                     log.info("Creating lobby with event " + signed.toMap());
-                    AsyncTask.any(masterServersPool
-                        .publish(signed))
+                    masterServersPool.publish(signed)
+                        .compose(AsyncTask::any)
                         .then(acks -> {
                             this.dispatcher.run(() -> {
                                     callback.accept(lobby, null);

@@ -374,6 +374,8 @@ dependencies {
 
 configurations.runtimeClasspath.attributes.attribute(
         org.gradle.api.attributes.java.TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 21)
+configurations.testRuntimeClasspath.attributes.attribute(
+    org.gradle.api.attributes.java.TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 21)
 
 jar.doFirst{
     manifest {

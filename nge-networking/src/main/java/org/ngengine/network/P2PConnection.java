@@ -224,25 +224,13 @@ public class P2PConnection implements Server {
       
 
         NostrKeyPair roomKeyPair = new NostrKeyPair(roomKey);
-        NostrRTCLocalPeer localPeer = new NostrRTCLocalPeer(
-            localSigner, 
-            RTCSettings.PUBLIC_STUN_SERVERS, 
-            gameName,
-            gameName+":"+gameVersion,
-            roomKeyPair,
-            turnServer
-        );
+        RTCSettings rtcSettings = RTCSettings.getDefault(gameName, gameName + ":" + gameVersion)
+            .withStunServers(RTCSettings.PUBLIC_STUN_SERVERS);
+        NostrRTCLocalPeer localPeer = new NostrRTCLocalPeer(rtcSettings, localSigner, roomKeyPair, turnServer);
  
         this.turnPool = new NostrTURNPool();
 
-        this.rtcRoom = new NostrRTCRoom(
-            RTCSettings.DEFAULT,
-            localPeer,
-            roomKeyPair,
-            masterServersPool,
-            turnServer,
-            turnPool
-        );
+        this.rtcRoom = new NostrRTCRoom(rtcSettings, localPeer, roomKeyPair, masterServersPool, turnPool);
 
         rtcRoom.addPeerDiscoveryListener((var1, var2, var3) -> {
             this.dispatcher.run(() -> {
