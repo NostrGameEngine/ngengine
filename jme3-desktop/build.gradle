@@ -1,6 +1,9 @@
+def useSnapshotDeps = (jmeVersionTag == 'SNAPSHOT')
+
 dependencies {
     api project(':jme3-core')
     api project(':jme3-plugins')
+    implementation(useSnapshotDeps ? libs.native.directories.snapshot : libs.native.directories)
 }
 
 tasks.register('scanJ3O', JavaExec) {

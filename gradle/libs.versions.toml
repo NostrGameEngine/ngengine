@@ -3,39 +3,42 @@
 # Snapshot versions for NostrGameEngine libraries
 angleSnapshot = "2026-05-09"
 bech32Snapshot = "1.2.1"
-bolt11Snapshot = "0.0.1"
+bolt11Snapshot = "0.0.2"
 chicorySnapshot = "1.7.5-nge2"
 imagewebpSnapshot = "1.3.0"
-libdatachannelJavaSnapshot = "0.24.1.nge6"
-libjgliosSnapshot = "0.0-SNAPSHOT"
-lnurlSnapshot = "0.3.0-SNAPSHOT"
+libdatachannelJavaSnapshot = "0.24.1.nge9"
+libjgliosSnapshot = "0.7"
+lnurlSnapshot = "0.0.5"
 nanosvgChicoryJavaSnapshot = "0.1.0-SNAPSHOT"
 ngengineSnapshot = "0.3.0-SNAPSHOT"
 ngePlatformSnapshot = "0.3.0-SNAPSHOT"
 nostr4jSnapshot = "0.3.0-SNAPSHOT"
 nostradsSnapshot = "0.2.0-SNAPSHOT"
-saferallocSnapshot = "0.0.10"
-stbImageSnapshot = "2.30.5"
+saferallocSnapshot = "0.0.11"
+stbImageSnapshot = "2.30.6"
 stbTruetypeSnapshot = "0.7.0"
+nativeBootstrapSnapshot = "0.1.1"
 
 # Release versions for NostrGameEngine libraries
 angle = "2026-05-09"
 bech32 = "1.2.1"
-bolt11 = "0.0.1"
+bolt11 = "0.0.2"
 chicory = "1.7.5-nge2"
 imagewebp = "1.3.0"
-libdatachannelJava = "0.24.1.nge6"
-libjglios = "0.9"
-lnurl = "0.0.4"
-lnurl4j = "0.0.4"
+libdatachannelJava = "0.24.1.nge9"
+libjglios = "0.7"
+lnurl = "0.0.5"
+lnurl4j = "0.0.5"
+# Next 2 requires the view-box API not present in the central catalog's 0.1 release.
 nanosvgChicoryJava = "0.1.0-SNAPSHOT"
 ngengine = "0.2.0"
-ngePlatform = "0.2.3"
-nostr4j = "0.3.0"
-nostrads = "0.2.4"
-saferalloc = "0.0.10"
-stbImage = "2.30.5"
+ngePlatform = "0.2.4"
+nostr4j = "0.3.1"
+nostrads = "0.2.6"
+saferalloc = "0.0.11"
+stbImage = "2.30.6"
 stbTruetype = "0.7.0"
+nativeBootstrap = "0.1.1"
 
 # Transitive dependency and build-tool versions
 androidGradlePlugin = "9.1.1"
@@ -75,6 +78,7 @@ androidx-fragment-testing = "1.8.9"
 [libraries]
 
 # Snapshot artifacts for NostrGameEngine libraries
+native-directories-snapshot = { module = "org.jmonkeyengine:native-directories", version.ref = "nativeBootstrapSnapshot" }
 angle-snapshot = { module = "org.ngengine:angle-natives", version.ref = "angleSnapshot" }
 bech32-snapshot = { module = "org.ngengine:bech32", version.ref = "bech32Snapshot" }
 bolt11-snapshot = { module = "org.ngengine:bolt11", version.ref = "bolt11Snapshot" }
@@ -128,6 +132,7 @@ stb-image-snapshot = { module = "org.ngengine:stb-image", version.ref = "stbImag
 stb-truetype-snapshot = { module = "org.ngengine:stb-truetype", version.ref = "stbTruetypeSnapshot" }
 
 # Release artifacts for NostrGameEngine libraries
+native-directories = { module = "org.jmonkeyengine:native-directories", version.ref = "nativeBootstrap" }
 angle = { module = "org.ngengine:angle-natives", version.ref = "angle" }
 bech32 = { module = "org.ngengine:bech32", version.ref = "bech32" }
 bolt11 = { module = "org.ngengine:bolt11", version.ref = "bolt11" }
