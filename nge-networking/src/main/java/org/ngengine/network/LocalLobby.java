@@ -45,6 +45,57 @@ public class LocalLobby extends Lobby {
 
     private transient volatile boolean updateNeeded = false;
     private transient Consumer<NostrPublicKey> banKickHandler;
+    private transient long metadataRevision;
+    private transient Update pendingUpdate;
+    private transient boolean checkingGuard;
+    private transient java.util.function.BooleanSupplier publicationGuard = () -> true;
+    static final class Update {
+        final long revision;
+        final Lobby snapshot;
+        Update(long revision, Lobby snapshot) { this.revision = revision; this.snapshot = snapshot; }
+    }
+    /** Runs on the owning dispatcher at both signing and transport boundaries. */
+    public synchronized void setPublicationGuard(java.util.function.BooleanSupplier guard) {
+        publicationGuard = java.util.Objects.requireNonNull(guard);
+        markUpdateNeeded();
+    }
+    /** All fields become visible to the signer in one revision; null removes a field. */
+    public synchronized void setData(java.util.Map<String, String> values) {
+        if (values.containsKey(BANNED_PEERS_DATA_KEY)) throw new IllegalArgumentException("The lobby ban list is engine-managed.");
+        boolean changed = values.entrySet().stream().anyMatch(entry -> !java.util.Objects.equals(getData(entry.getKey()), entry.getValue()));
+        if (!changed) return;
+        for (java.util.Map.Entry<String, String> entry : values.entrySet()) super.setData(entry.getKey(), entry.getValue());
+        markUpdateNeeded();
+    }
+    synchronized Update beginUpdate() {
+        long revision = metadataRevision;
+        if (pendingUpdate != null || !updateNeeded || !publicationAllowed()
+                || pendingUpdate != null || revision != metadataRevision) return null;
+        Lobby snapshot = new Lobby(id, key, roomRawData, expiration, creationTime, getOwner());
+        for (java.util.Map.Entry<String, String> entry : data.entrySet()) snapshot.setData(entry.getKey(), entry.getValue());
+        pendingUpdate = new Update(metadataRevision, snapshot); updateNeeded = false; return pendingUpdate;
+    }
+    private boolean publicationAllowed() {
+        if (checkingGuard) return false;
+        checkingGuard = true;
+        try { return publicationGuard.getAsBoolean(); }
+        catch (RuntimeException unavailable) { return false; }
+        finally { checkingGuard = false; }
+    }
+    synchronized boolean currentUpdate(Update update) {
+        return pendingUpdate == update && update.revision == metadataRevision && publicationAllowed()
+                && pendingUpdate == update && update.revision == metadataRevision;
+    }
+    /** Keep concurrent setters outside the final check-to-provider handoff boundary. */
+    synchronized <T> T handoffUpdate(Update update, java.util.function.Supplier<T> transport) {
+        if (!currentUpdate(update)) return null;
+        return transport.get();
+    }
+    synchronized void finishUpdate(Update update, boolean retry) {
+        if (pendingUpdate != update) return;
+        pendingUpdate = null; if (retry) updateNeeded = true;
+    }
+
 
     LocalLobby(
             String roomId,
@@ -61,7 +112,7 @@ public class LocalLobby extends Lobby {
         return true;
     }
 
-    public void setData(String key, String value) {
+    public synchronized void setData(String key, String value) {
         if (BANNED_PEERS_DATA_KEY.equals(key)) {
             throw new IllegalArgumentException("The lobby ban list is managed through banPeer and unbanPeer.");
         }
@@ -70,7 +121,7 @@ public class LocalLobby extends Lobby {
     }
 
     /** Adds a peer to this lobby's persistent ban list and kicks it immediately. */
-    public boolean banPeer(NostrPublicKey peer) {
+    public synchronized boolean banPeer(NostrPublicKey peer) {
         if (peer == null || isOwner(peer) || !addBannedPeer(peer)) {
             return false;
         }
@@ -84,7 +135,7 @@ public class LocalLobby extends Lobby {
     }
 
     /** Removes a peer from this lobby's persistent ban list. */
-    public boolean unbanPeer(NostrPublicKey peer) {
+    public synchronized boolean unbanPeer(NostrPublicKey peer) {
         if (!removeBannedPeer(peer)) {
             return false;
         }
@@ -95,21 +146,22 @@ public class LocalLobby extends Lobby {
     }
 
     private void markUpdateNeeded() {
+        metadataRevision = Math.incrementExact(metadataRevision);
         NGEPlatform p = NGEUtils.getPlatform();
         String rawData = p.toJSON(this.data);
         this.roomRawData = rawData;
         this.updateNeeded = true;
     }
 
-    protected void setDataSilent(String key, String value) {
+    protected synchronized void setDataSilent(String key, String value) {
         super.setData(key, value);
     }
 
-    protected boolean isUpdateNeeded() {
+    protected synchronized boolean isUpdateNeeded() {
         return updateNeeded;
     }
 
-    protected void clearUpdateNeeded() {
+    protected synchronized void clearUpdateNeeded() {
         this.updateNeeded = false;
     }
 

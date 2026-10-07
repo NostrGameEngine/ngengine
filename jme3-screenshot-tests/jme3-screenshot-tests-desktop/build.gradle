@@ -33,6 +33,9 @@ testing {
 tasks.register("screenshotTest", Test) {
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath = sourceSets.test.runtimeClasspath
+    if (System.getProperty('os.name').toLowerCase().contains('mac')) {
+        jvmArgs '-XstartOnFirstThread'
+    }
     useJUnitPlatform{
         filter{
             includeTags 'integration'

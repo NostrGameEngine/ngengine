@@ -621,7 +621,7 @@ public class IGLESContext implements JmeContext {
             return false;
         }
 
-        FrameBuffer previousMainFramebuffer = renderer.getCurrentFrameBuffer();
+        FrameBuffer previousMainFramebuffer = renderer.getMainFrameBufferOverride();
         if (previousMainFramebuffer != null) {
             return false;
         }
@@ -636,7 +636,7 @@ public class IGLESContext implements JmeContext {
         renderer.setMainFrameBufferOverride(linearFrameBuffer);
         try {
             listener.update();
-            FrameBuffer currentMainFramebuffer = renderer.getCurrentFrameBuffer();
+            FrameBuffer currentMainFramebuffer = renderer.getMainFrameBufferOverride();
             if (currentMainFramebuffer != linearFrameBuffer) {
                 restoreMainFramebuffer = currentMainFramebuffer;
             }

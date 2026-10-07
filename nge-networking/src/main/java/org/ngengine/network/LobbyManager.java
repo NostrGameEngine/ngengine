@@ -84,7 +84,19 @@ public class LobbyManager implements Closeable {
     private final Set<Lobby> refreshInFlight = Collections.newSetFromMap(new WeakHashMap<Lobby, Boolean>());
     private final Runner dispatcher;
     private volatile boolean closed = false;
+    // Dispatcher-owned across lobby replacement: abandoned signing/provider work never refills this lane.
+    private LocalLobby updateOwner;
+    private LocalLobby.Update updateAttempt;
+    private WeakReference<LocalLobby> lastUpdateOwner = new WeakReference<>(null);
     private String turnServer = null;
+    private volatile Duration p2pAttemptTimeout = P2PConnection.DEFAULT_P2P_ATTEMPT_TIMEOUT;
+
+    /** Applies to subsequently created connections; existing sessions retain their settings. */
+    public void setP2pAttemptTimeout(Duration timeout) {
+        p2pAttemptTimeout = P2PConnection.validateP2pAttemptTimeout(timeout);
+    }
+
+    public Duration getP2pAttemptTimeout() { return p2pAttemptTimeout; }
 
     private transient Boolean isSearchSupported;
 
@@ -125,24 +137,7 @@ public class LobbyManager implements Closeable {
                 () -> {
                     if (closed) return null;
                     try {
-                        synchronized (trackedLobbies) {
-                            Iterator<WeakReference<Lobby>> it = trackedLobbies.iterator();
-                            while (it.hasNext()) {
-                                WeakReference<Lobby> ref = it.next();
-                                Lobby lobby = ref.get();
-                                if (lobby == null) {
-                                    it.remove();
-                                    continue;
-                                }
-                                if (lobby instanceof LocalLobby) {
-                                    LocalLobby llobby = (LocalLobby) lobby;
-                                    if (llobby.isUpdateNeeded()) {
-                                        updateLobby((LocalLobby) lobby);
-                                        llobby.clearUpdateNeeded();
-                                    }
-                                }
-                            }
-                        }
+                        updateTrackedLobbies();
                         refreshConnectedLobbies();
                     } catch (Exception e) {
                         log.log(Level.WARNING, "Error during lobby manager update: " + e.getMessage(), e);
@@ -154,6 +149,22 @@ public class LobbyManager implements Closeable {
                 10000,
                 TimeUnit.MILLISECONDS
             );
+    }
+
+    /** Shared periodic scan; all updates still enter the same per-lobby owned lane. */
+    void updateTrackedLobbies() { dispatcher.run(this::startNextLobbyUpdate); }
+    private java.util.List<LocalLobby> localLobbySnapshot() {
+        java.util.List<LocalLobby> localLobbies = new ArrayList<>();
+        synchronized (trackedLobbies) {
+            Iterator<WeakReference<Lobby>> iterator = trackedLobbies.iterator();
+            while (iterator.hasNext()) {
+                Lobby lobby = iterator.next().get();
+                if (lobby == null) { iterator.remove(); continue; }
+                if (lobby instanceof LocalLobby local) localLobbies.add(local);
+            }
+        }
+        // Never hold the manager list monitor across a lobby lock, guard, dispatcher or provider callback.
+        return localLobbies;
     }
 
     public void close() {
@@ -451,7 +462,7 @@ public class LobbyManager implements Closeable {
                         })
                         .catchException(err -> {
                             this.dispatcher.run(() -> {
-                                    callback.accept(null, error);
+                                    callback.accept(null, err);
                                 });
                         });
                 }
@@ -479,20 +490,63 @@ public class LobbyManager implements Closeable {
 
     void updateLobby(LocalLobby lobby) {
         synchronized (trackedLobbies) {
-            if (!trackedLobbies.stream().anyMatch(ref -> ref.get() == lobby)) {
+            if (!trackedLobbies.stream().anyMatch(ref -> ref.get() == lobby))
                 trackedLobbies.add(new WeakReference<>(lobby));
-            }
         }
-        lobbyToEvent(
-            lobby,
-            (signed, err) -> {
-                if (err != null) {
-                    log.log(Level.WARNING, "Failed to update lobby: " + err.getMessage(), err);
-                    return;
-                }
-                masterServersPool.send(signed);
+        updateTrackedLobbies();
+    }
+    private void startNextLobbyUpdate() {
+        // Periodic and explicit requests share this fair, dispatcher-owned lane across lobby replacement.
+        if (closed || updateOwner != null) return;
+        java.util.List<LocalLobby> lobbies = localLobbySnapshot();
+        if (lobbies.isEmpty()) return;
+        int start = (lobbies.indexOf(lastUpdateOwner.get()) + 1) % lobbies.size();
+        for (int i = 0; i < lobbies.size(); i++) {
+            LocalLobby lobby = lobbies.get((start + i) % lobbies.size()); updateOwner = lobby;
+            LocalLobby.Update update = lobby.beginUpdate();
+            if (update == null) { updateOwner = null; continue; }
+            updateAttempt = update; lastUpdateOwner = new WeakReference<>(lobby);
+            signLobbyUpdate(lobby, update); return;
+        }
+    }
+    private void signLobbyUpdate(LocalLobby lobby, LocalLobby.Update update) {
+            try {
+                lobbyToEvent(update.snapshot, (signed, error) -> {
+                    if (error != null) { finishLobbyUpdate(lobby, update, true); return; }
+                    if (closed || !lobby.currentUpdate(update)) { finishLobbyUpdate(lobby, update, true); return; }
+                    try {
+                        // The immutable event is handed off only after the final native/readiness check.
+                        java.util.List<AsyncTask<org.ngengine.nostr4j.proto.NostrMessageAck>> sent =
+                                lobby.handoffUpdate(update, () -> closed ? null : sendLobbyUpdate(signed));
+                        if (sent == null) { finishLobbyUpdate(lobby, update, true); return; }
+                        AsyncTask.allSettled(sent).then(settled -> {
+                            boolean retry = settled.isEmpty();
+                            for (AsyncTask<org.ngengine.nostr4j.proto.NostrMessageAck> task : settled) {
+                                try {
+                                    org.ngengine.nostr4j.proto.NostrMessageAck ack = task.await();
+                                    retry |= ack == null || ack.getStatus() != org.ngengine.nostr4j.proto.NostrMessageAck.Status.SUCCESS;
+                                } catch (Exception failed) { retry = true; }
+                            }
+                            boolean failed = retry; dispatcher.run(() -> finishLobbyUpdate(lobby, update, failed));
+                            return null;
+                        }).catchException(failure -> log.log(Level.WARNING, "Lobby transport completion could not be observed", failure));
+                    } catch (RuntimeException failure) {
+                        // A provider may throw after handing off work. Keep this lane occupied; never refill abandoned capacity.
+                        log.log(Level.WARNING, "Lobby update handoff could not be observed", failure);
+                    }
+                });
+            } catch (RuntimeException failure) {
+                // The signer may have started work before throwing. Retain ownership without an observed completion.
+                log.log(Level.WARNING, "Lobby signature handoff could not be observed", failure);
             }
-        );
+    }
+    private void finishLobbyUpdate(LocalLobby lobby, LocalLobby.Update update, boolean retry) {
+        if (updateOwner != lobby || updateAttempt != update) return;
+        lobby.finishUpdate(update, retry); updateAttempt = null; updateOwner = null;
+    }
+    /** Existing relay provider; override only in offline tests to observe signed update events. */
+    protected java.util.List<AsyncTask<org.ngengine.nostr4j.proto.NostrMessageAck>> sendLobbyUpdate(SignedNostrEvent event) {
+        return masterServersPool.send(event);
     }
 
     public P2PConnection connectToLobby(Lobby lobby, String passphrase) throws Exception {
@@ -514,7 +568,8 @@ public class LobbyManager implements Closeable {
             privKey,
             turnServer,
             this.masterServersPool,
-            dispatcher
+            dispatcher,
+            p2pAttemptTimeout
         );
         conn.setPeerAdmission(peer -> !lobby.isPeerBanned(peer));
         conn.start();

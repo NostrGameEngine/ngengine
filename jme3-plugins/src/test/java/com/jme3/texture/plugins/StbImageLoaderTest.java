@@ -36,12 +36,65 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.zip.CRC32;
+import java.util.zip.DeflaterOutputStream;
+import com.jme3.math.FastMath;
+import com.jme3.texture.image.ColorSpace;
 
 /**
  * Tests for {@link StbImageLoader}, covering formats whose channel count is
  * not reported by the decoder's {@code info()} method (e.g. TGA).
  */
 public class StbImageLoaderTest {
+
+    @Test
+    public void test16BitRgbaPngPreservesPrecisionAndRowOrder() throws IOException {
+        int[] samples = {0, 32768, 65535, 16384, 8192, 49152, 257, 65535};
+        ByteArrayOutputStream compressed = new ByteArrayOutputStream();
+        try (DeflaterOutputStream deflate = new DeflaterOutputStream(compressed)) {
+            for (int row = 0; row < 2; row++) {
+                deflate.write(0); // PNG scanline without filtering.
+                for (int channel = 0; channel < 4; channel++) {
+                    int sample = samples[row * 4 + channel];
+                    deflate.write(sample >>> 8);
+                    deflate.write(sample & 255);
+                }
+            }
+        }
+        byte[] header = ByteBuffer.allocate(13).putInt(1).putInt(2)
+                .put((byte) 16).put((byte) 6).put(new byte[3]).array();
+        ByteArrayOutputStream encoded = new ByteArrayOutputStream();
+        try (DataOutputStream png = new DataOutputStream(encoded)) {
+            png.write(new byte[]{(byte) 137, 80, 78, 71, 13, 10, 26, 10});
+            String[] names = {"IHDR", "IDAT", "IEND"};
+            byte[][] chunks = {header, compressed.toByteArray(), new byte[0]};
+            for (int i = 0; i < names.length; i++) {
+                byte[] type = names[i].getBytes(StandardCharsets.US_ASCII);
+                png.writeInt(chunks[i].length);
+                png.write(type);
+                png.write(chunks[i]);
+                CRC32 crc = new CRC32();
+                crc.update(type);
+                crc.update(chunks[i]);
+                png.writeInt((int) crc.getValue());
+            }
+        }
+        for (boolean flip : new boolean[]{false, true}) {
+            Image image = new StbImageLoader().load(encoded.toByteArray(), flip);
+            Assertions.assertEquals(Image.Format.RGBA16F, image.getFormat());
+            Assertions.assertEquals(ColorSpace.Linear, image.getColorSpace());
+            Assertions.assertEquals(16, image.getData(0).remaining());
+            for (int i = 0; i < samples.length; i++) {
+                int source = flip ? (1 - i / 4) * 4 + i % 4 : i;
+                Assertions.assertEquals(FastMath.convertFloatToHalf(samples[source] / 65535f),
+                        image.getData(0).getShort(i * 2), "Sample " + i + ", flip=" + flip);
+            }
+        }
+    }
 
     /**
      * Creates a minimal, valid TGA image as a byte array.

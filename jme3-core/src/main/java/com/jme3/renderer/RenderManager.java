@@ -71,7 +71,6 @@ import com.jme3.util.SafeArrayList;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -116,8 +115,8 @@ public class RenderManager {
     private final List<ViewPort> postViewPortsRO = Collections.unmodifiableList(postViewPorts);
 
     private final HashMap<Class<? extends PipelineContext>, PipelineContext> contexts = new HashMap<>();
-    private final LinkedList<PipelineContext> usedContexts = new LinkedList<>();
-    private final LinkedList<RenderPipeline<? extends PipelineContext>> usedPipelines = new LinkedList<>();
+    private final ArrayList<PipelineContext> usedContexts = new ArrayList<>();
+    private final ArrayList<RenderPipeline<? extends PipelineContext>> usedPipelines = new ArrayList<>();
     private RenderPipeline<? extends PipelineContext> defaultPipeline = new ForwardPipeline();
     private Camera prevCam = null;
     private int prevViewportWidth = -1;
@@ -1611,8 +1610,8 @@ public class RenderManager {
         for (int i = 0; i < usedContexts.size(); i++) {
             usedContexts.get(i).endContextRenderFrame(this);
         }
-        for (RenderPipeline<?> p : usedPipelines) {
-            p.endRenderFrame(this);
+        for (int i = 0; i < usedPipelines.size(); i++) {
+            usedPipelines.get(i).endRenderFrame(this);
         }
         usedContexts.clear();
         usedPipelines.clear();

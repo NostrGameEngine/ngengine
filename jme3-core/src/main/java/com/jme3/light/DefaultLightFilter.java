@@ -37,12 +37,12 @@ import com.jme3.bounding.BoundingVolume;
 import com.jme3.renderer.Camera;
 import com.jme3.scene.Geometry;
 import com.jme3.util.TempVars;
-import java.util.HashSet;
+import java.util.ArrayList;
 
 public final class DefaultLightFilter implements LightFilter {
 
     private Camera camera;
-    private final HashSet<Light> processedLights = new HashSet<>();
+    private final ArrayList<Light> processedLights = new ArrayList<>();
     private LightProbeBlendingStrategy probeBlendStrategy;
 
     public DefaultLightFilter() {
@@ -56,8 +56,8 @@ public final class DefaultLightFilter implements LightFilter {
     @Override
     public void setCamera(Camera camera) {
         this.camera = camera;
-        for (Light light : processedLights) {
-            light.frustumCheckNeeded = true;
+        for (int i = 0; i < processedLights.size(); i++) {
+            processedLights.get(i).frustumCheckNeeded = true;
         }
         processedLights.clear();
     }

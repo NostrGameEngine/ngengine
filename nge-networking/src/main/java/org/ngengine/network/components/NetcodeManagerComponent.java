@@ -13,7 +13,8 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.ArrayDeque;
+import java.util.IdentityHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
@@ -58,13 +59,16 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
 
     private final @Nullable NostrSigner signer;
     private @Nullable String turnServer;
+    private Duration p2pAttemptTimeout = P2PConnection.DEFAULT_P2P_ATTEMPT_TIMEOUT;
     private LobbyManager lobbyManager;
     private P2PConnection connection;
     private long connectionGeneration;
     private Lobby connectedLobby;
     
 
-    private final ConcurrentLinkedQueue<InboundMessage> inboundMessages = new ConcurrentLinkedQueue<>();
+    private final ArrayDeque<InboundMessage> inboundMessages = new ArrayDeque<>();
+    private final Map<RemotePeer, long[]> inboundPeerUsage = new IdentityHashMap<>();
+    private long inboundBytes;
     private final Map<NetcodeFragment, RegisteredHandler> registeredActionHandlers = new HashMap<>();
     private final Map<Class<? extends Message>, CopyOnWriteArrayList<NetworkMessageHandler<? extends Message>>>
         registeredMessageHandlers = new ConcurrentHashMap<>();
@@ -160,10 +164,18 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
     private static final class InboundMessage {
         private final RemotePeer fromPeer;
         private final Message message;
+        private final P2PConnection.InboundReservation reservation;
+        private final int bytes;
 
-        InboundMessage( RemotePeer fromPeer, Message message) {
+        InboundMessage(RemotePeer fromPeer, Message message) {
+            this(fromPeer, message, null, 0);
+        }
+
+        InboundMessage(RemotePeer fromPeer, Message message, P2PConnection.InboundReservation reservation, int bytes) {
             this.fromPeer = fromPeer;
             this.message = message;
+            this.reservation = reservation;
+            this.bytes = bytes;
         }
 
     
@@ -184,7 +196,32 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
                 throw new IllegalStateException("Expected RemotePeer connection, got " + conn.getClass().getName());
             }
             RemotePeer remotePeer = (RemotePeer) conn;
-            inboundMessages.add(new InboundMessage(remotePeer, message));
+            P2PConnection source = remotePeer.getServer() instanceof P2PConnection ? (P2PConnection) remotePeer.getServer() : null;
+            if (source == null || source != connection || !source.isCurrentPeer(remotePeer)) return;
+            P2PConnection.InboundReservation reservation = source.retainInboundMessage(remotePeer, message);
+            if (reservation == null) return;
+            boolean accepted;
+            synchronized (inboundMessages) {
+                long[] usage = inboundPeerUsage.get(remotePeer);
+                if (usage == null) usage = new long[2];
+                int bytes = reservation.getResourceBytes();
+                accepted = inboundMessages.size() < P2PConnection.MAX_INBOUND_COUNT
+                    && usage[0] < P2PConnection.MAX_PEER_INBOUND_COUNT
+                    && bytes <= P2PConnection.MAX_INBOUND_BYTES - inboundBytes
+                    && bytes <= P2PConnection.MAX_PEER_INBOUND_BYTES - usage[1];
+                if (accepted) {
+                    // Removal must use this admission snapshot, even if a shared lease grows concurrently.
+                    inboundMessages.add(new InboundMessage(remotePeer, message, reservation, bytes));
+                    usage[0]++;
+                    usage[1] += bytes;
+                    inboundBytes += bytes;
+                    inboundPeerUsage.put(remotePeer, usage);
+                }
+            }
+            if (!accepted) {
+                reservation.close();
+                if (message.isReliable()) source.failInboundPeer(remotePeer, "Reliable netcode capacity exhausted");
+            }
         }
     };
 
@@ -210,6 +247,18 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
             }
             RemotePeer remotePeer = (RemotePeer) conn;
             connectedPeers.remove(remotePeer);
+            synchronized (inboundMessages) {
+                Iterator<InboundMessage> queued = inboundMessages.iterator();
+                while (queued.hasNext()) {
+                    InboundMessage inbound = queued.next();
+                    if (inbound.fromPeer == remotePeer) {
+                        queued.remove();
+                        inboundBytes -= inbound.bytes;
+                        if (inbound.reservation != null) inbound.reservation.close();
+                    }
+                }
+                inboundPeerUsage.remove(remotePeer);
+            }
             invalidateKnownPeerPublicKeys();
             String pub = remotePeer.getRemotePeer() != null && remotePeer.getRemotePeer().getPubkey() != null
                 ? remotePeer.getRemotePeer().getPubkey().asHex()
@@ -234,6 +283,14 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
         this.spawner = spawner;
         this.signer = signer;
     }
+
+    /** Applies on the next connection; changing the preference never disconnects a peer. */
+    public void setP2pAttemptTimeout(Duration timeout) {
+        p2pAttemptTimeout = P2PConnection.validateP2pAttemptTimeout(timeout);
+        if (lobbyManager != null) lobbyManager.setP2pAttemptTimeout(p2pAttemptTimeout);
+    }
+
+    public Duration getP2pAttemptTimeout() { return p2pAttemptTimeout; }
 
     public void setTurnServer(@Nullable String turnServer) {
         this.turnServer = turnServer;
@@ -276,6 +333,7 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
         Runner runner = mng.getRunner();
         NostrSigner s = this.signer != null ? this.signer : new NostrKeyPairSigner(new NostrKeyPair());
         lobbyManager = new LobbyManager(relays.get("lobby"), s, appId.asHex(), version.intValue(), runner);
+        lobbyManager.setP2pAttemptTimeout(p2pAttemptTimeout);
         if (turnServer != null && !turnServer.isEmpty()) {
             lobbyManager.setTurnServer(turnServer);
         }
@@ -289,7 +347,12 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
             lobbyManager.close();
             lobbyManager = null;
         }
-        inboundMessages.clear();
+        synchronized (inboundMessages) {
+            for (InboundMessage inbound : inboundMessages) if (inbound.reservation != null) inbound.reservation.close();
+            inboundMessages.clear();
+            inboundPeerUsage.clear();
+            inboundBytes = 0;
+        }
         registeredActionHandlers.clear();
         registeredMessageHandlers.clear();
     }
@@ -363,13 +426,22 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
         connection = null;
         connectedLobby = null;
         connectedPeers.clear();
-        inboundMessages.clear();
+        synchronized (inboundMessages) {
+            for (InboundMessage inbound : inboundMessages) if (inbound.reservation != null) inbound.reservation.close();
+            inboundMessages.clear();
+            inboundPeerUsage.clear();
+            inboundBytes = 0;
+        }
         invalidateLocalPeerPublicKey();
         invalidateKnownPeerPublicKeys();
     }
 
     public Lobby getLobby() {
         return connectedLobby;
+    }
+
+    public @Nullable P2PConnection getConnection() {
+        return connection;
     }
 
     public boolean isNetworkSessionActive() {
@@ -593,12 +665,25 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
 
     @Override
     public void updateAppLogic(ComponentManager mng, float tpf) {
-        while (!inboundMessages.isEmpty()) {
-            InboundMessage inbound = inboundMessages.poll();
-            if (inbound == null || inbound.getMessage() == null) {
-                continue;
+        for (int processed = 0; processed < P2PConnection.MAX_INBOUND_COUNT; processed++) {
+            InboundMessage inbound;
+            synchronized (inboundMessages) {
+                inbound = inboundMessages.poll();
+                if (inbound == null) break;
+                inboundBytes -= inbound.bytes;
+                long[] usage = inboundPeerUsage.get(inbound.fromPeer);
+                if (usage != null) {
+                    usage[0]--;
+                    usage[1] -= inbound.bytes;
+                    if (usage[0] == 0) inboundPeerUsage.remove(inbound.fromPeer);
+                }
             }
-            dispatchMessage(inbound);
+            try {
+                if (inbound.message != null && (inbound.reservation == null
+                        || connection != null && connection.isCurrentPeer(inbound.fromPeer))) dispatchMessage(inbound);
+            } finally {
+                if (inbound.reservation != null) inbound.reservation.close();
+            }
         }
 
         long nowNanos = System.nanoTime();

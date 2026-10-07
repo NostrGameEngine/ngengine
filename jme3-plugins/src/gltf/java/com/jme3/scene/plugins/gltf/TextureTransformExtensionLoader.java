@@ -123,8 +123,8 @@ public class TextureTransformExtensionLoader implements ExtensionLoader {
             if (jsonObject.has("rotation")) {
                 float rad = jsonObject.get("rotation").getAsFloat();
                 rotation.set(0, 0, (float) Math.cos(rad));
-                rotation.set(0, 1, (float) Math.sin(rad));
-                rotation.set(1, 0, (float) -Math.sin(rad));
+                rotation.set(0, 1, (float) -Math.sin(rad));
+                rotation.set(1, 0, (float) Math.sin(rad));
                 rotation.set(1, 1, (float) Math.cos(rad));
             }                
             if (jsonObject.has("scale")) {

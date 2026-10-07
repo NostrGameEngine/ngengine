@@ -2,18 +2,11 @@
 // 
 // When the INSTANCING define is set in the shader, 
 // all global matrices are replaced with "instanced" versions.
-// One exception is g_NormalMatrix which becomes unusable,
-// instead the function ApplyNormalTransform is used to transform
-// the normal and tangent vectors into world view space.
-
-// The world matrix and normal transform quaternion need to be passed
-// as vertex attributes "inWorldMatrix" and "inNormalRotationQuaternion"
-// respectively. 
-// The VertexBuffers for those two attributes 
-// need to be configured into instanced mode (VertexBuffer.setInstanced(true)). 
-//  - inWorldMatrix should have 12 * numInstances floats.
-//  - inNormalRotationQuaternion should have 4 * numInstances.
-// Thus, instancing data occupies 4 vertex attributes (16 / 4 = 4).
+// Use TransformNormal/TransformWorldNormal instead of g_NormalMatrix.
+// inInstanceData contains the world transform in its top three rows;
+// the fourth row retains the legacy quaternion payload for compatibility.
+// Normal transforms are derived from the world matrix to preserve scale.
+// The instanced buffer occupies four vertex attributes (16 floats).
 // 
 // The GL_ARB_draw_instanced and GL_ARB_instanced_arrays extensions 
 // are required (OGL 3.3).
@@ -29,14 +22,7 @@ uniform mat3 g_WorldNormalMatrix;
 
 #if defined INSTANCING
 
-// World Matrix + Normal Rotation Quaternion. 
-// The World Matrix is the top 3 rows - 
-//     since the bottom row is always 0,0,0,1 for this transform.
-// The bottom row is the transpose of the inverse of WorldView Transform 
-//     as a quaternion. i.e. g_NormalMatrix converted to a quaternion.
-//
-// Using a quaternion instead of a matrix here allows saving approximately
-// 2 vertex attributes which now can be used for additional per-vertex data.
+// The fourth row is not part of the affine world transform.
 attribute mat4 inInstanceData;
 
 
@@ -63,10 +49,13 @@ vec4 TransformWorldViewProjection(vec4 position)
 }
 
 vec3 TransformWorldNormal(vec3 vec) {
-    vec4 quat = vec4(inInstanceData[0].w, inInstanceData[1].w,
-                     inInstanceData[2].w, inInstanceData[3].w);
-
-    return vec + vec3(2.0) * cross(cross(vec, quat.xyz) + vec3(quat.w) * vec, quat.xyz);
+    // The quaternion cannot represent non-uniform or reflected scale.
+    vec3 x = inInstanceData[0].xyz;
+    vec3 y = inInstanceData[1].xyz;
+    vec3 z = inInstanceData[2].xyz;
+    vec3 cofactorX = cross(y, z);
+    float orientation = dot(x, cofactorX) < 0.0 ? -1.0 : 1.0;
+    return normalize(mat3(cofactorX, cross(z, x), cross(x, y)) * vec) * orientation;
 }
 
 vec3 TransformNormal(vec3 vec)
@@ -107,3 +96,12 @@ vec3 TransformWorldNormal(vec3 normal) {
 
  
 #endif
+
+vec4 TransformWorldTangent(vec3 tangent, float handedness) {
+    vec3 x = TransformWorld(vec4(1.0, 0.0, 0.0, 0.0)).xyz;
+    vec3 y = TransformWorld(vec4(0.0, 1.0, 0.0, 0.0)).xyz;
+    vec3 z = TransformWorld(vec4(0.0, 0.0, 1.0, 0.0)).xyz;
+    float orientation = dot(x, cross(y, z)) < 0.0 ? -1.0 : 1.0;
+    // Tangents follow the surface, not the inverse-transpose normal matrix.
+    return vec4(TransformWorld(vec4(tangent, 0.0)).xyz, handedness * orientation);
+}

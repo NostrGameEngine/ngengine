@@ -79,7 +79,7 @@ void main(){
     wPosition = TransformWorld(modelSpacePos).xyz;
     wNormal  = TransformWorldNormal(modelSpaceNorm);
     
-    wTangent = vec4(TransformWorldNormal(modelSpaceTan),inTangent.w);
+    wTangent = TransformWorldTangent(modelSpaceTan, inTangent.w);
 
     Color = m_BaseColor;
     

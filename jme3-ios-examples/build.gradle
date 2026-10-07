@@ -2,9 +2,10 @@ buildscript {
     repositories {
         gradlePluginPortal()
         mavenCentral()
+        maven { url = uri("https://central.sonatype.com/repository/maven-snapshots/") }
     }
     dependencies {
-        classpath libs.libjgliosGradlePlugin
+        classpath libs.libjgliosGradlePluginSnapshot
     }
 }
 
@@ -306,11 +307,11 @@ dependencies {
     implementation project(':jme3-ios')
     implementation project(':jme3-saferallocator')
     implementation libs.nge.platform.ios.snapshot
-    implementation libs.libjgliosCoreIos
-    implementation libs.libjgliosGlesIos
-    implementation libs.libjgliosSdl3Ios
-    implementation libs.libjgliosOpenalIos
-    implementation libs.libjgliosAngleIos
+    implementation libs.libjgliosCoreIosSnapshot
+    implementation libs.libjgliosGlesIosSnapshot
+    implementation libs.libjgliosSdl3IosSnapshot
+    implementation libs.libjgliosOpenalIosSnapshot
+    implementation libs.libjgliosAngleIosSnapshot
     implementation project(':jme3-effects')
     implementation project(':jme3-jbullet')
     implementation project(':jme3-jogg')

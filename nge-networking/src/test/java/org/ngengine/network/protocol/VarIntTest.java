@@ -89,7 +89,7 @@ public class VarIntTest {
             VarInt.decodeSigned(tooLong);
             fail("Expected IllegalArgumentException for too-long varlong");
         } catch (IllegalArgumentException ex) {
-            assertTrue(ex.getMessage().contains("too long"));
+            assertTrue(ex.getMessage().contains("too long") || ex.getMessage().contains("overflow"));
         }
     }
 

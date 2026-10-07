@@ -9,16 +9,19 @@ sourceSets {
     }
 }
 
+def useSnapshotDeps = rootProject.ext.useSnapshotDependencies
+
 dependencies {
     api project(':jme3-core')
     implementation "org.jmonkeyengine:drako:1.4.5-jme"
     implementation project(':jme3-plugins-json')
     implementation project(':jme3-plugins-json-gson')
-    implementation libs.stb.image
-    implementation libs.imagewebp
-    implementation libs.stb.truetype
-    implementation "org.ngengine.basis:jbasis-universal-decoder:1.0.0-SNAPSHOT"
-    implementation(libs.nanosvg.chicory.java) {
+    implementation(useSnapshotDeps ? libs.stb.image.snapshot : libs.stb.image)
+    implementation(useSnapshotDeps ? libs.imagewebp.snapshot : libs.imagewebp)
+    implementation(useSnapshotDeps ? libs.stb.truetype.snapshot : libs.stb.truetype)
+    // jBasis currently has only a published snapshot, as required by this loader.
+    implementation libs.basis.decoder.snapshot
+    implementation(useSnapshotDeps ? libs.nanosvg.chicory.java.snapshot : libs.nanosvg.chicory.java) {
         exclude group: 'com.dylibso.chicory'
     }
 

@@ -39,6 +39,7 @@ import com.jme3.shader.bufferobject.BufferObject;
 import com.jme3.texture.FrameBuffer;
 import com.jme3.texture.Image;
 import java.lang.ref.WeakReference;
+import java.util.Arrays;
 
 /**
  * Represents the current state of the graphics library. This class is used
@@ -350,6 +351,12 @@ public class RenderContext {
     public final WeakReference<VertexBuffer>[] boundAttribs = newWeakReferenceArray(16);
 
     /**
+     * Numeric instance divisor last set for each vertex attribute slot.
+     * Cached separately because vertex buffers can change or be collected.
+     */
+    public final int[] boundAttribDivisors = new int[boundAttribs.length];
+
+    /**
      * IDList for vertex attributes.
      */
     public final IDList attribIndexList = new IDList();
@@ -401,9 +408,9 @@ public class RenderContext {
         blendEquation = RenderState.BlendEquation.Add;
         blendEquationAlpha = RenderState.BlendEquationAlpha.InheritColor;
         sfactorRGB = RenderState.BlendFunc.One;
-        dfactorRGB = RenderState.BlendFunc.One;
+        dfactorRGB = RenderState.BlendFunc.Zero;
         sfactorAlpha = RenderState.BlendFunc.One;
-        dfactorAlpha = RenderState.BlendFunc.One;
+        dfactorAlpha = RenderState.BlendFunc.Zero;
         wireframe = false;
 
         boundShaderProgram = 0;
@@ -444,6 +451,9 @@ public class RenderContext {
     public void reset() {
         init();
 
+        Arrays.fill(boundUniformBuffers, null);
+        Arrays.fill(boundShaderStorageBuffers, null);
+
         for (int i = 0; i < boundTextures.length; i++) {
             boundTextures[i] = null;
         }
@@ -452,6 +462,7 @@ public class RenderContext {
 
         for (int i = 0; i < boundAttribs.length; i++) {
             boundAttribs[i] = null;
+            boundAttribDivisors[i] = 0;
         }
 
         attribIndexList.reset();

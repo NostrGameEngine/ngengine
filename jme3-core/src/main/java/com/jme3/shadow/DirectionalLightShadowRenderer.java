@@ -68,7 +68,7 @@ public class DirectionalLightShadowRenderer extends AbstractShadowRenderer {
     protected float[] splitsArray;
     protected DirectionalLight light;
     protected Vector3f[] points = new Vector3f[8];
-    protected final Vector3f tempVec = new Vector3f();
+    protected Vector3f tempVec = new Vector3f();
 
     private boolean stabilize = true;
 
@@ -282,6 +282,8 @@ public class DirectionalLightShadowRenderer extends AbstractShadowRenderer {
     @Override
     public void cloneFields(final Cloner cloner, final Object original) {
         light = cloner.clone(light);
+        points = new Vector3f[8];
+        tempVec = new Vector3f();
         init(nbShadowMaps, (int) shadowMapSize);
         super.cloneFields(cloner, original);
     }

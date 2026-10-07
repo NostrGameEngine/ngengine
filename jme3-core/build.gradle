@@ -46,3 +46,8 @@ task updateVersionPropertiesFile {
 }
 
 processResources.dependsOn updateVersionPropertiesFile
+
+// Metadata scans source resources, including the generated version file.
+tasks.matching { it.name == 'generateNativeImageMetadata' }.configureEach {
+    dependsOn updateVersionPropertiesFile
+}

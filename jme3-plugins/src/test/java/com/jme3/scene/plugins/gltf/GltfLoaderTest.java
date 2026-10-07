@@ -81,6 +81,19 @@ public class GltfLoaderTest {
     }
 
     @Test
+    public void sharedTextureAppliesItsTransformToEveryMeshAndGeneratesMissingNormals() {
+        Node scene = (Node) assetManager.loadModel("gltf/SharedTextureTransform.gltf");
+        for (String name : new String[]{"First_0", "Second_0"}) {
+            Geometry geometry = (Geometry) scene.getChild(name);
+            Assertions.assertNotNull(geometry);
+            Mesh mesh = geometry.getMesh();
+            Assertions.assertEquals(0f, mesh.getFloatBuffer(VertexBuffer.Type.TexCoord).get(2), 1e-6f);
+            Assertions.assertEquals(1f, mesh.getFloatBuffer(VertexBuffer.Type.TexCoord).get(3), 1e-6f);
+            Assertions.assertEquals(1f, mesh.getFloatBuffer(VertexBuffer.Type.Normal).get(2), 1e-6f);
+        }
+    }
+
+    @Test
     public void testLoad() {
         Spatial scene = assetManager.loadModel("gltf/box/box.gltf");
         dumpScene(scene, 0);

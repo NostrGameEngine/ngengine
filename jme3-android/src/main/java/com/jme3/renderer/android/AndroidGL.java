@@ -833,6 +833,12 @@ public class AndroidGL implements GL, GL2, GLES_30, GLExt, GLFbo {
     // Wrapper to DrawBuffers as there's no DrawBuffer method in GLES
     @Override
     public void glDrawBuffer(int mode) {
+        if (mode == GL.GL_NONE || mode == GL.GL_BACK) {
+            tmpBuff16.clear();
+            tmpBuff16.put(mode).flip();
+            glDrawBuffers(tmpBuff16);
+            return;
+        }
         int nBuffers = (mode - GLFbo.GL_COLOR_ATTACHMENT0_EXT) + 1;
         if (nBuffers <= 0 || nBuffers > 16) {
             throw new IllegalArgumentException("Draw buffer outside range: " + Integer.toHexString(mode));

@@ -56,7 +56,12 @@ public class LwjglGLExt extends LwjglRender implements GLExt {
 
     @Override
     public void glDrawArraysInstancedARB(final int mode, final int first, final int count, final int primCount) {
-        ARBDrawInstanced.glDrawArraysInstancedARB(mode, first, count, primCount);
+        // Core profiles need not expose the suffixed ARB entry points (notably macOS).
+        if (GL.getCapabilities().OpenGL31) {
+            GL31.glDrawArraysInstanced(mode, first, count, primCount);
+        } else {
+            ARBDrawInstanced.glDrawArraysInstancedARB(mode, first, count, primCount);
+        }
     }
 
     @Override
@@ -68,7 +73,11 @@ public class LwjglGLExt extends LwjglRender implements GLExt {
     @Override
     public void glDrawElementsInstancedARB(final int mode, final int indicesCount, final int type,
                                            final long indicesBufferOffset, final int primCount) {
-        ARBDrawInstanced.glDrawElementsInstancedARB(mode, indicesCount, type, indicesBufferOffset, primCount);
+        if (GL.getCapabilities().OpenGL31) {
+            GL31.glDrawElementsInstanced(mode, indicesCount, type, indicesBufferOffset, primCount);
+        } else {
+            ARBDrawInstanced.glDrawElementsInstancedARB(mode, indicesCount, type, indicesBufferOffset, primCount);
+        }
     }
 
     @Override
@@ -85,7 +94,11 @@ public class LwjglGLExt extends LwjglRender implements GLExt {
 
     @Override
     public void glVertexAttribDivisorARB(final int index, final int divisor) {
-        ARBInstancedArrays.glVertexAttribDivisorARB(index, divisor);
+        if (GL.getCapabilities().OpenGL33) {
+            GL33.glVertexAttribDivisor(index, divisor);
+        } else {
+            ARBInstancedArrays.glVertexAttribDivisorARB(index, divisor);
+        }
     }
 
     @Override

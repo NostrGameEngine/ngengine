@@ -370,9 +370,9 @@ public class GltfLoader implements AssetLoader {
 
         spatial.setLocalTransform(readTransforms(nodeData));
 
-        if (spatial.getName() == null) {
-            spatial.setName(getAsString(nodeData.getAsJsonObject(), "name"));
-        }
+        // Spatial.getName() supplies a class-name fallback even when no explicit name exists.
+        String nodeName = getAsString(nodeData.getAsJsonObject(), "name");
+        if (nodeName != null) spatial.setName(nodeName);
 
         spatial = customContentManager.readExtensionAndExtras("node", nodeData, spatial);
 
@@ -529,6 +529,7 @@ public class GltfLoader implements AssetLoader {
 
                 // Read mesh extras
                 mesh = customContentManager.readExtensionAndExtras("primitive", meshObject, mesh);
+                GltfUtils.generateMissingNormals(mesh);
                 Geometry geom = new Geometry(null, mesh);
 
                 Integer materialIndex = getAsInteger(meshObject, "material");
@@ -551,7 +552,8 @@ public class GltfLoader implements AssetLoader {
                     if (useNormalsFlag && mesh.getBuffer(VertexBuffer.Type.Tangent) == null) {
                         // No tangent buffer, but there is a normal map, we have to generate them using
                         // MikktSpace
-                        MikktspaceTangentGenerator.generate(geom);
+                        MikktspaceTangentGenerator.generate(geom,
+                                MikktspaceTangentGenerator.TangentConvention.GLTF);
                     }
                 }
 
@@ -1021,7 +1023,8 @@ public class GltfLoader implements AssetLoader {
 
         Texture2D texture2d = fetchFromCache("textures", textureIndex, Texture2D.class);
         if (texture2d != null) {
-            return texture2d;
+            // TextureInfo extensions belong to each use, including another primitive.
+            return customContentManager.readExtensionAndExtras("texture", texture, texture2d);
         }
 
         JsonObject textureData = textures.get(textureIndex).getAsJsonObject();

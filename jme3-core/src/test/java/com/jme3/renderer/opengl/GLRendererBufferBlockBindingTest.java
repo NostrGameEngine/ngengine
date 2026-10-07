@@ -31,8 +31,10 @@
  */
 package com.jme3.renderer.opengl;
 
+import com.jme3.shader.Shader;
 import com.jme3.shader.ShaderBufferBlock;
 import com.jme3.shader.ShaderBufferBlock.BufferType;
+import com.jme3.shader.ShaderVariable;
 import com.jme3.shader.bufferobject.BufferBindingPoints;
 import com.jme3.shader.bufferobject.BufferObject;
 import com.jme3.util.ListMap;
@@ -64,6 +66,43 @@ public class GLRendererBufferBlockBindingTest {
         blocks.put(block.getName(), block);
 
         assertFalse(GLRenderer.hasUnresolvedBufferBlockBindings(blocks));
+    }
+
+    @Test
+    public void testShaderResetReopensUniformAndStorageBlockLookup() {
+        Shader shader = new Shader();
+        shader.setId(17);
+        for (BufferType type : BufferType.values()) {
+            ShaderBufferBlock block = shader.getBufferBlock(type.name());
+            block.setBufferObject(type, new BufferObject());
+            block.setLocation(3);
+            block.setBinding(2);
+            block.clearUpdateNeeded();
+        }
+        assertFalse(GLRenderer.hasUnresolvedBufferBlockBindings(shader.getBufferBlockMap()));
+
+        shader.resetObject();
+
+        assertTrue(GLRenderer.hasUnresolvedBufferBlockBindings(shader.getBufferBlockMap()));
+        for (ShaderBufferBlock block : shader.getBufferBlockMap().values()) {
+            assertEquals(ShaderVariable.LOC_UNKNOWN, block.getLocation());
+            assertEquals(-1, block.getBinding());
+            assertTrue(block.isUpdateNeeded());
+        }
+    }
+
+    @Test
+    public void testAbsentBlocksAreQueriedAgainOnlyAfterShaderReset() {
+        Shader shader = new Shader();
+        ShaderBufferBlock block = shader.getBufferBlock("OptimizedOut");
+        block.setBufferObject(BufferType.UniformBufferObject, new BufferObject());
+        block.setLocation(ShaderVariable.LOC_NOT_DEFINED);
+        assertFalse(GLRenderer.hasUnresolvedBufferBlockBindings(shader.getBufferBlockMap()));
+
+        shader.resetObject();
+
+        assertTrue(GLRenderer.hasUnresolvedBufferBlockBindings(shader.getBufferBlockMap()));
+        assertEquals(ShaderVariable.LOC_UNKNOWN, block.getLocation());
     }
 
     @Test

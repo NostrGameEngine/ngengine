@@ -78,14 +78,13 @@ vec3 HDR_KHRToneMap(in vec3 color, in vec3 exposure, in vec3 gamma) {
     color -= offset;
 
     float peak = max(color.r, max(color.g, color.b));
-    if (peak < startCompression) return color;
+    if (peak >= startCompression) {
+        const float d = 1. - startCompression;
+        float newPeak = 1. - d * d / (peak + d - startCompression);
+        color *= newPeak / peak;
 
-    const float d = 1. - startCompression;
-    float newPeak = 1. - d * d / (peak + d - startCompression);
-    color *= newPeak / peak;
-
-    float g = 1. - 1. / (desaturation * (peak - newPeak) + 1.);
-    color = mix(color, newPeak * vec3(1, 1, 1), g);
-    color = pow(color, gamma);
-    return color;
+        float g = 1. - 1. / (desaturation * (peak - newPeak) + 1.);
+        color = mix(color, newPeak * vec3(1, 1, 1), g);
+    }
+    return pow(max(color, vec3(0.0)), gamma);
 }

@@ -39,6 +39,7 @@ import com.jme3.texture.Image.Format;
 import com.jme3.texture.image.ColorSpace;
 import com.jme3.util.BufferUtils;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.logging.Level;
@@ -59,6 +60,7 @@ public final class TextureUtil {
     private final Statistics statistics;
     private GLImageFormat[][] formats;
     private boolean supportUnpackRowLength;
+    private ByteBuffer packedPixelBuffer;
     
     public TextureUtil(GL gl, GL2 gl2, GLExt glext, Statistics statistics) {
         this.gl = gl;
@@ -110,6 +112,11 @@ public final class TextureUtil {
     }
     
     private void setupTextureSwizzle(int target, Format format) {
+        // Swizzle state belongs to the cubemap, not to an individual image face.
+        if (target >= GL.GL_TEXTURE_CUBE_MAP_POSITIVE_X
+                && target <= GL.GL_TEXTURE_CUBE_MAP_NEGATIVE_Z) {
+            target = GL.GL_TEXTURE_CUBE_MAP;
+        }
         // Needed for OpenGL 3.3 to support luminance / alpha formats
         switch (format) {
             case Alpha8:
@@ -162,6 +169,53 @@ public final class TextureUtil {
         }
     }
     
+    private static boolean requiresPackedExpansion(Format format, GLImageFormat glFormat) {
+        return glFormat.dataType == GL.GL_UNSIGNED_BYTE
+                && (format == Format.RGB565 || format == Format.RGB5A1);
+    }
+
+    private ByteBuffer expandPackedPixels(ByteBuffer data, Format format, int pixelCount) {
+        // GL reads packed shorts in native byte order, regardless of the ByteBuffer's byte-order metadata.
+        ByteBuffer source = data.duplicate().order(ByteOrder.nativeOrder());
+        boolean hasAlpha = format == Format.RGB5A1;
+        int components = hasAlpha ? 4 : 3;
+        if (pixelCount > source.remaining() / 2) {
+            throw new IllegalArgumentException("Packed image data is too small for the requested dimensions");
+        }
+        int requiredBytes = Math.multiplyExact(pixelCount, components);
+        if (packedPixelBuffer == null || packedPixelBuffer.capacity() < requiredBytes) {
+            cleanup();
+            packedPixelBuffer = BufferUtils.createByteBuffer(requiredBytes);
+        }
+        // Client-memory pixels have been consumed when the preceding GL upload returns.
+        ByteBuffer expanded = packedPixelBuffer;
+        expanded.clear();
+        for (int i = 0; i < pixelCount; i++) {
+            int pixel = source.getShort() & 0xffff;
+            int red = pixel >> 11;
+            int green = hasAlpha ? (pixel >> 6) & 0x1f : (pixel >> 5) & 0x3f;
+            int blue = hasAlpha ? (pixel >> 1) & 0x1f : pixel & 0x1f;
+            // Preserve the encoded sRGB values; the sRGB texture performs linearization when sampled.
+            expanded.put((byte) ((red * 255 + 15) / 31));
+            expanded.put((byte) ((green * 255 + (hasAlpha ? 15 : 31)) / (hasAlpha ? 31 : 63)));
+            expanded.put((byte) ((blue * 255 + 15) / 31));
+            if (hasAlpha) {
+                expanded.put((byte) ((pixel & 1) * 255));
+            }
+        }
+        expanded.flip();
+        return expanded;
+    }
+
+    /** Releases the owned CPU conversion scratch buffer; repeated calls are safe. */
+    void cleanup() {
+        ByteBuffer buffer = packedPixelBuffer;
+        packedPixelBuffer = null;
+        if (buffer != null) {
+            BufferUtils.destroyDirectBuffer(buffer);
+        }
+    }
+
     private void uploadTextureLevel(GLImageFormat format, int target, int level, int slice, int sliceCount, int width, int height, int depth, int samples, ByteBuffer data) {
         if (format.compressed && data != null) {
             if (target == GL2.GL_TEXTURE_3D) {
@@ -272,13 +326,17 @@ public final class TextureUtil {
 
         boolean getSrgbFormat = image.getColorSpace() == ColorSpace.sRGB && linearizeSrgb;
         Image.Format jmeFormat = image.getFormat();
-        GLImageFormat oglFormat = getImageFormatWithError(jmeFormat, getSrgbFormat);
+        final GLImageFormat oglFormat = getImageFormatWithError(jmeFormat, getSrgbFormat);
 
         ByteBuffer data = null;
         int sliceCount = 1;
         
         if (index >= 0) {
-            data = image.getData(index);
+            ByteBuffer source = image.getData(index);
+            if (source != null) {
+                data = source.duplicate();
+                data.clear();
+            }
         }
         
         if (image.getData() != null && image.getData().size() > 0) {
@@ -317,9 +375,19 @@ public final class TextureUtil {
                 data.limit(pos + mipSizes[i]);
             }
 
-            uploadTextureLevel(oglFormat, target, i, index, sliceCount, mipWidth, mipHeight, mipDepth, samples, data);
-            if (data != null) {
-                statistics.onTextureUpload(mipSizes[i]);
+            ByteBuffer uploadData = data;
+            if (data != null && requiresPackedExpansion(jmeFormat, oglFormat)) {
+                int pixelCount = Math.multiplyExact(mipWidth, mipHeight);
+                if (target == GL2.GL_TEXTURE_3D) {
+                    pixelCount = Math.multiplyExact(pixelCount, mipDepth);
+                }
+                uploadData = expandPackedPixels(data, jmeFormat, pixelCount);
+            }
+            int uploadBytes = uploadData == null ? 0 : uploadData.remaining();
+            uploadTextureLevel(oglFormat, target, i, index, sliceCount,
+                    mipWidth, mipHeight, mipDepth, samples, uploadData);
+            if (uploadData != null) {
+                statistics.onTextureUpload(uploadBytes);
             }
 
             pos += mipSizes[i];
@@ -429,12 +497,16 @@ public final class TextureUtil {
         }
         
         boolean getSrgbFormat = image.getColorSpace() == ColorSpace.sRGB && linearizeSrgb;
-        GLImageFormat oglFormat = getImageFormatWithError(jmeFormat, getSrgbFormat);
+        final GLImageFormat oglFormat = getImageFormatWithError(jmeFormat, getSrgbFormat);
         
         ByteBuffer data = null;
         
         if (index >= 0) {
-            data = image.getData(index);
+            ByteBuffer source = image.getData(index);
+            if (source != null) {
+                data = source.duplicate();
+                data.clear();
+            }
         }
         
         if (data == null) {
@@ -443,6 +515,10 @@ public final class TextureUtil {
 
         data.position(0);
         data.limit(data.capacity());
+        if (requiresPackedExpansion(jmeFormat, oglFormat)) {
+            data = expandPackedPixels(data, jmeFormat,
+                    Math.multiplyExact(image.getWidth(), image.getHeight()));
+        }
         int uploadBytes = data.remaining();
         
         gl.glTexSubImage2D(target, 0, x, y, image.getWidth(), image.getHeight(), 
@@ -451,6 +527,13 @@ public final class TextureUtil {
     }
 
     public void uploadSubTexture(int target, Image src, int index, int targetX, int targetY, int areaX, int areaY, int areaWidth, int areaHeight, boolean linearizeSrgb) {
+        uploadSubTexture(target, src, index, targetX, targetY, areaX, areaY, areaWidth, areaHeight,
+                linearizeSrgb, src.getColorSpace());
+    }
+
+    void uploadSubTexture(int target, Image src, int index, int targetX, int targetY,
+            int areaX, int areaY, int areaWidth, int areaHeight,
+            boolean linearizeSrgb, ColorSpace destinationColorSpace) {
         if (target != GL.GL_TEXTURE_2D || src.getDepth() > 1) {
             throw new UnsupportedOperationException("Updating non-2D texture is not supported");
         }
@@ -471,8 +554,10 @@ public final class TextureUtil {
             throw new UnsupportedOperationException("Updating depth images is not supported");
         }
 
-        boolean getSrgbFormat = src.getColorSpace() == ColorSpace.sRGB && linearizeSrgb;
-        GLImageFormat oglFormat = getImageFormatWithError(jmeFormat, getSrgbFormat);
+        // The destination storage determines which pixel types GLES3 accepts, even when the
+        // source has a different color space. This is a raw copy, without CPU gamma conversion.
+        boolean getSrgbFormat = destinationColorSpace == ColorSpace.sRGB && linearizeSrgb;
+        final GLImageFormat oglFormat = getImageFormatWithError(jmeFormat, getSrgbFormat);
 
         ByteBuffer data = src.getData(index);
 
@@ -480,14 +565,19 @@ public final class TextureUtil {
             throw new IndexOutOfBoundsException("The image index " + index + " is not valid for the given image");
         }
 
-        int Bpp = src.getFormat().getBitsPerPixel() / 8;
-        long uploadBytes = (long) areaWidth * areaHeight * Bpp;
+        data = data.duplicate();
+        int bytesPerPixel = src.getFormat().getBitsPerPixel() / 8;
+        if (requiresPackedExpansion(jmeFormat, oglFormat)) {
+            data.clear();
+            data = expandPackedPixels(data, jmeFormat, Math.multiplyExact(src.getWidth(), src.getHeight()));
+            bytesPerPixel = jmeFormat == Format.RGB565 ? 3 : 4;
+        }
+        long uploadBytes = (long) areaWidth * areaHeight * bytesPerPixel;
 
         int srcWidth = src.getWidth();
-        int cpos = data.position();
         int skip = areaX;
         skip += areaY * srcWidth;
-        skip *= Bpp;
+        skip *= bytesPerPixel;
 
         data.position(skip);
 
@@ -495,8 +585,9 @@ public final class TextureUtil {
 
         if (needsStride && (!supportUnpackRowLength)) { // doesn't support stride, copy row by row (slower).
             for (int i = 0; i < areaHeight; i++) {
-                data.position(skip + (srcWidth * Bpp * i));
-                gl.glTexSubImage2D(target, 0, targetX, targetY + i, areaWidth, 1, oglFormat.format, oglFormat.dataType, data);
+                data.position(skip + (srcWidth * bytesPerPixel * i));
+                gl.glTexSubImage2D(target, 0, targetX, targetY + i, areaWidth, 1,
+                        oglFormat.format, oglFormat.dataType, data);
             }
         } else {
             if (needsStride)
@@ -506,7 +597,6 @@ public final class TextureUtil {
                 gl.glPixelStorei(GL.GL_UNPACK_ROW_LENGTH, 0);
         }
         statistics.onTextureSubUpload(uploadBytes);
-        data.position(cpos);
 
     }
 

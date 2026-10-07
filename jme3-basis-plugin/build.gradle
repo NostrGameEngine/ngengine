@@ -23,7 +23,8 @@ apply from: file('../version.gradle')
 group = 'org.ngengine'
 version = jmeFullVersion
 def basisEncoderVersion = findProperty('basisEncoderVersion')
-        ?: (version.toString().endsWith('-SNAPSHOT') ? '1.0.0-SNAPSHOT' : '1.0.0')
+        ?: (rootProject.ext.useSnapshotDependencies
+            ? libs.versions.basisUniversalSnapshot.get() : libs.versions.basisUniversal.get())
 
 nexusPublishing {
     repositories {
@@ -38,9 +39,9 @@ nexusPublishing {
 }
 
 repositories {
-    mavenLocal()
     mavenCentral()
     maven { url = uri('https://central.sonatype.com/repository/maven-snapshots/') }
+    mavenLocal()
 }
 
 dependencies {

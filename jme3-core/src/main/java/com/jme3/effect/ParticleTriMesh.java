@@ -162,9 +162,10 @@ public class ParticleTriMesh extends ParticleMesh {
         VertexBuffer tvb = getBuffer(VertexBuffer.Type.TexCoord);
         FloatBuffer texcoords = (FloatBuffer) tvb.getData();
 
-        Vector3f camUp = cam.getUp();
-        Vector3f camLeft = cam.getLeft();
-        Vector3f camDir = cam.getDirection();
+        TempVars vars = TempVars.get();
+        Vector3f camUp = cam.getUp(vars.vect1);
+        Vector3f camLeft = cam.getLeft(vars.vect2);
+        Vector3f camDir = cam.getDirection(vars.vect3);
 
         inverseRotation.multLocal(camUp);
         inverseRotation.multLocal(camLeft);
@@ -172,8 +173,8 @@ public class ParticleTriMesh extends ParticleMesh {
 
         boolean facingVelocity = emitter.isFacingVelocity();
 
-        Vector3f up = new Vector3f();
-        Vector3f left = new Vector3f();
+        Vector3f up = vars.vect4;
+        Vector3f left = vars.vect5;
 
         if (!facingVelocity) {
             up.set(camUp);
@@ -211,12 +212,10 @@ public class ParticleTriMesh extends ParticleMesh {
                 left.multLocal(p.size);
                 
                 if (p.angle != 0) {
-                    TempVars vars = TempVars.get();
-                    vars.vect1.set(faceNormal).normalizeLocal();
-                    vars.quat1.fromAngleNormalAxis(p.angle, vars.vect1);
+                    vars.vect6.set(faceNormal).normalizeLocal();
+                    vars.quat1.fromAngleNormalAxis(p.angle, vars.vect6);
                     vars.quat1.multLocal(left);
                     vars.quat1.multLocal(up);
-                    vars.release();
                 }
             } else if (p.angle != 0) {
                 float cos = FastMath.cos(p.angle) * p.size;
@@ -286,5 +285,6 @@ public class ParticleTriMesh extends ParticleMesh {
         // force renderer to re-send data to GPU
         pvb.updateData(positions);
         cvb.updateData(colors);
+        vars.release();
     }
 }

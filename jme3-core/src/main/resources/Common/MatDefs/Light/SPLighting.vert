@@ -120,7 +120,8 @@ void main(){
   
        
     #if defined(NORMALMAP) && !defined(VERTEX_LIGHTING)
-      vTangent = vec4(TransformNormal(modelSpaceTan).xyz,inTangent.w);
+      vec4 worldTangent = TransformWorldTangent(modelSpaceTan, inTangent.w);
+      vTangent = vec4((g_ViewMatrix * vec4(worldTangent.xyz, 0.0)).xyz, worldTangent.w);
       vNormal = wvNormal;         
       vPos = wvPosition;
     #elif !defined(VERTEX_LIGHTING)

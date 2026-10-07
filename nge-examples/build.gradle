@@ -1,6 +1,6 @@
 ext.mainClassName = findProperty('mainClassName') ?: 'ngetest.TestChooser'
 
-def useSnapshotDeps = (jmeVersionTag == 'SNAPSHOT')
+def useSnapshotDeps = rootProject.ext.useSnapshotDependencies
 
 task run(dependsOn: 'build', type:JavaExec) {
     mainClass = mainClassName

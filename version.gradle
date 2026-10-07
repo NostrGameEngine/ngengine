@@ -14,6 +14,7 @@ ext {
 
 def gitOutput = { List<String> args ->
     def output = providers.exec {
+        workingDir rootProject.projectDir
         commandLine(['git'] + args)
         ignoreExitValue = true
     }
@@ -112,7 +113,7 @@ try {
             // Just use defaults
             println "Using user-defined version"
             jmeFullVersion=jmeVersionName
-            jmeVersionTag = ""
+            jmeVersionTag = jmeFullVersion.toString().endsWith('-SNAPSHOT') ? 'SNAPSHOT' : ''
         }
 
         println("Revision: ${jmeRevision}")
@@ -131,3 +132,8 @@ try {
     logger.warn("Failed to get repository info: " + ex.message + ". " + \
                 "Only partial build info will be generated.")
 }
+
+// Dependency selection must not depend on commit-hash artifact naming.
+ext.useSnapshotDependencies = providers.gradleProperty('useSnapshotDependencies')
+        .map { it.toBoolean() }
+        .getOrElse(jmeVersionTag == 'SNAPSHOT' || jmeFullVersion.endsWith('-SNAPSHOT'))

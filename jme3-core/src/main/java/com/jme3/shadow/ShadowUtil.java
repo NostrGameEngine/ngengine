@@ -464,8 +464,9 @@ public class ShadowUtil {
                 }
 
                 if (intersects) {
-                    for (Spatial child : ((Node)scene).getChildren()) {
-                        process(child);
+                    List<Spatial> children = ((Node) scene).getChildren();
+                    for (int i = 0; i < children.size(); i++) {
+                        process(children.get(i));
                     }
                 }
             }
@@ -708,7 +709,9 @@ public class ShadowUtil {
         if (scene.getCullHint() == Spatial.CullHint.Always) return;
         camera.setPlaneState(0);
         if (camera.contains(scene.getWorldBound()) != Camera.FrustumIntersect.Outside) {
-            for (Spatial child: scene.getChildren()) {
+            List<Spatial> children = scene.getChildren();
+            for (int i = 0; i < children.size(); i++) {
+                Spatial child = children.get(i);
                 if (child instanceof Node) addGeometriesInCamFrustumFromNode(camera, (Node)child, mode, outputGeometryList);
                 else if (child instanceof Geometry && child.getCullHint() != Spatial.CullHint.Always) {
                     camera.setPlaneState(0);
@@ -792,8 +795,9 @@ public class ShadowUtil {
             if (scene instanceof Node)
             {
                 Node node = (Node)scene;
-                for (Spatial child: node.getChildren()) {
-                    addGeometriesInCamFrustumAndViewPortFromNode(vpCamera, cameras, child, mode, outputGeometryList);
+                List<Spatial> children = node.getChildren();
+                for (int i = 0; i < children.size(); i++) {
+                    addGeometriesInCamFrustumAndViewPortFromNode(vpCamera, cameras, children.get(i), mode, outputGeometryList);
                 }
             }
             else if (scene instanceof Geometry) {

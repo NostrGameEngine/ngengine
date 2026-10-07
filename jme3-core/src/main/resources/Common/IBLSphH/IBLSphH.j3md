@@ -5,6 +5,7 @@ MaterialDef IBLSphH {
         TextureCubeMap Texture -LINEAR
         Vector2 Resolution
         Int SampleCount
+        Int SampleOffset
         Boolean UseFastSphericalHarmonics
         Float RemapMaxValue
     }

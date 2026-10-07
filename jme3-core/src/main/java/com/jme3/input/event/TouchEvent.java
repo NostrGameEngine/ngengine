@@ -110,7 +110,9 @@ public class TouchEvent extends InputEvent {
         /**
          * Virtual keyboard or hardware key event up, fields: keyCode, characters
          */
-        KEY_MULTIPLE
+        KEY_MULTIPLE,
+        /** A captured touch was interrupted; release its state without activating the target. */
+        CANCEL
     }
     private Type type = Type.IDLE;
     private int pointerId;

@@ -776,7 +776,7 @@ public class OGLESContext implements JmeContext, GLSurfaceView.Renderer, SoftTex
             return false;
         }
 
-        FrameBuffer previousMainFramebuffer = renderer.getCurrentFrameBuffer();
+        FrameBuffer previousMainFramebuffer = renderer.getMainFrameBufferOverride();
         if (previousMainFramebuffer != null) {
             return false;
         }
@@ -791,7 +791,7 @@ public class OGLESContext implements JmeContext, GLSurfaceView.Renderer, SoftTex
         renderer.setMainFrameBufferOverride(linearFrameBuffer);
         try {
             listener.update();
-            FrameBuffer currentMainFramebuffer = renderer.getCurrentFrameBuffer();
+            FrameBuffer currentMainFramebuffer = renderer.getMainFrameBufferOverride();
             if (currentMainFramebuffer != linearFrameBuffer) {
                 restoreMainFramebuffer = currentMainFramebuffer;
             }

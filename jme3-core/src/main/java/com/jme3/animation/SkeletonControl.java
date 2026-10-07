@@ -499,8 +499,9 @@ public class SkeletonControl extends AbstractControl implements Cloneable, JmeCl
 
             // iterate vertices and apply skinning transform for each effecting bone
             for (int vert = verts - 1; vert >= 0; vert--) {
-                // Skip this vertex if the first weight is zero.
-                if (weights[idxWeights] == 0) {
+                // Unordered influences are valid; skip only an entirely unweighted vertex.
+                if (weights[idxWeights] == 0 && weights[idxWeights + 1] == 0
+                        && weights[idxWeights + 2] == 0 && weights[idxWeights + 3] == 0) {
                     idxPositions += 3;
                     idxWeights += 4;
                     continue;
@@ -622,8 +623,9 @@ public class SkeletonControl extends AbstractControl implements Cloneable, JmeCl
 
             // iterate vertices and apply skinning transform for each effecting bone
             for (int vert = verts - 1; vert >= 0; vert--) {
-                // Skip this vertex if the first weight is zero.
-                if (weights[idxWeights] == 0) {
+                // Unordered influences are valid; skip only an entirely unweighted vertex.
+                if (weights[idxWeights] == 0 && weights[idxWeights + 1] == 0
+                        && weights[idxWeights + 2] == 0 && weights[idxWeights + 3] == 0) {
                     idxTangents += 4;
                     idxPositions += 3;
                     idxWeights += 4;

@@ -1,3 +1,5 @@
+def useSnapshotDeps = rootProject.ext.useSnapshotDependencies
+
 dependencies {
     api project(':jme3-core')
     api project(':jme3-desktop')
@@ -16,9 +18,9 @@ dependencies {
 
     api libs.lwjgl3.opengles
     api libs.lwjgl3.egl
-    api libs.angle
+    api(useSnapshotDeps ? libs.angle.snapshot : libs.angle)
 
-    runtimeOnly libs.angle
+    runtimeOnly(useSnapshotDeps ? libs.angle.snapshot : libs.angle)
 
     runtimeOnly(variantOf(libs.lwjgl3.base){ classifier('natives-windows') })
     runtimeOnly(variantOf(libs.lwjgl3.base){ classifier('natives-windows-arm64') })

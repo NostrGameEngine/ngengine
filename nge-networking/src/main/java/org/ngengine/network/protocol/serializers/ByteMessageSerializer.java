@@ -36,6 +36,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import org.ngengine.network.protocol.GrowableByteBuffer;
 import org.ngengine.network.protocol.VarInt;
+import org.ngengine.network.protocol.DynamicSerializerProtocol;
 import org.ngengine.network.protocol.messages.ByteDataMessage;
 
 public class ByteMessageSerializer extends DynamicSerializer {
@@ -45,17 +46,14 @@ public class ByteMessageSerializer extends DynamicSerializer {
         try {
             ByteDataMessage message = (ByteDataMessage) c.getDeclaredConstructor().newInstance();
             long len = VarInt.decodeUnsigned(buffer);
-            if (len > Integer.MAX_VALUE) {
-                throw new IOException("ByteMessage length too large: " + len);
-            }
-            int length = (int) len;
+            int length = DynamicSerializerProtocol.checkedLength(len, DynamicSerializerProtocol.MAX_FRAME_BYTES, buffer.remaining());
+            DynamicSerializerProtocol.chargeDecodedBytes(length);
             if (length > buffer.remaining()) {
                 throw new IOException("Invalid ByteMessage length: " + length);
             }
-            ByteBuffer bbf = buffer.slice();
-            bbf.limit(length);
-            message.setData(bbf.slice());
-            buffer.position(buffer.position() + length);
+            byte[] bytes = new byte[length];
+            buffer.get(bytes);
+            message.setData(ByteBuffer.wrap(bytes));
             return (T) message;
         } catch (Exception e) {
             throw new IOException("Error deserializing ByteMessage", e);

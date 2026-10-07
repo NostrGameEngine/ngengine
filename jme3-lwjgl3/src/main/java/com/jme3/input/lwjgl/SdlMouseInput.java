@@ -49,6 +49,7 @@ import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.lwjgl.sdl.SDL_Event;
 import org.lwjgl.sdl.SDL_Surface;
@@ -56,6 +57,7 @@ import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
 
 import static org.lwjgl.sdl.SDLMouse.*;
+import static org.lwjgl.sdl.SDLError.*;
 import static org.lwjgl.sdl.SDLPixels.*;
 import static org.lwjgl.sdl.SDLSurface.*;
 import static org.lwjgl.sdl.SDLEvents.*;
@@ -237,6 +239,11 @@ public class SdlMouseInput implements MouseInput {
             if (event.button().windowID() != context.getWindowId()) {
                 return;
             }
+            if (type == SDL_EVENT_MOUSE_BUTTON_DOWN && !cursorVisible
+                    && !x11WarpGrabMode
+                    && !SDL_GetWindowRelativeMouseMode(context.getWindowHandle())) {
+                setCursorVisible(false);
+            }
             refreshWindowMetrics();
             mouseX = toInputX(event.button().x());
             mouseY = toInputY(event.button().y());
@@ -400,23 +407,41 @@ public class SdlMouseInput implements MouseInput {
             }
             SDL_ShowCursor();
         } else {
-            SDL_SetWindowMouseGrab(context.getWindowHandle(), true);
-            SDL_CaptureMouse(true);
+            SDL_SetHint(SDL_HINT_MOUSE_RELATIVE_MODE_CENTER, "1");
+            SDL_SetHint(SDL_HINT_MOUSE_RELATIVE_CURSOR_VISIBLE, "0");
+            SDL_SetHint(SDL_HINT_MOUSE_RELATIVE_WARP_MOTION, "0");
+            SDL_CaptureMouse(false);
+            SDL_HideCursor();
             if (isX11Backend()) {
+                boolean grabbed = SDL_SetWindowMouseGrab(context.getWindowHandle(), true);
                 x11WarpGrabMode = true;
                 ignoreNextX11WarpEvent = true;
                 SDL_SetWindowRelativeMouseMode(context.getWindowHandle(), false);
                 warpMouseToWindowCenter();
                 syncMouseToWindowCenter();
+                if (!grabbed || !SDL_GetWindowMouseGrab(context.getWindowHandle())) {
+                    LOGGER.log(Level.WARNING, "SDL could not grab the mouse window: {0}", SDL_GetError());
+                }
             } else {
-                x11WarpGrabMode = false;
-                SDL_SetHint(SDL_HINT_MOUSE_RELATIVE_MODE_CENTER, "1");
-                SDL_SetHint(SDL_HINT_MOUSE_RELATIVE_CURSOR_VISIBLE, "0");
-                SDL_SetHint(SDL_HINT_MOUSE_RELATIVE_WARP_MOTION, "0");
-                SDL_SetWindowRelativeMouseMode(context.getWindowHandle(), true);
-                warpMouseToWindowCenter();
+                boolean relativeMode = SDL_SetWindowRelativeMouseMode(context.getWindowHandle(), true);
+                x11WarpGrabMode = !relativeMode;
+                ignoreNextX11WarpEvent = x11WarpGrabMode;
+                if (x11WarpGrabMode) {
+                    String relativeModeError = SDL_GetError();
+                    boolean grabbed = SDL_SetWindowMouseGrab(context.getWindowHandle(), true);
+                    warpMouseToWindowCenter();
+                    syncMouseToWindowCenter();
+                    LOGGER.log(Level.WARNING,
+                            "SDL relative mouse mode unavailable; using centered warp fallback (grabbed={0}): {1}",
+                            new Object[]{grabbed, relativeModeError});
+                }
             }
-            SDL_HideCursor();
+            if (SDL_CursorVisible()) {
+                SDL_HideCursor();
+                if (SDL_CursorVisible()) {
+                    LOGGER.log(Level.WARNING, "SDL could not hide the mouse cursor: {0}", SDL_GetError());
+                }
+            }
         }
     }
 

@@ -15,8 +15,9 @@ in vec3 LocalPos;
 
 
 uniform samplerCube m_Texture;
-#ifdef FAST_SPHERICAL_HARMONICS
-    uniform int m_SampleCount;
+uniform int m_SampleCount;
+#ifndef FAST_SPHERICAL_HARMONICS
+    uniform int m_SampleOffset;
 #endif
 uniform vec2 m_Resolution;
 
@@ -190,18 +191,20 @@ void sphKernel() {
     #ifdef FAST_SPHERICAL_HARMONICS
         sphHammersleyKernel(i, shCoef, weightAccum);
     #else
-        for(int faceId = 0; faceId < 6; faceId++) {
-            for(int y = 0; y < height; y++) {
-                for(int x = 0; x < width; x++) {
-                    weight = getSolidAngleAndVector(float(x), float(y), float(width), faceId, texelVect);
-                    evalShBasis(texelVect, i, shDir);
-                    color = texture(m_Texture, texelVect);
-                    shCoef.x = (shCoef.x + color.r * shDir * weight);
-                    shCoef.y = (shCoef.y + color.g * shDir * weight);
-                    shCoef.z = (shCoef.z + color.b * shDir * weight);
-                    weightAccum += weight;
-                }
-            }
+        int faceStride = width * height;
+        for(int localIndex = 0; localIndex < m_SampleCount; localIndex++) {
+            int sampleIndex = m_SampleOffset + localIndex;
+            int faceId = sampleIndex / faceStride;
+            int faceOffset = sampleIndex - faceId * faceStride;
+            int y = faceOffset / width;
+            int x = faceOffset - y * width;
+            weight = getSolidAngleAndVector(float(x), float(y), float(width), faceId, texelVect);
+            evalShBasis(texelVect, i, shDir);
+            color = texture(m_Texture, texelVect);
+            shCoef.x = (shCoef.x + color.r * shDir * weight);
+            shCoef.y = (shCoef.y + color.g * shDir * weight);
+            shCoef.z = (shCoef.z + color.b * shDir * weight);
+            weightAccum += weight;
         }
     #endif
 

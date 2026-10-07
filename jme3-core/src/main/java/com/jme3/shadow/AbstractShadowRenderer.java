@@ -455,26 +455,35 @@ public abstract class AbstractShadowRenderer implements SceneProcessor, Savable,
         updateShadowCams(viewPort.getCamera());
 
         Renderer r = renderManager.getRenderer();
-        renderManager.setForcedMaterial(preshadowMat);
-        renderManager.setForcedTechnique("PreShadow");
+        Material savedMaterial = renderManager.getForcedMaterial();
+        String savedTechnique = renderManager.getForcedTechnique();
+        RenderState savedState = renderManager.getForcedRenderState();
+        LightFilter savedFilter = renderManager.getLightFilter();
+        FrameBuffer savedTarget = r.getCurrentFrameBuffer();
+        try {
+            renderManager.setForcedMaterial(preshadowMat);
+            renderManager.setForcedTechnique("PreShadow");
 
-        for (int shadowMapIndex = 0; shadowMapIndex < nbShadowMaps; shadowMapIndex++) {
-            if (debugfrustums) {
-                doDisplayFrustumDebug(shadowMapIndex);
+            for (int shadowMapIndex = 0; shadowMapIndex < nbShadowMaps; shadowMapIndex++) {
+                if (debugfrustums) {
+                    doDisplayFrustumDebug(shadowMapIndex);
+                }
+                renderShadowMap(shadowMapIndex);
             }
-            renderShadowMap(shadowMapIndex);
-        }
 
-        if (debugfrustums) {
-            debugfrustums = false;
-            getSceneForDebug().updateGeometricState();
+            if (debugfrustums) {
+                debugfrustums = false;
+                getSceneForDebug().updateGeometricState();
+            }
+        } finally {
+            // Restore the caller's state even when drawing a shadow map fails.
+            r.setFrameBuffer(savedTarget);
+            renderManager.setForcedMaterial(savedMaterial);
+            renderManager.setForcedTechnique(savedTechnique);
+            renderManager.setForcedRenderState(savedState);
+            renderManager.setLightFilter(savedFilter);
+            renderManager.setCamera(viewPort.getCamera(), false);
         }
-
-        //restore setting for future rendering
-        r.setFrameBuffer(viewPort.getOutputFrameBuffer());
-        renderManager.setForcedMaterial(null);
-        renderManager.setForcedTechnique(null);
-        renderManager.setCamera(viewPort.getCamera(), false);
     }
 
     protected void renderShadowMap(int shadowMapIndex) {
@@ -552,28 +561,35 @@ public abstract class AbstractShadowRenderer implements SceneProcessor, Savable,
         getReceivers(lightReceivers);
 
         if (lightReceivers.size() != 0) {
-            //setting params to receiving geometry list
-            setMatParams(lightReceivers);
-
+            Material savedMaterial = renderManager.getForcedMaterial();
+            String savedTechnique = renderManager.getForcedTechnique();
+            RenderState savedState = renderManager.getForcedRenderState();
             Camera cam = viewPort.getCamera();
-            // Some materials in the scene do not have a post shadow technique, so we're using the fallback material.
-            if (needsfallBackMaterial) {
-                renderManager.setForcedMaterial(postshadowMat);
+            try {
+                //setting params to receiving geometry list
+                setMatParams(lightReceivers);
+
+                // Some materials in the scene do not have a post shadow technique, so we're using the fallback material.
+                if (needsfallBackMaterial) {
+                    renderManager.setForcedMaterial(postshadowMat);
+                }
+
+                //forcing the post shadow technique and render state
+                renderManager.setForcedTechnique(postTechniqueName);
+
+                //rendering the post shadow pass
+                viewPort.getQueue().renderShadowQueue(lightReceivers, renderManager, cam, false);
+            } finally {
+                // Clear transient parameters even when a receiver draw fails.
+                try {
+                    clearMatParams();
+                } finally {
+                    renderManager.setForcedTechnique(savedTechnique);
+                    renderManager.setForcedMaterial(savedMaterial);
+                    renderManager.setForcedRenderState(savedState);
+                    renderManager.setCamera(cam, false);
+                }
             }
-
-            //forcing the post shadow technique and render state
-            renderManager.setForcedTechnique(postTechniqueName);
-
-            //rendering the post shadow pass
-            viewPort.getQueue().renderShadowQueue(lightReceivers, renderManager, cam, false);
-
-            //resetting renderManager settings
-            renderManager.setForcedTechnique(null);
-            renderManager.setForcedMaterial(null);
-            renderManager.setCamera(cam, false);
-
-            //clearing the params in case there are some other shadow renderers
-            clearMatParams();
         }
     }
 
@@ -930,6 +946,16 @@ public abstract class AbstractShadowRenderer implements SceneProcessor, Savable,
     @Override
     public void cloneFields(final Cloner cloner, final Object original) {
         forcedRenderState = cloner.clone(forcedRenderState);
+        fadeInfo = cloner.clone(fadeInfo);
+        matCache = new ArrayList<>();
+        lightReceivers = new GeometryList(new OpaqueComparator());
+        shadowMapOccluders = new GeometryList(new OpaqueComparator());
+        viewPort = null;
+        renderManager = null;
+        frustumCam = null;
+        prof = null;
+        skipPostPass = false;
+        needsfallBackMaterial = false;
         init(assetManager, nbShadowMaps, (int) shadowMapSize);
     }
 

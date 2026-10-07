@@ -10,7 +10,7 @@ sourceSets {
     }
 }
 
-def useSnapshotDeps = (jmeVersionTag == 'SNAPSHOT')
+def useSnapshotDeps = rootProject.ext.useSnapshotDependencies
 
 dependencies {
     compileOnly libs.androidx.annotation

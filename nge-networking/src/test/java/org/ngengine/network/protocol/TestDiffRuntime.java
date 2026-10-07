@@ -59,7 +59,7 @@ public class TestDiffRuntime {
     }
 
     @Test
-    public void senderHistoryIsCappedAndKeepsBase() throws Exception {
+    public void senderRetainsOnlyTheCurrentSerializedReliableBase() throws Exception {
         DynamicSerializerProtocol sender = new DynamicSerializerProtocol(true, id -> {}, 0);
         RuntimeProbeMessage msg = new RuntimeProbeMessage("group-B", 0);
         sender.toByteBuffer(msg, null);
@@ -70,11 +70,14 @@ public class TestDiffRuntime {
         }
 
         Object groupState = senderGroupState(sender, msg.getDiffGroup());
-        @SuppressWarnings("unchecked")
-        Map<Long, ?> history = (Map<Long, ?>) objectField(groupState, "reliableHistory");
+        ByteBuffer retained = (ByteBuffer) objectField(groupState, "reliableBaseSnapshot");
         long basePacketId = longField(groupState, "reliableBasePacketId");
-        assertTrue("history cap must be enforced", history.size() <= 32);
-        assertTrue("current base must be retained while group is alive", history.containsKey(basePacketId));
+        assertTrue("current base must be retained while group is alive", basePacketId > 0 && retained.isReadOnly());
+        assertTrue("serialized base allocation is bounded", retained.capacity() <= DynamicSerializerProtocol.MAX_FRAME_BYTES);
+        RuntimeProbeMessage decoded = (RuntimeProbeMessage) sender.bestSerializer(RuntimeProbeMessage.class)
+                .readObject(retained.duplicate(), RuntimeProbeMessage.class);
+        assertEquals(120, decoded.value);
+        sender.retire();
     }
 
     @Test

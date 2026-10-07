@@ -37,6 +37,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import org.ngengine.network.protocol.GrowableByteBuffer;
 import org.ngengine.network.protocol.VarInt;
+import org.ngengine.network.protocol.DynamicSerializerProtocol;
 import org.ngengine.network.protocol.messages.TextDataMessage;
 
 public class TextMessageSerializer extends DynamicSerializer {
@@ -46,10 +47,8 @@ public class TextMessageSerializer extends DynamicSerializer {
         try {
             TextDataMessage message = (TextDataMessage) c.getDeclaredConstructor().newInstance();
             long len = VarInt.decodeUnsigned(buffer);
-            if (len > Integer.MAX_VALUE) {
-                throw new IOException("Text message length too large: " + len);
-            }
-            int length = (int) len;
+            int length = DynamicSerializerProtocol.checkedLength(len, DynamicSerializerProtocol.MAX_STRING_BYTES, buffer.remaining());
+            DynamicSerializerProtocol.chargeDecodedBytes(length);
             if (length > buffer.remaining()) {
                 throw new IOException("Invalid text message length: " + length);
             }
@@ -68,7 +67,9 @@ public class TextMessageSerializer extends DynamicSerializer {
         TextDataMessage message = (TextDataMessage) object;
         String data = message.getData();
         if (data == null) throw new IOException("The message data is null");
+        DynamicSerializerProtocol.checkedLength(data.length(), DynamicSerializerProtocol.MAX_STRING_BYTES, Integer.MAX_VALUE);
         byte[] bytes = data.getBytes(StandardCharsets.UTF_8);
+        DynamicSerializerProtocol.checkedLength(bytes.length, DynamicSerializerProtocol.MAX_STRING_BYTES, Integer.MAX_VALUE);
         VarInt.encodeUnsigned(bytes.length, buffer);
         buffer.put(bytes);
     }

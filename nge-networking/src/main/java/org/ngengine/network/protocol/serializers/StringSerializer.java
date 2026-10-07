@@ -37,6 +37,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import org.ngengine.network.protocol.GrowableByteBuffer;
 import org.ngengine.network.protocol.VarInt;
+import org.ngengine.network.protocol.DynamicSerializerProtocol;
 
 /**
  * Boolean serializer.
@@ -49,10 +50,8 @@ public class StringSerializer extends DynamicSerializer {
     @Override
     public String readObject(ByteBuffer data, Class c) throws IOException {
         long len = VarInt.decodeUnsigned(data);
-        if (len > Integer.MAX_VALUE) {
-            throw new IOException("String length too large: " + len);
-        }
-        int length = (int) len;
+        int length = DynamicSerializerProtocol.checkedLength(len, DynamicSerializerProtocol.MAX_STRING_BYTES, data.remaining());
+        DynamicSerializerProtocol.chargeDecodedBytes(length);
         if (length > data.remaining()) {
             throw new IOException("Invalid string length: " + length);
         }
@@ -66,7 +65,9 @@ public class StringSerializer extends DynamicSerializer {
     public void writeObject(GrowableByteBuffer buffer, Object object) throws IOException {
         String str = (String) object;
         if (str == null) throw new IOException("The string is null");
+        DynamicSerializerProtocol.checkedLength(str.length(), DynamicSerializerProtocol.MAX_STRING_BYTES, Integer.MAX_VALUE);
         byte[] bytes = str.getBytes(StandardCharsets.UTF_8);
+        DynamicSerializerProtocol.checkedLength(bytes.length, DynamicSerializerProtocol.MAX_STRING_BYTES, Integer.MAX_VALUE);
         VarInt.encodeUnsigned(bytes.length, buffer);
         buffer.put(bytes);
     }

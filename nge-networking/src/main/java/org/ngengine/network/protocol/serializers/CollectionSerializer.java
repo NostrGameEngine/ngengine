@@ -40,6 +40,7 @@ import java.util.function.BiFunction;
 import java.util.logging.Level;
 import org.ngengine.network.protocol.GrowableByteBuffer;
 import org.ngengine.network.protocol.VarInt;
+import org.ngengine.network.protocol.DynamicSerializerProtocol;
 
 /**
  * Serializes collections.
@@ -63,11 +64,9 @@ public class CollectionSerializer extends DynamicSerializer {
     @Override
     public <T> T readObject(ByteBuffer data, Class<T> c) throws IOException {
         long len = VarInt.decodeUnsigned(data);
-        if (len > Integer.MAX_VALUE) {
-            throw new IOException("Collection length too large: " + len);
-        }
-        int length = (int) len;
+        int length = DynamicSerializerProtocol.checkedLength(len, DynamicSerializerProtocol.MAX_COLLECTION_ITEMS, data.remaining());
 
+        DynamicSerializerProtocol.preflightDecodeNodes(length);
         Collection collection;
         try {
             collection = (Collection) c.getDeclaredConstructor().newInstance();
@@ -91,6 +90,7 @@ public class CollectionSerializer extends DynamicSerializer {
     public void writeObject(GrowableByteBuffer buffer, Object object) throws IOException {
         Collection collection = (Collection) object;
         int length = collection.size();
+        DynamicSerializerProtocol.checkedLength(length, DynamicSerializerProtocol.MAX_COLLECTION_ITEMS, Integer.MAX_VALUE);
 
         VarInt.encodeUnsigned(length, buffer);
         if (length == 0) return;

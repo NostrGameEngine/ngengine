@@ -27,4 +27,13 @@ public class ColorRGBATest {
         Assertions.assertEquals(color, copy.fromIntARGB(argb));
     }
 
+    @Test
+    public void packedColorsSaturateOutOfRangeChannels() {
+        ColorRGBA color = new ColorRGBA(2f, -1f, 0.5f, 1.5f);
+
+        Assertions.assertEquals(0xFF007FFF, color.asIntRGBA());
+        Assertions.assertArrayEquals(new byte[] {(byte) 0xFF, 0, 0x7F, (byte) 0xFF},
+                color.asBytesRGBA());
+    }
+
 }

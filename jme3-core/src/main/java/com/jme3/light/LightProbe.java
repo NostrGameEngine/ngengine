@@ -140,9 +140,12 @@ public class LightProbe extends Light implements Savable {
      * the scale from a classic transform matrix in the shader.
      * <p>
      * (sp) is a special entry, it contains the packed number of mip maps of the probe and the inverse radius for the probe.
-     * since the inverse radius in lower than 1, it's packed in the decimal part of the float.
-     * The number of mip maps is packed in the integer part of the float.
+     * When representable as a fraction below 1, the inverse radius is packed in
+     * the decimal part and the mip count in the integer part.
      * (ie: for 6 mip maps and a radius of 3, sp= 6.3333333)
+     * Otherwise sp contains only the mip count. Spherical probes then store
+     * the inverse radius in sy and set sz to -1 to identify this layout.
+     * Box probes keep their extents; their parallax correction does not use the inverse radius.
      * <p>
      * The radius is obvious for a SphereProbeArea,
      * but in the case of an OrientedBoxProbeArea it's the max of the extent vector's components.
@@ -151,8 +154,15 @@ public class LightProbe extends Light implements Savable {
      */
     public Matrix4f getUniformMatrix(){
         Matrix4f mat = area.getUniformMatrix();
-        // setting the (sp) entry of the matrix
-        mat.m33 = nbMipMaps + 1f / area.getRadius();
+        float inverseRadius = 1f / area.getRadius();
+        float packed = nbMipMaps + inverseRadius;
+        // Preserve the legacy layout only when packing does not lose or overflow the fraction.
+        boolean legacy = packed > nbMipMaps && packed < nbMipMaps + 1f;
+        mat.m33 = legacy ? packed : nbMipMaps;
+        if (area instanceof SphereProbeArea) {
+            mat.m31 = legacy ? 0f : inverseRadius;
+            mat.m32 = legacy ? 0f : -1f;
+        }
         return mat;
     }
 

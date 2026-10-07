@@ -116,9 +116,28 @@ public class NativeObjectManager {
         }
     }
     
+    /**
+     * Unregisters an object explicitly deleted by a renderer. This is also safe
+     * when the manager has already unregistered it before calling the renderer.
+     *
+     * @param obj the deleted native object (not null, with its original ID)
+     */
+    public void unregisterObject(NativeObject obj) {
+        NativeObjectRef ref = refMap.remove(obj.getUniqueId());
+        if (ref != null) {
+            ref.clear();
+        }
+        userDeletionQueue.removeIf(queued -> queued == obj);
+        obj.setNativeObjectManager(null);
+    }
+
     private void deleteNativeObject(Object rendererObject, NativeObject obj, NativeObjectRef ref, 
                                     boolean deleteGL, boolean deleteBufs) {
         assert rendererObject != null;
+        // A phantom reference can already be queued when explicit deletion unregisters it.
+        if (ref != null && refMap.get(obj.getUniqueId()) != ref) {
+            return;
+        }
         
         // "obj" is considered the real object (with buffers and everything else)
         // if "ref" is null.
@@ -186,6 +205,11 @@ public class NativeObjectManager {
             NativeObjectRef ref = (NativeObjectRef) refQueue.poll();
             if (ref == null) {
                 break;
+            }
+            // Explicit deletion may have unregistered an already queued reference.
+            // Its native name can now belong to a different object.
+            if (refMap.get(ref.objClone.getUniqueId()) != ref) {
+                continue;
             }
 
             deleteNativeObject(rendererObject, ref.objClone, ref, true, false);

@@ -112,6 +112,7 @@ public final class VarInt {
             }
 
             int b = buffer.get() & 0xFF;
+            if (shift == 63 && (b & 0xFE) != 0) throw new IllegalArgumentException("VarLong overflow");
             result |= (long) (b & 0x7F) << shift;
 
             if ((b & 0x80) == 0) {

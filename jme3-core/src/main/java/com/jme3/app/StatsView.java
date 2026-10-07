@@ -63,6 +63,8 @@ import java.util.function.Supplier;
  * </pre>
  */
 public class StatsView extends Node implements Control, JmeCloneable {
+    private static final float UPDATE_INTERVAL = 0.25f;
+
     private final BitmapText statText;
     private final Statistics statistics;
 
@@ -80,6 +82,7 @@ public class StatsView extends Node implements Control, JmeCloneable {
     private double smoothedUploadMbps;
     private int uploadSampleCount;
     private int uploadHistoryIndex;
+    private float timeSinceUpdate = UPDATE_INTERVAL;
 
     public StatsView(String name, AssetManager manager, Statistics stats) {
         super(name);
@@ -133,6 +136,15 @@ public class StatsView extends Node implements Control, JmeCloneable {
             return;
         }
 
+        // Upload statistics are frame-local, so sample them every frame even
+        // though rebuilding the visible text is intentionally throttled.
+        updateUploadBandwidth(tpf);
+        timeSinceUpdate += tpf;
+        if (timeSinceUpdate < UPDATE_INTERVAL) {
+            return;
+        }
+        timeSinceUpdate = 0f;
+
         statistics.getData(statData);
         stringBuilder.setLength(0);
 
@@ -147,7 +159,6 @@ public class StatsView extends Node implements Control, JmeCloneable {
             stringBuilder.append('\n');
         }
         stringBuilder.append("CPU Upload = ");
-        updateUploadBandwidth(tpf);
         appendMbps(smoothedUploadMbps);
         stringBuilder.append(" (^");
         appendMbps(getUploadMbpsPeak());

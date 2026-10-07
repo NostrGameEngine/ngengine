@@ -43,6 +43,7 @@ public class JmeAndroidSystem extends JmeSystemDelegate {
     private Class<?> mobileConfigurationClass;
     private Field desktopModeField;
     private int desktopModeEnabled;
+    private final java.util.concurrent.atomic.AtomicInteger keyboardRequest = new java.util.concurrent.atomic.AtomicInteger();
 
     static {
         try {
@@ -309,18 +310,18 @@ public class JmeAndroidSystem extends JmeSystemDelegate {
 
     @Override
     public void showSoftKeyboard(final boolean show) {
-        view.getHandler().post(new Runnable() {
-
-            @Override
-            public void run() {
-                InputMethodManager manager =
-                        (InputMethodManager)view.getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
-
-                if (show) {
-                    manager.showSoftInput(view, 0);
-                } else {
-                    manager.hideSoftInputFromWindow(view.getWindowToken(), 0);
-                }
+        final View editor = view;
+        if (editor == null || editor.getHandler() == null) return;
+        final int request = keyboardRequest.incrementAndGet();
+        editor.post(() -> {
+            if (request != keyboardRequest.get() || view != editor || editor.getWindowToken() == null) return;
+            InputMethodManager manager = (InputMethodManager) editor.getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (show) {
+                editor.requestFocus();
+                // A sent request is not confirmation that the IME is visible.
+                logger.log(Level.FINE, "Software keyboard request sent={0}", manager.showSoftInput(editor, 0));
+            } else {
+                manager.hideSoftInputFromWindow(editor.getWindowToken(), 0);
             }
         });
     }

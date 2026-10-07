@@ -38,10 +38,17 @@ public class GrowableByteBuffer {
 
     private ByteBuffer buffer;
     private final int chunkSize;
+    private final int maximumCapacity;
 
     public GrowableByteBuffer(ByteBuffer initial, int chunkSize) {
+        this(initial, chunkSize, Integer.MAX_VALUE);
+    }
+
+    public GrowableByteBuffer(ByteBuffer initial, int chunkSize, int maximumCapacity) {
+        if (maximumCapacity < initial.capacity()) throw new IllegalArgumentException("Initial buffer exceeds capacity bound");
         this.buffer = initial;
         this.chunkSize = chunkSize;
+        this.maximumCapacity = maximumCapacity;
     }
 
     public ByteBuffer getBuffer() {
@@ -52,31 +59,24 @@ public class GrowableByteBuffer {
         int currentLimit = buffer.limit();
         int currentPosition = buffer.position();
 
-        if (buffer.capacity() < buffer.position() + size) {
+        long required = (long) currentPosition + size;
+        if (size < 0 || required > maximumCapacity) {
+            throw new IllegalArgumentException("Buffer exceeds capacity bound");
+        }
+        if (buffer.capacity() < required) {
             if (chunkSize <= 0) throw new RuntimeException("Buffer is not growable");
-
-            int growth = (size / chunkSize) + 1;
-            long newSize = buffer.capacity() + (growth * chunkSize);
-            if (newSize > Integer.MAX_VALUE) {
-                throw new RuntimeException("Buffer size exceeds maximum limit");
-            }
-
+            long growth = ((long) size / chunkSize + 1L) * chunkSize;
+            int newSize = (int) Math.min(maximumCapacity, Math.max(required, buffer.capacity() + growth));
             buffer.flip();
-
-            ByteBuffer newBuffer = ByteBuffer.allocate((int) newSize);
+            ByteBuffer newBuffer = ByteBuffer.allocate(newSize);
             newBuffer.put(buffer);
             newBuffer.position(currentPosition);
-            newBuffer.limit(currentPosition + size);
-
+            newBuffer.limit((int) required);
             buffer.position(currentPosition);
             buffer.limit(currentLimit);
-
             buffer = newBuffer;
-        } else {
-            int newLimit = currentPosition + size;
-            if (newLimit > buffer.limit()) {
-                buffer.limit(newLimit);
-            }
+        } else if (required > buffer.limit()) {
+            buffer.limit((int) required);
         }
     }
 

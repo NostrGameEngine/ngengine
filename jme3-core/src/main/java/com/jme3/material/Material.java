@@ -980,6 +980,10 @@ public class Material implements CloneableSmartAsset, Cloneable, Savable {
             finalRenderState = mergedRenderState.copyFrom(RenderState.DEFAULT);
             finalRenderState = RenderState.DEFAULT.copyMergedTo(additionalState, finalRenderState);
         }
+        // copyMergedTo can return a shared technique/default state when there are no overrides.
+        if (finalRenderState != mergedRenderState) {
+            finalRenderState = mergedRenderState.copyFrom(finalRenderState);
+        }
         // test if the face cull mode should be flipped before render
         if (finalRenderState.isFaceCullFlippable() && isNormalsBackward(geometry.getWorldScale())) {
             finalRenderState.flipFaceCull();

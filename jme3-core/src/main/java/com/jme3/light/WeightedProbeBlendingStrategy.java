@@ -59,7 +59,8 @@ public class WeightedProbeBlendingStrategy implements LightProbeBlendingStrategy
             //The 3 first probes are the closest to the geometry since the
             //light list is sorted according to the distance to the geom.
             int addedProbes = 0;
-            for (LightProbe p : lightProbes) {
+            for (int i = 0; i < lightProbes.size(); i++) {
+                LightProbe p = lightProbes.get(i);
                 if (p.isReady() && p.isEnabled()) {
                     lightList.add(p);
                     addedProbes ++;

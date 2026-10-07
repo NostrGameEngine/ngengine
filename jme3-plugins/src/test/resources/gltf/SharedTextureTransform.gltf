@@ -1,0 +1,22 @@
+{
+  "asset": {"version": "2.0"},
+  "extensionsUsed": ["KHR_texture_transform"],
+  "scene": 0,
+  "scenes": [{"nodes": [0, 1]}],
+  "nodes": [{"mesh": 0}, {"mesh": 1}],
+  "meshes": [
+    {"name": "First", "primitives": [{"attributes": {"POSITION": 0, "TEXCOORD_0": 1}, "material": 0}]},
+    {"name": "Second", "primitives": [{"attributes": {"POSITION": 0, "TEXCOORD_0": 1}, "material": 0}]}
+  ],
+  "materials": [{"pbrMetallicRoughness": {"baseColorTexture": {
+    "index": 0, "extensions": {"KHR_texture_transform": {"rotation": 1.5707963267948966}}
+  }}}],
+  "textures": [{"source": 0}],
+  "images": [{"uri": "NormalTexture.png"}],
+  "buffers": [{"uri": "data:application/octet-stream;base64,AAAAAAAAAAAAAAAAAACAPwAAAAAAAAAAAAAAAAAAgD8AAAAAAAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/", "byteLength": 60}],
+  "bufferViews": [{"buffer": 0, "byteOffset": 0, "byteLength": 36}, {"buffer": 0, "byteOffset": 36, "byteLength": 24}],
+  "accessors": [
+    {"bufferView": 0, "componentType": 5126, "count": 3, "type": "VEC3", "min": [0,0,0], "max": [1,1,0]},
+    {"bufferView": 1, "componentType": 5126, "count": 3, "type": "VEC2"}
+  ]
+}

@@ -49,6 +49,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -65,26 +66,62 @@ public class DesktopRunner implements AppRunner {
 
     @Override
     public void runApplicationUntilScenarioCompletes(TestContainingApp application, CountDownLatch applicationFinishedLatch) {
-        executor.execute(() -> application.start(JmeContext.Type.Display));
-
+        int maxWaitTimeMilliseconds = 45000;
+        AtomicReference<Throwable> appError = new AtomicReference<>();
         application.onError = error -> {
+            appError.compareAndSet(null, error);
             logger.log(Level.WARNING, "Error in test application", error);
+            application.stop(false);
             applicationFinishedLatch.countDown();
         };
-
-        int maxWaitTimeMilliseconds = 45000;
+        Runnable launch = () -> {
+            try {
+                application.start(JmeContext.Type.Display);
+            } catch (Throwable error) {
+                appError.compareAndSet(null, error);
+                logger.log(Level.WARNING, "Error starting test application", error);
+                applicationFinishedLatch.countDown();
+            }
+        };
+        if (org.lwjgl.system.Platform.get() == org.lwjgl.system.Platform.MACOSX) {
+            // SDL video must start on the first thread; keep the timeout off that thread.
+            executor.execute(() -> {
+                try {
+                    if (!applicationFinishedLatch.await(maxWaitTimeMilliseconds, TimeUnit.MILLISECONDS)) {
+                        appError.compareAndSet(null, new IllegalStateException(
+                                "Screenshot test timed out after " + maxWaitTimeMilliseconds + "ms."));
+                        applicationFinishedLatch.countDown();
+                    }
+                    // The first-thread event loop also needs stopping after a successful capture.
+                    application.stop(false);
+                } catch (InterruptedException error) {
+                    Thread.currentThread().interrupt();
+                    appError.compareAndSet(null, error);
+                    applicationFinishedLatch.countDown();
+                    application.stop(false);
+                }
+            });
+            launch.run();
+        } else {
+            executor.execute(launch);
+        }
 
         try {
             boolean exitedProperly = applicationFinishedLatch.await(maxWaitTimeMilliseconds, TimeUnit.MILLISECONDS);
 
             if (!exitedProperly) {
                 logger.warning("Test driver did not exit in " + maxWaitTimeMilliseconds + "ms. Timed out");
+                appError.compareAndSet(null, new IllegalStateException(
+                        "Screenshot test timed out after " + maxWaitTimeMilliseconds + "ms."));
             }
             application.stop(true);
             Thread.sleep(1000); //give time for openGL is fully released before starting a new test (get random JVM crashes without this)
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException(e);
+        }
+        if (appError.get() != null) {
+            throw new RuntimeException("Error in screenshot test application", appError.get());
         }
     }
 

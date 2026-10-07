@@ -43,7 +43,7 @@ import com.jme3.math.Vector4f;
 import com.jme3.network.Message;
 import com.jme3.network.base.MessageBuffer;
 import com.jme3.network.base.MessageProtocol;
-import com.jme3.network.base.protocol.LazyMessageBuffer;
+import java.util.ArrayDeque;
 import com.jme3.network.serializing.Serializable;
 import com.jme3.network.serializing.Serializer;
 import java.io.IOException;
@@ -152,6 +152,117 @@ public class DynamicSerializerProtocol implements MessageProtocol {
     private static final Logger logger = Logger.getLogger(DynamicSerializerProtocol.class.getName());
     private static final ByteBuffer EMPTY_MESSAGE_BUFFER = ByteBuffer.allocate(0).asReadOnlyBuffer();
     private static final long DIFF_BODY_MODE_FULL = 0L;
+    public static final int MAX_FRAME_BYTES = 128 * 1024;
+    public static final int MAX_COLLECTION_ITEMS = 4096;
+    public static final int MAX_STRING_BYTES = 64 * 1024;
+    public static final int MAX_CLASSES = 512;
+    public static final int MAX_DEPTH = 32;
+    public static final int MAX_DECODE_NODES = 8192;
+    public static final int MAX_EXPANDED_BYTES = 256 * 1024;
+    public static final int MAX_DECODE_RESOURCE_BYTES = 3 * 1024 * 1024;
+    private int decodeDepth;
+    private int decodeNodes;
+    private int expandedBytes;
+    private int decodedValueBytes;
+    private static final ThreadLocal<DynamicSerializerProtocol> ACTIVE_DECODE = new ThreadLocal<>();
+    private int writeDepth;
+    private volatile boolean retired;
+    private Boolean receiveReliable;
+    private int lastDecodeResourceBytes;
+    private int decodeResourceLimit = MAX_DECODE_RESOURCE_BYTES;
+    private int decodeFrameBytes;
+    private Consumer<String> resourceFailureHandler;
+    public enum OutboundFailure { CAPACITY, SERIALIZATION }
+    private java.util.function.BiConsumer<OutboundFailure, String> detailedResourceFailureHandler;
+
+    public synchronized void setResourceFailureHandler(Consumer<String> handler) {
+        resourceFailureHandler = handler;
+        detailedResourceFailureHandler = null;
+    }
+
+    /** Reports a fixed category and exception type, never an exception message or serialized value. */
+    public synchronized void setDetailedResourceFailureHandler(java.util.function.BiConsumer<OutboundFailure, String> handler) {
+        detailedResourceFailureHandler = handler;
+        resourceFailureHandler = null;
+    }
+
+    private static boolean isCapacityFailure(Throwable error) {
+        // These are fixed failures from this protocol and its bounded buffer/history; unknown failures stay serialization.
+        try {
+            for (int depth = 0; error != null && depth < 8; depth++, error = error.getCause()) {
+                if (error instanceof java.nio.BufferOverflowException) return true;
+                String message = error.getMessage();
+                if (message == null) continue;
+                if (message.equals("Initial buffer exceeds capacity bound") || message.equals("Buffer exceeds capacity bound")
+                        || message.equals("Diff group retention bound exceeded") || message.equals("Diff base retention bound exceeded")
+                        || message.equals("Array exceeds item bound") || message.equals("Class registration bound exceeded")
+                        || message.equals("Serialization depth bound exceeded") || message.equals("Frame exceeds byte bound")
+                        || message.equals("Expanded message budget exceeded") || message.equals("Decoded value budget exceeded")
+                        || message.startsWith("Invalid bounded length: ") || message.startsWith("Serialized body too large: ")) return true;
+            }
+        } catch (Throwable ignored) { /* Failure classification cannot prevent fail-closed retirement. */ }
+        return false;
+    }
+
+    public static int checkedLength(long length, int maximum, int remaining) throws IOException {
+        if (length < 0 || length > maximum || length > remaining) {
+            throw new IOException("Invalid bounded length: " + length);
+        }
+        return (int) length;
+    }
+
+    public static void chargeDecodedBytes(int length) throws IOException {
+        DynamicSerializerProtocol protocol = ACTIVE_DECODE.get();
+        if (protocol != null) {
+            if (length < 0 || length > 512 * 1024 - protocol.decodedValueBytes) throw new IOException("Decoded value budget exceeded");
+            protocol.checkDecodeResourceBudget(length, 0, 0);
+            protocol.decodedValueBytes += length;
+        }
+    }
+
+    /** Containers reserve their inevitable child nodes before allocating backing storage. */
+    public static void preflightDecodeNodes(int nodes) throws IOException {
+        DynamicSerializerProtocol protocol = ACTIVE_DECODE.get();
+        if (protocol != null) {
+            if (nodes < 0 || nodes > MAX_DECODE_NODES - protocol.decodeNodes)
+                throw new IOException("Decode structure bound exceeded");
+            protocol.checkDecodeResourceBudget(0, 0, nodes);
+        }
+    }
+
+    private void chargeExpandedBytes(int length) {
+        if (length < 0 || length > MAX_EXPANDED_BYTES - expandedBytes) {
+            throw new IllegalArgumentException("Expanded message budget exceeded");
+        }
+        checkDecodeResourceBudget(0, length, 0);
+        expandedBytes += length;
+    }
+
+    private void checkDecodeResourceBudget(int values, int expanded, int nodes) {
+        long required = (long) decodeFrameBytes * 2 + (long) (decodedValueBytes + values) * 2
+                + (long) (expandedBytes + expanded) * 2 + (long) (decodeNodes + nodes) * 128;
+        if (required > decodeResourceLimit) throw new IllegalArgumentException("Decode exceeds frame resource allowance");
+    }
+
+    public synchronized int getLastDecodeResourceBytes() {
+        return lastDecodeResourceBytes;
+    }
+
+    public synchronized void retire() {
+        retired = true;
+        diffRuntime.clear();
+        classXid.clear();
+        idXClass.clear();
+        pendingAcks.clear();
+        serializerCache.clear();
+        tmpBuffer.remove();
+        resourceFailureHandler = null;
+        detailedResourceFailureHandler = null;
+    }
+
+    boolean acceptsRuntimeLane(long lane) {
+        return receiveReliable == null || receiveReliable.booleanValue() == (lane == DiffRuntime.LANE_RELIABLE);
+    }
 
     protected static class RegisteredSerializer {
 
@@ -345,7 +456,7 @@ public class DynamicSerializerProtocol implements MessageProtocol {
         registerSerializer(Message.class, new GenericMessageSerializer(serializeFun, deserializeFun));
         registerSerializer(TextDataMessage.class, new TextMessageSerializer());
         registerSerializer(ByteDataMessage.class, new ByteMessageSerializer());
-        registerSerializer(CompressedMessage.class, new CompressedMessageSerializer(serializeFun, deserializeFun));
+        registerSerializer(CompressedMessage.class, new CompressedMessageSerializer(serializeFun, deserializeFun, this::chargeExpandedBytes));
 
         classXid.put(ClassRegistrationAckMessage.class, 0L);
         idXClass.put(0L, ClassRegistrationAckMessage.class);
@@ -355,7 +466,7 @@ public class DynamicSerializerProtocol implements MessageProtocol {
     public void setLastId(long lastId) {
         this.classIdCounter.set(lastId);
     }
-    
+
 
     /**
      * Force use of static buffer (old behavior) even if the serialize supports dynamic buffers. Used mostly
@@ -484,7 +595,8 @@ public class DynamicSerializerProtocol implements MessageProtocol {
 
     private Object normalizeForSerialization(Object obj) {
         if (obj != null && obj.getClass().isArray()) {
-            ArrayList<Object> list = new ArrayList<>();
+            if (Array.getLength(obj) > MAX_COLLECTION_ITEMS) throw new IllegalArgumentException("Array exceeds item bound");
+            ArrayList<Object> list = new ArrayList<>(Array.getLength(obj));
             for (int i = 0; i < Array.getLength(obj); i++) {
                 list.add(Array.get(obj, i));
             }
@@ -510,6 +622,7 @@ public class DynamicSerializerProtocol implements MessageProtocol {
 
         Long id = classXid.get(messageClass);
         if (id == null) {
+            if (idXClass.size() >= MAX_CLASSES) throw new IOException("Class registration bound exceeded");
             id = allocateNextClassId();
             classXid.put(messageClass, id);
             idXClass.put(id, messageClass);
@@ -537,8 +650,8 @@ public class DynamicSerializerProtocol implements MessageProtocol {
     private void finalizeBodyLength(GrowableByteBuffer buffer, WriteEnvelopeResult header) throws IOException {
         int lastPos = buffer.position();
         long bodyLength = lastPos - header.beforeBodyPos;
-        if (bodyLength > 0xFFFFFFFFL) {
-            throw new IOException("Serialized body too large: " + bodyLength + " bytes (max 4294967295)");
+        if (bodyLength > MAX_FRAME_BYTES) {
+            throw new IOException("Serialized body too large: " + bodyLength + " bytes (max 131072)");
         }
 
         buffer.position(header.bodyLengthPos);
@@ -571,16 +684,23 @@ public class DynamicSerializerProtocol implements MessageProtocol {
     }
 
     protected synchronized void serialize(Object obj, GrowableByteBuffer buffer, boolean messageOnly) throws IOException {
-        if (obj == null) { // -1 = null
-            VarInt.encodeSigned(-1, buffer);
-            return;
+        if (retired) throw new IOException("Retired protocol");
+        if (writeDepth >= MAX_DEPTH) throw new IOException("Serialization depth bound exceeded");
+        writeDepth++;
+        try {
+            if (obj == null) { // -1 = null
+                VarInt.encodeSigned(-1, buffer);
+                return;
+            }
+            Object normalized = normalizeForSerialization(obj);
+            WriteEnvelopeResult header = writeEnvelopeHeader(normalized, buffer, messageOnly);
+            Serializer serializer = getBestSerializerFor(normalized.getClass());
+            VarInt.encodeUnsigned(DIFF_BODY_MODE_FULL, buffer);
+            writeBodyWithSerializer(normalized, serializer, buffer);
+            finalizeBodyLength(buffer, header);
+        } finally {
+            writeDepth--;
         }
-        Object normalized = normalizeForSerialization(obj);
-        WriteEnvelopeResult header = writeEnvelopeHeader(normalized, buffer, messageOnly);
-        Serializer serializer = getBestSerializerFor(normalized.getClass());
-        VarInt.encodeUnsigned(DIFF_BODY_MODE_FULL, buffer);
-        writeBodyWithSerializer(normalized, serializer, buffer);
-        finalizeBodyLength(buffer, header);
     }
 
     public synchronized void markClassRegistered(long id){
@@ -644,7 +764,7 @@ public class DynamicSerializerProtocol implements MessageProtocol {
         if (source == null) {
             return null;
         }
-        GrowableByteBuffer tmp = new GrowableByteBuffer(ByteBuffer.allocate(512), 512);
+        GrowableByteBuffer tmp = new GrowableByteBuffer(ByteBuffer.allocate(512), 512, MAX_FRAME_BYTES);
         writeBodyWithSerializer(source, serializer, tmp);
         ByteBuffer serialized = tmp.getBuffer();
         serialized.flip();
@@ -677,7 +797,7 @@ public class DynamicSerializerProtocol implements MessageProtocol {
             // read class path for registration (if any)
             byte classPath[] = null;
             if (classPathLength > 0) {
-                if(classPathLength>1024){
+                if(classPathLength>1024 || classPathLength > bytes.remaining()){
                     throw new IOException("Class path length too long: " + classPathLength);
                 }
                 // read class path
@@ -687,6 +807,10 @@ public class DynamicSerializerProtocol implements MessageProtocol {
 
             // read class id
             id = VarInt.decodeSigned(bytes);
+
+            // Validate the body before loading or retaining a remote class.
+            long dataLength = (long) bytes.getInt() & 0xFFFFFFFFL;
+            checkedLength(dataLength, MAX_FRAME_BYTES, bytes.remaining());
 
             // register if registration data was submitted
             if (classPath != null) {
@@ -708,12 +832,13 @@ public class DynamicSerializerProtocol implements MessageProtocol {
                     }
 
                     // load the class
-                    messageClass = (Class<?>) Class.forName(className);
+                    if (idXClass.size() >= MAX_CLASSES) throw new IOException("Class registration bound exceeded");
+                    messageClass = Class.forName(className, false, getClass().getClassLoader());
 
                     // check if sendable
                     checkIsSerializable(messageClass, messageOnly);
 
-             
+
                     classXid.put(messageClass, id);
                     idXClass.put(id, messageClass);
                     onClassRegistered.accept(id);
@@ -730,8 +855,9 @@ public class DynamicSerializerProtocol implements MessageProtocol {
             // paranoia check
             checkIsSerializable(messageClass, messageOnly);
 
-            // read body length (unsigned int)
-            long dataLength = (long) bytes.getInt() & 0xFFFFFFFFL;
+            if (messageOnly && !Message.class.isAssignableFrom(messageClass)) {
+                throw new IOException("Envelope does not contain a Message");
+            }
             return new ReadEnvelopeResult(id, messageClass, dataLength);
         } catch (Exception e) {
             throw new IOException("Error deserializing object, class ID:" + id, e);
@@ -743,27 +869,27 @@ public class DynamicSerializerProtocol implements MessageProtocol {
         Class<?> expectedClass,
         boolean messageOnly
     ) throws IOException   {
-        ReadEnvelopeResult header = readEnvelopeHeader(bytes, messageOnly);
-        if (header == null) return null;
-        if (header.bodyLength > bytes.remaining()) {
-            throw new RuntimeException("Data length mismatch: " + header.bodyLength + " != " + bytes.remaining());
-        }
-
+        if (decodeDepth >= MAX_DEPTH || decodeNodes >= MAX_DECODE_NODES) throw new IOException("Decode structure bound exceeded");
+        checkDecodeResourceBudget(0, 0, 1);
+        decodeDepth++;
+        decodeNodes++;
         try {
-            if (header.bodyLength > Integer.MAX_VALUE) {
-                throw new IOException("Body too large: " + header.bodyLength);
+            ReadEnvelopeResult header = readEnvelopeHeader(bytes, messageOnly);
+            if (header == null) return null;
+            if (header.bodyLength > bytes.remaining()) {
+                throw new RuntimeException("Data length mismatch: " + header.bodyLength + " != " + bytes.remaining());
             }
-            ByteBuffer body = bytes.slice();
-            body.limit((int) header.bodyLength);
-            bytes.position(bytes.position() + (int) header.bodyLength);
 
-            Serializer serializer = getBestSerializerFor(header.messageClass);
-            DiffRuntime.DecodeResult runtime = diffRuntime.decodeIfRuntime(body, header.messageClass, serializer);
-            if (runtime.matched()) {
-                if (runtime.isDropped()) {
-                    return null;
+            try {
+                if (header.bodyLength > Integer.MAX_VALUE) {
+                    throw new IOException("Body too large: " + header.bodyLength);
                 }
-                Object obj = runtime.message();
+                ByteBuffer body = bytes.slice();
+                body.limit((int) header.bodyLength);
+                bytes.position(bytes.position() + (int) header.bodyLength);
+
+                Serializer serializer = getBestSerializerFor(header.messageClass);
+                Object obj = decodeRegularBody(body, header.messageClass, serializer);
                 if (obj instanceof Collection && expectedClass.isArray()) {
                     Collection<?> collection = (Collection<?>) obj;
                     T array = (T) Array.newInstance(expectedClass.getComponentType(), collection.size());
@@ -772,25 +898,15 @@ public class DynamicSerializerProtocol implements MessageProtocol {
                         Array.set(array, i++, element);
                     }
                     return array;
+                } else {
+                    return (T) obj;
                 }
-                return (T) obj;
+            } catch (Exception e) {
+                // logger.log(Level.FINER, "Error deserializing object, class ID:" + header.id, e);
+                throw new IOException("Error deserializing object, class ID:" + header.id, e);
             }
-
-            Object obj = decodeRegularBody(body, header.messageClass, serializer);
-            if (obj instanceof Collection && expectedClass.isArray()) {
-                Collection<?> collection = (Collection<?>) obj;
-                T array = (T) Array.newInstance(expectedClass.getComponentType(), collection.size());
-                int i = 0;
-                for (Object element : collection) {
-                    Array.set(array, i++, element);
-                }
-                return array;
-            } else {
-                return (T) obj;
-            }
-        } catch (Exception e) {
-            // logger.log(Level.FINER, "Error deserializing object, class ID:" + header.id, e);
-            throw new IOException("Error deserializing object, class ID:" + header.id, e);
+        } finally {
+            decodeDepth--;
         }
     }
 
@@ -799,7 +915,9 @@ public class DynamicSerializerProtocol implements MessageProtocol {
         if (mode != DIFF_BODY_MODE_FULL) {
             throw new IOException("Unsupported regular body mode: " + mode);
         }
-        return serializer.readObject(body, messageClass);
+        Object result = serializer.readObject(body, messageClass);
+        if (body.hasRemaining()) throw new IOException("Trailing serializer body data");
+        return result;
     }
 
     /**
@@ -807,11 +925,15 @@ public class DynamicSerializerProtocol implements MessageProtocol {
      * length) + data protocol. If target is null then a 32k byte buffer will be created and filled.
      */
     @Override
-    public ByteBuffer toByteBuffer(Message message, ByteBuffer target) {
-        GrowableByteBuffer buffer = (target == null)
-            ? new GrowableByteBuffer(ByteBuffer.allocate(1024), 1024)
-            : new GrowableByteBuffer(target, 0);
+    public synchronized ByteBuffer toByteBuffer(Message message, ByteBuffer target) {
+        ByteBuffer targetView = target == null ? null : target.duplicate();
+        if (targetView != null) { targetView.clear(); targetView.limit(Math.min(targetView.capacity(), MAX_FRAME_BYTES)); }
+        GrowableByteBuffer buffer = (targetView == null)
+            ? new GrowableByteBuffer(ByteBuffer.allocate(1024), 1024, MAX_FRAME_BYTES)
+            : new GrowableByteBuffer(targetView.slice(), 0, MAX_FRAME_BYTES);
         try {
+            if (retired) throw new IOException("Retired protocol");
+            if (decodeDepth == 0) { decodeNodes = 0; expandedBytes = 0; }
             buffer.position(0);
             if (message instanceof DiffableMessage) {
                 DiffRuntime.EncodeOutcome outcome = diffRuntime.encode(message, buffer);
@@ -824,10 +946,25 @@ public class DynamicSerializerProtocol implements MessageProtocol {
             } else {
                 serialize(message, buffer, true);
             }
+            if (buffer.position() > MAX_FRAME_BYTES) throw new IOException("Frame exceeds byte bound");
             ByteBuffer out = buffer.getBuffer();
             out.flip();
             return out;
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
+            Consumer<String> handler = resourceFailureHandler;
+            java.util.function.BiConsumer<OutboundFailure, String> detailedHandler = detailedResourceFailureHandler;
+            if (detailedHandler != null) {
+                OutboundFailure reason = isCapacityFailure(e) ? OutboundFailure.CAPACITY : OutboundFailure.SERIALIZATION;
+                String type = e.getClass().getSimpleName();
+                type = type.substring(0, Math.min(80, type.length()));
+                // Fail closed before reporting; publish the first cause before clearing protocol state or native teardown.
+                retired = true;
+                detailedResourceFailureHandler = null;
+                try { detailedHandler.accept(reason, type); } finally { retire(); }
+            } else if (handler != null) {
+                retire();
+                handler.accept("Outbound protocol capacity or serialization failure");
+            }
             throw new RuntimeException("Error serializing message", e);
         }
     }
@@ -837,14 +974,38 @@ public class DynamicSerializerProtocol implements MessageProtocol {
      * com.jme3.network.serializing.Serializer.
      */
     @Override
-    public Message toMessage(ByteBuffer bytes) {
+    public synchronized Message toMessage(ByteBuffer bytes) {
+        return toMessage(bytes, null);
+    }
+
+    public synchronized Message toMessage(ByteBuffer bytes, Boolean reliable) {
+        return toMessage(bytes, reliable, MAX_DECODE_RESOURCE_BYTES);
+    }
+
+    /** Caller reserves this allowance before decode; tracked growth is checked before serializer allocation. */
+    public synchronized Message toMessage(ByteBuffer bytes, Boolean reliable, int resourceAllowance) {
+        if (resourceAllowance < 1 || resourceAllowance > MAX_DECODE_RESOURCE_BYTES)
+            throw new IllegalArgumentException("Invalid decode resource allowance");
+        int frameBytes = bytes.limit();
+        DynamicSerializerProtocol previousDecode = ACTIVE_DECODE.get();
+        ACTIVE_DECODE.set(this);
+        decodedValueBytes = 0;
+        decodeDepth = 1;
+        decodeNodes = 1;
+        expandedBytes = 0;
+        receiveReliable = reliable;
+        decodeResourceLimit = resourceAllowance;
+        decodeFrameBytes = Math.min(frameBytes, MAX_FRAME_BYTES);
         try {
+            checkDecodeResourceBudget(0, 0, 0);
+            if (retired || frameBytes > MAX_FRAME_BYTES) throw new IOException("Retired or oversized frame");
+            bytes = bytes.duplicate();
             bytes.position(0);
             ReadEnvelopeResult header = readEnvelopeHeader(bytes, true);
             if (header == null) {
                 return null;
             }
-            if (header.bodyLength > bytes.remaining()) {
+            if (header.bodyLength != bytes.remaining()) {
                 throw new IOException("Data length mismatch: " + header.bodyLength + " != " + bytes.remaining());
             }
             if (header.bodyLength > Integer.MAX_VALUE) {
@@ -856,17 +1017,78 @@ public class DynamicSerializerProtocol implements MessageProtocol {
             Serializer serializer = getBestSerializerFor(header.messageClass);
             DiffRuntime.DecodeResult runtime = diffRuntime.decodeIfRuntime(body, header.messageClass, serializer);
             if (runtime.matched()) {
+                if (!runtime.isDropped() && body.hasRemaining()) throw new IOException("Trailing runtime body data");
                 return runtime.isDropped() ? null : (Message) runtime.message();
             }
             return (Message) decodeRegularBody(body, header.messageClass, serializer);
         } catch (Exception e) {
             throw new RuntimeException(e);
+        } finally {
+            lastDecodeResourceBytes = Math.min(frameBytes, MAX_FRAME_BYTES) * 2
+                + decodedValueBytes * 2 + expandedBytes * 2 + decodeNodes * 128;
+            if (previousDecode == null) ACTIVE_DECODE.remove(); else ACTIVE_DECODE.set(previousDecode);
+            decodeDepth = 0;
+            receiveReliable = null;
+            decodeResourceLimit = MAX_DECODE_RESOURCE_BYTES;
+            decodeFrameBytes = 0;
         }
     }
 
     @Override
     public MessageBuffer createBuffer() {
-        // Defaulting to LazyMessageBuffer
-        return new LazyMessageBuffer(this);
+        // Preserve the provider's unsigned two-byte stream prefix, including fragmented headers.
+        return new MessageBuffer() {
+            private final ArrayDeque<ByteBuffer> frames = new ArrayDeque<>();
+            private ByteBuffer current;
+            private int highByte = -1;
+            private int queuedBytes;
+            private boolean failed;
+
+            public synchronized boolean hasMessages() { return !frames.isEmpty(); }
+
+            public synchronized Message pollMessage() {
+                if (failed) throw new IllegalStateException("Failed stream buffer");
+                ByteBuffer frame = frames.poll();
+                if (frame == null) return null;
+                queuedBytes -= frame.remaining();
+                return toMessage(frame);
+            }
+
+            public synchronized boolean addBytes(ByteBuffer input) {
+                if (failed) throw new IllegalStateException("Failed stream buffer");
+                try {
+                    while (input.hasRemaining()) {
+                        if (current == null) {
+                            if (highByte < 0) highByte = input.get() & 255;
+                            if (!input.hasRemaining()) break;
+                            int size = (highByte << 8) | (input.get() & 255);
+                            highByte = -1;
+                            if (size == 0 || frames.size() >= 128 || size > 1024 * 1024 - queuedBytes) {
+                                throw new IllegalArgumentException("Stream frame/queue bound exceeded");
+                            }
+                            current = ByteBuffer.allocate(size);
+                            queuedBytes += size;
+                        }
+                        int count = Math.min(input.remaining(), current.remaining());
+                        ByteBuffer part = input.slice();
+                        part.limit(count);
+                        current.put(part);
+                        input.position(input.position() + count);
+                        if (!current.hasRemaining()) {
+                            current.flip();
+                            frames.add(current);
+                            current = null;
+                        }
+                    }
+                    return hasMessages();
+                } catch (RuntimeException error) {
+                    failed = true;
+                    frames.clear();
+                    current = null;
+                    queuedBytes = 0;
+                    throw error;
+                }
+            }
+        };
     }
 }

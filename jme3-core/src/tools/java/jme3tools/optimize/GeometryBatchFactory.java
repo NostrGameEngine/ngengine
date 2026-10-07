@@ -134,6 +134,10 @@ public class GeometryBatchFactory {
             }
 
             for (VertexBuffer vb : geom.getMesh().getBufferList().getArray()) {
+                if (vb.getBufferType() == Type.Custom) {
+                    throw new UnsupportedOperationException("Cannot batch custom vertex attribute "
+                            + vb.getShaderAttributeName());
+                }
                 int currentCompsForBuf = compsForBuf[vb.getBufferType().ordinal()];
                 if (vb.getBufferType() != Type.Index && currentCompsForBuf != 0 && currentCompsForBuf != vb.getNumComponents()) {
                     throw new UnsupportedOperationException("The geometry " + geom + " buffer " + vb.getBufferType()
@@ -196,6 +200,9 @@ public class GeometryBatchFactory {
             int geomTriCount = inMesh.getTriangleCount();
 
             for (int bufType = 0; bufType < compsForBuf.length; bufType++) {
+                if (bufType == Type.Custom.ordinal()) {
+                    continue;
+                }
                 VertexBuffer inBuf = inMesh.getBuffer(Type.values()[bufType]);
                 VertexBuffer outBuf = outMesh.getBuffer(Type.values()[bufType]);
 

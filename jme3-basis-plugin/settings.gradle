@@ -6,3 +6,11 @@ pluginManagement {
 }
 
 rootProject.name = 'jme3-basis-plugin'
+
+dependencyResolutionManagement {
+    versionCatalogs {
+        libs {
+            from(files('../gradle/libs.versions.toml'))
+        }
+    }
+}

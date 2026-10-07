@@ -20,6 +20,7 @@ public class OrientedBoxProbeArea implements ProbeArea {
     private final Matrix4f uniformMatrix = new Matrix4f();
 
     public OrientedBoxProbeArea() {
+        updateMatrix();
     }
 
     public OrientedBoxProbeArea(Transform transform) {
@@ -73,6 +74,7 @@ public class OrientedBoxProbeArea implements ProbeArea {
     @Override
     public void setRadius(float radius) {
         transform.setScale(radius, radius, radius);
+        updateMatrix();
     }
 
     @Override

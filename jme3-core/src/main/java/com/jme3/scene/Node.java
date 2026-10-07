@@ -183,7 +183,17 @@ public class Node extends Spatial {
             }
         }
         if (resultBound == null) {
-            resultBound = new BoundingBox(getWorldTranslation(), 0f, 0f, 0f);
+            BoundingBox emptyBound;
+            if (worldBound instanceof BoundingBox) {
+                emptyBound = (BoundingBox) worldBound;
+                emptyBound.setCenter(getWorldTranslation());
+                emptyBound.setXExtent(0f);
+                emptyBound.setYExtent(0f);
+                emptyBound.setZExtent(0f);
+            } else {
+                emptyBound = new BoundingBox(getWorldTranslation(), 0f, 0f, 0f);
+            }
+            resultBound = emptyBound;
         }
         this.worldBound = resultBound;
     }
@@ -271,9 +281,8 @@ public class Node extends Spatial {
             List<Spatial> children = n.getChildren();
             for (int i = 0; i < children.size(); i++) {
                 Spatial child = children.get(i);
-                if ((child.refreshFlags & RF_GLOBAL_LIGHTS)!= 0) {
-                    findGlobalLights(child, list);
-                }
+                // A rebuild also needs globals from unchanged branches.
+                findGlobalLights(child, list);
             }
         }
     }
@@ -487,6 +496,8 @@ public class Node extends Spatial {
         assert SceneGraphThreadWarden.assertOnCorrectThread(this);
         Spatial child = children.remove(index);
         if (child != null) {
+            // Invalidate global lights on the old root before losing the parent.
+            child.setLightListRefresh();
             child.setParent(null);
             logger.log(Level.FINE, "{0}: Child removed.", this);
 

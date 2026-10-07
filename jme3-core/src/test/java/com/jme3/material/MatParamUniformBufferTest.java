@@ -54,6 +54,24 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class MatParamUniformBufferTest {
 
     @Test
+    public void unchangedMaterialsRebindTheirOwnBufferWhenSharingAShader() {
+        Shader shader = shaderWithBlock();
+        MatParamUniformBuffer left = new MatParamUniformBuffer(shader);
+        MatParamUniformBuffer right = new MatParamUniformBuffer(shader);
+        ShaderBufferBlock block = shader.getBufferBlock(BufferBindingPoints.MAT_PARAMS_BLOCK_NAME);
+        for (int frame = 0; frame < 3; frame++) {
+            for (MatParamUniformBuffer material : new MatParamUniformBuffer[]{left, right}) {
+                material.begin();
+                material.set(new MatParam(VarType.Float, "Roughness", material == left ? .25f : .75f), false);
+                material.finish();
+                assertSame(material.getBufferObject(), block.getBufferObject());
+                if (frame > 0) assertFalse(material.getBufferObject().isUpdateNeeded());
+                material.getBufferObject().clearUpdateNeeded();
+            }
+        }
+    }
+
+    @Test
     public void writesBlockMembersToBufferObject() {
         Shader shader = shaderWithBlock();
         MatParamUniformBuffer buffer = new MatParamUniformBuffer(shader);

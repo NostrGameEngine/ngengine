@@ -212,8 +212,10 @@ float renderProbe(vec3 viewDir, vec3 worldPos, vec3 normal, vec3 norm, float Rou
     // from https://seblagarde.wordpress.com/2012/09/29/image-based-lighting-approaches-and-parallax-corrected-cubemap/
     vec3 rv = reflect(-viewDir, normal);
     vec4 probePos = lightProbeData[3];
-    float invRadius = fract( probePos.w);
-    float nbMipMaps = probePos.w - invRadius;
+    // Small/large spherical radii cannot be packed reliably in the mip-count fraction.
+    float invRadius = lightProbeData[0][3] == 0.0 && lightProbeData[2][3] < 0.0
+        ? lightProbeData[1][3] : fract(probePos.w);
+    float nbMipMaps = floor(probePos.w);
     vec3 direction = worldPos - probePos.xyz;
     float ndf = 0.0;
 
@@ -226,8 +228,7 @@ float renderProbe(vec3 viewDir, vec3 worldPos, vec3 normal, vec3 norm, float Rou
         #if NB_PROBES >= 2
             // probe blending
             // compute fragment position in probe local space
-            vec3 localPos = wToLocalRot * worldPos;
-            localPos -= probePos.xyz;
+            vec3 localPos = wToLocalRot * direction;
             // compute normalized distance field
             vec3 localDir = abs(localPos);
             localDir /= scale;

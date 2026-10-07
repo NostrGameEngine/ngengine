@@ -36,16 +36,15 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import org.ngengine.network.protocol.GrowableByteBuffer;
 import org.ngengine.network.protocol.VarInt;
+import org.ngengine.network.protocol.DynamicSerializerProtocol;
 
 public class ByteBufferSerializer extends DynamicSerializer {
 
     @Override
     public <T> T readObject(ByteBuffer buffer, Class<T> c) throws IOException {
         long len = VarInt.decodeUnsigned(buffer);
-        if (len > Integer.MAX_VALUE) {
-            throw new IOException("ByteBuffer length too large: " + len);
-        }
-        int length = (int) len;
+        int length = DynamicSerializerProtocol.checkedLength(len, DynamicSerializerProtocol.MAX_FRAME_BYTES, buffer.remaining());
+        DynamicSerializerProtocol.chargeDecodedBytes(length);
         if (length > buffer.remaining()) {
             throw new IOException("Invalid ByteBuffer length: " + length);
         }
@@ -61,6 +60,7 @@ public class ByteBufferSerializer extends DynamicSerializer {
     public void writeObject(GrowableByteBuffer buffer, Object object) throws IOException {
         ByteBuffer bbf = (ByteBuffer) object;
         bbf = bbf.slice();
+        DynamicSerializerProtocol.checkedLength(bbf.remaining(), DynamicSerializerProtocol.MAX_FRAME_BYTES, Integer.MAX_VALUE);
         byte[] bytes = new byte[bbf.remaining()];
         bbf.get(bytes);
         VarInt.encodeUnsigned(bytes.length, buffer);

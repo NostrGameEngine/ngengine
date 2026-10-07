@@ -198,6 +198,22 @@ public abstract class LwjglContext implements JmeContext {
         initContext(true);
     }
 
+    static GL wrapGles(GL gles, AppSettings settings) {
+        // Dynamic proxies preserve interfaces, not the concrete LwjglGLES class.
+        Class<?>[] interfaces = {GL.class, GL2.class, GLES_30.class, GLFbo.class,
+                GLExt.class};
+        if (settings.isGraphicsDebug()) {
+            gles = (GL) GLDebug.createProxy(gles, gles, interfaces);
+        }
+        if (settings.isGraphicsTiming()) {
+            gles = (GL) GLTiming.createGLTiming(gles, new GLTimingState(), interfaces);
+        }
+        if (settings.isGraphicsTrace()) {
+            gles = (GL) GLTracer.createGlesTracer(gles, interfaces);
+        }
+        return gles;
+    }
+
     /**
      * Initializes the LWJGL renderer and input.
      * @param first - Whether this is the first time we are initializing and we
@@ -257,28 +273,9 @@ public abstract class LwjglContext implements JmeContext {
 
             } else {
                 final GLESCapabilities capabilities = GLES.createCapabilities();
-                LwjglGLES gles = new LwjglGLES();
-
-                if (settings.isGraphicsDebug()) {
-                    gles = (LwjglGLES) GLDebug.createProxy(gles, gles, GL.class, GLES_30.class, GLFbo.class,
-                            GLExt.class);
-
-                }
-
-                if (settings.isGraphicsTiming()) {
-                    GLTimingState timingState = new GLTimingState();
-                    gles = (LwjglGLES) GLTiming.createGLTiming(gles, timingState, GL.class, GLES_30.class,
-                            GLFbo.class, GLExt.class);
-                }
-
-                if (settings.isGraphicsTrace()) {
-                    gles = (LwjglGLES) GLTracer.createGlesTracer(gles, GL.class, GLES_30.class, GLFbo.class,
-                            GLExt.class);
-                }
-
-                gl = gles;
-                glext = gles;
-                glfbo = gles;
+                gl = wrapGles(new LwjglGLES(), settings);
+                glext = (GLExt) gl;
+                glfbo = (GLFbo) gl;
 
             }
             this.renderer = new GLRenderer(gl, glext, glfbo);

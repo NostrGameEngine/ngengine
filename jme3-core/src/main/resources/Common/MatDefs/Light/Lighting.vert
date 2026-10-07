@@ -129,9 +129,10 @@ void main(){
 
    #if (defined(NORMALMAP) || defined(PARALLAXMAP)) && !defined(VERTEX_LIGHTING)
      vec3 tbnNormal = normalize(wvNormal);
-     vec3 wvTangent = normalize(TransformNormal(modelSpaceTan));
+     vec4 worldTangent = TransformWorldTangent(modelSpaceTan, inTangent.w);
+     vec3 wvTangent = normalize((g_ViewMatrix * vec4(worldTangent.xyz, 0.0)).xyz);
      wvTangent = normalize(wvTangent - tbnNormal * dot(wvTangent, tbnNormal));
-     vec3 wvBinormal = normalize(cross(tbnNormal, wvTangent)) * inTangent.w;
+     vec3 wvBinormal = normalize(cross(tbnNormal, wvTangent)) * worldTangent.w;
      mat3 tbnMat = mat3(wvTangent, wvBinormal, tbnNormal);
    #endif
  

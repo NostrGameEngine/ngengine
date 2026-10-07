@@ -67,6 +67,8 @@ import com.jme3.plugins.json.JsonParser;
 import com.jme3.scene.Mesh;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.VertexBuffer;
+import com.jme3.scene.mesh.IndexBuffer;
+import com.jme3.scene.mesh.MorphTarget;
 import com.jme3.scene.plugins.gltf.GltfLoader.SkinBuffers;
 import com.jme3.texture.Texture;
 import com.jme3.util.ByteBufferUtils;
@@ -80,6 +82,67 @@ import com.jme3.util.LittleEndien;
 public class GltfUtils {
 
     private static final Logger logger = Logger.getLogger(GltfUtils.class.getName());
+
+    static void generateMissingNormals(Mesh mesh) {
+        if (mesh.getBuffer(VertexBuffer.Type.Normal) != null
+                || (mesh.getMode() != Mesh.Mode.Triangles && mesh.getMode() != Mesh.Mode.TriangleStrip
+                && mesh.getMode() != Mesh.Mode.TriangleFan)) {
+            return;
+        }
+        // glTF requires flat normals when NORMAL is absent, not averaged shared normals.
+        int originalCount = mesh.getVertexCount();
+        IndexBuffer oldIndices = mesh.getIndicesAsList();
+        int[] vertices = new int[mesh.getTriangleCount() * 3];
+        for (int i = 0; i < vertices.length; i++) vertices[i] = oldIndices.get(i);
+        if (vertices.length == 0) return;
+        mesh.clearBuffer(VertexBuffer.Type.Tangent);
+        mesh.clearBuffer(VertexBuffer.Type.BindPoseTangent);
+        for (VertexBuffer old : mesh.getBufferList().getArray()) {
+            if (old.getBufferType() == VertexBuffer.Type.Index || old.isInstanced() || old.getData() == null) continue;
+            VertexBuffer replacement = old.clone();
+            replacement.updateData(VertexBuffer.createBuffer(old.getFormat(), old.getNumComponents(), vertices.length));
+            for (int i = 0; i < vertices.length; i++) old.copyElement(vertices[i], replacement, i);
+            if (old.getBufferType() == VertexBuffer.Type.Custom) {
+                mesh.clearBuffer(old.getShaderAttributeName());
+            } else {
+                mesh.clearBuffer(old.getBufferType());
+            }
+            mesh.setBuffer(replacement);
+        }
+        for (MorphTarget morph : mesh.getMorphTargets()) {
+            for (VertexBuffer.Type type : morph.getBuffers().keySet()) {
+                FloatBuffer old = morph.getBuffer(type);
+                int components = old.limit() / originalCount;
+                FloatBuffer replacement = BufferUtils.createFloatBuffer(vertices.length * components);
+                for (int vertex : vertices) {
+                    for (int c = 0; c < components; c++) replacement.put(old.get(vertex * components + c));
+                }
+                replacement.flip();
+                morph.setBuffer(type, replacement);
+            }
+        }
+        mesh.clearBuffer(VertexBuffer.Type.Index);
+        mesh.setMode(Mesh.Mode.Triangles);
+        FloatBuffer positions = mesh.getFloatBuffer(VertexBuffer.Type.Position);
+        FloatBuffer normals = BufferUtils.createFloatBuffer(vertices.length * 3);
+        Vector3f a = new Vector3f();
+        Vector3f b = new Vector3f();
+        Vector3f c = new Vector3f();
+        for (int face = 0; face < vertices.length; face += 3) {
+            BufferUtils.populateFromBuffer(a, positions, face);
+            BufferUtils.populateFromBuffer(b, positions, face + 1);
+            BufferUtils.populateFromBuffer(c, positions, face + 2);
+            b.subtractLocal(a).crossLocal(c.subtractLocal(a)).normalizeLocal();
+            if (b.lengthSquared() == 0f) b.set(Vector3f.UNIT_Z);
+            for (int corner = 0; corner < 3; corner++) normals.put(b.x).put(b.y).put(b.z);
+        }
+        normals.flip();
+        mesh.setBuffer(VertexBuffer.Type.Normal, 3, normals);
+        if (mesh.getBuffer(VertexBuffer.Type.BindPosePosition) != null) {
+            mesh.setBuffer(mesh.getBuffer(VertexBuffer.Type.Normal).clone(VertexBuffer.Type.BindPoseNormal));
+        }
+        mesh.updateCounts();
+    }
 
     /**
      * A private constructor to inhibit instantiation of this class.

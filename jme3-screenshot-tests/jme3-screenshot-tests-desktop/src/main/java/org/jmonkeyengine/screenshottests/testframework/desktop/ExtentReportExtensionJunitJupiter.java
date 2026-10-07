@@ -118,7 +118,13 @@ public class ExtentReportExtensionJunitJupiter extends TestReportCaptureBase imp
 
     @Override
     public void attachImageInner(String title, String fileName, Image image) {
-        try (FileOutputStream fileOutBuf = new FileOutputStream(reportFolderPath().toPath().resolve(fileName).toFile())) {
+        Path imagePath = reportFolderPath().toPath().resolve(fileName);
+        try {
+            Files.createDirectories(imagePath.getParent());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        try (FileOutputStream fileOutBuf = new FileOutputStream(imagePath.toFile())) {
             JmeSystem.writeImageFile(fileOutBuf, "png",image.getData(0),image.getWidth(), image.getHeight());
         } catch (IOException e) {
             throw new RuntimeException(e);

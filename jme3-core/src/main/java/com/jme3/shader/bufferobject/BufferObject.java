@@ -383,7 +383,9 @@ public class BufferObject extends NativeObject implements Savable {
      * Mark all regions as dirty
      */
     public void markAllRegionsDirty() {
-        for (BufferRegion r : regions) r.markDirty();
+        for (int i = 0; i < regions.size(); i++) {
+            regions.get(i).markDirty();
+        }
     }
 
 
@@ -495,7 +497,7 @@ public class BufferObject extends NativeObject implements Savable {
             clone.data.clear();
             clone.ownsData = true;
         } else if (data != null) {
-            clone.data = BufferUtils.clone(data);
+            clone.data = BufferUtils.clone(data.duplicate());
             clone.data.clear();
             clone.ownsData = true;
         } else {

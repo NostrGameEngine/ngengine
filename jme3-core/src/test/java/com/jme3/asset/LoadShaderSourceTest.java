@@ -36,8 +36,79 @@ import com.jme3.shader.plugins.GLSLLoader;
 import com.jme3.system.JmeSystem;
 import com.jme3.system.MockJmeSystemDelegate;
 import org.junit.jupiter.api.Test;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class LoadShaderSourceTest {
+
+    @Test
+    public void conditionalRootExtensionsKeepNestedGuardsAndBranches() throws Exception {
+        String input = "#define DEPTH 1\n#if defined(GL_ES)\n#ifdef DEPTH\n#extension GL_EXT_frag_depth : require\n"
+                + "#elif defined(COLOR)\n#extension GL_EXT_color_buffer_float : enable\n"
+                + "#else\n#extension GL_EXT_other : enable\n#endif\n#endif\n"
+                + "void main() {}\n#extension GL_ARB_texture_multisample : enable\n";
+        AssetInfo info = new AssetInfo(new DesktopAssetManager(), new AssetKey<String>("guarded.frag")) {
+            @Override public InputStream openStream() {
+                return new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8));
+            }
+        };
+        String source = (String) new GLSLLoader().load(info);
+        assertTrue(source.startsWith("#extension GL_ARB_texture_multisample : enable\n"));
+        assertTrue(source.contains(input.substring(0, input.indexOf("void main()"))));
+        assertTrue(source.indexOf("#extension GL_ARB_texture_multisample") < source.indexOf("void main()"));
+    }
+
+    @Test
+    public void disabledRootExtensionsStayDisabled() throws Exception {
+        AssetInfo info = new AssetInfo(null, new AssetKey<String>("disabled.frag")) {
+            @Override public InputStream openStream() {
+                return new ByteArrayInputStream(("#if 0\n#extension GL_TEST_unavailable : require\n"
+                        + "#endif\nvoid main() {}\n").getBytes(StandardCharsets.UTF_8));
+            }
+        };
+        String source = (String) new GLSLLoader().load(info);
+        assertTrue(source.startsWith("#if 0\n#extension GL_TEST_unavailable : require\n#endif\n"));
+    }
+
+    @Test
+    public void importedExtensionsKeepAvailabilityGuardsBeforeShaderCode() throws Exception {
+        JmeSystem.setSystemDelegate(new MockJmeSystemDelegate());
+        AssetManager manager = new DesktopAssetManager();
+        manager.registerLocator(null, ClasspathLocator.class);
+        manager.registerLoader(GLSLLoader.class, "glsllib");
+        AssetInfo info = new AssetInfo(manager, new AssetKey<String>("imports.frag")) {
+            @Override public InputStream openStream() {
+                return new ByteArrayInputStream(("#import \"Common/ShaderLib/Ubo.glsllib\"\n"
+                        + "#import \"Common/ShaderLib/Shadows.glsllib\"\nvoid main() {}\n").getBytes(StandardCharsets.UTF_8));
+            }
+        };
+        String source = (String) new GLSLLoader().load(info);
+        assertTrue(source.contains("#ifdef ENABLE_UBO\n    #extension GL_ARB_uniform_buffer_object : enable\n#endif\n"));
+        assertTrue(source.contains("#if __VERSION__ >= 130\n    #ifdef GL_ES\n        #extension GL_OES_gpu_shader5 : enable\n#endif\n#endif\n"));
+        assertTrue(source.contains("#if __VERSION__ >= 130\n    #ifdef GL_ES\n    #else\n        #extension GL_ARB_gpu_shader5 : enable\n#endif\n#endif\n"));
+        assertTrue(source.indexOf("#extension GL_ARB_gpu_shader5") < source.indexOf("#define IVEC2"));
+    }
+
+    @Test
+    public void conditionalRootExtensionsAfterAnImportPrecedeImportedDeclarations() throws Exception {
+        JmeSystem.setSystemDelegate(new MockJmeSystemDelegate());
+        AssetManager manager = new DesktopAssetManager();
+        manager.registerLocator(null, ClasspathLocator.class);
+        manager.registerLoader(GLSLLoader.class, "glsllib");
+        AssetInfo info = new AssetInfo(manager, new AssetKey<String>("tiled.frag")) {
+            @Override public InputStream openStream() {
+                return new ByteArrayInputStream(("#import \"Common/ShaderLib/GLSLCompat.glsllib\"\n"
+                        + "#if defined(HAS_COLOR_ARRAY)\n#extension GL_EXT_texture_array : enable\n"
+                        + "#endif\nvoid main() {}\n").getBytes(StandardCharsets.UTF_8));
+            }
+        };
+        String source = (String) new GLSLLoader().load(info);
+        assertTrue(source.startsWith("#if defined(HAS_COLOR_ARRAY)\n"
+                + "#extension GL_EXT_texture_array : enable\n#endif\n"));
+        assertTrue(source.indexOf("#extension GL_EXT_texture_array") < source.indexOf("// -- begin import"));
+    }
 
     @Test
     public void testLoadShaderSource() {

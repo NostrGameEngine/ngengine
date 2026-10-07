@@ -810,7 +810,7 @@ public final class ColorRGBA implements Savable, Cloneable, java.io.Serializable
      * Helper method to convert a float (0-1) to a byte (0-255).
      */
     private byte toByte(float channel) {
-        return (byte) ((int) (channel * 255) & 0xFF);
+        return (byte) toByteInt(channel);
     }
 
     /**
@@ -824,10 +824,14 @@ public final class ColorRGBA implements Savable, Cloneable, java.io.Serializable
      * Helper method to combine four float channels into an int.
      */
     private int toInt(float c1, float c2, float c3, float c4) {
-        int r = ((int) (c1 * 255) & 0xFF);
-        int g = ((int) (c2 * 255) & 0xFF);
-        int b = ((int) (c3 * 255) & 0xFF);
-        int a = ((int) (c4 * 255) & 0xFF);
+        int r = toByteInt(c1);
+        int g = toByteInt(c2);
+        int b = toByteInt(c3);
+        int a = toByteInt(c4);
         return (r << 24) | (g << 16) | (b << 8) | a;
+    }
+
+    private int toByteInt(float channel) {
+        return Math.max(0, Math.min(255, (int) (channel * 255)));
     }
 }

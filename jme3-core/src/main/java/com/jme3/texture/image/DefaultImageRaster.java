@@ -208,9 +208,9 @@ public class DefaultImageRaster extends ImageRaster {
             if (codec.maxBlue == 0) {
                 store.b = 1;
             }
-            if (codec.maxAlpha == 0) {
-                store.a = 1;
-            }
+        }
+        if (codec.maxAlpha == 0) {
+            store.a = 1;
         }
 
         if (convertToLinear) {

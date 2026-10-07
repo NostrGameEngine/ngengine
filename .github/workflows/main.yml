@@ -19,7 +19,10 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
-          java-version: '21'
+          java-version: |
+            11
+            21
+            25
       - name: Validate the Gradle wrapper
         uses: gradle/actions/wrapper-validation@v6.1.0
       - name: Run Checkstyle
@@ -46,7 +49,10 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
-          java-version: '21'
+          java-version: |
+            11
+            21
+            25
       - name: Validate the Gradle wrapper
         uses: gradle/actions/wrapper-validation@v6.1.0
       - name: Run SpotBugs
@@ -70,6 +76,14 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v6
+      - name: Setup the java environment
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: |
+            11
+            21
+            25
       - name: Start xvfb
         run: |
           Xvfb :99 -ac -screen 0 1024x768x16 &
@@ -88,7 +102,7 @@ jobs:
         uses: gradle/actions/wrapper-validation@v6.1.0
       - name: Test with Gradle Wrapper
         run: |
-          ./gradlew :jme3-screenshot-test:screenshotTest
+          ./gradlew :jme3-screenshot-tests:jme3-screenshot-tests-desktop:screenshotTest
       - name: Upload Test Reports
         uses: actions/upload-artifact@v7.0.1
         if: always()
@@ -126,6 +140,24 @@ jobs:
             deploy: false
 
     steps:
+      - name: Select authorized publication context
+        id: publication
+        shell: bash
+        env:
+          NGE_REPOSITORY: ${{ github.repository }}
+          NGE_EVENT_NAME: ${{ github.event_name }}
+          NGE_REF: ${{ github.ref }}
+        run: |
+          allowed=false
+          if [[ "$NGE_REPOSITORY" == "NostrGameEngine/ngengine" ]]; then
+            case "$NGE_EVENT_NAME:$NGE_REF" in
+              push:refs/heads/master|push:refs/heads/next2|release:refs/tags/*)
+                allowed=true
+                ;;
+            esac
+          fi
+          echo "allowed=$allowed" >> "$GITHUB_OUTPUT"
+
       - name: Clone the repo
         uses: actions/checkout@v6
         with:
@@ -135,19 +167,26 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
-          java-version: ${{ matrix.jdk }}
+          java-version: |
+            11
+            21
+            ${{ matrix.jdk }}
 
       - name: Validate the Gradle wrapper
         uses: gradle/actions/wrapper-validation@v6.1.0
       - name: Build Engine
         shell: bash
+        env:
+          NGE_CAN_PUBLISH: ${{ steps.publication.outputs.allowed }}
+          NGE_USE_SNAPSHOT_DEPENDENCIES: ${{ github.ref == 'refs/heads/next2' || github.base_ref == 'next2' }}
         run: |
           # Normal build plus ZIP distribution and merged javadoc
           ./gradlew -PuseCommitHashAsVersionName=true \
+          -PuseSnapshotDependencies="$NGE_USE_SNAPSHOT_DEPENDENCIES" \
           -x checkstyleMain -x checkstyleTest \
           build mergedJavadoc
 
-          if [ "${{ matrix.deploy }}" = "true" ];
+          if [ "${{ matrix.deploy }}" = "true" ] && [ "$NGE_CAN_PUBLISH" = "true" ];
           then
             # We are going to need "zip"
             sudo apt-get update
@@ -163,22 +202,25 @@ jobs:
               echo "Configure the following secrets to enable signing:"
               echo "SIGNING_KEY, SIGNING_PASSWORD"
 
-              ./gradlew publishMavenPublicationToDistRepository \
+              ./gradlew publishAllPublicationsToDistFolderRepository \
               -PuseCommitHashAsVersionName=true \
+              -PuseSnapshotDependencies="$NGE_USE_SNAPSHOT_DEPENDENCIES" \
               --console=plain --stacktrace
             else
-              ./gradlew publishMavenPublicationToDistRepository \
+              ./gradlew publishAllPublicationsToDistFolderRepository \
               -PsigningKey='${{ secrets.SIGNING_KEY }}' \
               -PsigningPassword='${{ secrets.SIGNING_PASSWORD }}' \
               -PuseCommitHashAsVersionName=true \
+              -PuseSnapshotDependencies="$NGE_USE_SNAPSHOT_DEPENDENCIES" \
               --console=plain --stacktrace
             fi
             ./gradlew --no-daemon configureVersionInfo \
               -PjmeVersionName="$VERSION" \
               build mergedJavadoc
+          fi
 
       - name: Publish Snapshot
-        if: matrix.deploy == true && github.event_name != 'pull_request' && ( github.event_name != 'release' || github.event.release.prerelease == true )
+        if: matrix.deploy == true && steps.publication.outputs.allowed == 'true' && (github.event_name != 'release' || github.event.release.prerelease == true)
         env:
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
@@ -196,7 +238,7 @@ jobs:
            publishToSonatype publishAllPublicationsToDistFolderRepository --info
 
       - name: Publish Release
-        if: matrix.deploy == true && github.event_name == 'release' && github.event.release.prerelease == false
+        if: matrix.deploy == true && steps.publication.outputs.allowed == 'true' && github.event_name == 'release' && github.event.release.prerelease == false
         env:
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
@@ -213,19 +255,19 @@ jobs:
           publishToSonatype closeAndReleaseSonatypeStagingRepository publishAllPublicationsToDistFolderRepository --info
 
       - name: Upload maven artifacts
-        if: matrix.deploy==true
+        if: matrix.deploy == true && steps.publication.outputs.allowed == 'true'
         uses: actions/upload-artifact@v7.0.1
         with:
           name: maven-artifacts
           path: dist/maven
 
       - name: Upload pages artifact
-        if: matrix.deploy==true
+        if: matrix.deploy == true && steps.publication.outputs.allowed == 'true'
         uses: actions/upload-pages-artifact@v3
         with:
           path: 'dist/javadoc'
 
       - name: Deploy to GitHub Pages
-        if: matrix.deploy==true && github.event_name == 'release'
+        if: matrix.deploy == true && steps.publication.outputs.allowed == 'true' && github.event_name == 'release'
         id: deployment
         uses: actions/deploy-pages@v4

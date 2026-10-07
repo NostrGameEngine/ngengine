@@ -53,10 +53,21 @@ import java.util.logging.Logger;
  * Usage is : <code>
  *  MikktspaceTangentGenerator.generate(spatial);
  * </code>
+ * The mesh/spatial overloads retain the glTF sign convention used by jME since
+ * 2023. Select {@link TangentConvention#MIKKTSPACE} for a raw Mikk-baked basis.
+ * The low-level context API always returns the unconverted Mikk convention.
+ * This choice is independent of a material's OpenGL/DirectX normal-map encoding.
  * 
  * @author Nehon
  */
 public class MikktspaceTangentGenerator {
+
+    public enum TangentConvention {
+        /** Unconverted MikkTSpace orientation, derived from the supplied UVs. */
+        MIKKTSPACE,
+        /** glTF basis: negate the raw Mikk bitangent, independently of normal-map Y encoding. */
+        GLTF
+    }
 
     private static final int MARK_DEGENERATE = 1;
     private static final int QUAD_ONE_DEGEN_TRI = 2;
@@ -104,16 +115,21 @@ public class MikktspaceTangentGenerator {
     }
 
     public static void generate(Spatial s){
+        generate(s, TangentConvention.GLTF);
+    }
+
+    public static void generate(Spatial s, TangentConvention convention){
+        java.util.Objects.requireNonNull(convention, "convention");
         if(s instanceof Node){
             Node n = (Node)s;
             for (Spatial child : n.getChildren()) {
-                generate(child);
+                generate(child, convention);
             }
 
         } else if (s instanceof Geometry) {
             Geometry g = (Geometry) s;
             Mesh mesh = g.getMesh();
-            boolean success = generateTangents(mesh);
+            boolean success = generateTangents(mesh, convention);
             if (!success) {
                 logger.log(Level.SEVERE, "Failed to generate tangents for geometry {0}", g.getName());
             }
@@ -121,13 +137,18 @@ public class MikktspaceTangentGenerator {
     }
 
     public static void generate(Mesh mesh) {
-        boolean success = generateTangents(mesh);
+        generate(mesh, TangentConvention.GLTF);
+    }
+
+    public static void generate(Mesh mesh, TangentConvention convention) {
+        java.util.Objects.requireNonNull(convention, "convention");
+        boolean success = generateTangents(mesh, convention);
         if (!success) {
             logger.log(Level.SEVERE, "Failed to generate tangents for mesh {0}", mesh);
         }
     }
 
-    private static boolean generateTangents(Mesh mesh) {
+    private static boolean generateTangents(Mesh mesh, TangentConvention convention) {
         Mesh.Mode mode = mesh.getMode();
         boolean hasTriangles;
         
@@ -161,8 +182,11 @@ public class MikktspaceTangentGenerator {
         }
         
         if (hasTriangles) {
-            MikkTSpaceImpl context = new MikkTSpaceImpl(mesh);
+            MikkTSpaceImpl context = new MikkTSpaceImpl(mesh, convention);
             boolean results = genTangSpaceDefault(context);
+            if (results) {
+                context.splitTangentSeams();
+            }
             TangentUtils.generateBindPoseTangentsIfNecessary(mesh);
             return results;
         }
@@ -300,7 +324,8 @@ public class MikktspaceTangentGenerator {
                 float tang[] = {pTSpace.os.x, pTSpace.os.y, pTSpace.os.z};
                 float bitang[] = {pTSpace.ot.x, pTSpace.ot.y, pTSpace.ot.z};
                 mikkTSpace.setTSpace(tang, bitang, pTSpace.magS, pTSpace.magT, pTSpace.orient, f, i);
-                mikkTSpace.setTSpaceBasic(tang, pTSpace.orient == true ? -1.0f : 1.0f, f, i);
+                // Both callbacks use the raw Mikk convention; adapters perform format conversion.
+                mikkTSpace.setTSpaceBasic(tang, pTSpace.orient ? 1.0f : -1.0f, f, i);
                 ++index;
             }
         }

@@ -922,7 +922,8 @@ public abstract class LwjglWindow extends LwjglContext implements Runnable {
             return false;
         }
 
-        FrameBuffer previousMainFramebuffer = renderer.getCurrentFrameBuffer();
+        GLRenderer glRenderer = (GLRenderer) renderer;
+        FrameBuffer previousMainFramebuffer = glRenderer.getMainFrameBufferOverride();
         if (previousMainFramebuffer != null) {
             return false;
         }
@@ -932,7 +933,6 @@ public abstract class LwjglWindow extends LwjglContext implements Runnable {
             return false;
         }
 
-        GLRenderer glRenderer = (GLRenderer) renderer;
         Application application = getApplicationListener();
         if (application == null) {
             return false;
@@ -943,7 +943,7 @@ public abstract class LwjglWindow extends LwjglContext implements Runnable {
         glRenderer.setMainFrameBufferOverride(blitFramebuffer);
         try {
             listener.update();
-            FrameBuffer currentMainFramebuffer = renderer.getCurrentFrameBuffer();
+            FrameBuffer currentMainFramebuffer = glRenderer.getMainFrameBufferOverride();
             if (currentMainFramebuffer != blitFramebuffer) {
                 restoreMainFramebuffer = currentMainFramebuffer;
             }
@@ -993,6 +993,10 @@ public abstract class LwjglWindow extends LwjglContext implements Runnable {
 
         if (!renderFrameWithBlitFramebuffer()) {
             listener.update();
+        }
+
+        if (needClose.get() || windowCloseRequested.get()) {
+            return;
         }
 
         if (renderable.get()) {

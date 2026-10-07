@@ -42,6 +42,7 @@ import java.util.function.BiFunction;
 import java.util.logging.Level;
 import org.ngengine.network.protocol.GrowableByteBuffer;
 import org.ngengine.network.protocol.VarInt;
+import org.ngengine.network.protocol.DynamicSerializerProtocol;
 
 public class MapSerializer extends DynamicSerializer {
 
@@ -73,11 +74,9 @@ public class MapSerializer extends DynamicSerializer {
     @Override
     public <T> T readObject(ByteBuffer data, Class<T> c) throws IOException {
         long len = VarInt.decodeUnsigned(data);
-        if (len > Integer.MAX_VALUE) {
-            throw new IOException("Map length too large: " + len);
-        }
-        int length = (int) len;
+        int length = DynamicSerializerProtocol.checkedLength(len, DynamicSerializerProtocol.MAX_COLLECTION_ITEMS, data.remaining() / 2);
 
+        DynamicSerializerProtocol.preflightDecodeNodes(length * 2);
         Map map;
         try {
             map = (Map) c.getDeclaredConstructor().newInstance();
@@ -100,6 +99,7 @@ public class MapSerializer extends DynamicSerializer {
     public void writeObject(GrowableByteBuffer buffer, Object object) throws IOException {
         Map map = (Map) object;
         int length = map.size();
+        DynamicSerializerProtocol.checkedLength(length, DynamicSerializerProtocol.MAX_COLLECTION_ITEMS, Integer.MAX_VALUE);
 
         VarInt.encodeUnsigned(length, buffer);
 

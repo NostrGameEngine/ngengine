@@ -43,6 +43,8 @@ import java.util.zip.Deflater;
 import java.util.zip.Inflater;
 import org.ngengine.network.protocol.GrowableByteBuffer;
 import org.ngengine.network.protocol.VarInt;
+import org.ngengine.network.protocol.DynamicSerializerProtocol;
+import java.util.function.IntConsumer;
 import org.ngengine.network.protocol.messages.CompressedMessage;
 
 /**
@@ -55,13 +57,23 @@ public class CompressedMessageSerializer extends DynamicSerializer {
     private static final Logger log = Logger.getLogger(CompressedMessageSerializer.class.getName());
     protected final BiFunction<Object, GrowableByteBuffer, Void> serialize;
     protected final BiFunction<ByteBuffer, Class<?>, Object> deserialize;
+    private final IntConsumer chargeExpanded;
 
     public CompressedMessageSerializer(
         BiFunction<Object, GrowableByteBuffer, Void> serialize,
         BiFunction<ByteBuffer, Class<?>, Object> deserialize
     ) {
+        this(serialize, deserialize, length -> {});
+    }
+
+    public CompressedMessageSerializer(
+        BiFunction<Object, GrowableByteBuffer, Void> serialize,
+        BiFunction<ByteBuffer, Class<?>, Object> deserialize,
+        IntConsumer chargeExpanded
+    ) {
         this.serialize = serialize;
         this.deserialize = deserialize;
+        this.chargeExpanded = chargeExpanded;
     }
 
     protected void serialize(Object object, GrowableByteBuffer buffer) {
@@ -79,37 +91,35 @@ public class CompressedMessageSerializer extends DynamicSerializer {
                 throw new IOException("Not enough data to read compressed message");
             }
             long len = VarInt.decodeUnsigned(data);
-            if (len > Integer.MAX_VALUE) {
-                throw new IOException("Invalid compressed message length: " + len);
-            }
-            int length = (int) len;
-
-            if (length < 0 || length > data.remaining()) {
-                throw new IOException("Invalid compressed message length: " + length);
-            }
-
+            int length = DynamicSerializerProtocol.checkedLength(len, DynamicSerializerProtocol.MAX_FRAME_BYTES, data.remaining());
+            DynamicSerializerProtocol.chargeDecodedBytes(length + Math.min(length, 1024) + 1024);
             byte[] compressedData = new byte[length];
             data.get(compressedData);
-
             Inflater inflater = new Inflater();
-            inflater.setInput(compressedData);
-
-            ByteArrayOutputStream bos = new ByteArrayOutputStream(compressedData.length);
+            ByteArrayOutputStream bos = new ByteArrayOutputStream(Math.min(length, 1024));
             int decompressedSize = 0;
-            byte[] chunk = new byte[1024];
-            while (!inflater.finished()) {
-                int s = inflater.inflate(chunk);
-                if (s == 0) {
-                    break;
+            try {
+                inflater.setInput(compressedData);
+                byte[] chunk = new byte[1024];
+                while (!inflater.finished()) {
+                    int count = inflater.inflate(chunk);
+                    if (count == 0) throw new IOException("Incomplete or stalled compressed message");
+                    if (count > DynamicSerializerProtocol.MAX_FRAME_BYTES - decompressedSize) {
+                        throw new IOException("Expanded message exceeds frame bound");
+                    }
+                    chargeExpanded.accept(count);
+                    bos.write(chunk, 0, count);
+                    decompressedSize += count;
                 }
-                bos.write(chunk, 0, s);
-                decompressedSize += s;
+                if (inflater.getRemaining() != 0) throw new IOException("Trailing compressed data");
+            } finally {
+                inflater.end();
             }
-            inflater.end();
             byte[] decompressedData = bos.toByteArray();
             ByteBuffer buffer = ByteBuffer.wrap(decompressedData, 0, decompressedSize);
 
             Message object = (Message) this.deserialize(buffer, Object.class);
+            if (buffer.hasRemaining()) throw new IOException("Trailing expanded data");
             CompressedMessage compressedMessage = new CompressedMessage(object);
             return (T) compressedMessage;
         } catch (Exception e) {
@@ -122,7 +132,7 @@ public class CompressedMessageSerializer extends DynamicSerializer {
         CompressedMessage compressedMessage = (CompressedMessage) cm;
         Message object = compressedMessage.getMessage();
 
-        GrowableByteBuffer tmp = new GrowableByteBuffer(ByteBuffer.allocate(1024), 1024);
+        GrowableByteBuffer tmp = new GrowableByteBuffer(ByteBuffer.allocate(1024), 1024, DynamicSerializerProtocol.MAX_FRAME_BYTES);
         this.serialize(object, tmp);
         tmp.flip();
 

@@ -97,8 +97,12 @@ public class IBLGLEnvBaker extends GenericEnvBaker implements IBLEnvBaker {
 
         int[] sizes = new int[nbMipMaps];
         for (int i = 0; i < nbMipMaps; i++) {
-            int size = (int) FastMath.pow(2, nbMipMaps - 1 - i);
-            sizes[i] = size * size * (specular.getImage().getFormat().getBitsPerPixel() / 8);
+            // A limited chain still starts at the actual base dimensions.
+            // Deriving the base from its level count corrupts pulled/saved
+            // image offsets (e.g. a 512px six-level map was described as 32px).
+            int width = Math.max(1, specular.getImage().getWidth() >> i);
+            int height = Math.max(1, specular.getImage().getHeight() >> i);
+            sizes[i] = width * height * (specular.getImage().getFormat().getBitsPerPixel() / 8);
         }
         specular.getImage().setMipMapSizes(sizes);
 
@@ -211,6 +215,9 @@ public class IBLGLEnvBaker extends GenericEnvBaker implements IBLEnvBaker {
 
         if (isTexturePulling()) {
             endPulling(specular);
+        } else {
+            // A GPU rebake invalidates any CPU pixels retained from an earlier savable bake.
+            for (int face = 0; face < 6; face++) specular.getImage().setData(face, null);
         }
         specular.getImage().clearUpdateNeeded();
 

@@ -43,6 +43,7 @@ public interface GLES_30 extends GL {
     public static final int GL_RGB10_A2 = 0x8059;
     public static final int GL_UNSIGNED_INT_2_10_10_10_REV = 0x8368;
     public static final int GL_NUM_EXTENSIONS = 0x821D;
+    public static final int GL_DRAW_BUFFER0 = 0x8825;
 
     public void glBindVertexArray(int array);
 

@@ -3,8 +3,8 @@ dependencies {
     api project(':jme3-plugins')
     // Device-family classification requires the updated core Java/JNI bridge.
     api libs.libjgliosCoreIosSnapshot
-    api libs.libjgliosGlesIos
-    api libs.libjgliosSdl3Ios
-    api libs.libjgliosOpenalIos
-    api libs.libjgliosAngleIos
+    api libs.libjgliosGlesIosSnapshot
+    api libs.libjgliosSdl3IosSnapshot
+    api libs.libjgliosOpenalIosSnapshot
+    api libs.libjgliosAngleIosSnapshot
 }

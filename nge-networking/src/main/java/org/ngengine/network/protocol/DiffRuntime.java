@@ -28,7 +28,43 @@ final class DiffRuntime {
     static final long LANE_RELIABLE = 1L;
 
     private static final int HISTORY_CAP = 32;
-    private static final long SENDER_SNAPSHOT_TTL_MS = 5_000L;
+    static final int MAX_PEER_GROUPS = 1024;
+    static final int MAX_GLOBAL_GROUPS = 8192;
+    static final long MAX_PEER_BASE_BYTES = 8L * 1024 * 1024;
+    static final long MAX_GLOBAL_BASE_BYTES = 64L * 1024 * 1024;
+    private static int liveGroups;
+    private static long liveBaseBytes;
+    private long retainedBytes;
+    private long nextPacketId = 1L;
+
+    private void reserveGroup() throws IOException {
+        synchronized (DiffRuntime.class) {
+            if (senderGroups.size() + receiverGroups.size() >= MAX_PEER_GROUPS || liveGroups >= MAX_GLOBAL_GROUPS) {
+                throw new IOException("Diff group retention bound exceeded");
+            }
+            liveGroups++;
+        }
+    }
+
+    private void adjustBytes(long delta) throws IOException {
+        synchronized (DiffRuntime.class) {
+            if (delta > MAX_PEER_BASE_BYTES - retainedBytes || delta > MAX_GLOBAL_BASE_BYTES - liveBaseBytes) {
+                throw new IOException("Diff base retention bound exceeded");
+            }
+            retainedBytes += delta;
+            liveBaseBytes += delta;
+        }
+    }
+
+    void clear() {
+        synchronized (DiffRuntime.class) {
+            liveGroups -= senderGroups.size() + receiverGroups.size();
+            liveBaseBytes -= retainedBytes;
+            retainedBytes = 0;
+            senderGroups.clear();
+            receiverGroups.clear();
+        }
+    }
     private static final long SENDER_GROUP_IDLE_TTL_MS = 15_000L;
     private static final long RECEIVER_SNAPSHOT_TTL_MS = 10_000L;
     private static final long RECEIVER_GROUP_IDLE_TTL_MS = 30_000L;
@@ -79,27 +115,28 @@ final class DiffRuntime {
     }
 
     private static final class SnapshotEntry {
-        private final Object snapshot;
+        private final ByteBuffer snapshot;
         private final long createdAt;
 
-        private SnapshotEntry(Object snapshot, long createdAt) {
+        private SnapshotEntry(ByteBuffer snapshot, long createdAt) {
             this.snapshot = snapshot;
             this.createdAt = createdAt;
         }
     }
 
     private static final class GroupSendState {
-        private long nextPacketId = 1L;
         private long lastTouchedAt;
         private long reliableBasePacketId = -1L;
-        private Object reliableBaseSnapshot;
+        private ByteBuffer reliableBaseSnapshot;
+        private Class<?> messageClass;
         private int updatesSinceReliable = 0;
         private int reliableSendsSinceFull = 0;
         private long lastReliableFullAt = Long.MIN_VALUE;
-        private final LinkedHashMap<Long, SnapshotEntry> reliableHistory = new LinkedHashMap<>();
+
     }
 
     private static final class GroupReceiveState {
+        private Class<?> messageClass;
         private long lastTouchedAt;
         private long reliableBasePacketId = -1L;
         private final LinkedHashMap<Long, SnapshotEntry> reliableHistory = new LinkedHashMap<>();
@@ -144,13 +181,20 @@ final class DiffRuntime {
         long now = protocol.nowMillis();
         DiffableMessage diffable = (DiffableMessage) message;
         long group = diffable.getDiffGroup();
-        GroupSendState state = senderGroups.computeIfAbsent(group, ignored -> new GroupSendState());
-        state.lastTouchedAt = now;
-
         Serializer serializer = protocol.bestSerializer(message.getClass());
         if (!(serializer instanceof GenericMessageSerializer)) {
             return EncodeOutcome.BYPASS;
         }
+
+        GroupSendState state = senderGroups.get(group);
+        if (state == null) {
+            reserveGroup();
+            state = new GroupSendState();
+            state.messageClass = message.getClass();
+            senderGroups.put(group, state);
+        }
+        if (state.messageClass != message.getClass()) throw new IOException("Diff group class changed");
+        state.lastTouchedAt = now;
 
         boolean originalReliable = message.isReliable();
         state.updatesSinceReliable++;
@@ -168,11 +212,11 @@ final class DiffRuntime {
                 // Full unreliable snapshots bypass diff state entirely.
                 return EncodeOutcome.BYPASS;
             }
-            DiffBuildResult diff = buildDiff(state.reliableBaseSnapshot, normalizedCurrent, message.getClass());
+            DiffBuildResult diff = buildDiff(serializer.readObject(state.reliableBaseSnapshot.duplicate(), message.getClass()), normalizedCurrent, message.getClass());
             if (!diff.changed) {
                 return EncodeOutcome.SKIP;
             }
-            long packetId = state.nextPacketId++;
+            long packetId = nextPacketId++;
             ByteBuffer body = encodeDiffBody(
                 message,
                 normalizedCurrent,
@@ -205,11 +249,11 @@ final class DiffRuntime {
                 || recoveryFull;
 
         if (mustSendFull) {
-            long packetId = state.nextPacketId++;
+            long packetId = nextPacketId++;
             ByteBuffer body = encodeFullBody(normalizedCurrent, serializer, LANE_RELIABLE, group, packetId);
             protocol.writeEnvelopedBody(message, out, true, body);
-            Object cloned = protocol.cloneWithSerializer(normalizedCurrent, serializer, message.getClass());
-            updateReliableBase(state, packetId, cloned, now, true);
+            ByteBuffer cloned = snapshotBytes(normalizedCurrent, serializer);
+            updateReliableBase(state, packetId, cloned, now);
             state.reliableSendsSinceFull = 0;
             state.lastReliableFullAt = now;
             if (protocol.logEnabled(Level.FINEST)) {
@@ -225,12 +269,12 @@ final class DiffRuntime {
             return EncodeOutcome.HANDLED;
         }
 
-        DiffBuildResult diff = buildDiff(state.reliableBaseSnapshot, normalizedCurrent, message.getClass());
+        DiffBuildResult diff = buildDiff(serializer.readObject(state.reliableBaseSnapshot.duplicate(), message.getClass()), normalizedCurrent, message.getClass());
         if (!diff.changed) {
             return EncodeOutcome.SKIP;
         }
 
-        long packetId = state.nextPacketId++;
+        long packetId = nextPacketId++;
         ByteBuffer body = encodeDiffBody(
             message,
             normalizedCurrent,
@@ -242,8 +286,8 @@ final class DiffRuntime {
             diff
         );
         protocol.writeEnvelopedBody(message, out, true, body);
-        Object cloned = protocol.cloneWithSerializer(normalizedCurrent, serializer, message.getClass());
-        updateReliableBase(state, packetId, cloned, now, true);
+        ByteBuffer cloned = snapshotBytes(normalizedCurrent, serializer);
+        updateReliableBase(state, packetId, cloned, now);
         state.reliableSendsSinceFull++;
         if (protocol.logEnabled(Level.FINEST)) {
             protocol.logFinest("DIFF[SEND] DIFF lane=reliable group=" + group + " packet=" + packetId
@@ -275,7 +319,21 @@ final class DiffRuntime {
         long group = VarInt.decodeSigned(body);
         long packetId = VarInt.decodeUnsigned(body);
 
-        GroupReceiveState state = receiverGroups.computeIfAbsent(group, ignored -> new GroupReceiveState());
+        if ((mode != MODE_FULL && mode != MODE_DIFF) || (lane != LANE_RELIABLE && lane != LANE_UNRELIABLE)
+                || packetId <= 0 || !protocol.acceptsRuntimeLane(lane)
+                || !DiffableMessage.class.isAssignableFrom(messageClass)) {
+            throw new IOException("Invalid runtime diff header");
+        }
+        GroupReceiveState state = receiverGroups.get(group);
+        if (state == null) {
+            if (lane == LANE_UNRELIABLE) return DecodeResult.dropped();
+            if (mode != MODE_FULL) throw new IOException("Reliable diff requires an initial FULL");
+            reserveGroup();
+            state = new GroupReceiveState();
+            state.messageClass = messageClass;
+            receiverGroups.put(group, state);
+        }
+        if (state.messageClass != messageClass) throw new IOException("Diff group class changed");
         state.lastTouchedAt = now;
         if (lane == LANE_RELIABLE && state.reliableBasePacketId >= 0 && packetId <= state.reliableBasePacketId) {
             return DecodeResult.dropped();
@@ -286,8 +344,9 @@ final class DiffRuntime {
 
         if (mode == MODE_FULL) {
             Object full = serializer.readObject(body, messageClass);
+            if (body.hasRemaining()) throw new IOException("Trailing runtime FULL data");
             if (lane == LANE_RELIABLE) {
-                Object cloned = protocol.cloneWithSerializer(full, serializer, messageClass);
+                ByteBuffer cloned = snapshotBytes(full, serializer);
                 updateReliableBase(state, packetId, cloned, now);
             }
             if (protocol.logEnabled(Level.FINEST)) {
@@ -309,6 +368,7 @@ final class DiffRuntime {
             throw new IOException("Diff body received for unsupported serializer: " + serializer.getClass().getName());
         }
 
+        if (basePacketId <= 0 || basePacketId >= packetId) throw new IOException("Invalid diff packet reference");
         SnapshotEntry baseEntry = state.reliableHistory.get(basePacketId);
         if (baseEntry == null) {
             if (lane == LANE_UNRELIABLE) {
@@ -321,9 +381,10 @@ final class DiffRuntime {
             throw new IOException("Reliable diff requires base packet " + basePacketId + " in group " + group);
         }
 
-        Object result = applyDiff(body, baseEntry.snapshot, serializer, messageClass);
+        Object result = applyDiff(body, serializer.readObject(baseEntry.snapshot.duplicate(), messageClass), serializer, messageClass);
+        if (body.hasRemaining()) throw new IOException("Trailing runtime DIFF data");
         if (lane == LANE_RELIABLE) {
-            Object cloned = protocol.cloneWithSerializer(result, serializer, messageClass);
+            ByteBuffer cloned = snapshotBytes(result, serializer);
             updateReliableBase(state, packetId, cloned, now);
         }
         if (protocol.logEnabled(Level.FINEST)) {
@@ -335,7 +396,7 @@ final class DiffRuntime {
 
     private ByteBuffer encodeFullBody(Object normalizedCurrent, Serializer serializer, long lane, long group, long packetId)
         throws IOException {
-        GrowableByteBuffer body = new GrowableByteBuffer(ByteBuffer.allocate(512), 512);
+        GrowableByteBuffer body = new GrowableByteBuffer(ByteBuffer.allocate(512), 512, DynamicSerializerProtocol.MAX_FRAME_BYTES);
         VarInt.encodeUnsigned(DIFF_RUNTIME_MARKER, body);
         VarInt.encodeUnsigned(MODE_FULL, body);
         VarInt.encodeUnsigned(lane, body);
@@ -356,7 +417,7 @@ final class DiffRuntime {
         DiffBuildResult diff
     )
         throws IOException {
-        GrowableByteBuffer body = new GrowableByteBuffer(ByteBuffer.allocate(512), 512);
+        GrowableByteBuffer body = new GrowableByteBuffer(ByteBuffer.allocate(512), 512, DynamicSerializerProtocol.MAX_FRAME_BYTES);
         VarInt.encodeUnsigned(DIFF_RUNTIME_MARKER, body);
         VarInt.encodeUnsigned(MODE_DIFF, body);
         VarInt.encodeUnsigned(lane, body);
@@ -425,7 +486,7 @@ final class DiffRuntime {
         byte[] bitmask = new byte[bitmaskLen];
         body.get(bitmask);
 
-        Object result = protocol.cloneWithSerializer(base, serializer, messageClass);
+        Object result = base; // The retained bytes were decoded into a fresh object for this packet.
         for (int i = 0; i < fields.size(); i++) {
             if ((bitmask[i >>> 3] & (1 << (i & 7))) == 0) {
                 continue;
@@ -449,81 +510,69 @@ final class DiffRuntime {
         return "componentId".equals(fieldName) || "networkId".equals(fieldName);
     }
 
-    private void updateReliableBase(GroupSendState state, long packetId, Object snapshot, long now, boolean sender) {
-        state.reliableBasePacketId = packetId;
-        state.reliableBaseSnapshot = snapshot;
-        state.reliableHistory.put(packetId, new SnapshotEntry( snapshot, now));
-        trimHistory(state.reliableHistory, now, SENDER_SNAPSHOT_TTL_MS, HISTORY_CAP, state.reliableBasePacketId);
-        if (sender) {
-            state.lastTouchedAt = now;
-        }
+    private ByteBuffer snapshotBytes(Object snapshot, Serializer serializer) throws IOException {
+        GrowableByteBuffer output = new GrowableByteBuffer(ByteBuffer.allocate(512), 512, DynamicSerializerProtocol.MAX_FRAME_BYTES);
+        protocol.writeBodyWithSerializerBridge(snapshot, serializer, output);
+        ByteBuffer bytes = output.getBuffer();
+        bytes.flip();
+        return bytes.asReadOnlyBuffer();
     }
 
-    private void updateReliableBase(GroupReceiveState state, long packetId, Object snapshot, long now) {
+    private void updateReliableBase(GroupSendState state, long packetId, ByteBuffer snapshot, long now)
+        throws IOException {
+        long previousBytes = state.reliableBaseSnapshot == null ? 0 : state.reliableBaseSnapshot.capacity();
+        adjustBytes(snapshot.capacity() - previousBytes);
         state.reliableBasePacketId = packetId;
-        state.reliableHistory.put(packetId, new SnapshotEntry( snapshot, now));
-        trimHistory(state.reliableHistory, now, RECEIVER_SNAPSHOT_TTL_MS, HISTORY_CAP, state.reliableBasePacketId);
+        state.reliableBaseSnapshot = snapshot;
         state.lastTouchedAt = now;
     }
 
-    private void evictSender() {
+    private void updateReliableBase(GroupReceiveState state, long packetId, ByteBuffer snapshot, long now) throws IOException {
+        adjustBytes(snapshot.capacity());
+        state.reliableBasePacketId = packetId;
+        state.reliableHistory.put(packetId, new SnapshotEntry(snapshot, now));
+        trimHistory(state.reliableHistory, now, RECEIVER_SNAPSHOT_TTL_MS, HISTORY_CAP, packetId);
+        state.lastTouchedAt = now;
+    }
+
+    private void evictSender() throws IOException {
         long now = protocol.nowMillis();
-        Iterator<Map.Entry<Long, GroupSendState>> groups = senderGroups.entrySet().iterator();
+        Iterator<GroupSendState> groups = senderGroups.values().iterator();
         while (groups.hasNext()) {
-            Map.Entry<Long, GroupSendState> entry = groups.next();
-            GroupSendState state = entry.getValue();
+            GroupSendState state = groups.next();
             if (now - state.lastTouchedAt > SENDER_GROUP_IDLE_TTL_MS) {
+                if (state.reliableBaseSnapshot != null) adjustBytes(-state.reliableBaseSnapshot.capacity());
                 groups.remove();
-                continue;
+                synchronized (DiffRuntime.class) { liveGroups--; }
             }
-            trimHistory(state.reliableHistory, now, SENDER_SNAPSHOT_TTL_MS, HISTORY_CAP, state.reliableBasePacketId);
         }
     }
 
-    private void evictReceiver() {
+    private void evictReceiver() throws IOException {
         long now = protocol.nowMillis();
-        Iterator<Map.Entry<Long, GroupReceiveState>> groups = receiverGroups.entrySet().iterator();
+        Iterator<GroupReceiveState> groups = receiverGroups.values().iterator();
         while (groups.hasNext()) {
-            Map.Entry<Long, GroupReceiveState> entry = groups.next();
-            GroupReceiveState state = entry.getValue();
+            GroupReceiveState state = groups.next();
             if (now - state.lastTouchedAt > RECEIVER_GROUP_IDLE_TTL_MS) {
+                for (SnapshotEntry entry : state.reliableHistory.values()) adjustBytes(-entry.snapshot.capacity());
                 groups.remove();
-                continue;
+                synchronized (DiffRuntime.class) { liveGroups--; }
+            } else {
+                trimHistory(state.reliableHistory, now, RECEIVER_SNAPSHOT_TTL_MS, HISTORY_CAP, state.reliableBasePacketId);
             }
-            trimHistory(state.reliableHistory, now, RECEIVER_SNAPSHOT_TTL_MS, HISTORY_CAP, state.reliableBasePacketId);
         }
     }
 
-    private static void trimHistory(
-        LinkedHashMap<Long, SnapshotEntry> history,
-        long now,
-        long ttlMillis,
-        int cap,
-        long protectedPacketId
-    ) {
-        Iterator<Map.Entry<Long, SnapshotEntry>> ageIt = history.entrySet().iterator();
-        while (ageIt.hasNext()) {
-            Map.Entry<Long, SnapshotEntry> entry = ageIt.next();
-            if (entry.getKey() == protectedPacketId) {
-                continue;
+    private void trimHistory(LinkedHashMap<Long, SnapshotEntry> history, long now, long ttlMillis, int cap,
+            long protectedPacketId) throws IOException {
+        Iterator<Map.Entry<Long, SnapshotEntry>> entries = history.entrySet().iterator();
+        while (entries.hasNext()) {
+            Map.Entry<Long, SnapshotEntry> entry = entries.next();
+            if (entry.getKey() != protectedPacketId
+                    && (now - entry.getValue().createdAt > ttlMillis || history.size() > cap)) {
+                adjustBytes(-entry.getValue().snapshot.capacity());
+                entries.remove();
             }
-            if (now - entry.getValue().createdAt > ttlMillis) {
-                ageIt.remove();
-            }
-        }
-
-        while (history.size() > cap) {
-            Long eldestKey = history.keySet().iterator().next();
-            if (eldestKey == protectedPacketId) {
-                if (history.size() == 1) {
-                    break;
-                }
-                // rotate protected entry to keep trimming others
-                SnapshotEntry protectedEntry = history.remove(eldestKey);
-                history.put(eldestKey, protectedEntry);
-                continue;
-            }
-            history.remove(eldestKey);
         }
     }
 }

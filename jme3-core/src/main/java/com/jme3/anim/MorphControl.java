@@ -153,7 +153,7 @@ public class MorphControl extends AbstractControl implements Savable {
                 for (int i = nbGPUTargets; i < matWeights.length; i++) {
                     matWeights[i] = 0;
                 }
-            } else if (cpuWeightSum > 0) {
+            } else if (cpuWeightSum > 0 && nbGPUTargets > 0) {
                 // we have more simultaneous morph targets than available gpu slots,
                 // we merge the additional morph targets and bind them to the last gpu slot
                 MorphTarget mt = geom.getFallbackMorphTarget();

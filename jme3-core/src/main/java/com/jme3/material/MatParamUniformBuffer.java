@@ -237,13 +237,16 @@ final class MatParamUniformBuffer {
      * changes no parameter costs a single flag check.
      */
     void finish() {
-        if (block == null || !dirty) {
+        if (block == null) {
             return;
         }
 
-        StructUtils.updateBufferData(fields, false, layout, bufferObject);
+        if (dirty) {
+            StructUtils.updateBufferData(fields, false, layout, bufferObject);
+            dirty = false;
+        }
+        // Shader programs are shared by materials, even when this material's values did not change.
         shaderBlock.setBufferObject(ShaderBufferBlock.BufferType.UniformBufferObject, bufferObject);
-        dirty = false;
     }
 
     /**

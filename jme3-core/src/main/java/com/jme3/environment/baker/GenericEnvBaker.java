@@ -305,7 +305,9 @@ public abstract class GenericEnvBaker implements EnvBaker {
         for (int i = 0; i < bos.size(); i++) {
             ByteArrayOutputStream bo = bos.get(i);
             if (bo != null) {
-                ByteBuffer faceMip = ByteBuffer.wrap(bo.toByteArray());
+                byte[] faceMipData = bo.toByteArray();
+                ByteBuffer faceMip = BufferUtils.createByteBuffer(faceMipData.length);
+                faceMip.put(faceMipData).flip();
                 tx.getImage().setData(i, faceMip);
             } else {
                 LOG.log(Level.SEVERE, "Missing face {0}. Pulling incomplete!", i);

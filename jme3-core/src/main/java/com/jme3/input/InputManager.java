@@ -86,6 +86,9 @@ import java.util.logging.Logger;
  */
 public class InputManager implements RawInputListener {
 
+    /** Scale from mouse-axis pixels to analog input values, shared with native touch rotation. */
+    static final float MOUSE_AXIS_SCALE = 1f / 1024f;
+
     private static final Logger logger = Logger.getLogger(InputManager.class.getName());
     private final KeyInput keys;
     private final MouseInput mouse;
@@ -290,11 +293,11 @@ public class InputManager implements RawInputListener {
 
     private void onMouseMotionEventQueued(MouseMotionEvent evt) {
         if (evt.getDX() != 0) {
-            float val = Math.abs(evt.getDX()) / 1024f;
+            float val = Math.abs(evt.getDX()) * MOUSE_AXIS_SCALE;
             invokeAnalogsAndActions(MouseAxisTrigger.mouseAxisHash(MouseInput.AXIS_X, evt.getDX() < 0), val, evt, false, true);
         }
         if (evt.getDY() != 0) {
-            float val = Math.abs(evt.getDY()) / 1024f;
+            float val = Math.abs(evt.getDY()) * MOUSE_AXIS_SCALE;
             invokeAnalogsAndActions(MouseAxisTrigger.mouseAxisHash(MouseInput.AXIS_Y, evt.getDY() < 0), val, evt, false, true);
         }
         if (evt.getDeltaWheel() != 0) {

@@ -34,6 +34,7 @@ package com.jme3.material;
 import com.jme3.asset.AssetManager;
 import com.jme3.renderer.Caps;
 import com.jme3.renderer.RenderManager;
+import com.jme3.renderer.Renderer;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.shape.Box;
 import com.jme3.shader.VarType;
@@ -47,6 +48,7 @@ import com.jme3.util.BufferUtils;
 
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.lang.reflect.Method;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -64,6 +66,43 @@ public class MaterialTest {
             return MaterialTest.this.myCaps;
         }
     });
+
+    @Test
+    public void reflectedGeometryDoesNotMutateSharedRenderState() throws Exception {
+        Method update = Material.class.getDeclaredMethod("updateRenderState",
+                Geometry.class, RenderManager.class, Renderer.class, TechniqueDef.class);
+        update.setAccessible(true);
+        RenderState.FaceCullMode[] applied = new RenderState.FaceCullMode[1];
+        NullRenderer renderer = new NullRenderer() {
+            @Override
+            public void applyRenderState(RenderState state) {
+                applied[0] = state.getFaceCullMode();
+            }
+        };
+        RenderManager manager = new RenderManager(renderer);
+        Material instance = new Material();
+        TechniqueDef definition = new TechniqueDef("Default", 0);
+        RenderState original = RenderState.DEFAULT.clone();
+        try {
+            for (boolean explicitState : new boolean[]{false, true}) {
+                RenderState shared = explicitState ? new RenderState() : RenderState.DEFAULT;
+                definition.setRenderState(explicitState ? shared : null);
+                geometry.setLocalScale(-1, 1, 1);
+                geometry.updateGeometricState();
+                update.invoke(instance, geometry, manager, renderer, definition);
+                assertEquals(RenderState.FaceCullMode.Front, applied[0]);
+                assertEquals(RenderState.FaceCullMode.Back, shared.getFaceCullMode());
+                update.invoke(instance, geometry, manager, renderer, definition);
+                assertEquals(RenderState.FaceCullMode.Front, applied[0]);
+                geometry.setLocalScale(1);
+                geometry.updateGeometricState();
+                update.invoke(instance, geometry, manager, renderer, definition);
+                assertEquals(RenderState.FaceCullMode.Back, applied[0]);
+            }
+        } finally {
+            RenderState.DEFAULT.copyFrom(original);
+        }
+    }
 
     @Test
     public void testSelectNonExistentTechnique() {

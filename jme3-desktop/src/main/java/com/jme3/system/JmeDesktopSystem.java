@@ -52,9 +52,6 @@ import javax.imageio.ImageWriter;
 import javax.imageio.plugins.jpeg.JPEGImageWriteParam;
 import javax.imageio.stream.ImageOutputStream;
 import javax.imageio.stream.MemoryCacheImageOutputStream;
-import java.awt.*;
-import java.awt.geom.AffineTransform;
-import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -78,15 +75,15 @@ public class JmeDesktopSystem extends JmeSystemDelegate {
     }
     
     private static BufferedImage verticalFlip(BufferedImage original) {
-        AffineTransform tx = AffineTransform.getScaleInstance(1, -1);
-        tx.translate(0, -original.getHeight());
-        AffineTransformOp transformOp = new AffineTransformOp(tx, AffineTransformOp.TYPE_NEAREST_NEIGHBOR);
-        BufferedImage awtImage = new BufferedImage(original.getWidth(), original.getHeight(), original.getType());
-        Graphics2D g2d = awtImage.createGraphics();
-        g2d.setRenderingHint(RenderingHints.KEY_RENDERING,
-                             RenderingHints.VALUE_RENDER_SPEED);
-        g2d.drawImage(original, transformOp, 0, 0);
-        g2d.dispose();
+        int width = original.getWidth();
+        int height = original.getHeight();
+        BufferedImage awtImage = new BufferedImage(width, height, original.getType());
+        int[] row = new int[width];
+        // Graphics2D can start an AWT event loop inside SDL's loop on macOS.
+        for (int y = 0; y < height; y++) {
+            original.getRGB(0, y, width, 1, row, 0, width);
+            awtImage.setRGB(0, height - y - 1, width, 1, row, 0, width);
+        }
         return awtImage;
     }
 

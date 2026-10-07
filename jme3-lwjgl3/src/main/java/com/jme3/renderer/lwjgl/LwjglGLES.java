@@ -581,7 +581,8 @@ public class LwjglGLES extends LwjglRender implements GL, GL2, GLES_30, GLExt, G
     @Override
     public int glGetQueryObjectiv(int query, int pname) {
         if (GLES.getCapabilities().GL_EXT_disjoint_timer_query) {
-            return EXTDisjointTimerQuery.glGetQueryObjectiEXT(query, pname);
+            // GLES timer queries expose unsigned results; the signed desktop entry point may be absent.
+            return EXTDisjointTimerQuery.glGetQueryObjectuiEXT(query, pname);
         }
         IntBuffer b = (IntBuffer) tmpBuff.clear();
         GLES30.glGetQueryObjectuiv(query, pname, b);
@@ -825,6 +826,12 @@ public class LwjglGLES extends LwjglRender implements GL, GL2, GLES_30, GLExt, G
 
     @Override
     public void glDrawBuffer(int mode) {
+        if (mode == GL.GL_NONE) {
+            tmpBuff16.clear();
+            tmpBuff16.put(GL.GL_NONE).flip();
+            glDrawBuffers(tmpBuff16);
+            return;
+        }
         int nBuffers = (mode - GLFbo.GL_COLOR_ATTACHMENT0_EXT) + 1;
         if (nBuffers <= 0 || nBuffers > 16) {
             throw new IllegalArgumentException("Draw buffer outside range: " + Integer.toHexString(mode));

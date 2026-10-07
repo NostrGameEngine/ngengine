@@ -1,6 +1,6 @@
 
 
-def useSnapshotDeps = (jmeVersionTag == 'SNAPSHOT')
+def useSnapshotDeps = rootProject.ext.useSnapshotDependencies
 
 dependencies {
     api project(':nge-core')

@@ -45,7 +45,8 @@ import org.ngengine.platform.NGEPlatform;
  */
 public class MainThreadRunner extends BaseAppState implements Runner {
 
-    private Thread mainThread;
+    private final Application boundApplication;
+    private volatile Thread mainThread;
 
     public static MainThreadRunner of(Application app) {
         Objects.requireNonNull(app, "Application cannot be null");
@@ -57,6 +58,7 @@ public class MainThreadRunner extends BaseAppState implements Runner {
     }
 
     public MainThreadRunner(Application app) {
+        this.boundApplication = Objects.requireNonNull(app, "Application cannot be null");
         if (!app.getStateManager().hasState(this)) {
             app.getStateManager().attach(this);
         }
@@ -64,14 +66,17 @@ public class MainThreadRunner extends BaseAppState implements Runner {
 
     @Override
     public void run(Runnable task) {
-        NGEPlatform.get().runInThread(mainThread, r->{
-            getApplication().enqueue(r);
-        }, task);
+        Thread owner = mainThread;
+        if (owner == null) {
+            boundApplication.enqueue(task);
+            return;
+        }
+        NGEPlatform.get().runInThread(owner, boundApplication::enqueue, task);
     }
 
     @Override
     public void enqueue(Runnable task) {
-        getApplication().enqueue(task);
+        boundApplication.enqueue(task);
     }
 
     @Override

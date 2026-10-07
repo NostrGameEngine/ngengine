@@ -117,7 +117,7 @@ public class ShaderBufferBlock extends ShaderVariable {
      * Reset this storage block.
      */
     public void reset() {
-        location = -1;
+        location = LOC_UNKNOWN;
         binding = -1;
         updateNeeded = true;
     }

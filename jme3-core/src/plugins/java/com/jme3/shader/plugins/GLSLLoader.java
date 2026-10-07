@@ -36,11 +36,14 @@ import com.jme3.asset.cache.AssetCache;
 import jme3tools.shader.Preprocessor;
 import java.io.*;
 import java.util.*;
+import java.util.regex.Pattern;
 
 /**
  * GLSL File parser that supports #import pre-processor statement
  */
 public class GLSLLoader implements AssetLoader {
+
+    private static final Pattern CONDITIONAL = Pattern.compile("^#\\s*(if|ifdef|ifndef|elif|else|endif)\\b");
 
     private AssetManager assetManager;
     private final Map<String, ShaderDependencyNode> dependCache = new HashMap<>();
@@ -75,6 +78,8 @@ public class GLSLLoader implements AssetLoader {
         ShaderDependencyNode node = new ShaderDependencyNode(nodeName);
         StringBuilder sb = new StringBuilder();
         StringBuilder sbExt = new StringBuilder();
+        List<StringBuilder> conditionals = new ArrayList<>();
+        boolean extensionHeader = true;
 
         try (final BufferedReader bufferedReader = new BufferedReader(reader)) {
 
@@ -86,7 +91,21 @@ public class GLSLLoader implements AssetLoader {
 
             while ((ln = bufferedReader.readLine()) != null) {
                 String tln = ln.trim();
+                if (tln.startsWith("#")) {
+                    var conditional = CONDITIONAL.matcher(tln);
+                    if (conditional.find()) {
+                        String directive = conditional.group(1);
+                        if (directive.startsWith("if")) {
+                            conditionals.add(new StringBuilder(ln).append('\n'));
+                        } else if (!conditionals.isEmpty()) {
+                            int last = conditionals.size() - 1;
+                            if (directive.equals("endif")) conditionals.remove(last);
+                            else conditionals.get(last).append(ln).append('\n');
+                        }
+                    }
+                }
                 if (tln.startsWith("#import ")) {
+                    extensionHeader = false;
                     ln = tln.substring(8).trim();
                     if (ln.startsWith("\"") && ln.endsWith("\"") && ln.length() > 3) {
                         // import user code
@@ -107,11 +126,23 @@ public class GLSLLoader implements AssetLoader {
                         node.addDependency(sb.length(), dependNode);
                     }
                 } else if (tln.startsWith("#extension ")) {
-                    sbExt.append(ln).append('\n');
+                    if (nodeName.equals("[main]") && extensionHeader && !conditionals.isEmpty()) {
+                        // Preserve local macro definitions only in the root's pre-code header.
+                        sb.append(ln).append('\n');
+                    } else {
+                        // Imports can contain declarations: later extensions must precede them too.
+                        for (StringBuilder conditional : conditionals) sbExt.append(conditional);
+                        sbExt.append(ln).append('\n');
+                        for (int i = 0; i < conditionals.size(); i++) sbExt.append("#endif\n");
+                    }
                 } else if (tln.startsWith("#version ")) {
                     // #version must appear before the extensions, so treat it like one.
                     sbExt.append(ln).append('\n');
                 } else {
+                    if (!tln.isEmpty() && !tln.startsWith("#") && !tln.startsWith("//")
+                            && !tln.startsWith("/*") && !tln.startsWith("*")) {
+                        extensionHeader = false;
+                    }
                     sb.append(ln).append('\n');
                 }
             }
