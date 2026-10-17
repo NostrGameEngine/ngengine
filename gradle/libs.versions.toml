@@ -58,7 +58,7 @@ gradleTestRetry = "1.6.4"
 graalvmNativePlugin = "1.1.10"
 guava = "33.3.1-jre"
 jackson = "2.17.2"
-jackson3 = "3.1.3"
+jackson3 = "3.2.3"
 jakartaAnnotation = "2.1.1"
 jacoco = "0.8.12"
 jmeAndroidNatives = "3.10.0-xt16kb-alloc"
@@ -259,6 +259,9 @@ slf4j-jdk14 = { module = "org.slf4j:slf4j-jdk14", version.ref = "slf4j" }
 spotbugs-gradle-plugin = "com.github.spotbugs.snom:spotbugs-gradle-plugin:6.5.11"
 vecmath = "javax.vecmath:vecmath:1.5.2"
 extent-reports = { module = "com.aventstack:extentreports", version = "5.1.2"}
+jackson = {module = "tools.jackson.core:jackson-databind", version ="3.2.3"}
+
+
 [bundles]
 
 # Bundles for NostrGameEngine libraries
