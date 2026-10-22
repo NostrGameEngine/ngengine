@@ -35,6 +35,7 @@ import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -343,9 +344,13 @@ public abstract class TiledPlayerManagerComponent extends PlayerManagerComponent
         }
 
         TiledObjectLayer fallbackLayer = firstObjectLayer(map);
-        TiledSpawnPoint target = TiledSpawnPoints.pickDeterministic(
-            map, getPlayerSpawnTag(), entityId
-        );
+        NetcodeManagerComponent netcode = getInstanceOf(NetcodeManagerComponent.class);
+        Set<NostrPublicKey> peers = netcode != null
+            ? netcode.getKnownPeerPublicKeys() : Set.of(playerKey);
+        int spawnSlot = playerSpawnSlot(playerKey, peers);
+        List<TiledSpawnPoint> spawnPoints = TiledSpawnPoints.find(map, getPlayerSpawnTag());
+        TiledSpawnPoint target = spawnPoints.isEmpty()
+            ? null : spawnPoints.get(spawnSlot % spawnPoints.size());
         if (target == null && fallbackLayer == null) {
             logger.warning("Cannot spawn player " + playerKey.asHex()
                 + ": no object layer is available.");
@@ -357,6 +362,9 @@ public abstract class TiledPlayerManagerComponent extends PlayerManagerComponent
         } else {
             spawnPosition.set(0f, 0f);
         }
+        // Reserve distinct initial positions even before the other owners' first snapshots arrive.
+        offsetPlayerSpawn(spawnPosition, spawnSlot / Math.max(1, spawnPoints.size()),
+            getPlayerSpawnClearance(map));
         findFreePlayerSpawn(map, coordinates, target, spawnPosition, spawnPosition);
         Player player = getPlayer(playerKey);
         entity = createPlayerEntity(player, entityId, spawnPosition);
@@ -372,6 +380,22 @@ public abstract class TiledPlayerManagerComponent extends PlayerManagerComponent
         return entity;
     }
 
+    static int playerSpawnSlot(NostrPublicKey player, Set<NostrPublicKey> knownPeers) {
+        String playerKey = player.asHex();
+        int slot = 0;
+        for (NostrPublicKey peer : knownPeers) {
+            if (peer.asHex().compareTo(playerKey) < 0) slot++;
+        }
+        return slot;
+    }
+
+    static void offsetPlayerSpawn(Vector2f position, int slot, float clearance) {
+        if (slot <= 0) return;
+        int[] direction = NEARBY_SPAWN_OFFSET_MULTIPLIERS[(slot - 1) % 8];
+        float distance = Math.max(1f, clearance) * ((slot - 1) / 8 + 1);
+        position.addLocal(direction[0] * distance, direction[1] * distance);
+    }
+
     private void findFreePlayerSpawn(
             TiledMap map,
             CoordinateSystem coordinates,
@@ -379,7 +403,7 @@ public abstract class TiledPlayerManagerComponent extends PlayerManagerComponent
             Vector2f fallback,
             Vector2f out) {
         out.set(fallback);
-        if (!isOccupiedByPlayer(map, coordinates, out)) {
+        if (!isOccupiedByPlayer(map, out)) {
             return;
         }
         for (TiledSpawnPoint point : TiledSpawnPoints.find(map, getPlayerSpawnTag())) {
@@ -387,7 +411,7 @@ public abstract class TiledPlayerManagerComponent extends PlayerManagerComponent
                 continue;
             }
             point.getPosition(coordinates, candidatePosition);
-            if (!isOccupiedByPlayer(map, coordinates, candidatePosition)) {
+            if (!isOccupiedByPlayer(map, candidatePosition)) {
                 out.set(candidatePosition);
                 return;
             }
@@ -398,7 +422,7 @@ public abstract class TiledPlayerManagerComponent extends PlayerManagerComponent
                 fallback.x + offset[0] * clearance,
                 fallback.y + offset[1] * clearance
             );
-            if (!isOccupiedByPlayer(map, coordinates, candidatePosition)) {
+            if (!isOccupiedByPlayer(map, candidatePosition)) {
                 out.set(candidatePosition);
                 return;
             }
@@ -407,7 +431,6 @@ public abstract class TiledPlayerManagerComponent extends PlayerManagerComponent
 
     private boolean isOccupiedByPlayer(
             TiledMap map,
-            CoordinateSystem coordinates,
             Vector2f candidate) {
         float clearance = getPlayerSpawnClearance(map);
         float clearanceSquared = clearance * clearance;
@@ -419,11 +442,8 @@ public abstract class TiledPlayerManagerComponent extends PlayerManagerComponent
                 if (!isPlayerEntity(entity)) {
                     continue;
                 }
-                if (coordinates != null) {
-                    coordinates.getCenterInGridSpace(entity, existingPosition);
-                } else {
-                    existingPosition.set((float) entity.getX(), (float) entity.getY());
-                }
+                // Spawn positions and entity positions are anchors, not visual sprite centers.
+                existingPosition.set((float) entity.getX(), (float) entity.getY());
                 if (existingPosition.distanceSquared(candidate) < clearanceSquared) {
                     return true;
                 }
