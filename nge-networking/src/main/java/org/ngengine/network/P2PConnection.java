@@ -237,7 +237,7 @@ public class P2PConnection implements Server {
     private final Map<String, RemotePeer> pendingConnections = new ConcurrentHashMap<>();
     private final Map<String, PeerReadyAttempt> readyAttempts = new ConcurrentHashMap<>();
     // Boolean ACKs cannot distinguish an expired attempt from a new attempt in the same native session.
-    private final java.util.Set<String> expiredReadySessions = ConcurrentHashMap.newKeySet();
+    private final java.util.Set<String> expiredReadySessions = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final AtomicLong readyEpoch = new AtomicLong();
     private final AsyncExecutor readyExecutor;
     private final LongSupplier readyClock = System::nanoTime;
