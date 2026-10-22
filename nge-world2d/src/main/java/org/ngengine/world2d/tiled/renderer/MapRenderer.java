@@ -624,6 +624,7 @@ public abstract class MapRenderer {
         RenderRef r = layerRef.refs.get(entry);
 
         if(r!=null && (filter!=null && !filter.apply(entry, r.sp))){
+            entryMap.remove(r.sp);
             r.sp.removeFromParent();
             r = null;
         }
@@ -2525,12 +2526,17 @@ public abstract class MapRenderer {
     }
 
 
-    private static final boolean filterByShape( TiledBase base, Spatial sp) {
+    static boolean filterByShape(TiledBase base, Spatial sp) {
         if (base instanceof TiledObjectEntity) {
             TiledObjectEntity obj = (TiledObjectEntity) base;
             Number shape = sp.getUserData("ngengine.world2d.shape");
             if(shape!=null && shape.intValue() != obj.getShape().ordinal()) {
                 return false;
+            }
+            // A skinned spatial owns its visual animation. Sprite GID changes
+            // still update physics/sockets but must not reload its model/rig.
+            if (sp instanceof TiledSpatialObjectNode node) {
+                return node.matches(obj);
             }
             Number gid = sp.getUserData("ngengine.world2d.gid");
             int tileGid = obj.getTile()!=null? obj.getTile().getGid() : -1;

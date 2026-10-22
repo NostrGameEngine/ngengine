@@ -146,6 +146,8 @@ public class DefaultMaterialFactory implements MaterialFactory {
 
     @Override
     public void setTintColor(Material material, ColorRGBA tintColor) {
+        // Spatial assets can use standard/custom materials instead of Tiled.j3md.
+        if (material == null || material.getMaterialDef().getMaterialParam(USE_TINT_COLOR) == null) return;
         if (tintColor != null) {
             material.setBoolean(USE_TINT_COLOR, true);
             material.setColor(TINT_COLOR, tintColor);
@@ -161,7 +163,9 @@ public class DefaultMaterialFactory implements MaterialFactory {
 
     @Override
     public void setLayerOpacity(Material material, float opacity) {
-        material.setFloat(LAYER_OPACITY, opacity);
+        if (material != null && material.getMaterialDef().getMaterialParam(LAYER_OPACITY) != null) {
+            material.setFloat(LAYER_OPACITY, opacity);
+        }
     }
 
     @Override
@@ -176,7 +180,13 @@ public class DefaultMaterialFactory implements MaterialFactory {
 
     @Override
     public void setBlendMode(Spatial spatial, LayerBlendMode blendMode) {
-        applyToGeometries(spatial, geometry -> setBlendMode(geometry.getMaterial(), blendMode));
+        applyToGeometries(spatial, geometry -> {
+            Material material = geometry.getMaterial();
+            if (material != null && (material.getMaterialDef().getMaterialParam(LAYER_OPACITY) != null
+                    || (blendMode != null && blendMode != LayerBlendMode.NORMAL))) {
+                setBlendMode(material, blendMode);
+            }
+        });
     }
 
     private void applyToGeometries(Spatial spatial, Consumer<Geometry> action) {
@@ -215,23 +225,14 @@ public class DefaultMaterialFactory implements MaterialFactory {
 
     @Override
     public void setOpacity(Material material, float opacity) {
-        material.setFloat(OPACITY, opacity);
+        if (material != null && material.getMaterialDef().getMaterialParam(OPACITY) != null) {
+            material.setFloat(OPACITY, opacity);
+        }
     }
 
     @Override
     public void setOpacity(Spatial spatial, float opacity) {
-        if (spatial instanceof Geometry) {
-            Geometry geometry = (Geometry) spatial;
-            setOpacity(geometry.getMaterial(), opacity);
-        } else {
-            Node node = (Node) spatial;
-            for (Spatial child : node.getChildren()) {
-                if (child instanceof Geometry) {
-                    Geometry geometry = (Geometry) child;
-                    setOpacity(geometry.getMaterial(), opacity);
-                }
-            }
-        }
+        applyToGeometries(spatial, geometry -> setOpacity(geometry.getMaterial(), opacity));
     }
 
     public void setMapObject(Material mat, TiledObjectEntity obj) {

@@ -2,6 +2,8 @@ package org.ngengine.world2d.tiled.renderer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 import java.math.BigInteger;
 
@@ -14,8 +16,40 @@ import org.ngengine.world2d.tiled.enums.Orientation;
 import com.jme3.math.FastMath;
 import com.jme3.math.Vector3f;
 import com.jme3.scene.Node;
+import com.jme3.scene.Geometry;
 
 class TestTiledSpatialObjectNode {
+    @Test
+    void modelSurvivesSpriteStateChangesButNotModelPathChanges() {
+        Tile first = new Tile(0, 0, 16, 16);
+        first.setId(1);
+        first.setGid(1);
+        Tile second = new Tile(0, 0, 16, 16);
+        second.setId(2);
+        second.setGid(2);
+        TiledObjectEntity object = new TiledObjectEntity(BigInteger.ONE, 0, 0, first);
+        object.putProperty("model.path", "Models/Character.gltf");
+        TiledSpatialObjectNode node = new TiledSpatialObjectNode(object, "Models/Character.gltf", new Node());
+        node.setUserData("ngengine.world2d.gid", first.getGid());
+        object.setTile(second);
+        assertNotEquals(first.getGid(), second.getGid());
+        assertTrue(MapRenderer.filterByShape(object, node));
+        object.putProperty("model.path", "Models/Other.gltf");
+        assertFalse(MapRenderer.filterByShape(object, node));
+        object.putProperty("model.path", null);
+        assertFalse(MapRenderer.filterByShape(object, node));
+    }
+
+    @Test
+    void ordinarySpritesStillRebuildWhenTheirTileChanges() {
+        Tile tile = new Tile(0, 0, 16, 16);
+        tile.setId(2);
+        TiledObjectEntity object = new TiledObjectEntity(BigInteger.ONE, 0, 0, tile);
+        Geometry sprite = new Geometry();
+        sprite.setUserData("ngengine.world2d.gid", 1);
+        assertFalse(MapRenderer.filterByShape(object, sprite));
+    }
+
     @Test
     void objectSpatialPropertyDoesNotMountComponent() {
         TiledObjectEntity object = new TiledObjectEntity(BigInteger.ONE, 0, 0, 16, 16);
