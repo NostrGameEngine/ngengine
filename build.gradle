@@ -297,27 +297,64 @@ subprojects {
 
 def nativeImagePluginBuild = gradle.includedBuild('jme3-nativeimage-plugin')
 def basisPluginBuild = gradle.includedBuild('jme3-basis-plugin')
-def nativeImagePluginPublishTasks = [
-        publish                                      : ':publish',
-        publishToMavenLocal                         : ':publishToMavenLocal',
-        install                                      : ':install',
-        publishMavenPublicationToCentralRepository  : ':publishAllPublicationsToCentralRepository',
-        publishMavenPublicationToSNAPSHOTRepository : ':publishAllPublicationsToSNAPSHOTRepository',
-        publishMavenPublicationToDistRepository     : ':publishAllPublicationsToDistRepository',
-        publishAllPublicationsToCentralRepository   : ':publishAllPublicationsToCentralRepository',
-        publishAllPublicationsToSNAPSHOTRepository  : ':publishAllPublicationsToSNAPSHOTRepository',
-        publishAllPublicationsToDistRepository      : ':publishAllPublicationsToDistRepository',
-        publishToSonatype                           : ':publishToSonatype',
-        closeSonatypeStagingRepository              : ':closeSonatypeStagingRepository',
-        closeStagingRepositories                    : ':closeStagingRepositories'
-]
+
+def includedPluginPublishTaskPath = { String taskName ->
+    switch (taskName) {
+        case 'publish':
+            return ':publish'
+        case 'install':
+        case 'publishToMavenLocal':
+            return ':publishToMavenLocal'
+        case ~/publish.*PublicationToMavenLocal(?:Repository)?/:
+            return ':publishToMavenLocal'
+        case ~/publish.*PublicationToDist(?:Folder)?Repository/:
+            return ':publishAllPublicationsToDistRepository'
+        case ~/publish.*PublicationToCentralRepository/:
+            return ':publishAllPublicationsToCentralRepository'
+        case ~/publish.*PublicationToSNAPSHOTRepository/:
+            return ':publishAllPublicationsToSNAPSHOTRepository'
+        case 'publishAllPublicationsToDistRepository':
+            return ':publishAllPublicationsToDistRepository'
+        case 'publishAllPublicationsToCentralRepository':
+            return ':publishAllPublicationsToCentralRepository'
+        case 'publishAllPublicationsToSNAPSHOTRepository':
+            return ':publishAllPublicationsToSNAPSHOTRepository'
+        case 'publishToSonatype':
+            return ':publishToSonatype'
+        case 'closeSonatypeStagingRepository':
+        case 'closeStagingRepositories':
+            return ":${taskName}"
+        default:
+            return null
+    }
+}
+
+def wireIncludedPluginPublication = { Task task, String includedTaskPath ->
+    task.dependsOn nativeImagePluginBuild.task(includedTaskPath)
+    task.dependsOn basisPluginBuild.task(includedTaskPath)
+}
+
+// The main project uses a distinct repository name (DistFolder), while both
+// included Gradle plugins expose Dist, Central and SNAPSHOT repositories.
+// Keep these root aggregators available so the same publication command can
+// publish both plugins without entering either included build manually.
+[
+        publishAllPublicationsToDistRepository     : ':publishAllPublicationsToDistRepository',
+        publishAllPublicationsToCentralRepository  : ':publishAllPublicationsToCentralRepository',
+        publishAllPublicationsToSNAPSHOTRepository : ':publishAllPublicationsToSNAPSHOTRepository'
+].each { taskName, includedTaskPath ->
+    tasks.register(taskName) {
+        group = 'publishing'
+        description = "Publishes both included Gradle plugins to ${taskName - 'publishAllPublicationsTo'} repository."
+        wireIncludedPluginPublication(delegate, includedTaskPath)
+    }
+}
 
 subprojects {
     tasks.configureEach { task ->
-        String includedTaskPath = nativeImagePluginPublishTasks[task.name]
+        String includedTaskPath = includedPluginPublishTaskPath(task.name)
         if (includedTaskPath != null) {
-            task.dependsOn nativeImagePluginBuild.task(includedTaskPath)
-            task.dependsOn basisPluginBuild.task(includedTaskPath)
+            wireIncludedPluginPublication(task, includedTaskPath)
         }
     }
 }
@@ -330,8 +367,7 @@ gradle.projectsEvaluated {
     ].each { rootTaskName, includedTaskPath ->
         def rootTask = tasks.findByName(rootTaskName)
         if (rootTask != null) {
-            rootTask.dependsOn nativeImagePluginBuild.task(includedTaskPath)
-            rootTask.dependsOn basisPluginBuild.task(includedTaskPath)
+            wireIncludedPluginPublication(rootTask, includedTaskPath)
         }
     }
 }
