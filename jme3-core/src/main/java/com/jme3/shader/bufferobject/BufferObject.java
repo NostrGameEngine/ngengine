@@ -35,6 +35,10 @@ import java.io.IOException;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.FloatBuffer;
+import java.nio.ShortBuffer;
+import java.nio.IntBuffer;
+import java.nio.DoubleBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -497,7 +501,19 @@ public class BufferObject extends NativeObject implements Savable {
             clone.data.clear();
             clone.ownsData = true;
         } else if (data != null) {
-            clone.data = BufferUtils.clone(data.duplicate());
+            // VertexBuffer subclasses also store typed views. Duplicate through
+            // their portable APIs without moving the original cursor/mark.
+            if (data instanceof FloatBuffer) {
+                clone.data = BufferUtils.clone(((FloatBuffer) data).duplicate());
+            } else if (data instanceof ShortBuffer) {
+                clone.data = BufferUtils.clone(((ShortBuffer) data).duplicate());
+            } else if (data instanceof IntBuffer) {
+                clone.data = BufferUtils.clone(((IntBuffer) data).duplicate());
+            } else if (data instanceof DoubleBuffer) {
+                clone.data = BufferUtils.clone(((DoubleBuffer) data).duplicate());
+            } else {
+                throw new UnsupportedOperationException("Unsupported buffer storage: " + data.getClass().getName());
+            }
             clone.data.clear();
             clone.ownsData = true;
         } else {

@@ -14,6 +14,24 @@ import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
 public class DirtyRegionsIteratorTest {
+    @Test
+    public void typedSubclassClonePreservesSourceCursorAndMark() {
+        BufferObject object = new BufferObject();
+        java.nio.FloatBuffer source = java.nio.FloatBuffer.wrap(new float[]{1.25f, 2.5f, 3.75f});
+        source.position(1).mark().limit(2);
+        object.data = source;
+        BufferObject clone = object.clone();
+        assertEquals(1, source.position());
+        assertEquals(2, source.limit());
+        source.reset();
+        java.nio.FloatBuffer copied = (java.nio.FloatBuffer) clone.data;
+        assertEquals(0, copied.position());
+        assertEquals(2, copied.limit());
+        assertEquals(1.25f, copied.get(0));
+        copied.put(0, 10f);
+        assertEquals(1.25f, source.get(0));
+    }
+
 
     @Test
     public void testNoRegionsFullUpdateRangeAndSliceLength() {
