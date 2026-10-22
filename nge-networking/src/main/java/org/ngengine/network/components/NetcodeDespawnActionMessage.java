@@ -11,5 +11,7 @@ public class NetcodeDespawnActionMessage extends ActionMessage {
      */
     public NetcodeDespawnActionMessage() {
         setReliable(true);
+        // Creation snapshots and terminal removals must share reliable ordering.
+        setChannel(2);
     }
 }

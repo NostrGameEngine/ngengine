@@ -266,7 +266,8 @@ public class TiledObjectSyncComponent extends AbstractComponent implements Tiled
         }
         lastSnapshotPointMillis = Long.MIN_VALUE;
         lastAuthorityPeer = null;
-        if (despawnRequested || getComponentId() == null || getNetworkId() == null) {
+        if (despawnRequested || getComponentId() == null || getNetworkId() == null
+                || getNetworkId().signum() < 0) {
             return;
         }
         if (!checkAuthority()) {

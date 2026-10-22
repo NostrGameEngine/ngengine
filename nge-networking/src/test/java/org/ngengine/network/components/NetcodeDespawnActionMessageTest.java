@@ -8,5 +8,6 @@ public class NetcodeDespawnActionMessageTest {
     @Test
     public void despawnMessagesAreReliableByDefault() {
         assertTrue(new NetcodeDespawnActionMessage().isReliable());
+        org.junit.jupiter.api.Assertions.assertEquals(2, new NetcodeDespawnActionMessage().getChannel());
     }
 }

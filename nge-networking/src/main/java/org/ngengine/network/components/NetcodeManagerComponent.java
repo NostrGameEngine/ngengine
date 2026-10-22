@@ -7,6 +7,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -56,6 +57,9 @@ import jakarta.annotation.Nullable;
  */
 public class NetcodeManagerComponent extends AbstractComponent implements LogicFragment {
     private static final Logger log = Logger.getLogger(NetcodeManagerComponent.class.getName());
+    private static final int MAX_RECENT_DESPAWNS = 4096;
+    private static final long RECENT_DESPAWN_NANOS = Duration.ofSeconds(30).toNanos();
+    private record DespawnTarget(BigInteger networkId, String componentId) {}
 
     private final @Nullable NostrSigner signer;
     private @Nullable String turnServer;
@@ -73,6 +77,8 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
     private final Map<Class<? extends Message>, CopyOnWriteArrayList<NetworkMessageHandler<? extends Message>>>
         registeredMessageHandlers = new ConcurrentHashMap<>();
     private final List<NetcodeFragment> orphanLifecycleHandlers = new ArrayList<>();
+    private final Map<DespawnTarget, Long> recentReservedDespawns = new LinkedHashMap<>();
+    private final List<NetcodeFragment> pendingDespawnHandlers = new ArrayList<>();
     private final @Nullable NetcodeSpawner spawner;
     private final AtomicLong localReservedCounter = new AtomicLong();
     private final AtomicLong localPersistentCounter = new AtomicLong();
@@ -95,6 +101,11 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
     private Duration networkOrphanGracePeriod = NetcodeFragment.DEFAULT_ORPHAN_GRACE_PERIOD;
 
     public void registerActionHandler(NetcodeFragment handler) {
+        if (wasReservedTargetDespawned(handler.getNetworkId(), handler.getComponentId(), System.nanoTime())) {
+            unregisterActionHandler(handler);
+            if (!pendingDespawnHandlers.contains(handler)) pendingDespawnHandlers.add(handler);
+            return;
+        }
         if (!registeredActionHandlers.containsKey(handler)) {
             registeredActionHandlers.put(handler, new RegisteredHandler(handler));
             orphanLifecycleDirty = true;
@@ -354,6 +365,8 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
             inboundBytes = 0;
         }
         registeredActionHandlers.clear();
+        recentReservedDespawns.clear();
+        pendingDespawnHandlers.clear();
         registeredMessageHandlers.clear();
     }
 
@@ -414,6 +427,8 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
 
     public void disconnectFromLobby() {
         connectionGeneration++;
+        recentReservedDespawns.clear();
+        pendingDespawnHandlers.clear();
         if (connection != null) {
             try {
                 connection.removeMessageListener(messageListener);
@@ -719,7 +734,53 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
             }
             data.lastSnapshotNanos = nowNanos;
         }
+        // Mounting a snapshot can defer registration until the next logic pass.
+        // Remove those late handlers outside the registry iterator: removing an
+        // entity may unregister its other components too.
+        try {
+            while (!pendingDespawnHandlers.isEmpty()) {
+                NetcodeFragment handler = pendingDespawnHandlers.remove(pendingDespawnHandlers.size() - 1);
+                if (spawner != null) spawner.despawn(this, handler);
+            }
+        } finally {
+            pendingDespawnHandlers.clear();
+        }
+    }
 
+    void rememberReservedDespawn(BigInteger networkId, String componentId, long nowNanos) {
+        // Shared/persistent IDs may intentionally be reused by another map.
+        // Only creator-reserved runtime IDs have terminal, non-reusable lives.
+        if (!NetcodePartitioning.isReservedId(networkId)
+                || componentId == null || componentId.isEmpty() || componentId.length() > 512) return;
+        Iterator<Entry<DespawnTarget, Long>> previous = recentReservedDespawns.entrySet().iterator();
+        while (previous.hasNext()) {
+            Entry<DespawnTarget, Long> entry = previous.next();
+            if (nowNanos - entry.getValue() < RECENT_DESPAWN_NANOS) break;
+            previous.remove();
+        }
+        recentReservedDespawns.putIfAbsent(new DespawnTarget(networkId, componentId), nowNanos);
+        if (recentReservedDespawns.size() > MAX_RECENT_DESPAWNS) {
+            Iterator<DespawnTarget> oldest = recentReservedDespawns.keySet().iterator();
+            oldest.next();
+            oldest.remove();
+        }
+    }
+
+    boolean wasReservedTargetDespawned(BigInteger networkId, String componentId, long nowNanos) {
+        if (recentReservedDespawns.isEmpty() || !NetcodePartitioning.isReservedId(networkId)) return false;
+        DespawnTarget target = new DespawnTarget(networkId, componentId);
+        Long removedAt = recentReservedDespawns.get(target);
+        if (removedAt == null) return false;
+        if (nowNanos - removedAt < RECENT_DESPAWN_NANOS) return true;
+        recentReservedDespawns.remove(target);
+        return false;
+    }
+
+    private boolean isRemoteAuthority(RemotePeer source, BigInteger networkId) {
+        NostrPublicKey sender = source != null && source.getRemotePeer() != null
+            ? source.getRemotePeer().getPubkey() : null;
+        return NetcodeAuthorityAssignment.hasAuthority(sender, networkId,
+            getKnownPeerPublicKeysIncluding(sender), getLocalPeerPublicKey());
     }
 
     /**
@@ -842,6 +903,10 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
         }
         if (actionMessage instanceof NetcodeDespawnActionMessage) {
             if (handler == null) {
+                if (isRemoteAuthority(inbound.getFromPeer(), actionMessage.getNetworkId())) {
+                    rememberReservedDespawn(actionMessage.getNetworkId(), actionMessage.getComponentId(), System.nanoTime());
+                    return;
+                }
                 log.log(Level.WARNING,
                     "Dropping despawn message: target handler not found for componentId="
                         + actionMessage.getComponentId()
@@ -855,6 +920,7 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
                 return;
             }
             if (handler.checkAuthority(inbound.getFromPeer())) {            
+                rememberReservedDespawn(actionMessage.getNetworkId(), actionMessage.getComponentId(), System.nanoTime());
                 if (spawner != null) {
                     spawner.despawn(this, handler);
                 }
@@ -863,6 +929,9 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
         }
         if(actionMessage instanceof SnapshotMessage){
             SnapshotMessage snapshotMessage = (SnapshotMessage) actionMessage;
+            if (wasReservedTargetDespawned(snapshotMessage.getNetworkId(), snapshotMessage.getComponentId(), System.nanoTime())) {
+                return;
+            }
             if(handler!=null){
                 if(handler.checkAuthority(inbound.getFromPeer())){
                     try {
@@ -878,19 +947,10 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
 
             // Handler not found. Validate authority first.
             BigInteger networkId = snapshotMessage.getNetworkId();
-            NostrPublicKey senderKey = inbound.getFromPeer() != null
-                && inbound.getFromPeer().getRemotePeer() != null
-                ? inbound.getFromPeer().getRemotePeer().getPubkey()
-                : null;
-            boolean hasAuthority = NetcodeAuthorityAssignment.hasAuthority(
-                senderKey,
-                networkId,
-                getKnownPeerPublicKeysIncluding(senderKey),
-                getLocalPeerPublicKey()
-            );
+            boolean hasAuthority = isRemoteAuthority(inbound.getFromPeer(), networkId);
 
             if(!hasAuthority){
-                log.log(Level.WARNING, "Received snapshot message for networkId " + networkId + " from peer " + inbound.getFromPeer().getRemotePeer().getPubkey().asHex() + " without authority");
+                log.log(Level.WARNING, "Received snapshot message for networkId " + networkId + " without sender authority");
                 return;
             }
 
