@@ -59,7 +59,42 @@ public class NetcodeManagerComponent extends AbstractComponent implements LogicF
     private static final Logger log = Logger.getLogger(NetcodeManagerComponent.class.getName());
     private static final int MAX_RECENT_DESPAWNS = 4096;
     private static final long RECENT_DESPAWN_NANOS = Duration.ofSeconds(30).toNanos();
-    private record DespawnTarget(BigInteger networkId, String componentId) {}
+    private static final class DespawnTarget {
+        private final BigInteger networkId;
+        private final String componentId;
+
+        private DespawnTarget(BigInteger networkId, String componentId) {
+            this.networkId = networkId;
+            this.componentId = componentId;
+        }
+
+        public BigInteger networkId() { return networkId; }
+        public String componentId() { return componentId; }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) return true;
+            if (!(other instanceof DespawnTarget)) return false;
+            DespawnTarget that = (DespawnTarget) other;
+            return java.util.Objects.equals(networkId, that.networkId)
+                && java.util.Objects.equals(componentId, that.componentId);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 0;
+            result = 31 * result + java.util.Objects.hashCode(networkId);
+            result = 31 * result + java.util.Objects.hashCode(componentId);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "DespawnTarget[networkId=" + networkId
+                + ", componentId=" + componentId
+                + "]";
+        }
+    }
 
     private final @Nullable NostrSigner signer;
     private @Nullable String turnServer;

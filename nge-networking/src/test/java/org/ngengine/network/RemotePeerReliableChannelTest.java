@@ -143,7 +143,7 @@ final class RemotePeerReliableChannelTest {
                     assertSame(first, fixture.peer.reliableFailureDiagnostic());
                     assertEquals(List.of(P2PConnection.PeerRetirementReason.RELIABLE_CHANNEL_SEND_FAILED), fixture.reasons);
                     assertNull(fixture.server.getConnection(7)); assertEquals(1, fixture.peer.frames.size());
-                    assertEquals(1, records.size()); java.util.logging.LogRecord logged = records.getFirst();
+                    assertEquals(1, records.size()); java.util.logging.LogRecord logged = records.get(0);
                     assertNull(logged.getThrown()); assertNull(logged.getParameters());
                     assertTrue(logged.getMessage().contains("operation=" + first.operation()));
                     assertTrue(logged.getMessage().contains("causeClasses=java.lang.IllegalStateException"));
@@ -207,7 +207,7 @@ final class RemotePeerReliableChannelTest {
                 assertSame(first, fixture.peer.reliableFailureDiagnostic()); assertEquals(0, accessorCalls.get());
                 assertEquals(List.of(P2PConnection.PeerRetirementReason.RELIABLE_CHANNEL_CONTROL_FAILED), fixture.reasons);
                 assertNull(fixture.server.getConnection(7)); assertEquals(1, records.size());
-                java.util.logging.LogRecord logged = records.getFirst(); assertNull(logged.getThrown()); assertNull(logged.getParameters());
+                java.util.logging.LogRecord logged = records.get(0); assertNull(logged.getThrown()); assertNull(logged.getParameters());
                 assertTrue(logged.getMessage().contains("operation=ACK_REPLY_ASYNC"));
                 assertFalse(logged.getMessage().contains("PRIVATE")); assertFalse(first.toString().contains("PRIVATE"));
             } finally { logger.removeHandler(capture); logger.setLevel(previousLevel); }
@@ -223,8 +223,8 @@ final class RemotePeerReliableChannelTest {
         bounded.submit(2, frame(1)); bounded.gate.acknowledge(2);
         ReliableChannelGate.FailureDiagnostic failure = bounded.gate.failureDiagnostic();
         assertEquals(ReliableChannelGate.FailureOperation.SEND_ASYNC, failure.operation());
-        assertEquals(1, failure.causeClasses().size()); assertEquals(96, failure.causeClasses().getFirst().length());
-        assertTrue(failure.causeClasses().getFirst().contains("D_agnostic"));
+        assertEquals(1, failure.causeClasses().size()); assertEquals(96, failure.causeClasses().get(0).length());
+        assertTrue(failure.causeClasses().get(0).contains("D_agnostic"));
         assertTrue(failure.causeClasses().stream().allMatch(name -> name.length() <= 96 && name.matches("[A-Za-z0-9_.$]+")));
         assertFalse(failure.causeClasses().contains(IOException.class.getName()));
         assertFalse(failure.toString().contains("PRIVATE"));
@@ -785,7 +785,18 @@ final class RemotePeerReliableChannelTest {
         }
     }
     private static final class Scheduler implements AsyncExecutor {
-        private record Scheduled(long due, Runnable action) {}
+        private static final class Scheduled {
+            private final long due;
+            private final Runnable action;
+
+            private Scheduled(long due, Runnable action) {
+                this.due = due;
+                this.action = action;
+            }
+
+            long due() { return due; }
+            Runnable action() { return action; }
+        }
         final List<Scheduled> scheduled = new ArrayList<>();
         long now;
         boolean closed;

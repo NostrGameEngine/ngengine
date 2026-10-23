@@ -811,11 +811,12 @@ public class TextEntryComponent extends AbstractGuiComponent implements FocusTar
         }
 
         float remainingHeight = Math.max(0f, textBox.height - lineHeight);
-        return switch (vAlign) {
-            case Top -> y;
-            case Center -> y - remainingHeight * 0.5f;
-            case Bottom -> y - remainingHeight;
-        };
+        switch (vAlign) {
+            case Top: return y;
+            case Center: return y - remainingHeight * 0.5f;
+            case Bottom: return y - remainingHeight;
+            default: throw new IllegalStateException("Unsupported vertical alignment: " + vAlign);
+        }
     }
 
     public HAlignment getHAlignment() {

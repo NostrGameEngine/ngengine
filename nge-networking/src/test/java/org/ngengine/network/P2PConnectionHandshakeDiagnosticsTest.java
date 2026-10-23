@@ -23,7 +23,7 @@ final class P2PConnectionHandshakeDiagnosticsTest {
             fixture.ready(true);
             assertSame(fixture.remote, fixture.server.getConnection(7));
             assertEquals(List.of(P2PConnection.HandshakeReason.ACK_RECEIVED, P2PConnection.HandshakeReason.PROMOTED),
-                    events.stream().map(P2PConnection.HandshakeDiagnostic::reason).toList());
+                    events.stream().map(P2PConnection.HandshakeDiagnostic::reason).collect(java.util.stream.Collectors.toList()));
             fixture.ready(true);
             assertEquals(P2PConnection.HandshakeReason.PROMOTION_STALE_PENDING, events.get(events.size() - 1).reason());
             long oldEpoch = events.get(0).epoch();

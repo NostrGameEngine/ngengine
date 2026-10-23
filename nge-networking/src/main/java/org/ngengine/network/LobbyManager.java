@@ -160,7 +160,7 @@ public class LobbyManager implements Closeable {
             while (iterator.hasNext()) {
                 Lobby lobby = iterator.next().get();
                 if (lobby == null) { iterator.remove(); continue; }
-                if (lobby instanceof LocalLobby local) localLobbies.add(local);
+                if (lobby instanceof LocalLobby) localLobbies.add((LocalLobby) lobby);
             }
         }
         // Never hold the manager list monitor across a lobby lock, guard, dispatcher or provider callback.

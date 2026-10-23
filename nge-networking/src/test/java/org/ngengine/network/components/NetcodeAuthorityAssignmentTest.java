@@ -260,7 +260,7 @@ public class NetcodeAuthorityAssignmentTest {
     public void preSortedFastPathMatchesGeneralAuthorityResolution() {
         List<NostrPublicKey> sortedPeers = peers(4).stream()
             .sorted((left, right) -> left.asHex().compareTo(right.asHex()))
-            .toList();
+            .collect(java.util.stream.Collectors.toList());
         NostrPublicKey owner = sortedPeers.get(2);
         BigInteger ownerKey = new BigInteger(owner.asHex(), 16);
         List<BigInteger> networkIds = List.of(
@@ -287,6 +287,6 @@ public class NetcodeAuthorityAssignmentTest {
     private static List<NostrPublicKey> peers(int count) {
         return java.util.stream.IntStream.rangeClosed(1, count)
             .mapToObj(value -> NostrPublicKey.fromHex(String.format("%064x", value)))
-            .toList();
+            .collect(java.util.stream.Collectors.toList());
     }
 }

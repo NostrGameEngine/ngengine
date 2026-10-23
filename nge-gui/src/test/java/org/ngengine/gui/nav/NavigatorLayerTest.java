@@ -744,7 +744,7 @@ public class NavigatorLayerTest {
         assertEquals(List.of(
             "action:target:true",
             "action:target:false"
-        ), events.stream().filter(e -> e.startsWith("action:")).toList());
+        ), events.stream().filter(e -> e.startsWith("action:")).collect(java.util.stream.Collectors.toList()));
     }
 
     @Test

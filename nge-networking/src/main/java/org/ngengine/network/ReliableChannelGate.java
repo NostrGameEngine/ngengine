@@ -58,12 +58,140 @@ final class ReliableChannelGate {
         AsyncTask<Void> open(int channel, ByteBuffer control);
         AsyncTask<Void> send(int channel, ByteBuffer frame);
     }
-    record Diagnostic(String state, int pendingCount, long pendingBytes, int openControlSendFailed,
-            int timeouts, int acknowledgements, int nativeSends) {}
+    static final class Diagnostic {
+        private final String state;
+        private final int pendingCount;
+        private final long pendingBytes;
+        private final int openControlSendFailed;
+        private final int timeouts;
+        private final int acknowledgements;
+        private final int nativeSends;
 
-    record FailureDiagnostic(Failure reason, int channel, boolean acknowledged, int pendingCount, long pendingBytes,
-            FailureOperation operation, List<String> causeClasses) {
-        FailureDiagnostic { causeClasses = List.copyOf(causeClasses); }
+        Diagnostic(String state, int pendingCount, long pendingBytes, int openControlSendFailed, int timeouts,
+                int acknowledgements, int nativeSends) {
+            this.state = state;
+            this.pendingCount = pendingCount;
+            this.pendingBytes = pendingBytes;
+            this.openControlSendFailed = openControlSendFailed;
+            this.timeouts = timeouts;
+            this.acknowledgements = acknowledgements;
+            this.nativeSends = nativeSends;
+        }
+
+        public String state() { return state; }
+        public int pendingCount() { return pendingCount; }
+        public long pendingBytes() { return pendingBytes; }
+        public int openControlSendFailed() { return openControlSendFailed; }
+        public int timeouts() { return timeouts; }
+        public int acknowledgements() { return acknowledgements; }
+        public int nativeSends() { return nativeSends; }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) return true;
+            if (!(other instanceof Diagnostic)) return false;
+            Diagnostic that = (Diagnostic) other;
+            return java.util.Objects.equals(state, that.state)
+                && pendingCount == that.pendingCount
+                && pendingBytes == that.pendingBytes
+                && openControlSendFailed == that.openControlSendFailed
+                && timeouts == that.timeouts
+                && acknowledgements == that.acknowledgements
+                && nativeSends == that.nativeSends;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 0;
+            result = 31 * result + java.util.Objects.hashCode(state);
+            result = 31 * result + Integer.hashCode(pendingCount);
+            result = 31 * result + Long.hashCode(pendingBytes);
+            result = 31 * result + Integer.hashCode(openControlSendFailed);
+            result = 31 * result + Integer.hashCode(timeouts);
+            result = 31 * result + Integer.hashCode(acknowledgements);
+            result = 31 * result + Integer.hashCode(nativeSends);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "Diagnostic[state=" + state
+                + ", pendingCount=" + pendingCount
+                + ", pendingBytes=" + pendingBytes
+                + ", openControlSendFailed=" + openControlSendFailed
+                + ", timeouts=" + timeouts
+                + ", acknowledgements=" + acknowledgements
+                + ", nativeSends=" + nativeSends
+                + "]";
+        }
+    }
+
+    static final class FailureDiagnostic {
+        private final Failure reason;
+        private final int channel;
+        private final boolean acknowledged;
+        private final int pendingCount;
+        private final long pendingBytes;
+        private final FailureOperation operation;
+        private final List<String> causeClasses;
+
+        FailureDiagnostic(Failure reason, int channel, boolean acknowledged, int pendingCount, long pendingBytes,
+                FailureOperation operation, List<String> causeClasses) {
+            this.reason = reason;
+            this.channel = channel;
+            this.acknowledged = acknowledged;
+            this.pendingCount = pendingCount;
+            this.pendingBytes = pendingBytes;
+            this.operation = operation;
+            this.causeClasses = List.copyOf(causeClasses);
+        }
+
+        public Failure reason() { return reason; }
+        public int channel() { return channel; }
+        public boolean acknowledged() { return acknowledged; }
+        public int pendingCount() { return pendingCount; }
+        public long pendingBytes() { return pendingBytes; }
+        public FailureOperation operation() { return operation; }
+        public List<String> causeClasses() { return causeClasses; }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) return true;
+            if (!(other instanceof FailureDiagnostic)) return false;
+            FailureDiagnostic that = (FailureDiagnostic) other;
+            return java.util.Objects.equals(reason, that.reason)
+                && channel == that.channel
+                && acknowledged == that.acknowledged
+                && pendingCount == that.pendingCount
+                && pendingBytes == that.pendingBytes
+                && java.util.Objects.equals(operation, that.operation)
+                && java.util.Objects.equals(causeClasses, that.causeClasses);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 0;
+            result = 31 * result + java.util.Objects.hashCode(reason);
+            result = 31 * result + Integer.hashCode(channel);
+            result = 31 * result + Boolean.hashCode(acknowledged);
+            result = 31 * result + Integer.hashCode(pendingCount);
+            result = 31 * result + Long.hashCode(pendingBytes);
+            result = 31 * result + java.util.Objects.hashCode(operation);
+            result = 31 * result + java.util.Objects.hashCode(causeClasses);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "FailureDiagnostic[reason=" + reason
+                + ", channel=" + channel
+                + ", acknowledged=" + acknowledged
+                + ", pendingCount=" + pendingCount
+                + ", pendingBytes=" + pendingBytes
+                + ", operation=" + operation
+                + ", causeClasses=" + causeClasses
+                + "]";
+        }
     }
 
     /** Only the direct sanitized class name; never invoke custom cause accessors or retain private text. */

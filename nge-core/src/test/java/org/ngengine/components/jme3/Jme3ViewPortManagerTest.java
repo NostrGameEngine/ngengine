@@ -27,11 +27,13 @@ class Jme3ViewPortManagerTest {
         ViewPort requested = renderManager.createMainView("requested", new Camera(640, 360));
         JmeContext context = proxy(JmeContext.class, (methodName) ->
                 "getSettings".equals(methodName) ? settings : null);
-        Application application = proxy(Application.class, (methodName) -> switch (methodName) {
-            case "getRenderManager" -> renderManager;
-            case "getViewPort" -> main;
-            case "getContext" -> context;
-            default -> null;
+        Application application = proxy(Application.class, (methodName) -> {
+            switch (methodName) {
+                case "getRenderManager": return renderManager;
+                case "getViewPort": return main;
+                case "getContext": return context;
+                default: return null;
+            }
         });
 
         FilterPostProcessor processor = new Jme3ViewPortManager(application)

@@ -8,14 +8,6 @@ dependencies {
 
 }
 
-configurations {
-    testRuntimeClasspath {
-        attributes {
-            attribute(org.gradle.api.attributes.java.TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 21)
-        }
-    }
-}
-
 javadoc {
     // Disable doclint for JDK8+.
     if (JavaVersion.current().isJava8Compatible()){

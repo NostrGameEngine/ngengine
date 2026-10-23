@@ -440,10 +440,14 @@ public abstract class MapRenderer {
     }
 
     static void configureTextSpatial(Spatial spatial, TiledObjectEntity object, TiledLayer layer) {
-        if (!(spatial instanceof Node node) || node.getQuantity() == 0
-                || !(node.getChild(0) instanceof BitmapText bitmapText)) {
+        if (!(spatial instanceof Node)) {
             return;
         }
+        Node node = (Node) spatial;
+        if (node.getQuantity() == 0 || !(node.getChild(0) instanceof BitmapText)) {
+            return;
+        }
+        BitmapText bitmapText = (BitmapText) node.getChild(0);
         TiledObjectText text = object.getTextData();
         if (text == null) {
             bitmapText.setText("");
@@ -2535,8 +2539,8 @@ public abstract class MapRenderer {
             }
             // A skinned spatial owns its visual animation. Sprite GID changes
             // still update physics/sockets but must not reload its model/rig.
-            if (sp instanceof TiledSpatialObjectNode node) {
-                return node.matches(obj);
+            if (sp instanceof TiledSpatialObjectNode) {
+                return ((TiledSpatialObjectNode) sp).matches(obj);
             }
             Number gid = sp.getUserData("ngengine.world2d.gid");
             int tileGid = obj.getTile()!=null? obj.getTile().getGid() : -1;

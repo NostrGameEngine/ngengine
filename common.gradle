@@ -20,8 +20,20 @@ java {
         languageVersion = JavaLanguageVersion.of(25)
         vendor = JvmVendorSpec.ADOPTIUM
     }
-    sourceCompatibility = name.startsWith("nge-") ? JavaVersion.VERSION_21 : JavaVersion.VERSION_11
-    targetCompatibility = name.startsWith("nge-") ? JavaVersion.VERSION_21 : JavaVersion.VERSION_11
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+// These adapters depend on tools/backends whose own classes require newer JVMs.
+// Advertise that runtime minimum without relaxing the Java 11 compiler contract.
+def backendJavaVersion = ['nge-web': 17, 'nge-web-bullet': 17, 'nge-examples': 21][project.name]
+if (backendJavaVersion != null) {
+    ['compileClasspath', 'runtimeClasspath', 'apiElements', 'runtimeElements'].each { configurationName ->
+        configurations.named(configurationName) {
+            attributes.attribute(org.gradle.api.attributes.java.TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE,
+                    backendJavaVersion)
+        }
+    }
 }
 
 
@@ -37,6 +49,15 @@ tasks.named('test') {
     }
 }
 
+// Test backends may require a newer JVM than the published engine libraries.
+// Their dependency selection follows the test compiler/launcher above.
+configurations.named('testCompileClasspath') {
+    attributes.attribute(org.gradle.api.attributes.java.TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 25)
+}
+configurations.named('testRuntimeClasspath') {
+    attributes.attribute(org.gradle.api.attributes.java.TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 25)
+}
+
 apply plugin: 'org.ngengine.nativeimage'
 
 tasks.withType(JavaCompile) { // compile-time options:
@@ -46,7 +67,9 @@ tasks.withType(JavaCompile) { // compile-time options:
         options.compilerArgs.add('-Werror')
     }
     options.encoding = 'UTF-8'
-    options.release = project.name.startsWith("nge-") ? 21 : 11
+    // Enforce Java 11 syntax, bytecode and JDK APIs even with a newer toolchain.
+    options.release = 11
+    options.release.finalizeValue()
 }
 
 repositories {

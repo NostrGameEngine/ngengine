@@ -107,9 +107,79 @@ public class P2PConnection implements Server {
         PROMOTION_STALE_PENDING, ADMISSION_REJECTED, PROMOTED, DISCONNECTED, PARSE_FAILURE
     }
     /** Public peer identifiers only; no handshake payload or credentials. */
-    public record HandshakeDiagnostic(long epoch, HandshakeReason reason, String localSession,
-            String remoteSession, String peerPublicKey, String failureClass) {}
-    private record HandshakeObserver(long epoch, java.util.function.Consumer<HandshakeDiagnostic> callback) {}
+    public static final class HandshakeDiagnostic {
+        private final long epoch;
+        private final HandshakeReason reason;
+        private final String localSession;
+        private final String remoteSession;
+        private final String peerPublicKey;
+        private final String failureClass;
+
+        public HandshakeDiagnostic(long epoch, HandshakeReason reason, String localSession, String remoteSession,
+                String peerPublicKey, String failureClass) {
+            this.epoch = epoch;
+            this.reason = reason;
+            this.localSession = localSession;
+            this.remoteSession = remoteSession;
+            this.peerPublicKey = peerPublicKey;
+            this.failureClass = failureClass;
+        }
+
+        public long epoch() { return epoch; }
+        public HandshakeReason reason() { return reason; }
+        public String localSession() { return localSession; }
+        public String remoteSession() { return remoteSession; }
+        public String peerPublicKey() { return peerPublicKey; }
+        public String failureClass() { return failureClass; }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) return true;
+            if (!(other instanceof HandshakeDiagnostic)) return false;
+            HandshakeDiagnostic that = (HandshakeDiagnostic) other;
+            return epoch == that.epoch
+                && java.util.Objects.equals(reason, that.reason)
+                && java.util.Objects.equals(localSession, that.localSession)
+                && java.util.Objects.equals(remoteSession, that.remoteSession)
+                && java.util.Objects.equals(peerPublicKey, that.peerPublicKey)
+                && java.util.Objects.equals(failureClass, that.failureClass);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 0;
+            result = 31 * result + Long.hashCode(epoch);
+            result = 31 * result + java.util.Objects.hashCode(reason);
+            result = 31 * result + java.util.Objects.hashCode(localSession);
+            result = 31 * result + java.util.Objects.hashCode(remoteSession);
+            result = 31 * result + java.util.Objects.hashCode(peerPublicKey);
+            result = 31 * result + java.util.Objects.hashCode(failureClass);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "HandshakeDiagnostic[epoch=" + epoch
+                + ", reason=" + reason
+                + ", localSession=" + localSession
+                + ", remoteSession=" + remoteSession
+                + ", peerPublicKey=" + peerPublicKey
+                + ", failureClass=" + failureClass
+                + "]";
+        }
+    }
+    private static final class HandshakeObserver {
+        private final long epoch;
+        private final java.util.function.Consumer<HandshakeDiagnostic> callback;
+
+        private HandshakeObserver(long epoch, java.util.function.Consumer<HandshakeDiagnostic> callback) {
+            this.epoch = epoch;
+            this.callback = callback;
+        }
+
+        public long epoch() { return epoch; }
+        public java.util.function.Consumer<HandshakeDiagnostic> callback() { return callback; }
+    }
     private final java.util.concurrent.atomic.AtomicLong handshakeEpoch = new java.util.concurrent.atomic.AtomicLong();
     private volatile HandshakeObserver handshakeObserver;
 
@@ -121,11 +191,132 @@ public class P2PConnection implements Server {
         RELIABLE_CHANNEL_CAPACITY, RELIABLE_CHANNEL_TIMER_FAILED
     }
     /** Fixed reasons, bounded public identifiers and quota counters; never includes exception messages or payloads. */
-    public record PeerRetirementDiagnostic(PeerRetirementReason reason, String localSession, String remoteSession,
-            String peerPublicKey, String failureClass, int inboundCount, long inboundBytes, int peerInboundCount,
-            long peerInboundBytes, int decodeReservationBytes, int peerWireFifoCount, int peerDecodedFifoCount,
-            int peerExtraReferenceCount, int peerAwaitingDispatchCount, int peerRetainedAfterDispatchCount) {}
-    private record RetirementObserver(java.util.function.Consumer<PeerRetirementDiagnostic> callback) {}
+    public static final class PeerRetirementDiagnostic {
+        private final PeerRetirementReason reason;
+        private final String localSession;
+        private final String remoteSession;
+        private final String peerPublicKey;
+        private final String failureClass;
+        private final int inboundCount;
+        private final long inboundBytes;
+        private final int peerInboundCount;
+        private final long peerInboundBytes;
+        private final int decodeReservationBytes;
+        private final int peerWireFifoCount;
+        private final int peerDecodedFifoCount;
+        private final int peerExtraReferenceCount;
+        private final int peerAwaitingDispatchCount;
+        private final int peerRetainedAfterDispatchCount;
+
+        public PeerRetirementDiagnostic(PeerRetirementReason reason, String localSession, String remoteSession,
+                String peerPublicKey, String failureClass, int inboundCount, long inboundBytes, int peerInboundCount,
+                long peerInboundBytes, int decodeReservationBytes, int peerWireFifoCount, int peerDecodedFifoCount,
+                int peerExtraReferenceCount, int peerAwaitingDispatchCount, int peerRetainedAfterDispatchCount) {
+            this.reason = reason;
+            this.localSession = localSession;
+            this.remoteSession = remoteSession;
+            this.peerPublicKey = peerPublicKey;
+            this.failureClass = failureClass;
+            this.inboundCount = inboundCount;
+            this.inboundBytes = inboundBytes;
+            this.peerInboundCount = peerInboundCount;
+            this.peerInboundBytes = peerInboundBytes;
+            this.decodeReservationBytes = decodeReservationBytes;
+            this.peerWireFifoCount = peerWireFifoCount;
+            this.peerDecodedFifoCount = peerDecodedFifoCount;
+            this.peerExtraReferenceCount = peerExtraReferenceCount;
+            this.peerAwaitingDispatchCount = peerAwaitingDispatchCount;
+            this.peerRetainedAfterDispatchCount = peerRetainedAfterDispatchCount;
+        }
+
+        public PeerRetirementReason reason() { return reason; }
+        public String localSession() { return localSession; }
+        public String remoteSession() { return remoteSession; }
+        public String peerPublicKey() { return peerPublicKey; }
+        public String failureClass() { return failureClass; }
+        public int inboundCount() { return inboundCount; }
+        public long inboundBytes() { return inboundBytes; }
+        public int peerInboundCount() { return peerInboundCount; }
+        public long peerInboundBytes() { return peerInboundBytes; }
+        public int decodeReservationBytes() { return decodeReservationBytes; }
+        public int peerWireFifoCount() { return peerWireFifoCount; }
+        public int peerDecodedFifoCount() { return peerDecodedFifoCount; }
+        public int peerExtraReferenceCount() { return peerExtraReferenceCount; }
+        public int peerAwaitingDispatchCount() { return peerAwaitingDispatchCount; }
+        public int peerRetainedAfterDispatchCount() { return peerRetainedAfterDispatchCount; }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) return true;
+            if (!(other instanceof PeerRetirementDiagnostic)) return false;
+            PeerRetirementDiagnostic that = (PeerRetirementDiagnostic) other;
+            return java.util.Objects.equals(reason, that.reason)
+                && java.util.Objects.equals(localSession, that.localSession)
+                && java.util.Objects.equals(remoteSession, that.remoteSession)
+                && java.util.Objects.equals(peerPublicKey, that.peerPublicKey)
+                && java.util.Objects.equals(failureClass, that.failureClass)
+                && inboundCount == that.inboundCount
+                && inboundBytes == that.inboundBytes
+                && peerInboundCount == that.peerInboundCount
+                && peerInboundBytes == that.peerInboundBytes
+                && decodeReservationBytes == that.decodeReservationBytes
+                && peerWireFifoCount == that.peerWireFifoCount
+                && peerDecodedFifoCount == that.peerDecodedFifoCount
+                && peerExtraReferenceCount == that.peerExtraReferenceCount
+                && peerAwaitingDispatchCount == that.peerAwaitingDispatchCount
+                && peerRetainedAfterDispatchCount == that.peerRetainedAfterDispatchCount;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 0;
+            result = 31 * result + java.util.Objects.hashCode(reason);
+            result = 31 * result + java.util.Objects.hashCode(localSession);
+            result = 31 * result + java.util.Objects.hashCode(remoteSession);
+            result = 31 * result + java.util.Objects.hashCode(peerPublicKey);
+            result = 31 * result + java.util.Objects.hashCode(failureClass);
+            result = 31 * result + Integer.hashCode(inboundCount);
+            result = 31 * result + Long.hashCode(inboundBytes);
+            result = 31 * result + Integer.hashCode(peerInboundCount);
+            result = 31 * result + Long.hashCode(peerInboundBytes);
+            result = 31 * result + Integer.hashCode(decodeReservationBytes);
+            result = 31 * result + Integer.hashCode(peerWireFifoCount);
+            result = 31 * result + Integer.hashCode(peerDecodedFifoCount);
+            result = 31 * result + Integer.hashCode(peerExtraReferenceCount);
+            result = 31 * result + Integer.hashCode(peerAwaitingDispatchCount);
+            result = 31 * result + Integer.hashCode(peerRetainedAfterDispatchCount);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "PeerRetirementDiagnostic[reason=" + reason
+                + ", localSession=" + localSession
+                + ", remoteSession=" + remoteSession
+                + ", peerPublicKey=" + peerPublicKey
+                + ", failureClass=" + failureClass
+                + ", inboundCount=" + inboundCount
+                + ", inboundBytes=" + inboundBytes
+                + ", peerInboundCount=" + peerInboundCount
+                + ", peerInboundBytes=" + peerInboundBytes
+                + ", decodeReservationBytes=" + decodeReservationBytes
+                + ", peerWireFifoCount=" + peerWireFifoCount
+                + ", peerDecodedFifoCount=" + peerDecodedFifoCount
+                + ", peerExtraReferenceCount=" + peerExtraReferenceCount
+                + ", peerAwaitingDispatchCount=" + peerAwaitingDispatchCount
+                + ", peerRetainedAfterDispatchCount=" + peerRetainedAfterDispatchCount
+                + "]";
+        }
+    }
+    private static final class RetirementObserver {
+        private final java.util.function.Consumer<PeerRetirementDiagnostic> callback;
+
+        private RetirementObserver(java.util.function.Consumer<PeerRetirementDiagnostic> callback) {
+            this.callback = callback;
+        }
+
+        public java.util.function.Consumer<PeerRetirementDiagnostic> callback() { return callback; }
+    }
     private volatile RetirementObserver retirementObserver;
 
     /** Synchronous, best-effort callback on the failure thread; observers must only record bounded data without blocking. */
@@ -585,15 +776,16 @@ public class P2PConnection implements Server {
 
     /** Marks failure immediately; native disconnect and application callbacks run on the normal runner. */
     public void failInboundPeer(RemotePeer peer, String reason) {
-        PeerRetirementReason category = switch (reason == null ? "" : reason) {
-            case "Reliable inbound capacity exhausted" -> PeerRetirementReason.RELIABLE_INBOUND_CAPACITY;
-            case "Reliable netcode capacity exhausted" -> PeerRetirementReason.RELIABLE_NETCODE_CAPACITY;
-            case "Oversized reliable frame" -> PeerRetirementReason.RELIABLE_FRAME_OVERSIZED;
-            case "Invalid protocol frame" -> PeerRetirementReason.INVALID_PROTOCOL_FRAME;
-            case "Inbound dispatch failure" -> PeerRetirementReason.INBOUND_DISPATCH_FAILURE;
-            case "Reliable application frame before peer-ready" -> PeerRetirementReason.APPLICATION_BEFORE_READY;
-            default -> PeerRetirementReason.REQUESTED;
-        };
+        PeerRetirementReason category;
+        switch (reason == null ? "" : reason) {
+            case "Reliable inbound capacity exhausted": category = PeerRetirementReason.RELIABLE_INBOUND_CAPACITY; break;
+            case "Reliable netcode capacity exhausted": category = PeerRetirementReason.RELIABLE_NETCODE_CAPACITY; break;
+            case "Oversized reliable frame": category = PeerRetirementReason.RELIABLE_FRAME_OVERSIZED; break;
+            case "Invalid protocol frame": category = PeerRetirementReason.INVALID_PROTOCOL_FRAME; break;
+            case "Inbound dispatch failure": category = PeerRetirementReason.INBOUND_DISPATCH_FAILURE; break;
+            case "Reliable application frame before peer-ready": category = PeerRetirementReason.APPLICATION_BEFORE_READY; break;
+            default: category = PeerRetirementReason.REQUESTED; break;
+        }
         failInboundPeer(peer, reason, category, "");
     }
 
@@ -612,13 +804,16 @@ public class P2PConnection implements Server {
             connected = findConnectionByPeer(peer.getRemotePeer());
             pending = pendingConnections.get(sessionKey);
         }
-        PeerRetirementReason reason = switch (failure) {
-            case CONTROL_SEND_FAILED -> PeerRetirementReason.RELIABLE_CHANNEL_CONTROL_FAILED;
-            case ACK_TIMEOUT, SEND_TIMEOUT -> PeerRetirementReason.RELIABLE_CHANNEL_TIMEOUT;
-            case SEND_FAILED -> PeerRetirementReason.RELIABLE_CHANNEL_SEND_FAILED;
-            case CAPACITY -> PeerRetirementReason.RELIABLE_CHANNEL_CAPACITY;
-            case TIMER_FAILED -> PeerRetirementReason.RELIABLE_CHANNEL_TIMER_FAILED;
-        };
+        PeerRetirementReason reason;
+        switch (failure) {
+            case CONTROL_SEND_FAILED: reason = PeerRetirementReason.RELIABLE_CHANNEL_CONTROL_FAILED; break;
+            case ACK_TIMEOUT:
+            case SEND_TIMEOUT: reason = PeerRetirementReason.RELIABLE_CHANNEL_TIMEOUT; break;
+            case SEND_FAILED: reason = PeerRetirementReason.RELIABLE_CHANNEL_SEND_FAILED; break;
+            case CAPACITY: reason = PeerRetirementReason.RELIABLE_CHANNEL_CAPACITY; break;
+            case TIMER_FAILED: reason = PeerRetirementReason.RELIABLE_CHANNEL_TIMER_FAILED; break;
+            default: throw new IllegalArgumentException("Unsupported reliable channel failure: " + failure);
+        }
         // Gates and runner/native callbacks stay outside the lifecycle monitor. Match epochs, never just pubkeys.
         if (connected != null) failInboundPeer(connected, "Reliable channel failure: " + failure.name(), reason, "");
         if (pending != null && pending != connected)
@@ -1072,7 +1267,9 @@ public class P2PConnection implements Server {
         RTCSettings rtcSettings = RTCSettings.getDefault(gameName, gameName + ":" + gameVersion)
             .withStunServers(RTCSettings.PUBLIC_STUN_SERVERS)
             .withP2pAttemptTimeout(p2pAttemptTimeout)
-            .withSignalingRelays(masterServersPool.getRelays().stream().map(relay -> relay.getUrl()).toList());
+            .withSignalingRelays(masterServersPool.getRelays().stream().map(relay -> relay.getUrl())
+                .collect(java.util.stream.Collectors.collectingAndThen(
+                    java.util.stream.Collectors.toList(), Collections::unmodifiableList)));
         NostrRTCLocalPeer localPeer = new NostrRTCLocalPeer(rtcSettings, localSigner, roomKeyPair, turnServer);
  
         this.turnPool = new NostrTURNPool();

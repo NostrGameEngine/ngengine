@@ -101,12 +101,19 @@ class TiledParticleLayerResolverTest {
         return layer;
     }
 
-    private record Fixture(
-        TiledMap map,
-        TiledObjectLayer particles,
-        TiledObjectLayer objects,
-        TiledObjectLayer effects
-    ) {
+    private static final class Fixture {
+        private final TiledMap map;
+        private final TiledObjectLayer particles;
+        private final TiledObjectLayer objects;
+        private final TiledObjectLayer effects;
+
+        private Fixture(TiledMap map, TiledObjectLayer particles, TiledObjectLayer objects, TiledObjectLayer effects) {
+            this.map = map;
+            this.particles = particles;
+            this.objects = objects;
+            this.effects = effects;
+        }
+
         private TiledObjectEntity source(TiledObjectLayer layer) {
             Tile tile = new Tile(0, 0, 64, 64);
             tile.setCollisions(new TiledObjectLayer());
@@ -114,5 +121,10 @@ class TiledParticleLayerResolverTest {
             layer.add(source);
             return source;
         }
+
+        public TiledMap map() { return map; }
+        public TiledObjectLayer particles() { return particles; }
+        public TiledObjectLayer objects() { return objects; }
+        public TiledObjectLayer effects() { return effects; }
     }
 }

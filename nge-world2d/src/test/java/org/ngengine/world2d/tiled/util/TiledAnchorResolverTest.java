@@ -112,11 +112,23 @@ public class TiledAnchorResolverTest {
         assertEquals(expected.y, actual.y, 0.001f);
     }
 
-    private record Fixture(
-        Tile tile,
-        TiledObjectLayer collisions,
-        TiledObjectEntity source,
-        TiledCoordinateSystem coordinates
-    ) {
+    private static final class Fixture {
+        private final Tile tile;
+        private final TiledObjectLayer collisions;
+        private final TiledObjectEntity source;
+        private final TiledCoordinateSystem coordinates;
+
+        private Fixture(Tile tile, TiledObjectLayer collisions, TiledObjectEntity source,
+                TiledCoordinateSystem coordinates) {
+            this.tile = tile;
+            this.collisions = collisions;
+            this.source = source;
+            this.coordinates = coordinates;
+        }
+
+        public Tile tile() { return tile; }
+        public TiledObjectLayer collisions() { return collisions; }
+        public TiledObjectEntity source() { return source; }
+        public TiledCoordinateSystem coordinates() { return coordinates; }
     }
 }

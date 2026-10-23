@@ -340,7 +340,7 @@ final class P2PConnectionPeerReadyRecoveryTest {
                 ready.setAccessible(true); ready.invoke(server, peer, source, message);
             } catch (ReflectiveOperationException failure) { throw new AssertionError(failure); }
         }
-        private List<P2PConnection.HandshakeReason> reasons() { return events.stream().map(P2PConnection.HandshakeDiagnostic::reason).toList(); }
+        private List<P2PConnection.HandshakeReason> reasons() { return events.stream().map(P2PConnection.HandshakeDiagnostic::reason).collect(java.util.stream.Collectors.toList()); }
         private NostrRTCSocket socket(NostrRTCPeer peer) throws Exception {
             Constructor<NostrRTCSocket> constructor = NostrRTCSocket.class.getDeclaredConstructor(AsyncExecutor.class,
                     NostrRTCPeer.class, NostrKeyPair.class, NostrRTCLocalPeer.class, RTCSettings.class, NostrTURNPool.class);
@@ -382,7 +382,18 @@ final class P2PConnectionPeerReadyRecoveryTest {
     }
 
     private static final class Scheduler implements AsyncExecutor {
-        private record Scheduled(Callable<?> task, long dueNanos) {}
+        private static final class Scheduled {
+            private final Callable<?> task;
+            private final long dueNanos;
+
+            private Scheduled(Callable<?> task, long dueNanos) {
+                this.task = task;
+                this.dueNanos = dueNanos;
+            }
+
+            Callable<?> task() { return task; }
+            long dueNanos() { return dueNanos; }
+        }
         private final ArrayDeque<Scheduled> scheduled = new ArrayDeque<>();
         private final List<Long> delays = new ArrayList<>();
         private final AtomicLong clock = new AtomicLong();

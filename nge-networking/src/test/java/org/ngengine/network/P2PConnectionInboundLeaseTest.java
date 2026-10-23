@@ -36,7 +36,7 @@ final class P2PConnectionInboundLeaseTest {
                     .getCodeSource().getLocation().toURI()).toRealPath());
         }
         try (var bytecode = P2PConnection.class.getResourceAsStream("P2PConnection.class")) {
-            assertEquals(65, bytecode.readAllBytes()[7] & 0xff, "the production candidate targets Java 21");
+            assertEquals(55, bytecode.readAllBytes()[7] & 0xff, "the production candidate targets Java 11");
         }
     }
 
@@ -78,7 +78,8 @@ final class P2PConnectionInboundLeaseTest {
     }
 
     @Test void absoluteGrowthIsMonotonicAndSharedAcrossConcurrentOwners() throws Exception {
-        try (Fixture f = new Fixture(); ExecutorService pool = Executors.newFixedThreadPool(8)) {
+        try (Fixture f = new Fixture()) {
+            ExecutorService pool = f.executor(8);
             P2PConnection.InboundMessageLease first = f.acquire(f.peer), second = first.retain();
             CountDownLatch start = new CountDownLatch(1);
             List<Future<Boolean>> results = new ArrayList<>();
@@ -226,7 +227,8 @@ final class P2PConnectionInboundLeaseTest {
     }
 
     @Test void ensureAndDuplicateCloseAreAtomicUnderContention() throws Exception {
-        try (Fixture f = new Fixture(); ExecutorService pool = Executors.newFixedThreadPool(3)) {
+        try (Fixture f = new Fixture()) {
+            ExecutorService pool = f.executor(3);
             P2PConnection.InboundMessageLease keeper = f.acquire(f.peer);
             for (int i = 0; i < 100; i++) {
                 P2PConnection.InboundMessageLease owner = keeper.retain();
@@ -250,7 +252,8 @@ final class P2PConnectionInboundLeaseTest {
     }
 
     @Test void finalOwnerCloseRacingGrowthReleasesExactlyOnce() throws Exception {
-        try (Fixture f = new Fixture(); ExecutorService pool = Executors.newFixedThreadPool(3)) {
+        try (Fixture f = new Fixture()) {
+            ExecutorService pool = f.executor(3);
             for (int i = 0; i < 100; i++) {
                 P2PConnection.InboundMessageLease lease = f.acquire(f.peer);
                 CountDownLatch start = new CountDownLatch(1);
@@ -405,6 +408,7 @@ final class P2PConnectionInboundLeaseTest {
         private final NetcodeManagerComponent manager;
         private final DynamicSerializerProtocol sender;
         private final List<NostrKeyPair> keys = new ArrayList<>();
+        private final List<ExecutorService> executors = new ArrayList<>();
         private Message last;
 
         private Fixture() throws Exception {
@@ -417,6 +421,12 @@ final class P2PConnectionInboundLeaseTest {
             sender = (DynamicSerializerProtocol) field(type, "sender").get(delegate);
             manager.registerMessageHandler(P2PConnectionInboundBoundsTest.PayloadMessage.class, (source, message) -> {});
             server.addMessageListener((source, message) -> last = message);
+        }
+
+        private ExecutorService executor(int threads) {
+            ExecutorService executor = Executors.newFixedThreadPool(threads);
+            executors.add(executor);
+            return executor;
         }
 
         private ByteBuffer frame() {
@@ -484,7 +494,7 @@ final class P2PConnectionInboundLeaseTest {
                     values.add(((Number) field(P2PConnection.class, name).get(server)).longValue());
                 Map<?, ?> peers = (Map<?, ?>) field(P2PConnection.class, "inboundPeers").get(server);
                 List<RemotePeer> ordered = peers.keySet().stream().map(RemotePeer.class::cast)
-                        .sorted(java.util.Comparator.comparingInt(RemotePeer::getId)).toList();
+                        .sorted(java.util.Comparator.comparingInt(RemotePeer::getId)).collect(java.util.stream.Collectors.toList());
                 for (RemotePeer peer : ordered) {
                     Object state = peers.get(peer);
                     for (String name : List.of("count", "bytes", "wireBytes", "callbackBytes"))
@@ -499,7 +509,14 @@ final class P2PConnectionInboundLeaseTest {
             assertTrue(((Map<?, ?>) field(P2PConnection.class, "inboundReservations").get(server)).isEmpty());
         }
         @Override public void close() throws Exception {
-            ((AutoCloseable) delegate).close(); for (NostrKeyPair key : keys) key.close();
+            try {
+                for (ExecutorService executor : executors) executor.shutdownNow();
+                for (ExecutorService executor : executors) {
+                    assertTrue(executor.awaitTermination(3, TimeUnit.SECONDS), "fixture workers did not terminate");
+                }
+            } finally {
+                ((AutoCloseable) delegate).close(); for (NostrKeyPair key : keys) key.close();
+            }
         }
     }
 

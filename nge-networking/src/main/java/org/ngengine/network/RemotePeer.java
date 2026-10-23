@@ -73,13 +73,84 @@ public class RemotePeer implements HostedConnection {
 
     public enum ReliableFailureOrigin { OUTBOUND_GATE, OPEN_ACK_REPLY }
     /** First failure before teardown. Counters cover the peer; acknowledged describes only OUTBOUND_GATE. */
-    public record ReliableFailureDiagnostic(ReliableFailureOrigin origin, String reason, int channel,
-            boolean acknowledged, int pendingCount, long pendingBytes, String operation, List<String> causeClasses) {
-        public ReliableFailureDiagnostic { causeClasses = List.copyOf(causeClasses); }
+    public static final class ReliableFailureDiagnostic {
+        private final ReliableFailureOrigin origin;
+        private final String reason;
+        private final int channel;
+        private final boolean acknowledged;
+        private final int pendingCount;
+        private final long pendingBytes;
+        private final String operation;
+        private final List<String> causeClasses;
+
+        public ReliableFailureDiagnostic(ReliableFailureOrigin origin, String reason, int channel,
+                boolean acknowledged, int pendingCount, long pendingBytes, String operation,
+                List<String> causeClasses) {
+            this.origin = origin;
+            this.reason = reason;
+            this.channel = channel;
+            this.acknowledged = acknowledged;
+            this.pendingCount = pendingCount;
+            this.pendingBytes = pendingBytes;
+            this.operation = operation;
+            this.causeClasses = List.copyOf(causeClasses);
+        }
+
         public ReliableFailureDiagnostic(ReliableFailureOrigin origin, String reason, int channel,
                 boolean acknowledged, int pendingCount, long pendingBytes) {
             this(origin, reason, channel, acknowledged, pendingCount, pendingBytes,
                     ReliableChannelGate.FailureOperation.NONE.name(), List.of());
+        }
+
+        public ReliableFailureOrigin origin() { return origin; }
+        public String reason() { return reason; }
+        public int channel() { return channel; }
+        public boolean acknowledged() { return acknowledged; }
+        public int pendingCount() { return pendingCount; }
+        public long pendingBytes() { return pendingBytes; }
+        public String operation() { return operation; }
+        public List<String> causeClasses() { return causeClasses; }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) return true;
+            if (!(other instanceof ReliableFailureDiagnostic)) return false;
+            ReliableFailureDiagnostic that = (ReliableFailureDiagnostic) other;
+            return java.util.Objects.equals(origin, that.origin)
+                && java.util.Objects.equals(reason, that.reason)
+                && channel == that.channel
+                && acknowledged == that.acknowledged
+                && pendingCount == that.pendingCount
+                && pendingBytes == that.pendingBytes
+                && java.util.Objects.equals(operation, that.operation)
+                && java.util.Objects.equals(causeClasses, that.causeClasses);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 0;
+            result = 31 * result + java.util.Objects.hashCode(origin);
+            result = 31 * result + java.util.Objects.hashCode(reason);
+            result = 31 * result + Integer.hashCode(channel);
+            result = 31 * result + Boolean.hashCode(acknowledged);
+            result = 31 * result + Integer.hashCode(pendingCount);
+            result = 31 * result + Long.hashCode(pendingBytes);
+            result = 31 * result + java.util.Objects.hashCode(operation);
+            result = 31 * result + java.util.Objects.hashCode(causeClasses);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "ReliableFailureDiagnostic[origin=" + origin
+                + ", reason=" + reason
+                + ", channel=" + channel
+                + ", acknowledged=" + acknowledged
+                + ", pendingCount=" + pendingCount
+                + ", pendingBytes=" + pendingBytes
+                + ", operation=" + operation
+                + ", causeClasses=" + causeClasses
+                + "]";
         }
     }
 
@@ -146,8 +217,73 @@ public class RemotePeer implements HostedConnection {
      * nativeSends counts custom reliable native send invocations, never receipt or application acknowledgement.
      * No payload or identifiers.
      */
-    public record ReliableChannelDiagnostic(String state, int pendingCount, long pendingBytes,
-            int openControlSendFailed, int timeouts, int acknowledgements, int nativeSends) {}
+    public static final class ReliableChannelDiagnostic {
+        private final String state;
+        private final int pendingCount;
+        private final long pendingBytes;
+        private final int openControlSendFailed;
+        private final int timeouts;
+        private final int acknowledgements;
+        private final int nativeSends;
+
+        public ReliableChannelDiagnostic(String state, int pendingCount, long pendingBytes, int openControlSendFailed,
+                int timeouts, int acknowledgements, int nativeSends) {
+            this.state = state;
+            this.pendingCount = pendingCount;
+            this.pendingBytes = pendingBytes;
+            this.openControlSendFailed = openControlSendFailed;
+            this.timeouts = timeouts;
+            this.acknowledgements = acknowledgements;
+            this.nativeSends = nativeSends;
+        }
+
+        public String state() { return state; }
+        public int pendingCount() { return pendingCount; }
+        public long pendingBytes() { return pendingBytes; }
+        public int openControlSendFailed() { return openControlSendFailed; }
+        public int timeouts() { return timeouts; }
+        public int acknowledgements() { return acknowledgements; }
+        public int nativeSends() { return nativeSends; }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) return true;
+            if (!(other instanceof ReliableChannelDiagnostic)) return false;
+            ReliableChannelDiagnostic that = (ReliableChannelDiagnostic) other;
+            return java.util.Objects.equals(state, that.state)
+                && pendingCount == that.pendingCount
+                && pendingBytes == that.pendingBytes
+                && openControlSendFailed == that.openControlSendFailed
+                && timeouts == that.timeouts
+                && acknowledgements == that.acknowledgements
+                && nativeSends == that.nativeSends;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 0;
+            result = 31 * result + java.util.Objects.hashCode(state);
+            result = 31 * result + Integer.hashCode(pendingCount);
+            result = 31 * result + Long.hashCode(pendingBytes);
+            result = 31 * result + Integer.hashCode(openControlSendFailed);
+            result = 31 * result + Integer.hashCode(timeouts);
+            result = 31 * result + Integer.hashCode(acknowledgements);
+            result = 31 * result + Integer.hashCode(nativeSends);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "ReliableChannelDiagnostic[state=" + state
+                + ", pendingCount=" + pendingCount
+                + ", pendingBytes=" + pendingBytes
+                + ", openControlSendFailed=" + openControlSendFailed
+                + ", timeouts=" + timeouts
+                + ", acknowledgements=" + acknowledgements
+                + ", nativeSends=" + nativeSends
+                + "]";
+        }
+    }
 
     public ReliableChannelDiagnostic reliableChannelDiagnostic() {
         ReliableChannelGate.Diagnostic value = reliableChannels.diagnostic(2);

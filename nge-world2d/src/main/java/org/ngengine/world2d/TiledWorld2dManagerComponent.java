@@ -347,11 +347,13 @@ public class TiledWorld2dManagerComponent extends AbstractComponent
             return;
         }
         for (TiledLayer layer : map.getLayersFlat()) {
-            if (layer instanceof TiledObjectLayer objectLayer) {
+            if (layer instanceof TiledObjectLayer) {
+                TiledObjectLayer objectLayer = (TiledObjectLayer) layer;
                 for (TiledObjectEntity entity : objectLayer.getObjects()) {
                     entity.getComponentManager().setEnabled(false);
                 }
-            } else if (layer instanceof TiledTileLayer tileLayer) {
+            } else if (layer instanceof TiledTileLayer) {
+                TiledTileLayer tileLayer = (TiledTileLayer) layer;
                 for (int x = 0; x < tileLayer.getWidth(); x++) {
                     for (int y = 0; y < tileLayer.getHeight(); y++) {
                         TiledTileEntity entity = tileLayer.getTileAt(x, y);
