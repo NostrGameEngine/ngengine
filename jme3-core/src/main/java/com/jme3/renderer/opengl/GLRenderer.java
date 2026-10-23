@@ -3413,6 +3413,13 @@ public final class GLRenderer implements Renderer {
             return false;
         }
 
+        // GPU-only images are generated when leaving their framebuffer, not by
+        // re-uploading empty image data when the texture is sampled. Keep the
+        // upload path's validation for invalid mipmapped multisample textures.
+        if (image.getMultiSamples() <= 1 && image.getData(0) == null) {
+            return false;
+        }
+
         if (isMipmapGenerationSupported(image.getFormat(),
                 linearizeSrgbImages ? image.getColorSpace() : ColorSpace.Linear)) {
             return true;
