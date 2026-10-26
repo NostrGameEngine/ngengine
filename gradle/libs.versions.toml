@@ -189,7 +189,7 @@ stb-image = { module = "org.ngengine:stb-image", version.ref = "stbImage" }
 stb-truetype = { module = "org.ngengine:stb-truetype", version.ref = "stbTruetype" }
 
 # Transitive dependencies
-androidx-annotation = "androidx.annotation:annotation:1.10.0"
+androidx-annotation = "androidx.annotation:annotation:1.11.0"
 androidx-appcompat = "androidx.appcompat:appcompat:1.8.0"
 androidx-fragment = "androidx.fragment:fragment:1.9.0"
 androidx-lifecycle-common = "androidx.lifecycle:lifecycle-common:2.7.0"
