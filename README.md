@@ -15,7 +15,7 @@ A game engine and framework for building games and applications integrated with 
 - JDK 25 (the build also uses Java 11 and 21 toolchains)
 - Android SDK 33+
 - Android NDK 29+
-- Gradle 8.13+
+- Gradle 9.8 (or the included wrapper)
 - cmake 3.16+
 
 ## Runtime Requirements
