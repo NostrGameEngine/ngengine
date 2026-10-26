@@ -205,6 +205,12 @@ public class TempVars implements Closeable {
     public final Quaternion quat2 = new Quaternion();
     public final Quaternion quat3 = new Quaternion();
     /**
+     * General transforms
+     */
+    public final Transform tr1 = new Transform();
+    public final Transform tr2 = new Transform();
+
+    /**
      * Eigen
      */
     public final Eigen3f eigen = new Eigen3f();
@@ -231,7 +237,7 @@ public class TempVars implements Closeable {
     public final CollisionResults collisionResults = new CollisionResults();
     public final float[] bihSwapTmp = new float[9];
     public final ArrayList<BIHStackData> bihStack = new ArrayList<>();
-    public final Transform trans1 = new Transform();
+    public final Transform trans1 = tr1;
 
     /**
      * Removes all references held to other object by the tempVars instance to
