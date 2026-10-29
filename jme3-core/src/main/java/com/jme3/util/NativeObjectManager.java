@@ -38,6 +38,7 @@ import java.lang.ref.WeakReference;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -80,6 +81,7 @@ public class NativeObjectManager {
      * List of real objects requested by user for deletion.
      */
     private final ArrayDeque<NativeObject> userDeletionQueue = new ArrayDeque<>();
+    private final IdentityHashMap<NativeObject, Boolean> pendingUserDeletions = new IdentityHashMap<>();
 
     private static class NativeObjectRef extends PhantomReference<Object> {
         
@@ -127,7 +129,16 @@ public class NativeObjectManager {
         if (ref != null) {
             ref.clear();
         }
-        userDeletionQueue.removeIf(queued -> queued == obj);
+        // Managed deletion already removed the pending request before calling
+        // the renderer. Only a still-queued object needs this identity scan.
+        if (pendingUserDeletions.remove(obj) != null) {
+            userDeletionQueue.removeIf(queued -> queued == obj);
+            // The renderer deleted the native name, not the CPU buffers that
+            // the pending dispose() explicitly requested us to release.
+            if (UNSAFE) {
+                obj.deleteNativeBuffersInternal();
+            }
+        }
         obj.setNativeObjectManager(null);
     }
 
@@ -197,6 +208,7 @@ public class NativeObjectManager {
         while (removed < MAX_REMOVES_PER_FRAME && !userDeletionQueue.isEmpty()) {
             // Remove user requested objects.
             NativeObject obj = userDeletionQueue.pop();
+            pendingUserDeletions.remove(obj);
             deleteNativeObject(rendererObject, obj, null, true, true);
             removed++;
         }
@@ -233,6 +245,9 @@ public class NativeObjectManager {
             deleteNativeObject(rendererObject, ref.objClone, ref, true, false);
         }
         assert refMap.size() == 0;
+        // deleteUnused is bounded; the remaining GL objects were deleted via
+        // clones, but queued requests still own their CPU-buffer cleanup.
+        finishPendingDeletions();
     }
 
     /**
@@ -245,7 +260,9 @@ public class NativeObjectManager {
      * @param obj The object to mark as unused.
      */
     void enqueueUnusedObject(NativeObject obj) {
-        userDeletionQueue.push(obj);
+        if (pendingUserDeletions.put(obj, Boolean.TRUE) == null) {
+            userDeletionQueue.push(obj);
+        }
     }
     
     /**
@@ -265,6 +282,19 @@ public class NativeObjectManager {
         }
         refMap.clear();
         refQueue = new ReferenceQueue<Object>();
+        // Old native names must never be deleted in the new context. Losing
+        // the context does not, however, release explicitly disposed CPU buffers.
+        finishPendingDeletions();
+    }
+
+    private void finishPendingDeletions() {
+        while (!userDeletionQueue.isEmpty()) {
+            NativeObject obj = userDeletionQueue.pop();
+            pendingUserDeletions.remove(obj);
+            if (UNSAFE) {
+                obj.deleteNativeBuffersInternal();
+            }
+        }
     }
 
 //    public void printObjects(){
