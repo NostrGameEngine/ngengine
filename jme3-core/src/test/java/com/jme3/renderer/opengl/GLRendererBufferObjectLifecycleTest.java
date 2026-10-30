@@ -107,7 +107,7 @@ class GLRendererBufferObjectLifecycleTest {
                             case "glBufferData": uploadedValues.add(((ByteBuffer) arguments[1]).duplicate().order(ByteOrder.nativeOrder()).getInt(0)); break;
                             case "glGetInteger": ((IntBuffer) arguments[1]).put(0, 0); break;
                             default:
-                                assertTrue(List.of("glBindBuffer", "glDepthMask", "glColorMask", "glDisable", "glDepthFunc", "glDepthRange", "glBlendFunc", "glBlendEquationSeparate", "glActiveTexture", "glClearColor", "glLineWidth").contains(method.getName()), "Unexpected GL call: " + method.getName());
+                                assertTrue(List.of("glBindBuffer", "glDepthMask", "glColorMask", "glDisable", "glDepthFunc", "glDepthRange", "glBlendFunc", "glBlendEquationSeparate", "glActiveTexture", "glClearColor", "glLineWidth", "glPolygonOffset", "glCullFace", "glStencilOpSeparate", "glStencilFuncSeparate").contains(method.getName()), "Unexpected GL call: " + method.getName());
                         }
                         return null;
                     });

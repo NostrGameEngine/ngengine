@@ -1009,26 +1009,40 @@ public final class GLRenderer implements Renderer {
 
     @Override
     public void invalidateState() {
-        context.reset();
-        // External hosts may change native state without updating this cache.
-        gl.glDepthMask(true);
-        gl.glColorMask(true, true, true, true);
+        // Restore native draw state before resetting the cache to the same defaults.
+        // Do not use applyRenderState(): cached values may no longer match OpenGL.
         gl.glDisable(GL.GL_DEPTH_TEST);
-        gl.glDisable(GL.GL_BLEND);
-        gl.glDisable(GL.GL_CULL_FACE);
-        gl.glDisable(GL.GL_SCISSOR_TEST);
-        gl.glDisable(GL.GL_STENCIL_TEST);
-        gl.glDisable(GL.GL_POLYGON_OFFSET_FILL);
         gl.glDepthFunc(GL.GL_LESS);
         gl.glDepthRange(0, 1);
+        gl.glDepthMask(true);
+        gl.glColorMask(true, true, true, true);
+        gl.glDisable(GL.GL_POLYGON_OFFSET_FILL);
+        gl.glPolygonOffset(0f, 0f);
+        gl.glDisable(GL.GL_CULL_FACE);
+        gl.glCullFace(GL.GL_BACK);
+        gl.glDisable(GL.GL_BLEND);
+        gl.glBlendEquationSeparate(GL2.GL_FUNC_ADD, GL2.GL_FUNC_ADD);
         gl.glBlendFunc(GL.GL_ONE, GL.GL_ZERO);
-        gl.glBlendEquationSeparate(GL.GL_FUNC_ADD, GL.GL_FUNC_ADD);
+        gl.glDisable(GL.GL_STENCIL_TEST);
+        gl.glDisable(GL.GL_SCISSOR_TEST);
+        gl.glStencilOpSeparate(GL.GL_FRONT_AND_BACK, GL.GL_KEEP, GL.GL_KEEP, GL.GL_KEEP);
+        gl.glStencilFuncSeparate(GL.GL_FRONT_AND_BACK, GL.GL_ALWAYS, 0, -1);
+        gl.glLineWidth(1f);
+        gl.glClearColor(0, 0, 0, 0);
+        if (gl2 != null && caps.contains(Caps.OpenGL20)) {
+            gl2.glPolygonMode(GL.GL_FRONT_AND_BACK, GL2.GL_FILL);
+        }
+
+        // Establish native binding defaults without trusting the old cache.
         gl.glActiveTexture(GL.GL_TEXTURE0);
         gl.glClearColor(0, 0, 0, 0);
         gl.glLineWidth(1);
         // GLES providers can implement GL2, but draw/read buffer queries require ES3.
         if (gl2 != null && (!(gl instanceof GLES_30) || caps.contains(Caps.OpenGLES30))) {
             context.initialDrawBuf = getInteger(gl instanceof GLES_30 ? GLES_30.GL_DRAW_BUFFER0 : GL2.GL_DRAW_BUFFER);
+        context.reset();
+        context.boundFBO = defaultFBO;
+        context.srgbWriteEnabled = mainFrameBufferSrgb;
         Arrays.fill(vertexAttribDivisorsInvalid, true);
             context.initialReadBuf = getInteger(GL2.GL_READ_BUFFER);
         }
@@ -1127,7 +1141,7 @@ public final class GLRenderer implements Renderer {
 
     @Override
     public void applyRenderState(RenderState state) {
-        if (gl2 != null) {
+        if (gl2 != null && caps.contains(Caps.OpenGL20)) {
             if (state.isWireframe() && !context.wireframe) {
                 gl2.glPolygonMode(GL.GL_FRONT_AND_BACK, GL2.GL_LINE);
                 context.wireframe = true;
