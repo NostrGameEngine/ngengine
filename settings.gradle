@@ -126,6 +126,7 @@ include 'jme3-testdata'
 
 // Example projects
 include 'jme3-examples'
+include 'jme3-benchmark'
 include 'jme3-awt-dialogs'
 
 if (isAndroidExamplesTaskRequested()) {

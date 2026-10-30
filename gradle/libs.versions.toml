@@ -77,6 +77,7 @@ spotlessPlugin = "8.4.0"
 teavm = "0.16.0-SNAPSHOT"
 googleMaterial = "1.14.0"
 androidx-fragment-testing = "1.9.0"
+jmh = "1.37"
 
 [libraries]
 
@@ -259,6 +260,8 @@ slf4j-jdk14 = { module = "org.slf4j:slf4j-jdk14", version.ref = "slf4j" }
 spotbugs-gradle-plugin = "com.github.spotbugs.snom:spotbugs-gradle-plugin:6.5.11"
 vecmath = "javax.vecmath:vecmath:1.5.2"
 extent-reports = { module = "com.aventstack:extentreports", version = "5.1.2"}
+jmh-core = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }
+jmh-generator-annprocess = { module = "org.openjdk.jmh:jmh-generator-annprocess", version.ref = "jmh" }
 jackson = {module = "tools.jackson.core:jackson-databind", version ="3.2.3"}
 
 
