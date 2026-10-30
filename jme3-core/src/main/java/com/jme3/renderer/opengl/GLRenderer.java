@@ -1037,15 +1037,26 @@ public final class GLRenderer implements Renderer {
 
         // Establish native binding defaults without trusting the old cache.
         gl.glActiveTexture(GL.GL_TEXTURE0);
-        gl.glClearColor(0, 0, 0, 0);
-        gl.glLineWidth(1);
-        // GLES providers can implement GL2, but draw/read buffer queries require ES3.
-        if (gl2 != null && (!(gl instanceof GLES_30) || caps.contains(Caps.OpenGLES30))) {
-            context.initialDrawBuf = getInteger(gl instanceof GLES_30 ? GLES_30.GL_DRAW_BUFFER0 : GL2.GL_DRAW_BUFFER);
+        if (caps.contains(Caps.FrameBuffer)) {
+            // Reset both read and draw bindings, including nonzero platform defaults.
+            // Do not select mainFbOverride here: cleanup/resetGLObjects also call
+            // invalidation, and must not allocate or recreate its resources.
+            glfbo.glBindFramebufferEXT(GLFbo.GL_FRAMEBUFFER_EXT, defaultFBO);
+        }
+        if (caps.contains(Caps.SrgbWriteControl) && caps.contains(Caps.Srgb)) {
+            if (mainFrameBufferSrgb) {
+                gl.glEnable(GLExt.GL_FRAMEBUFFER_SRGB_EXT);
+            } else {
+                gl.glDisable(GLExt.GL_FRAMEBUFFER_SRGB_EXT);
+            }
+        }
+
         context.reset();
         context.boundFBO = defaultFBO;
         context.srgbWriteEnabled = mainFrameBufferSrgb;
         Arrays.fill(vertexAttribDivisorsInvalid, true);
+        if (caps.contains(Caps.OpenGL20) || caps.contains(Caps.OpenGLES30) || caps.contains(Caps.WebGL)) {
+            context.initialDrawBuf = getInteger(caps.contains(Caps.OpenGL20) ? GL2.GL_DRAW_BUFFER : GLES_30.GL_DRAW_BUFFER0);
             context.initialReadBuf = getInteger(GL2.GL_READ_BUFFER);
         }
     }
@@ -2840,8 +2851,11 @@ public final class GLRenderer implements Renderer {
 
     @Override
     public void setMainFrameBufferOverride(FrameBuffer fb) {
+        if (fb != null && !caps.contains(Caps.FrameBuffer)) {
+            throw new RendererException("Framebuffer objects are not supported by the video hardware");
+        }
         mainFbOverride = null;
-        if (context.boundFBO == defaultFBO) {
+        if (context.boundFB == null && context.boundFBO == defaultFBO) {
             // Main FB is now set to fb, make sure its bound
             setFrameBuffer(fb);
         }
@@ -4629,7 +4643,7 @@ public final class GLRenderer implements Renderer {
         }
 
         mainFrameBufferSrgb = enableSrgb;
-        if (context.boundFB == null) {
+        if (context.boundFB == null && context.boundFBO == defaultFBO) {
             toggleFramebufferSrgb(null);
         }
     }
