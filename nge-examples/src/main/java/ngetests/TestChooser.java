@@ -526,7 +526,7 @@ public class TestChooser extends JFrame {
     }
 
     protected void addDisplayedClasses(Set<Class<?>> classes) {
-        find("ngetest", true, classes);
+        find("ngetests", true, classes);
     }
 
     private JPanel createSearchPanel(final FilteredJList classes) {

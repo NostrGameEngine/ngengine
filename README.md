@@ -54,6 +54,23 @@ The engine comes with examples that you can run with:
 ./gradlew runExamples
 ```
 
+`jme3-examples` contains the upstream jMonkeyEngine examples and uses the
+published `org.jmonkeyengine:jme3-testdata` artifact. NGE-specific examples live
+in `nge-examples`; their additional assets remain in the local `nge-testdata`
+module, alongside the original asset licenses.
+
+Run the NGE example chooser with:
+
+```bash
+./gradlew :nge-examples:run
+```
+
+Or start a specific NGE example:
+
+```bash
+./gradlew :nge-examples:run -PmainClassName=ngetests.tests.gui.TestTTFFont
+```
+
 You can use the `-Pexample` property to start an example directly:
 
 ```bash

@@ -29,7 +29,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package jme3test.input;
+package ngetests.tests.input;
 
 import com.jme3.app.SimpleApplication;
 import com.jme3.font.BitmapText;

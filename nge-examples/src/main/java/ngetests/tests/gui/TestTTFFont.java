@@ -30,7 +30,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package jme3test.gui;
+package ngetests.tests.gui;
 
 import com.jme3.app.SimpleApplication;
 import com.jme3.font.BitmapFont;

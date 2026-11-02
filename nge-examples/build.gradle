@@ -1,4 +1,4 @@
-ext.mainClassName = findProperty('mainClassName') ?: 'ngetest.TestChooser'
+ext.mainClassName = findProperty('mainClassName') ?: 'ngetests.TestChooser'
 
 def useSnapshotDeps = rootProject.ext.useSnapshotDependencies
 
