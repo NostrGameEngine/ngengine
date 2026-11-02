@@ -121,8 +121,9 @@ include 'jme3-android'
 include 'jme3-ios'
 include 'jme3-saferallocator'
 
-// Test Data project
 include 'jme3-testdata'
+// NGE assets; the official jME test data is an external dependency.
+include 'nge-testdata'
 
 // Example projects
 include 'jme3-examples'

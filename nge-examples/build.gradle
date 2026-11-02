@@ -60,6 +60,7 @@ dependencies {
 
 
     runtimeOnly project(':jme3-testdata')
+    runtimeOnly project(':nge-testdata')
     runtimeOnly libs.nifty.examples // for the "all/intro.xml" example GUI
 }
 
