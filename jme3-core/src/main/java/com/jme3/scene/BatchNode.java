@@ -45,6 +45,7 @@ import java.nio.Buffer;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
@@ -61,6 +62,9 @@ import java.util.logging.Logger;
  * Sub geoms can be removed but it may be slower than the normal spatial removing
  * Sub geoms can be added after the batch() method has been called but won't be batched and will just be rendered as normal geometries.
  * To integrate them in the batch you have to call the batch() method again on the batchNode.
+ * Named custom vertex attributes are preserved when every geometry provides
+ * matching component counts, formats and normalization. Per-instance custom
+ * attributes belong to the instancing path and cannot be merged as vertex data.
  * <p>
  * TODO more automagic (batch when needed in the updateLogicalState)
  *
@@ -215,7 +219,6 @@ public class BatchNode extends GeometryGroupNode {
                     newBatch = false;
                     list.add(0, batch.geometry);
                     batchName = batch.geometry.getName();
-                    batch.geometry.removeFromParent();
                 } else {
                     batch = new Batch();
                 }
@@ -224,6 +227,9 @@ public class BatchNode extends GeometryGroupNode {
             }
             mergeGeometries(m, list);
             m.setDynamic();
+            if (!newBatch) {
+                batch.geometry.removeFromParent();
+            }
 
             batch.updateGeomList(list);
 
@@ -385,6 +391,7 @@ public class BatchNode extends GeometryGroupNode {
         int[] compsForBuf = new int[VertexBuffer.Type.values().length];
         VertexBuffer.Format[] formatForBuf = new VertexBuffer.Format[compsForBuf.length];
         boolean[] normForBuf = new boolean[VertexBuffer.Type.values().length];
+        Map<String, VertexBuffer> customBuffers = new LinkedHashMap<>();
 
         int totalVerts = 0;
         int totalTris = 0;
@@ -422,6 +429,23 @@ public class BatchNode extends GeometryGroupNode {
             }
 
             for (VertexBuffer vb : geom.getMesh().getBufferList().getArray()) {
+                if (vb.getBufferType() == VertexBuffer.Type.Custom) {
+                    if (vb.isInstanced()) {
+                        throw new UnsupportedOperationException("Cannot batch per-instance attribute " + vb.getAttributeName());
+                    }
+                    VertexBuffer previous = customBuffers.putIfAbsent(vb.getAttributeName(), vb);
+                    if (previous != null && (previous.getFormat() != vb.getFormat()
+                            || previous.getNumComponents() != vb.getNumComponents()
+                            || previous.isNormalized() != vb.isNormalized())) {
+                        throw new IllegalArgumentException("Incompatible custom vertex attribute " + vb.getAttributeName()
+                                + " in geometry " + geom.getName());
+                    }
+                    if (vb.getNumElements() != geom.getVertexCount()) {
+                        throw new IllegalArgumentException("Custom vertex attribute " + vb.getAttributeName()
+                                + " must contain one element per vertex in geometry " + geom.getName());
+                    }
+                    continue;
+                }
                 int currentCompsForBuf = compsForBuf[vb.getBufferType().ordinal()];
                 if (vb.getBufferType() != VertexBuffer.Type.Index && currentCompsForBuf != 0 && currentCompsForBuf != vb.getNumComponents()) {
                     throw new UnsupportedOperationException("The geometry " + geom + " buffer " + vb.getBufferType()
@@ -441,6 +465,15 @@ public class BatchNode extends GeometryGroupNode {
             }
             mode = listMode;
             compsForBuf[VertexBuffer.Type.Index.ordinal()] = components;
+        }
+
+        // Check the complete attribute set before allocating or associating any geometry.
+        for (Geometry geom : geometries) {
+            for (String name : customBuffers.keySet()) {
+                if (geom.getMesh().getBuffer(name) == null) {
+                    throw new IllegalArgumentException("Geometry " + geom.getName() + " has no custom vertex attribute " + name);
+                }
+            }
         }
 
         outMesh.setMaxNumWeights(maxWeights);
@@ -472,6 +505,16 @@ public class BatchNode extends GeometryGroupNode {
             outMesh.setBuffer(vb);
         }
 
+        for (Map.Entry<String, VertexBuffer> entry : customBuffers.entrySet()) {
+            VertexBuffer source = entry.getValue();
+            VertexBuffer target = new VertexBuffer(VertexBuffer.Type.Custom);
+            target.setAttributeName(entry.getKey());
+            target.setupData(VertexBuffer.Usage.Dynamic, source.getNumComponents(), source.getFormat(),
+                    VertexBuffer.createBuffer(source.getFormat(), source.getNumComponents(), totalVerts));
+            target.setNormalized(source.isNormalized());
+            outMesh.setBuffer(target);
+        }
+
         int globalVertIndex = 0;
         int globalTriIndex = 0;
 
@@ -485,6 +528,9 @@ public class BatchNode extends GeometryGroupNode {
             int geomTriCount = inMesh.getTriangleCount();
 
             for (int bufType = 0; bufType < compsForBuf.length; bufType++) {
+                if (VertexBuffer.Type.values()[bufType] == VertexBuffer.Type.Custom) {
+                    continue;
+                }
                 VertexBuffer inBuf = inMesh.getBuffer(VertexBuffer.Type.values()[bufType]);
 
                 VertexBuffer outBuf = outMesh.getBuffer(VertexBuffer.Type.values()[bufType]);
@@ -525,6 +571,10 @@ public class BatchNode extends GeometryGroupNode {
                         inBuf.copyElements(0, outBuf, globalVertIndex, geomVertCount);
                     }
                 }
+            }
+
+            for (String name : customBuffers.keySet()) {
+                inMesh.getBuffer(name).copyElements(0, outMesh.getBuffer(name), globalVertIndex, geomVertCount);
             }
 
             globalVertIndex += geomVertCount;

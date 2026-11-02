@@ -507,6 +507,8 @@ public class VertexBuffer extends BufferObject implements Savable, Cloneable {
             result = ((ShortBuffer) data).asReadOnlyBuffer();
         } else if (data instanceof IntBuffer) {
             result = ((IntBuffer) data).asReadOnlyBuffer();
+        } else if (data instanceof DoubleBuffer) {
+            result = ((DoubleBuffer) data).asReadOnlyBuffer();
         } else {
             throw new UnsupportedOperationException("Cannot get read-only view of buffer type:" + data);
         }
@@ -1289,6 +1291,14 @@ public class VertexBuffer extends BufferObject implements Savable, Cloneable {
                 fin.position(inPos).limit(inPos + elementSz * len);
                 fout.position(outPos).limit(outPos + elementSz * len);
                 fout.put(fin);
+                outVb.dataBytes = null;
+                break;
+            case Double:
+                DoubleBuffer din = (DoubleBuffer) srcData;
+                DoubleBuffer dout = (DoubleBuffer) outVb.data;
+                din.position(inPos).limit(inPos + elementSz * len);
+                dout.position(outPos).limit(outPos + elementSz * len);
+                dout.put(din);
                 outVb.dataBytes = null;
                 break;
             default:
