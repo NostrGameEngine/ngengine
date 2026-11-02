@@ -351,8 +351,7 @@ public final class Shader extends NativeObject {
         int ordinal = attribType.ordinal();
         Attribute attrib = attribs.get(ordinal);
         if (attrib == null){
-            attrib = new Attribute();
-            attrib.name = attribType.name();
+            attrib = getAttribute("in" + attribType.name());
             attribs.put(ordinal, attrib);
         }
         return attrib;

@@ -4012,7 +4012,9 @@ public final class GLRenderer implements Renderer {
         }
 
         String attributeName = vb.getShaderAttributeName();
-        Attribute attrib = context.boundShader.getAttribute(attributeName);
+        Attribute attrib = vb.getBufferType() == Type.Custom
+                ? context.boundShader.getAttribute(attributeName)
+                : context.boundShader.getAttribute(vb.getBufferType());
         int loc = attrib.getLocation();
         if (loc == -1) {
             return; // not defined
