@@ -83,6 +83,18 @@ public class GltfLoaderTest {
     }
 
     @Test
+    public void keepsEverySpatialAttachedToTheSameJoint() {
+        Spatial scene = assetManager.loadModel("gltf/JointAttachments.gltf");
+        boolean[] found = new boolean[2];
+        scene.depthFirstTraversal(spatial -> {
+            if ("FirstAttachment".equals(spatial.getName())) found[0] = true;
+            if ("SecondAttachment".equals(spatial.getName())) found[1] = true;
+        });
+        Assertions.assertTrue(found[0], "First joint attachment was lost");
+        Assertions.assertTrue(found[1], "Second joint attachment was lost");
+    }
+
+    @Test
     public void sharedTextureAppliesItsTransformToEveryMeshAndGeneratesMissingNormals() {
         Node scene = (Node) assetManager.loadModel("gltf/SharedTextureTransform.gltf");
         for (String name : new String[]{"First_0", "Second_0"}) {
