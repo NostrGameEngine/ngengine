@@ -3786,6 +3786,7 @@ public final class GLRenderer implements Renderer {
             logger.log(Level.WARNING, "Incompatible texture subimage");
         }
         int target = convertTextureType(tex.getType(), pixels.getMultiSamples(), -1);
+        bindTextureAndUnit(target, tex.getImage(), textureUnitIndex);
         texUtil.uploadSubTexture(target, pixels, 0, x, y,
                 0, 0, pixels.getWidth(), pixels.getHeight(), linearizeSrgbImages, tex.getImage().getColorSpace());
     }
@@ -3814,6 +3815,7 @@ public final class GLRenderer implements Renderer {
             logger.log(Level.WARNING, "Incompatible texture subimage");
         }
         int target = convertTextureType(dest.getType(), src.getMultiSamples(), -1);
+        bindTextureAndUnit(target, dest.getImage(), textureUnitIndex);
         texUtil.uploadSubTexture(target, src, 0, destX, destY,
                 srcX, srcY, areaW, areaH, linearizeSrgbImages, dest.getImage().getColorSpace());
     }
