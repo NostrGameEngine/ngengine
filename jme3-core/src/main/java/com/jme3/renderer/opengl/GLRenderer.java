@@ -2358,6 +2358,12 @@ public final class GLRenderer implements Renderer {
             }
         }
 
+        if (context.boundShaderProgram == shader.getId()) {
+            // A current program survives deletion until it is unbound.
+            gl.glUseProgram(0);
+            context.boundShaderProgram = 0;
+            context.boundShader = null;
+        }
         gl.glDeleteProgram(shader.getId());
         objManager.unregisterObject(shader);
         statistics.onDeleteShader();
@@ -4204,6 +4210,16 @@ public final class GLRenderer implements Renderer {
             intBuf1.put(0, bufId);
             intBuf1.position(0).limit(1);
             gl.glDeleteBuffers(intBuf1);
+            invalidateBufferBindings(bufId);
+            // Interleaved attributes cache their logical buffer, not the backing ID.
+            for (int i = 0; i < context.boundAttribs.length; i++) {
+                if (context.boundAttribs[i] != null && caps.contains(Caps.MeshInstancing)) {
+                    glext.glVertexAttribDivisorARB(i, 0);
+                    context.boundAttribDivisors[i] = 0;
+                    vertexAttribDivisorsInvalid[i] = false;
+                }
+                context.boundAttribs[i] = null;
+            }
             objManager.unregisterObject(vb);
             vb.resetObject();
 
@@ -4219,26 +4235,37 @@ public final class GLRenderer implements Renderer {
             return;
         }
 
-        // GL deletion unbinds this name. Compare IDs because cleanup may pass
-        // a destructible clone while the binding cache retains the live object.
-        clearBufferObjectBindings(context.boundUniformBuffers, bufferId);
-        clearBufferObjectBindings(context.boundShaderStorageBuffers, bufferId);
-
         intBuf1.clear();
         intBuf1.put(bufferId);
         intBuf1.flip();
 
         gl.glDeleteBuffers(intBuf1);
+        invalidateBufferBindings(bufferId);
 
         objManager.unregisterObject(bo);
         bo.resetObject();
+    }
+
+    private void invalidateBufferBindings(int bufferId) {
+        if (context.boundArrayVBO == bufferId) {
+            context.boundArrayVBO = 0;
+        }
+        if (context.boundElementArrayVBO == bufferId) {
+            context.boundElementArrayVBO = 0;
+        }
+        if (context.boundPixelPackPBO == bufferId) {
+            context.boundPixelPackPBO = 0;
+        }
+        // Cleanup may pass a destructible clone while the cache retains the live object.
+        clearBufferObjectBindings(context.boundUniformBuffers, bufferId);
+        clearBufferObjectBindings(context.boundShaderStorageBuffers, bufferId);
     }
 
     private static void clearBufferObjectBindings(WeakReference<BufferObject>[] bindings, int bufferId) {
         for (int index = 0; index < bindings.length; index++) {
             WeakReference<BufferObject> reference = bindings[index];
             BufferObject bound = reference == null ? null : reference.get();
-            if (bound != null && bound.getId() == bufferId) {
+            if (reference != null && (bound == null || bound.getId() == bufferId)) {
                 bindings[index] = null;
             }
         }
