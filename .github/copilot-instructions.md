@@ -252,7 +252,7 @@ The project can use pre-built natives or build from source:
 Assets are loaded via `AssetManager` with registered locators:
 - Classpath assets typically in `src/main/resources/`
 - Common asset folders: `Textures/`, `Models/`, `Materials/`, `Sounds/`
-- Test data: `jme3-testdata` module
+- Test data: `org.jmonkeyengine:jme3-testdata` artifact (`nge-testdata` for NGE assets)
 
 ## Testing
 

@@ -30,7 +30,7 @@ android {
 
     defaultConfig {
         applicationId "org.jmonkeyengine.jme3androidexamples"
-        minSdk 30              // Android 11 R
+        minSdk 33              // Android 13
         targetSdk 34           // Android 14
         versionCode 1
         versionName "1.0" // TODO: from settings.gradle
@@ -56,9 +56,16 @@ android {
             }
             assets {
                 srcDir 'src/assets'
-                srcDir layout.buildDirectory.dir('jme3-testdata')
+                srcDir layout.buildDirectory.dir('jme3-testdata').get().asFile
                 srcDir '../jme3-examples/src/main/resources'
             }
+        }
+    }
+
+    packaging {
+        resources {
+            excludes += 'META-INF/ngengine/**'
+            pickFirsts += 'META-INF/LICENSE-saferalloc.txt'
         }
     }
 }
