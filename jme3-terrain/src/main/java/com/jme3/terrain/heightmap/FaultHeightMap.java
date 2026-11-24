@@ -126,7 +126,7 @@ public class FaultHeightMap extends AbstractHeightMap {
      * @param maxFaultHeight Height modified on each side
      */
     public FaultHeightMap(int size, int iterations, float minFaultHeight, float maxFaultHeight) throws Exception {
-        this(size, iterations, FAULTTYPE_STEP, FAULTSHAPE_LINE, minFaultHeight, maxFaultHeight, new Random().nextLong());
+        this(size, iterations, FAULTTYPE_STEP, FAULTSHAPE_LINE, minFaultHeight, maxFaultHeight, FastMath.nextRandomLong());
     }
 
     @Override

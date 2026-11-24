@@ -48,7 +48,7 @@ public class NanoTimer extends Timer {
     private float fps;
     
     public NanoTimer() {
-        startTime = System.nanoTime();
+        startTime = Clock.nanoTime();
     }
 
     /**
@@ -64,7 +64,7 @@ public class NanoTimer extends Timer {
 
     @Override
     public long getTime() {
-        return System.nanoTime() - startTime;
+        return Clock.nanoTime() - startTime;
     }
 
     @Override
@@ -91,7 +91,7 @@ public class NanoTimer extends Timer {
     
     @Override
     public void reset() {
-        startTime = System.nanoTime();
+        startTime = Clock.nanoTime();
         previousTime = getTime();
     }
 }

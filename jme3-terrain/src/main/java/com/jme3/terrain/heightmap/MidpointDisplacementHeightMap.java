@@ -105,7 +105,7 @@ public class MidpointDisplacementHeightMap extends AbstractHeightMap {
      * @throws IllegalArgumentException if size is not a power of two plus one.
      */
     public MidpointDisplacementHeightMap(int size, float range, float persistence) throws Exception {
-        this(size, range, persistence, new Random().nextLong());
+        this(size, range, persistence, FastMath.nextRandomLong());
     }
 
     /**

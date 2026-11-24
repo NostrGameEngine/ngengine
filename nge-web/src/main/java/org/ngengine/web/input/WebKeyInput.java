@@ -44,6 +44,7 @@ import com.jme3.input.KeyInput;
 import com.jme3.input.RawInputListener;
 import com.jme3.input.event.KeyInputEvent;
 import com.jme3.input.virtual.VirtualKeyboard;
+import com.jme3.system.Clock;
 import org.ngengine.web.WebBinds;
 
 public class WebKeyInput implements KeyInput {
@@ -106,7 +107,7 @@ public class WebKeyInput implements KeyInput {
     @Override
     public long getInputTimeNanos() {
         
-        return System.nanoTime();
+        return Clock.nanoTime();
 
     }
 

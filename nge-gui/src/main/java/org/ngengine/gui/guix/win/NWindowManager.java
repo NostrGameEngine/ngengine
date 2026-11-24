@@ -68,6 +68,7 @@ import com.jme3.input.InputDevice;
 import com.jme3.input.InputManager;
 import com.jme3.input.Joystick;
 import com.jme3.input.Keyboard;
+import com.jme3.system.Clock;
 import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
@@ -203,7 +204,7 @@ public class NWindowManager {
             return;
         }    
         if (toastsStack.size() > 0) {
-            Instant now = Instant.now();
+            Instant now = Clock.now();
             NToast[] toasts = toastsStack.toArray(new NToast[0]);
             for (NToast toast : toasts) {
                 if (!toastsStack.contains(toast)) {

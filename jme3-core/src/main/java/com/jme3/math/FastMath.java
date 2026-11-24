@@ -31,7 +31,9 @@
  */
 package com.jme3.math;
 
+import com.jme3.system.Clock;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * <code>FastMath</code> provides 'fast' math approximations and float equivalents of Math
@@ -92,10 +94,125 @@ public final class FastMath {
      * A value to multiply a radian value by, to convert it to degrees.
      */
     public static final float RAD_TO_DEG = 180.0f / PI;
+    private static volatile long globalSeed = Clock.currentTimeMillis();
+    private static final AtomicLong seedGeneration = new AtomicLong(0L);
+    private static final ThreadLocal<ThreadRandom> threadRandom = new ThreadLocal<>();
+
+    private static final class ThreadRandom {
+        long generation;
+        final Random random;
+
+        ThreadRandom(long generation, long seed) {
+            this.generation = generation;
+            this.random = new Random(seed);
+        }
+    }
+
     /**
-     * A precreated random object for random numbers.
+     * Thread-local delegating {@link Random} proxy kept for backward compatibility.
      */
-    public static final Random rand = new Random(System.currentTimeMillis());
+    public static final Random rand = new Random() {
+        private boolean initialized;
+        {
+            initialized = true;
+        }
+
+        @Override
+        protected int next(int bits) {
+            return bits == 0 ? 0 : getRandom().nextInt() >>> (32 - bits);
+        }
+
+        @Override
+        public void nextBytes(byte[] bytes) {
+            getRandom().nextBytes(bytes);
+        }
+
+        @Override
+        public int nextInt() {
+            return getRandom().nextInt();
+        }
+
+        @Override
+        public int nextInt(int bound) {
+            return getRandom().nextInt(bound);
+        }
+
+        @Override
+        public long nextLong() {
+            return getRandom().nextLong();
+        }
+
+        @Override
+        public boolean nextBoolean() {
+            return getRandom().nextBoolean();
+        }
+
+        @Override
+        public float nextFloat() {
+            return getRandom().nextFloat();
+        }
+
+        @Override
+        public double nextDouble() {
+            return getRandom().nextDouble();
+        }
+
+        @Override
+        public double nextGaussian() {
+            return getRandom().nextGaussian();
+        }
+
+        @Override
+        public synchronized void setSeed(long seed) {
+            if (initialized) {
+                FastMath.setSeed(seed);
+            }
+        }
+    };
+
+    private static long deriveThreadSeed(long baseSeed, String threadName) {
+        long h = baseSeed;
+        if (threadName != null) {
+            for (int i = 0; i < threadName.length(); i++) {
+                h = h * 0x9E3779B97F4A7C15L + threadName.charAt(i);
+            }
+        }
+        // Pure-Java 64-bit SplitMix64 finalizer
+        h = (h ^ (h >>> 30)) * 0xBF58476D1CE4E5B9L;
+        h = (h ^ (h >>> 27)) * 0x94D049BB133111EBL;
+        return h ^ (h >>> 31);
+    }
+
+    /**
+     * Returns the current global seed used to derive per-thread random generators.
+     */
+    public static long getSeed() {
+        return globalSeed;
+    }
+
+    /**
+     * Sets the global seed and resets all per-thread random generators on their next use.
+     */
+    public static void setSeed(long seed) {
+        globalSeed = seed;
+        seedGeneration.incrementAndGet();
+    }
+
+    /**
+     * Returns the thread-local {@link Random} derived from the global seed and current thread name.
+     */
+    public static Random getRandom() {
+        long gen = seedGeneration.get();
+        ThreadRandom tr = threadRandom.get();
+        if (tr == null) {
+            tr = new ThreadRandom(gen, deriveThreadSeed(globalSeed, Thread.currentThread().getName()));
+            threadRandom.set(tr);
+        } else if (tr.generation != gen) {
+            tr.random.setSeed(deriveThreadSeed(globalSeed, Thread.currentThread().getName()));
+            tr.generation = gen;
+        }
+        return tr.random;
+    }
 
     /**
      * Returns true if the number is a power of 2 (2,4,8,16...)
@@ -843,7 +960,7 @@ public final class FastMath {
      * @return A random {@code float} value.
      */
     public static float nextRandomFloat() {
-        return rand.nextFloat();
+        return getRandom().nextFloat();
     }
 
     /**
@@ -863,7 +980,16 @@ public final class FastMath {
      * @return The next pseudorandom {@code int} value.
      */
     public static int nextRandomInt() {
-        return rand.nextInt();
+        return getRandom().nextInt();
+    }
+
+    /**
+     * Generates a pseudorandom, uniformly-distributed {@code long} value.
+     *
+     * @return The next pseudorandom {@code long} value.
+     */
+    public static long nextRandomLong() {
+        return getRandom().nextLong();
     }
 
     /**

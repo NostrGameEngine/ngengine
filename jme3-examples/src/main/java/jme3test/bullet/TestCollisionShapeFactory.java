@@ -108,18 +108,18 @@ public class TestCollisionShapeFactory extends SimpleApplication {
         };
         for (int i = 0; i < boxes.length; i++) {
             Geometry geometry = boxes[i];
-            geometry.setLocalTranslation((float) Math.random() * 10 -10, (float) Math.random() * 10 -10, (float) Math.random() * 10 -10);
-            geometry.setLocalRotation(new Quaternion().fromAngles((float) Math.random() * FastMath.PI, (float) Math.random() * FastMath.PI, (float) Math.random() * FastMath.PI));
-            geometry.setLocalScale((float) Math.random() * 10 -10, (float) Math.random() * 10 -10, (float) Math.random() * 10 -10);
+            geometry.setLocalTranslation(FastMath.nextRandomFloat() * 10 -10, FastMath.nextRandomFloat() * 10 -10, FastMath.nextRandomFloat() * 10 -10);
+            geometry.setLocalRotation(new Quaternion().fromAngles(FastMath.nextRandomFloat() * FastMath.PI, FastMath.nextRandomFloat() * FastMath.PI, FastMath.nextRandomFloat() * FastMath.PI));
+            geometry.setLocalScale(FastMath.nextRandomFloat() * 10 -10, FastMath.nextRandomFloat() * 10 -10, FastMath.nextRandomFloat() * 10 -10);
             geometry.setMaterial(mat);
             node.attachChild(geometry);
         }
     }
 
     private void randomizeTransform(Spatial spat){
-        spat.setLocalTranslation((float) Math.random() * 10, (float) Math.random() * 10, (float) Math.random() * 10);
-        spat.setLocalTranslation((float) Math.random() * 10, (float) Math.random() * 10, (float) Math.random() * 10);
-        spat.setLocalScale((float) Math.random() * 2, (float) Math.random() * 2, (float) Math.random() * 2);
+        spat.setLocalTranslation(FastMath.nextRandomFloat() * 10, FastMath.nextRandomFloat() * 10, FastMath.nextRandomFloat() * 10);
+        spat.setLocalTranslation(FastMath.nextRandomFloat() * 10, FastMath.nextRandomFloat() * 10, FastMath.nextRandomFloat() * 10);
+        spat.setLocalScale(FastMath.nextRandomFloat() * 2, FastMath.nextRandomFloat() * 2, FastMath.nextRandomFloat() * 2);
     }
 
     private void createMaterial() {

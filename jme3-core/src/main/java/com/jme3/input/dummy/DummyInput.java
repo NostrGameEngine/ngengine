@@ -33,6 +33,7 @@ package com.jme3.input.dummy;
 
 import com.jme3.input.Input;
 import com.jme3.input.RawInputListener;
+import com.jme3.system.Clock;
 
 /**
  * DummyInput as an implementation of <code>Input</code> that raises no
@@ -77,7 +78,7 @@ public class DummyInput implements Input {
 
     @Override
     public long getInputTimeNanos() {
-        return System.currentTimeMillis() * 1000000;
+        return Clock.currentTimeMillis() * 1000000;
     }
 
 }

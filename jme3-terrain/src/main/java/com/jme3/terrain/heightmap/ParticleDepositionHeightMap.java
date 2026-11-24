@@ -31,6 +31,7 @@
  */
 package com.jme3.terrain.heightmap;
 
+import com.jme3.math.FastMath;
 import java.util.logging.Logger;
 
 /**
@@ -158,8 +159,8 @@ public class ParticleDepositionHeightMap extends AbstractHeightMap {
 
 
             //pick a random point.
-            x = (int) (Math.rint(Math.random() * (size - 1)));
-            y = (int) (Math.rint(Math.random() * (size - 1)));
+            x = (int) (Math.rint(FastMath.nextRandomFloat() * (size - 1)));
+            y = (int) (Math.rint(FastMath.nextRandomFloat() * (size - 1)));
 
 
             //set the caldera point.
@@ -169,13 +170,13 @@ public class ParticleDepositionHeightMap extends AbstractHeightMap {
 
             int numberParticles =
                     (int) (Math.rint(
-                    (Math.random() * (maxParticles - minParticles))
+                    (FastMath.nextRandomFloat() * (maxParticles - minParticles))
                     + minParticles));
             //drop particles.
             for (int j = 0; j < numberParticles; j++) {
                 //check to see if we should agitate the drop point.
                 if (peakWalk != 0 && j % peakWalk == 0) {
-                    m = (int) (Math.rint(Math.random() * 7));
+                    m = (int) (Math.rint(FastMath.nextRandomFloat() * 7));
                     x = (x + dx[m] + size) % size;
                     y = (y + dy[m] + size) % size;
                 }
@@ -197,7 +198,7 @@ public class ParticleDepositionHeightMap extends AbstractHeightMap {
 
 
                     //check neighbors to see if we are higher.
-                    m = (int) (Math.rint((Math.random() * 8)));
+                    m = (int) (Math.rint((FastMath.nextRandomFloat() * 8)));
                     for (int jj = 0; jj < 8; jj++) {
                         tx = (sx + dx[(jj + m) % 8]) % (size);
                         ty = (sy + dy[(jj + m) % 8]) % (size);

@@ -43,6 +43,7 @@ import com.jme3.input.JoyInput;
 import com.jme3.input.KeyInput;
 import com.jme3.input.MouseInput;
 import com.jme3.input.TouchInput;
+import com.jme3.math.FastMath;
 import com.jme3.math.Vector3f;
 import com.jme3.profile.AppProfiler;
 import com.jme3.profile.AppStep;
@@ -697,6 +698,10 @@ public class LegacyApplication implements Application, SystemListener {
      */
     @Override
     public void initialize() {
+        if (settings != null && settings.getRandomSeed() != null) {
+            FastMath.setSeed(settings.getRandomSeed());
+        }
+
         if (assetManager == null) {
             initAssetManager();
         }

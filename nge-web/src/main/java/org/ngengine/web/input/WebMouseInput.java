@@ -49,6 +49,7 @@ import com.jme3.input.RawInputListener;
 import com.jme3.input.event.MouseButtonEvent;
 import com.jme3.input.event.MouseMotionEvent;
 import com.jme3.input.virtual.VirtualKeyboard;
+import com.jme3.system.Clock;
 
 import org.ngengine.web.WebBinds;
 import org.ngengine.web.context.WebCanvasElement;
@@ -276,7 +277,7 @@ public class WebMouseInput implements MouseInput {
 
     @Override
     public long getInputTimeNanos() {
-        return System.nanoTime();
+        return Clock.nanoTime();
     }
 
     @Override

@@ -481,6 +481,9 @@ public final class AppSettings extends HashMap<String, Object> {
             } else if (key.endsWith("(float)")) {
                 float fVal = Float.parseFloat(val);
                 putFloat(key.substring(0, key.length() - 7), fVal);
+            } else if (key.endsWith("(long)")) {
+                long lVal = Long.parseLong(val);
+                put(key.substring(0, key.length() - 6), lVal);
             } else {
                 throw new IOException("Cannot parse key: " + key);
             }
@@ -508,6 +511,8 @@ public final class AppSettings extends HashMap<String, Object> {
                 type = "(bool)";
             } else if (val instanceof Float) {
                 type = "(float)";
+            } else if (val instanceof Long) {
+                type = "(long)";
             } else {
                 // See the note in the AppSettings.save(String)
                 // method regarding object type settings.
@@ -1922,5 +1927,35 @@ public final class AppSettings extends HashMap<String, Object> {
      */
     public boolean isHardwareCursor(){
         return getBoolean("HardwareCursor");
+    }
+
+    /**
+     * Sets the global random seed for {@link com.jme3.math.FastMath}.
+     * When {@code null}, the engine defaults to {@link Clock#currentTimeMillis()}.
+     *
+     * @param seed the global random seed, or {@code null} to use the default
+     */
+    public void setRandomSeed(Long seed) {
+        if (seed == null) {
+            remove("RandomSeed");
+        } else {
+            put("RandomSeed", seed);
+        }
+    }
+
+    /**
+     * Returns the configured global random seed, or {@code null} if none was set.
+     *
+     * @return the configured random seed, or {@code null}
+     */
+    public Long getRandomSeed() {
+        Object val = get("RandomSeed");
+        if (val == null) {
+            return null;
+        }
+        if (val instanceof Number) {
+            return ((Number) val).longValue();
+        }
+        return Long.parseLong(val.toString());
     }
 }

@@ -55,6 +55,7 @@ import org.ngengine.gui.Button.ButtonAction;
 import com.jme3.asset.AssetManager;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
+import com.jme3.system.Clock;
 import org.ngengine.gui.component.IconComponent;
 import org.ngengine.gui.component.QuadBackgroundComponent;
 import org.ngengine.gui.component.TbtQuadBackgroundComponent;
@@ -116,7 +117,7 @@ public class GlassStyle {
                 // Only do the repeating click while the mouse is
                 // over the button (and pressed of course)
                 if (source.isPressed() && source.isHighlightOn()) {
-                    long elapsedTime = System.currentTimeMillis() - startTime;
+                    long elapsedTime = Clock.currentTimeMillis() - startTime;
                     // After half a second pause, click 8 times a second
                     if (elapsedTime > 500) {
                         if (elapsedTime - lastClick > 125) {
@@ -127,7 +128,7 @@ public class GlassStyle {
                         }
                     }
                 } else {
-                    startTime = System.currentTimeMillis();
+                    startTime = Clock.currentTimeMillis();
                     lastClick = 0;
                 }
             }

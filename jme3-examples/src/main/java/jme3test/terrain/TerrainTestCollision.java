@@ -47,6 +47,7 @@ import com.jme3.input.controls.MouseButtonTrigger;
 import com.jme3.light.DirectionalLight;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
+import com.jme3.math.FastMath;
 import com.jme3.math.Quaternion;
 import com.jme3.math.Ray;
 import com.jme3.math.Vector2f;
@@ -150,12 +151,12 @@ public class TerrainTestCollision extends SimpleApplication {
         // Add 5 physics spheres to the world, with random sizes and positions
         // let them drop from the sky
         for (int i = 0; i < 5; i++) {
-            float r = (float) (8 * Math.random());
+            float r = 8 * FastMath.nextRandomFloat();
             Geometry sphere = new Geometry("cannonball", new Sphere(10, 10, r));
             sphere.setMaterial(matWire);
-            float x = (float) (20 * Math.random()) - 40; // random position
-            float y = (float) (20 * Math.random()) - 40; // random position
-            float z = (float) (20 * Math.random()) - 40; // random position
+            float x = (20 * FastMath.nextRandomFloat()) - 40; // random position
+            float y = (20 * FastMath.nextRandomFloat()) - 40; // random position
+            float z = (20 * FastMath.nextRandomFloat()) - 40; // random position
             sphere.setLocalTranslation(new Vector3f(x, 100 + y, z));
             sphere.addControl(new RigidBodyControl(new SphereCollisionShape(r), 2));
             rootNode.attachChild(sphere);

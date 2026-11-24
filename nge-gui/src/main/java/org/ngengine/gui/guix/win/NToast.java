@@ -46,6 +46,7 @@ import org.ngengine.gui.guix.NIconButton;
 import org.ngengine.gui.style.ElementId;
 
 import com.jme3.math.Vector3f;
+import com.jme3.system.Clock;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -98,7 +99,7 @@ public class NToast extends Container {
         closeBtn =
             new NIconButton("org/ngengine/gui/icons/outline/x.svg", type.name().toLowerCase() + "." + "toast.close." + NIconButton.ELEMENT_ID);
         closeBtn.setInsetsComponent(new DynamicInsetsComponent(0, 1f, 1f, 0f));
-        creationTime = Instant.now();
+        creationTime = Clock.now();
 
         setCloseable(false);
         setDuration(duration);

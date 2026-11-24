@@ -42,6 +42,7 @@ import java.util.*;
 import org.ngengine.gui.GuiContext.GuiContextHandler;
 
 import com.jme3.anim.tween.Tween;
+import com.jme3.system.Clock;
 
 
 /**
@@ -61,7 +62,7 @@ public class AnimationHandler implements GuiContextHandler {
     private long lastTime;
     
     public AnimationHandler() {
-               lastTime = System.nanoTime();
+               lastTime = Clock.nanoTime();
 
     }
   
@@ -130,7 +131,7 @@ public class AnimationHandler implements GuiContextHandler {
 
  
      public void update( float tpf ) {
-        long time = System.nanoTime();
+        long time = Clock.nanoTime();
         long delta = time - lastTime;
         double t = delta * NANOS_TO_SECONDS;
         lastTime = time;

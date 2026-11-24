@@ -24,6 +24,7 @@ import org.ngengine.world2d.TiledWorld2dManagerComponent;
 
 import com.jme3.math.Quaternion;
 import com.jme3.math.Vector3f;
+import com.jme3.system.Clock;
 
 import org.ngengine.world2d.tiled.components.messages.TiledComponentSnapshotMessage;
 import org.ngengine.world2d.tiled.components.messages.TiledObjectSnapshotMessage;
@@ -210,14 +211,14 @@ public class TiledNetcodeSpawner implements NetcodeSpawner {
             item.snapshot.getComponentType(),
             snapshot.getComponentType()
         ));
-        buffered.add(new BufferedComponentSnapshot(snapshot, Instant.now()));
+        buffered.add(new BufferedComponentSnapshot(snapshot, Clock.now()));
     }
 
     private void bufferObjectSnapshot(TiledObjectSnapshotMessage snapshot, BigInteger entityId) {
         String key = bufferedKey(snapshot.getMapScope(), snapshot.getLayerName(), entityId);
         bufferedObjectSnapshots
             .computeIfAbsent(key, ignored -> new ArrayList<>())
-            .add(new BufferedObjectSnapshot(snapshot, Instant.now()));
+            .add(new BufferedObjectSnapshot(snapshot, Clock.now()));
     }
 
     private void applyBufferedComponentSnapshots(
@@ -317,7 +318,7 @@ public class TiledNetcodeSpawner implements NetcodeSpawner {
     }
 
     private void pruneBufferedSnapshots() {
-        Instant now = Instant.now();
+        Instant now = Clock.now();
         Iterator<Map.Entry<String, List<BufferedComponentSnapshot>>> it = bufferedComponentSnapshots.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<String, List<BufferedComponentSnapshot>> entry = it.next();

@@ -47,6 +47,7 @@ import com.jme3.input.virtual.VirtualJoystick;
 import com.jme3.input.virtual.VirtualKeyboard;
 import com.jme3.math.FastMath;
 import com.jme3.system.AppSettings;
+import com.jme3.system.Clock;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -139,7 +140,7 @@ public class WebJoyInput implements JoyInput {
 
     @Override
     public long getInputTimeNanos() {
-        return System.nanoTime();
+        return Clock.nanoTime();
     }
 
     @Override

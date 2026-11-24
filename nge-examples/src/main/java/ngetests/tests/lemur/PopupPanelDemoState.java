@@ -103,9 +103,9 @@ public class PopupPanelDemoState extends BaseAppState {
         randomizeLocation(popup);
         
         // Create a random color.
-        float r = (float)(Math.random() * 0.75 + 0.25);
-        float g = (float)(Math.random() * 0.75 + 0.25);
-        float b = (float)(Math.random() * 0.75 + 0.25);
+        float r = FastMath.nextRandomFloat() * 0.75f + 0.25f;
+        float g = FastMath.nextRandomFloat() * 0.75f + 0.25f;
+        float b = FastMath.nextRandomFloat() * 0.75f + 0.25f;
         ColorRGBA c = new ColorRGBA(r, g, b, 0.5f);
         
         NGEGui.get(getApplication().getGuiViewPort()).getPopupHandler().showPopup(popup,closeCommand, c);
@@ -118,8 +118,8 @@ public class PopupPanelDemoState extends BaseAppState {
         double xRange = getApplication().getCamera().getWidth() - pref.x; 
         double yRange = getApplication().getCamera().getHeight() - pref.y; 
  
-        double x = Math.random() * xRange;
-        double y = Math.random() * yRange + pref.y;
+        double x = FastMath.nextRandomFloat() * xRange;
+        double y = FastMath.nextRandomFloat() * yRange + pref.y;
         
         p.setLocalTranslation((float)x, (float)y, 0);        
     }

@@ -48,6 +48,7 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.control.Control;
+import com.jme3.system.Clock;
 
 /**
  * A control that automatically handles environment bake and rebake including
@@ -94,7 +95,7 @@ public class EnvironmentProbeControl extends LightProbe implements Control {
 
     protected EnvironmentProbeControl() {
         super();
-        uuid = System.currentTimeMillis() + "_" + instanceCounter.getAndIncrement();
+        uuid = Clock.currentTimeMillis() + "_" + instanceCounter.getAndIncrement();
         this.setAreaType(AreaType.Spherical);
         this.getArea().setRadius(Float.MAX_VALUE);
     }

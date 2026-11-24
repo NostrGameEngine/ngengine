@@ -41,6 +41,7 @@
 package org.ngengine.gui.guix.containers;
 
 import com.jme3.math.Vector3f;
+import com.jme3.system.Clock;
 import org.ngengine.gui.component.SpringGridLayout;
 import org.ngengine.gui.core.GuiControl;
 import org.ngengine.gui.core.GuiControlListener;
@@ -239,7 +240,7 @@ public class NMultiPageList<T> extends Container implements GuiUpdateListener, G
         if(
             items.size()<end
             &&pageLoadingTask==null
-            &&(lastLoading==null||Instant.now().isAfter(lastLoading.plus(loadingCooldown)))
+            &&(lastLoading==null||Clock.now().isAfter(lastLoading.plus(loadingCooldown)))
             && canLoadMore
         ){
             pageLoadingTask = NGEPlatform.get().wrapPromise((res,rej)->{
@@ -250,7 +251,7 @@ public class NMultiPageList<T> extends Container implements GuiUpdateListener, G
                     res.accept(null);
                 }
             });
-            lastLoading = Instant.now();
+            lastLoading = Clock.now();
         }
 
         int clampedEnd = Math.min(end, items.size());

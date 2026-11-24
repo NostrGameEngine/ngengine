@@ -20,6 +20,7 @@ import org.ngengine.network.quantization.TransformQuantizer;
 import com.jme3.math.Quaternion;
 import com.jme3.math.Transform;
 import com.jme3.math.Vector3f;
+import com.jme3.system.Clock;
 
 import org.ngengine.world2d.tiled.components.fragments.TiledEntityLifecycleFragment;
 import org.ngengine.world2d.tiled.components.fragments.TiledEntityLogicFragment;
@@ -158,7 +159,7 @@ public class TiledObjectSyncComponent extends AbstractComponent implements Tiled
         snapshotTransformScratch.getRotation().set(decodedRotation).normalizeLocal();
         snapshotTransformScratch.getScale().set(1f, 1f, 1f);
 
-        long nowMillis = System.currentTimeMillis();
+        long nowMillis = Clock.currentTimeMillis();
         if (nowMillis <= lastSnapshotPointMillis) {
             nowMillis = lastSnapshotPointMillis + 1L;
         }
@@ -203,7 +204,7 @@ public class TiledObjectSyncComponent extends AbstractComponent implements Tiled
         }
         TiledObjectEntity entity = (TiledObjectEntity) entry;
         ensureInterpolatorState(entity.getObjectGroup() != null ? entity.getObjectGroup().getMap() : null);
-        TransformInterpolatorAndPredictor.SampleResult sample = transformInterpolator.sample(System.currentTimeMillis(), sampledTransformScratch);
+        TransformInterpolatorAndPredictor.SampleResult sample = transformInterpolator.sample(Clock.currentTimeMillis(), sampledTransformScratch);
         if (sample.status == TransformInterpolatorAndPredictor.Status.EMPTY) {
             return;
         }

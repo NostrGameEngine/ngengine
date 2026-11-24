@@ -221,7 +221,7 @@ public class Line implements Savable, Cloneable, java.io.Serializable {
         if (result == null) {
             result = new Vector3f();
         }
-        float rand = (float) Math.random();
+        float rand = FastMath.nextRandomFloat();
 
         result.x = (origin.x * (1 - rand)) + (direction.x * rand);
         result.y = (origin.y * (1 - rand)) + (direction.y * rand);
