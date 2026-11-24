@@ -1,0 +1,18 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>NGE navigation smoke</title>
+<body>RUNNING<script>
+window.exports = {};
+window.onerror = function(message) {
+    document.body.dataset.result = 'FAILED';
+    document.body.append(String(message));
+};
+const originalInfo = console.info;
+console.info = function(message) {
+    originalInfo.apply(console, arguments);
+    if (String(message).includes('NAV_TEAVM_OK')) {
+        document.body.dataset.result = 'NAV_TEAVM_OK';
+        document.body.append('NAV_TEAVM_OK');
+    }
+};
+</script><script src="nav.cjs"></script><script>exports.main([]);</script></body>

@@ -1,0 +1,81 @@
+dependencies {
+    api project(':jme3-core')
+}
+
+tasks.named('jar') {
+    from(rootProject.file('nge.LICENSE')) {
+        into 'META-INF'
+        rename { 'LICENSE' }
+    }
+}
+
+// Match pipenext2's Java baseline. The Nav branch's old Java 11 variant cannot
+// consume this branch's Java 21 engine or its current JUnit test runtime.
+
+tasks.register('allocationTest', Test) {
+    description = 'Checks navigation allocation budgets after warmup.'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform { includeTags 'allocation' }
+    javaLauncher = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+configurations {
+    engineSmokeRuntime
+}
+dependencies {
+    engineSmokeRuntime project(':jme3-desktop')
+}
+tasks.register('engineSmoke', JavaExec) {
+    description = 'Runs navigation in the real engine headless loop.'
+    group = 'verification'
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath + configurations.engineSmokeRuntime
+    mainClass = 'org.ngengine.nav.NavEngineSmoke'
+}
+
+sourceSets {
+    teavmSmoke {
+        java.srcDir 'src/teavm/java'
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+}
+dependencies {
+    teavmSmokeImplementation project(':jme3-core')
+    teavmSmokeImplementation project(':nge-web')
+    teavmSmokeImplementation "org.ngengine:teavm-tooling:${rootProject.ext.teaVmVersion}"
+    teavmSmokeImplementation "org.ngengine:teavm-classlib:${rootProject.ext.teaVmVersion}"
+}
+tasks.register('compileTeaVMSmokeJavaScript', JavaExec) {
+    group = 'verification'
+    description = 'Compiles the cooperative navigation smoke to JavaScript using the engine TeaVM fork.'
+    dependsOn teavmSmokeClasses, classes
+    classpath = sourceSets.teavmSmoke.runtimeClasspath
+    mainClass = 'org.ngengine.nav.NavTeaVMCompiler'
+    args layout.buildDirectory.dir('teavm-smoke').get().asFile.absolutePath
+    maxHeapSize = '1g'
+    doLast {
+        project.copy {
+            from file('src/teavm/browser.html')
+            into layout.buildDirectory.dir('teavm-smoke')
+        }
+    }
+}
+tasks.register('teavmSmoke', Exec) {
+    description = 'Executes compiled navigation JavaScript in Node.'
+    group = 'verification'
+    dependsOn compileTeaVMSmokeJavaScript
+    commandLine 'node', file('src/teavm/run.cjs'), layout.buildDirectory.file('teavm-smoke/nav.cjs').get().asFile
+}
+
+// TeaVM is a desktop build tool; its own runtime requirement is independent of navigation source compatibility.
+configurations.named('teavmSmokeCompileClasspath') {
+    attributes.attribute(org.gradle.api.attributes.java.TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 25)
+}
+configurations.named('teavmSmokeRuntimeClasspath') {
+    attributes.attribute(org.gradle.api.attributes.java.TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 25)
+}

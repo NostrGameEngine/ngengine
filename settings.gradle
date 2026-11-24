@@ -142,6 +142,7 @@ include 'jme3-screenshot-tests:jme3-screenshot-tests-proto-report'
 
 // nge
 include 'nge-core'
+include 'nge-nav'
 include 'nge-networking'
 include 'nge-gui'
 include 'nge-auth'

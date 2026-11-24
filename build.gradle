@@ -73,6 +73,7 @@ def mergedJavadocSubprojects = [
         ":jme3-plugins",
         ":jme3-terrain",
         ":nge-core",
+        ":nge-nav",
         ":nge-app",
         ":nge-auth",
 
@@ -88,6 +89,7 @@ def ragDocProjects = [
         ":jme3-networking",
         ":jme3-plugins",
         ":nge-core",
+        ":nge-nav",
         ":nge-app",
         ":nge-auth",
         ":nge-networking",
