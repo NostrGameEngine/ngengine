@@ -79,7 +79,7 @@ public final class BasisTextureLoader implements AssetLoader {
             Set<Caps> rendererCaps = assetInfo.getManager().getRendererCaps();
             List<BasisTranscodeTarget> targetCandidates =
                     BasisTextureFormatSelector.candidates(
-                            encodedData, rendererCaps, forceRgba8, withAlpha);
+                            encodedData, rendererCaps, forceRgba8, withAlpha, arrayRequested);
             if (arrayRequested) {
                 targetCandidates = BasisTextureFormatSelector
                         .prioritizeLargeTextureArray(targetCandidates, withAlpha);

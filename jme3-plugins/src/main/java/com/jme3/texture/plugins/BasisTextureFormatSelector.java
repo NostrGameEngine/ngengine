@@ -33,12 +33,19 @@ final class BasisTextureFormatSelector {
             byte[] encodedData,
             Set<Caps> caps,
             boolean forceRgba8,
-            boolean withAlpha) {
+            boolean withAlpha,
+            boolean textureArray) {
         if (forceRgba8) {
             return Collections.singletonList(BasisTranscodeTarget.RGBA8);
         }
         SourceInfo source = inspect(encodedData);
-        return candidates(caps, withAlpha, source.format);
+        List<BasisTranscodeTarget> targets = candidates(caps, withAlpha, source.format);
+        if (textureArray && caps.contains(Caps.BrokenEtcTextureArrays)) {
+            targets.removeIf(target -> target == BasisTranscodeTarget.ETC2
+                    || target == BasisTranscodeTarget.ETC2_NO_ALPHA
+                    || target == BasisTranscodeTarget.ETC1);
+        }
+        return targets;
     }
 
     static List<BasisTranscodeTarget> candidates(

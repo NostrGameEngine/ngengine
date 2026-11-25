@@ -153,6 +153,22 @@ public class BasisTextureLoaderTest {
     }
 
     @Test
+    public void skipsEtcOnlyForArraysOnAffectedRenderers() {
+        byte[] data = {0, 1, 2, 3};
+        EnumSet<Caps> caps = EnumSet.of(Caps.TextureCompressionETC1, Caps.TextureCompressionETC2);
+        Assertions.assertEquals(BasisTranscodeTarget.ETC2,
+                BasisTextureFormatSelector.candidates(data, caps, false, true, true).get(0));
+
+        caps.add(Caps.BrokenEtcTextureArrays);
+        Assertions.assertEquals(BasisTranscodeTarget.ETC2,
+                BasisTextureFormatSelector.candidates(data, caps, false, true, false).get(0));
+        Assertions.assertEquals(Arrays.asList(BasisTranscodeTarget.RGBA8),
+                BasisTextureFormatSelector.candidates(data, caps, false, true, true));
+        Assertions.assertEquals(Arrays.asList(BasisTranscodeTarget.RGB565, BasisTranscodeTarget.RGBA8),
+                BasisTextureFormatSelector.candidates(data, caps, false, false, true));
+    }
+
+    @Test
     public void prefersFastCompressedTargetsForLargeTextureArrays() {
         Assertions.assertEquals(
                 Arrays.asList(

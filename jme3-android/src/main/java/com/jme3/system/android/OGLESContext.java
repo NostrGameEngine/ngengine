@@ -337,6 +337,13 @@ public class OGLESContext implements JmeContext, GLSurfaceView.Renderer, SoftTex
         renderer.setDebugEnabled(settings.isGraphicsDebug());
         renderer.initialize();
 
+        // The macOS host translator accepts ETC array uploads but samples them as black.
+        // Keep ETC available for regular textures and on physical devices.
+        String driver = gl.glGetString(GL.GL_RENDERER);
+        if (driver != null && driver.startsWith("Android Emulator OpenGL ES Translator (Apple")) {
+            renderer.getCaps().add(Caps.BrokenEtcTextureArrays);
+        }
+
         boolean blitSrgbConversion = useBlitSrgbConversion();
         renderer.setMainFrameBufferSrgb(false);
         renderer.setLinearizeSrgbImages(settings.isGammaCorrection());

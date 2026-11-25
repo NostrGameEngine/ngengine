@@ -535,7 +535,12 @@ public enum Caps {
     /**
      * Supports debugging capabilities
      */
-    GLDebug
+    GLDebug,
+
+    /**
+     * ETC texture arrays cannot be sampled reliably, even though ETC 2D textures work.
+     */
+    BrokenEtcTextureArrays
     ;
 
     /**
@@ -562,6 +567,11 @@ public enum Caps {
         }
 
         Format fmt = img.getFormat();
+        if (tex.getType() == Texture.Type.TwoDimensionalArray
+                && caps.contains(BrokenEtcTextureArrays)
+                && (fmt == Format.ETC1 || fmt == Format.ETC2 || fmt == Format.ETC2_ALPHA1)) {
+            return false;
+        }
         switch (fmt) {
             case Depth24Stencil8:
                 return caps.contains(Caps.PackedDepthStencilBuffer);
