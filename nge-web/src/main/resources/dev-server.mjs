@@ -128,8 +128,9 @@ const server = createServer((request, response) => {
             status = 206;
             response.setHeader("Content-Range", `bytes ${start}-${end}/${info.size}`);
         }
-        response.setHeader("Content-Length", end - start + 1);
-        if (request.method === "HEAD") {
+        const contentLength = info.size === 0 ? 0 : end - start + 1;
+        response.setHeader("Content-Length", contentLength);
+        if (request.method === "HEAD" || contentLength === 0) {
             response.writeHead(status).end();
             return;
         }
@@ -143,7 +144,11 @@ const server = createServer((request, response) => {
             .pipe(response);
     } catch (error) {
         console.error(error);
-        response.writeHead(400).end("Bad request");
+        if (!response.headersSent) {
+            response.writeHead(400).end("Bad request");
+        } else {
+            response.end();
+        }
     }
 });
 
