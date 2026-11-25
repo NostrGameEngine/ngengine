@@ -208,6 +208,14 @@ public class VirtualJoystick extends AbstractJoystick {
         }
     }
 
+    /** Captures a pointer positioned in bottom-left-origin, normalized surface coordinates. */
+    public boolean onNormalizedPointerDown(int pointerId, float x, float y, long time) {
+        synchronized (inputLock) {
+            return visualWidth > 0 && visualHeight > 0
+                    && onPointerDown(pointerId, x * visualWidth, y * visualHeight, time);
+        }
+    }
+
     /**
      * Processes a pointer-move event.
      *
@@ -226,12 +234,24 @@ public class VirtualJoystick extends AbstractJoystick {
         }
     }
 
+    /** Moves a captured pointer in bottom-left-origin, normalized surface coordinates. */
+    public boolean onNormalizedPointerMove(int pointerId, float x, float y, long time) {
+        synchronized (inputLock) {
+            return onPointerMove(pointerId, x * visualWidth, y * visualHeight, time);
+        }
+    }
+
     /**
      * Processes a pointer-up event.
      *
      * @return true if the pointer was captured by a virtual control
      */
     public boolean onPointerUp(int pointerId, float x, float y, long time) {
+        return onPointerUp(pointerId, time);
+    }
+
+    /** Releases the capture associated with a pointer, regardless of its position. */
+    public boolean onPointerUp(int pointerId, long time) {
         synchronized (inputLock) {
             Capture capture = captures.remove(pointerId);
             if (capture == null) {
