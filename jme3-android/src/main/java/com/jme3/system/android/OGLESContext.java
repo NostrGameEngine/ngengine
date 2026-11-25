@@ -413,6 +413,18 @@ public class OGLESContext implements JmeContext, GLSurfaceView.Renderer, SoftTex
         application = getApplicationListener();
     }
 
+    /**
+     * Sets a listener which delegates to an application without registering the
+     * application as a second listener. The context uses the application for the final blit.
+     *
+     * @param listener the wrapper that receives the context callbacks
+     * @param application the wrapped application used for rendering
+     */
+    public void setSystemListener(SystemListener listener, Application application) {
+        this.listener = listener;
+        this.application = application;
+    }
+
     @Override
     public AppSettings getSettings() {
         return settings;

@@ -117,7 +117,7 @@ public class AndroidLauncherFragment extends Fragment implements
 
 
         OGLESContext ctx = (OGLESContext) app.getJme3App().getContext();
-        ctx.setSystemListener(this);
+        ctx.setSystemListener(this, app.getJme3App());
     }
 
     /**
@@ -263,6 +263,11 @@ public class AndroidLauncherFragment extends Fragment implements
     @Override
     public void reshape(int width, int height) {
         app.getJme3App().reshape(width, height);
+    }
+
+    @Override
+    public void reshape(int logicalWidth, int logicalHeight, int framebufferWidth, int framebufferHeight) {
+        app.getJme3App().reshape(logicalWidth, logicalHeight, framebufferWidth, framebufferHeight);
     }
 
     @Override
