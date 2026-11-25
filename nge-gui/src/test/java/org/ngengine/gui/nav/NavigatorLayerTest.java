@@ -43,6 +43,7 @@ import com.jme3.input.Mouse;
 import com.jme3.input.MouseInput;
 import com.jme3.input.RawInputListener;
 import com.jme3.input.RawInputListenerAdapter;
+import com.jme3.input.TouchScreen;
 import com.jme3.cursors.plugins.JmeCursor;
 import com.jme3.input.dummy.DummyKeyInput;
 import com.jme3.input.dummy.DummyMouseInput;
@@ -52,6 +53,7 @@ import com.jme3.input.event.JoyButtonEvent;
 import com.jme3.input.event.KeyInputEvent;
 import com.jme3.input.event.MouseButtonEvent;
 import com.jme3.input.event.MouseMotionEvent;
+import com.jme3.input.event.TouchEvent;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
 import com.jme3.renderer.ViewPort;
@@ -74,6 +76,7 @@ import java.util.Queue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import org.junit.jupiter.api.Test;
@@ -840,6 +843,36 @@ public class NavigatorLayerTest {
 
         assertNotNull(navigator.getCursor());
         assertEquals(true, navigator.isCursorActive());
+    }
+
+    @Test
+    public void tapGestureDoesNotRepeatThePointerClick() {
+        initializeGui();
+
+        ViewPort vp = new ViewPort("gui-touch", new Camera(800, 600));
+        Node guiNode = new Node("GuiNode");
+        guiNode.setQueueBucket(Bucket.Gui);
+        vp.attachScene(guiNode);
+        GuiContext context = NGEGui.register(vp, true);
+
+        Node target = pickable("target", 100f, 100f);
+        List<String> events = new ArrayList<>();
+        addRecorder(target, events);
+        guiNode.attachChild(target);
+        guiNode.updateGeometricState();
+        context.getNavigator().pushLayer(guiNode);
+
+        InputManager inputManager = newInputManager((JoyInput) null);
+        DefaultNavigatorInputHandler handler = new DefaultNavigatorInputHandler(vp);
+        handler.registerListener(inputManager);
+        handler.setInputDevice(inputManager, new TouchScreen());
+
+        for (TouchEvent.Type type : List.of(TouchEvent.Type.DOWN, TouchEvent.Type.UP, TouchEvent.Type.TAP)) {
+            inputManager.onTouchEventQueued(new TouchEvent(type, 110, 110, 0, 0));
+        }
+
+        assertEquals(List.of("action:target:true", "action:target:false"),
+                events.stream().filter(e -> e.startsWith("action:")).collect(Collectors.toList()));
     }
 
     @Test

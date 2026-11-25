@@ -746,11 +746,8 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
         TouchEvent.Type type = event.getType();
         double x = state.toGuiX(event.getX());
         double y = state.toGuiY(event.getY());
-        if (type == TouchEvent.Type.TAP) {
-            pointerPressed(state, navigator, x, y);
-            pointerReleased(state, navigator, x, y);
-            consume(event);
-        } else if (type == TouchEvent.Type.DOWN) {
+        // TAP is a gesture notification; DOWN/UP already drive the UI click.
+        if (type == TouchEvent.Type.DOWN) {
             pointerPressed(state, navigator, x, y);
             consume(event);
         } else if (type == TouchEvent.Type.UP) {
