@@ -54,6 +54,34 @@ import com.jme3.system.AppSettings;
 import com.jme3.util.res.Resources;
 
 public class NGEAppSettings {
+    public static final String LANGUAGE_SETTING = "Language";
+    public static final String BASE_LANGUAGE_SETTING = "BaseLanguage";
+    public static final String LOCALIZATION_PATH_SETTING = "LocalizationPath";
+
+    public String getLanguage() {
+        return getString(LANGUAGE_SETTING, "en");
+    }
+
+    public void setLanguage(String language) {
+        setString(LANGUAGE_SETTING, language);
+    }
+
+    public String getBaseLanguage() {
+        return getString(BASE_LANGUAGE_SETTING, "en");
+    }
+
+    public void setBaseLanguage(String language) {
+        setString(BASE_LANGUAGE_SETTING, language);
+    }
+
+    public String getLocalizationPath() {
+        return getString(LOCALIZATION_PATH_SETTING, "i18n");
+    }
+
+    public void setLocalizationPath(String path) {
+        setString(LOCALIZATION_PATH_SETTING, path);
+    }
+
     private static final Logger log = Logger.getLogger(NGEAppSettings.class.getName());
     private NostrPublicKey appId = null;
     private AppSettings settings;

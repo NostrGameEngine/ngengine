@@ -60,6 +60,7 @@ public class NGEApplication implements ComponentManagerProvider{
     private final Jme3Application app;
     private final AppSettings settings;
     private final NGEAppSettings ngeSettings;
+    private volatile AppLocalization localization = AppLocalization.EMPTY;
     // private final String defaultAppId = "npub146wutmuxfmnlx9fcty0lkns2rpwhnl57kpes26mmt4hygalsakrsdllryz";
  
 
@@ -67,6 +68,14 @@ public class NGEApplication implements ComponentManagerProvider{
         return ngeSettings;
     }
 
+    public AppLocalization getLocalization() {
+        return localization;
+    }
+
+    /** Reloads the catalog from the current app settings. Call on the app thread after initialization. */
+    public void reloadLocalization() {
+        localization = AppLocalization.load(app.getAssetManager(), ngeSettings);
+    }
   
 
     public static class Jme3Application extends SimpleApplication {
@@ -103,6 +112,7 @@ public class NGEApplication implements ComponentManagerProvider{
 
             DevMode.registerForReload(rootNode);
 
+            ngeapp.reloadLocalization();
             this.ready.run();
         }
     }
