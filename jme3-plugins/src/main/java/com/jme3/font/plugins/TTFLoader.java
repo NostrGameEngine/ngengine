@@ -18,35 +18,71 @@ import com.jme3.texture.image.ColorSpace;
 import com.jme3.util.BufferUtils;
 
 import org.ngengine.stbttf.FontMetrics;
+import org.ngengine.stbttf.GlyphBitmap;
 import org.ngengine.stbttf.GlyphBounds;
 import org.ngengine.stbttf.StbFont;
 import org.ngengine.stbttf.StbGlyph;
 import org.ngengine.stbttf.StbTrueType;
-import org.ngengine.stbttf.StbttBakedChar;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.util.BitSet;
 import java.util.Objects;
 
+/** Rasterizes supported BMP characters from a TrueType font into a bitmap atlas. */
 public class TTFLoader implements AssetLoader {
     public static final int DEFAULT_FONT_SIZE = 64;
 
-    private static final int FIRST_CHAR = 32;
-    private static final int CHAR_COUNT = 95;
+    private static final String DEFAULT_SYMBOLS = "\u2013\u2014\u2018\u2019\u201c\u201d\u2022\u2026\u20ac\u20bf";
+    private static final BitSet DEFAULT_CHARACTERS = defaultCharacters();
     private static final int MAX_ATLAS_SIZE = 8192;
- 
+
+    /** An inclusive interval of Unicode code points for a bitmap font. */
+    public static final class CharacterRange {
+        private final int first;
+        private final int last;
+
+        public CharacterRange(int first, int last) {
+            if (first < Character.MIN_VALUE || last > Character.MAX_VALUE || first > last) {
+                throw new IllegalArgumentException("Expected an inclusive BMP character range");
+            }
+            this.first = first;
+            this.last = last;
+        }
+    }
+
     public static class BitmapFontKey extends AssetKey<BitmapFont> {
         private final int fontSize;
+        private final BitSet characters;
 
         public BitmapFontKey(String name) {
             this(name, DEFAULT_FONT_SIZE);
         }
 
         public BitmapFontKey(String name, int fontSize) {
+            this(name, fontSize, DEFAULT_CHARACTERS);
+        }
+
+        /**
+         * Bakes only glyphs in the supplied inclusive ranges, rather than using
+         * the default Latin repertoire. Ranges may overlap or leave gaps.
+         * Characters missing from the font are skipped.
+         * BitmapText currently addresses characters in the Basic Multilingual Plane only.
+         *
+         * @param name the TrueType asset path
+         * @param fontSize the height in pixels
+         * @param ranges one or more BMP intervals, in any order
+         */
+        public BitmapFontKey(String name, int fontSize, CharacterRange... ranges) {
+            this(name, fontSize, requestedCharacters(ranges));
+        }
+
+        private BitmapFontKey(String name, int fontSize, BitSet characters) {
             super(name);
             if (fontSize < 1) throw new IllegalArgumentException("Font size must be positive");
             this.fontSize = fontSize;
+            this.characters = characters;
         }
 
         public int getFontSize() {
@@ -55,22 +91,46 @@ public class TTFLoader implements AssetLoader {
 
         @Override
         public String toString() {
-            return name + " (" + fontSize + "px)";
+            return name + " (" + fontSize + "px, " + characters.cardinality() + " requested characters)";
         }
 
         @Override
         public boolean equals(Object obj) {
-            if (!super.equals(obj)) {
+            if (!(obj instanceof BitmapFontKey) || !super.equals(obj)) {
                 return false;
             }
             BitmapFontKey other = (BitmapFontKey) obj;
-            return fontSize == other.fontSize;
+            return fontSize == other.fontSize && characters.equals(other.characters);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(super.hashCode(), fontSize);
+            return Objects.hash(super.hashCode(), fontSize, characters);
         }
+    }
+
+    private static BitSet defaultCharacters() {
+        BitSet characters = requestedCharacters(
+            new CharacterRange(0x20, 0x7e),   // Printable ASCII.
+            new CharacterRange(0xa0, 0x24f),  // Latin-1 and Latin Extended A/B, including Ș/Ț.
+            new CharacterRange(0x1e00, 0x1eff) // Latin Extended Additional.
+        );
+        DEFAULT_SYMBOLS.chars().forEach(characters::set);
+        return characters;
+    }
+
+    private static BitSet requestedCharacters(CharacterRange... ranges) {
+        BitSet requested = new BitSet();
+        for (CharacterRange range : ranges) {
+            requested.set(range.first, range.last + 1);
+        }
+        requested.clear(0, 0x20);
+        requested.clear(0x7f, 0xa0);
+        requested.clear(Character.MIN_SURROGATE, Character.MAX_SURROGATE + 1);
+        if (requested.isEmpty()) {
+            throw new IllegalArgumentException("At least one printable character must be requested");
+        }
+        return requested;
     }
 
     @Override
@@ -79,19 +139,22 @@ public class TTFLoader implements AssetLoader {
         int fontSize = key instanceof BitmapFontKey
             ? ((BitmapFontKey) key).getFontSize()
             : DEFAULT_FONT_SIZE;
-
+        BitSet requested = key instanceof BitmapFontKey ? ((BitmapFontKey) key).characters : DEFAULT_CHARACTERS;
 
         try (InputStream input = assetInfo.openStream()) {
             ByteBuffer fontBytes = ByteBuffer.wrap(ByteUtils.getByteContent(input));
             StbFont stbFont = new StbTrueType(BufferUtils::createByteBuffer).load(fontBytes);
 
-            StbGlyph[] glyphs = new StbGlyph[CHAR_COUNT];
-            int[] glyphWidths = new int[CHAR_COUNT];
-            int[] glyphHeights = new int[CHAR_COUNT];
+            int[] codepoints = requested.stream().filter(codepoint -> stbFont.findGlyphIndex(codepoint) != 0).toArray();
+            int count = codepoints.length;
+            if (count == 0) throw new IOException("TrueType font has no requested glyphs: " + key.getName());
+            StbGlyph[] glyphs = new StbGlyph[count];
+            int[] glyphWidths = new int[count];
+            int[] glyphHeights = new int[count];
             int maxGlyphWidth = 0;
 
-            for (int i = 0; i < CHAR_COUNT; i++) {
-                StbGlyph glyph = stbFont.glyph(FIRST_CHAR + i);
+            for (int i = 0; i < count; i++) {
+                StbGlyph glyph = stbFont.glyph(codepoints[i]);
                 GlyphBounds bounds = glyph.getBitmapBounds(fontSize);
                 int width = bounds.width();
                 int height = bounds.height();
@@ -123,7 +186,7 @@ public class TTFLoader implements AssetLoader {
                 int y = 1;
                 int bottomY = 1;
 
-                for (int i = 0; i < CHAR_COUNT; i++) {
+                for (int i = 0; i < count; i++) {
                     int width = glyphWidths[i];
                     int height = glyphHeights[i];
                     if (x + width + 1 >= candidateWidth) {
@@ -158,45 +221,9 @@ public class TTFLoader implements AssetLoader {
                 throw new IOException("Font does not fit in the maximum atlas size");
             }
 
-            ByteBuffer atlasPixels = BufferUtils.createByteBuffer(atlasWidth * atlasHeight);
-
-            StbttBakedChar[] bakedChars = new StbttBakedChar[CHAR_COUNT];
-
-            for (int i = 0; i < CHAR_COUNT; i++) {
-                bakedChars[i] = new StbttBakedChar();
-            }
-
-            int bakeResult = stbFont.bakeFontBitmap(
-                fontSize,
-                atlasPixels,
-                atlasWidth,
-                atlasHeight,
-                FIRST_CHAR,
-                CHAR_COUNT,
-                bakedChars
-            );
-
-            if (bakeResult <= 0) {
-                throw new IOException(
-                    "Font does not fit in the " +
-                    atlasWidth + "x" + atlasHeight + " atlas"
-                );
-            }
-
-            // BitmapText uses top-down BMFont coordinates, while OpenGL uploads
-            // the first row at the bottom. Duplicate coverage into luminance and
-            // alpha so glyphs are white and their background stays transparent.
             ByteBuffer texturePixels = BufferUtils.createByteBuffer(
                 atlasWidth * atlasHeight * 2
             );
-            for (int y = atlasHeight - 1; y >= 0; y--) {
-                int row = y * atlasWidth;
-                for (int x = 0; x < atlasWidth; x++) {
-                    byte coverage = atlasPixels.get(row + x);
-                    texturePixels.put(coverage).put(coverage);
-                }
-            }
-            texturePixels.flip();
 
             AssetManager manager = assetInfo.getManager();
 
@@ -243,37 +270,48 @@ public class TTFLoader implements AssetLoader {
             characterSet.setWidth(atlasWidth);
             characterSet.setHeight(atlasHeight);
 
-            for (int i = 0; i < CHAR_COUNT; i++) {
-                int codepoint = FIRST_CHAR + i;
-
-                StbttBakedChar baked = bakedChars[i];
-
-                BitmapCharacter character = new BitmapCharacter(
-                    (char) codepoint
-                );
-
-                character.setX(baked.x0u());
-                character.setY(baked.y0u());
-                character.setWidth(baked.x1u() - baked.x0u());
-                character.setHeight(baked.y1u() - baked.y0u());
-
-                character.setXOffset(Math.round(baked.xoff));
-
-                character.setYOffset(
-                    base + Math.round(baked.yoff)
-                );
-
-                character.setXAdvance(Math.round(baked.xadvance));
+            int x = 1;
+            int y = 1;
+            int bottomY = 1;
+            for (int i = 0; i < count; i++) {
+                GlyphBitmap bitmap = glyphs[i].render(fontSize);
+                int width = bitmap.getWidth();
+                int height = bitmap.getHeight();
+                if (x + width + 1 >= atlasWidth) {
+                    y = bottomY;
+                    x = 1;
+                }
+                // BitmapText addresses top-down atlas coordinates; the texture
+                // buffer stores the bottom row first.
+                for (int row = 0; row < height; row++) {
+                    int destination = ((atlasHeight - 1 - y - row) * atlasWidth + x) * 2;
+                    for (int col = 0; col < width; col++) {
+                        byte coverage = bitmap.getData().get(row * bitmap.getStride() + col);
+                        texturePixels.put(destination++, coverage);
+                        texturePixels.put(destination++, coverage);
+                    }
+                }
+                int codepoint = codepoints[i];
+                BitmapCharacter character = new BitmapCharacter((char) codepoint);
+                character.setX(x);
+                character.setY(y);
+                character.setWidth(width);
+                character.setHeight(height);
+                character.setXOffset(bitmap.getXOffset());
+                character.setYOffset(base + bitmap.getYOffset());
+                character.setXAdvance(Math.round(glyphs[i].getMetrics().advanceWidth() * scale));
                 character.setPage(0);
 
                 characterSet.addCharacter(codepoint, character);
+                x += width + 1;
+                bottomY = Math.max(bottomY, y + height + 1);
             }
 
-            for (int left = 0; left < CHAR_COUNT; left++) {
+            for (int left = 0; left < count; left++) {
                 BitmapCharacter leftCharacter =
-                    characterSet.getCharacter(FIRST_CHAR + left);
+                    characterSet.getCharacter(codepoints[left]);
 
-                for (int right = 0; right < CHAR_COUNT; right++) {
+                for (int right = 0; right < count; right++) {
                     int amount = Math.round(
                         stbFont.getKerning(
                             glyphs[left],
@@ -283,7 +321,7 @@ public class TTFLoader implements AssetLoader {
 
                     if (amount != 0) {
                         leftCharacter.addKerning(
-                            FIRST_CHAR + right,
+                            codepoints[right],
                             amount
                         );
                     }
