@@ -242,17 +242,20 @@ public class IosInputHandler implements TouchInput {
         int type = intData[0];
         switch (type) {
             case LibJGLIOSInputBridge.EVENT_TOUCH_DOWN:
-                if (!IosJoyInput.dispatchPointerDown(intData[1], nativeX(floatData[0]), touchY(floatData[1]), time)) {
+                // The GUI camera can use a relative size unrelated to logical touch coordinates.
+                if (!IosJoyInput.dispatchNormalizedPointerDown(intData[1],
+                        nativeX(floatData[0]) / Math.max(width, 1), touchY(floatData[1]) / Math.max(height, 1), time)) {
                     injectTouchDown(intData[1], time, nativeX(floatData[0]), nativeY(floatData[1]));
                 }
                 break;
             case LibJGLIOSInputBridge.EVENT_TOUCH_UP:
-                if (!IosJoyInput.dispatchPointerUp(intData[1], nativeX(floatData[0]), touchY(floatData[1]), time)) {
+                if (!IosJoyInput.dispatchPointerUp(intData[1], time)) {
                     injectTouchUp(intData[1], time, nativeX(floatData[0]), nativeY(floatData[1]));
                 }
                 break;
             case LibJGLIOSInputBridge.EVENT_TOUCH_MOVE:
-                if (!IosJoyInput.dispatchPointerMove(intData[1], nativeX(floatData[0]), touchY(floatData[1]), time)) {
+                if (!IosJoyInput.dispatchNormalizedPointerMove(intData[1],
+                        nativeX(floatData[0]) / Math.max(width, 1), touchY(floatData[1]) / Math.max(height, 1), time)) {
                     injectTouchMove(intData[1], time, nativeX(floatData[0]), nativeY(floatData[1]));
                 }
                 break;

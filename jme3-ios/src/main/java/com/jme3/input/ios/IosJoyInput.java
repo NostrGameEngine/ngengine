@@ -87,19 +87,22 @@ public final class IosJoyInput implements JoyInput {
         }
     }
 
-    public static boolean dispatchPointerDown(int pointerId, float x, float y, long time) {
+    static boolean dispatchNormalizedPointerDown(int pointerId, float x, float y, long time) {
         IosJoyInput joyInput = active;
-        return joyInput != null && joyInput.onPointerDown(pointerId, x, y, time);
+        VirtualJoystick joystick = joyInput != null ? joyInput.virtualJoystick : null;
+        return joystick != null && joystick.onNormalizedPointerDown(pointerId, x, y, time);
     }
 
-    public static boolean dispatchPointerMove(int pointerId, float x, float y, long time) {
+    static boolean dispatchNormalizedPointerMove(int pointerId, float x, float y, long time) {
         IosJoyInput joyInput = active;
-        return joyInput != null && joyInput.onPointerMove(pointerId, x, y, time);
+        VirtualJoystick joystick = joyInput != null ? joyInput.virtualJoystick : null;
+        return joystick != null && joystick.onNormalizedPointerMove(pointerId, x, y, time);
     }
 
-    public static boolean dispatchPointerUp(int pointerId, float x, float y, long time) {
+    static boolean dispatchPointerUp(int pointerId, long time) {
         IosJoyInput joyInput = active;
-        return joyInput != null && joyInput.onPointerUp(pointerId, x, y, time);
+        VirtualJoystick joystick = joyInput != null ? joyInput.virtualJoystick : null;
+        return joystick != null && joystick.onPointerUp(pointerId, time);
     }
 
     public static void dispatchKeyboardInput() {
@@ -195,21 +198,6 @@ public final class IosJoyInput implements JoyInput {
         }
         drainPendingEvents();
         return currentJoysticks();
-    }
-
-    private boolean onPointerDown(int pointerId, float x, float y, long time) {
-        VirtualJoystick joystick = virtualJoystick;
-        return joystick != null && joystick.onPointerDown(pointerId, x, y, time);
-    }
-
-    private boolean onPointerMove(int pointerId, float x, float y, long time) {
-        VirtualJoystick joystick = virtualJoystick;
-        return joystick != null && joystick.onPointerMove(pointerId, x, y, time);
-    }
-
-    private boolean onPointerUp(int pointerId, float x, float y, long time) {
-        VirtualJoystick joystick = virtualJoystick;
-        return joystick != null && joystick.onPointerUp(pointerId, x, y, time);
     }
 
     private void onKeyboardInput() {
