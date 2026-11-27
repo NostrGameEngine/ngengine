@@ -276,7 +276,28 @@ public abstract class NWindow<T> extends Container implements GuiUpdateListener,
         // Override this method to perform any pre-composition tasks
     }
 
+    /**
+     * Lets an application supply the outer bounds of a non-fullscreen window
+     * in logical viewport units. Returning null retains the standard sizing.
+     */
+    protected Vector3f getResponsiveSize(float viewportWidth, float viewportHeight) {
+        return null;
+    }
+
     protected final boolean reloadNow() {
+        float viewportWidth = getManager().getLogicalWidth();
+        float viewportHeight = getManager().getLogicalHeight();
+        Vector3f responsiveSize = fullscreen ? null : getResponsiveSize(viewportWidth, viewportHeight);
+        if (responsiveSize != null && (!Float.isFinite(responsiveSize.x) || !Float.isFinite(responsiveSize.y)
+                || responsiveSize.x <= 0f || responsiveSize.y <= 0f)) {
+            responsiveSize = null;
+        }
+        if (responsiveSize != null) {
+            responsiveSize = new Vector3f(Math.min(viewportWidth, responsiveSize.x),
+                Math.min(viewportHeight, responsiveSize.y), 0f);
+            setPreferredSize(responsiveSize);
+            setSize(responsiveSize);
+        }
         Vector3f size = getSize().clone();
         if (size.length() == 0) return false;
 
@@ -292,7 +313,10 @@ public abstract class NWindow<T> extends Container implements GuiUpdateListener,
             return true;
         }
 
-        if (!fitContent) {
+        if (responsiveSize != null && !fullscreen) {
+            // The app's viewport policy takes precedence over fit-to-content.
+            setPreferredSize(responsiveSize);
+        } else if (!fitContent) {
             float w, h;
             if (fullscreen) {
                 w = getManager().getLogicalWidth();

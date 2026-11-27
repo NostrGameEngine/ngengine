@@ -121,6 +121,20 @@ public class NWindowManagerTest {
     }
 
     @Test
+    public void appWindowBoundsAreAppliedBeforeContentIsComposed() {
+        TestWindowManager manager = newManager("gui-responsive-window");
+        Node guiNode = manager.getContext().getGuiNode();
+        ResponsiveWindow window = manager.showWindow(ResponsiveWindow.class);
+        for (int i = 0; i < 4; i++) {
+            guiNode.updateLogicalState(0.016f);
+            guiNode.updateGeometricState();
+        }
+        assertEquals(manager.getLogicalWidth() * .90f, window.sizeWhenComposed.x, .0001f);
+        assertEquals(manager.getLogicalHeight() * .88f, window.sizeWhenComposed.y, .0001f);
+        assertEquals(window.sizeWhenComposed, window.getSize());
+    }
+
+    @Test
     public void closingInteractiveWindowClosesItsOpenPopup() {
         TestWindowManager manager = newManager("gui-window-popup-close");
         TestWindow window = manager.showWindow(TestWindow.class);
@@ -728,6 +742,22 @@ public class NWindowManagerTest {
             setWithTitleBar(false);
             setFitContent(true);
             getContent().setPreferredSize(320f, 200f);
+        }
+    }
+
+    public static class ResponsiveWindow extends NWindow<Void> {
+        Vector3f sizeWhenComposed;
+
+        @Override
+        protected Vector3f getResponsiveSize(float width, float height) {
+            return new Vector3f(width * .90f, height * .88f, 0f);
+        }
+
+        @Override
+        protected void compose(Vector3f size, Void args) {
+            sizeWhenComposed = size.clone();
+            setFitContent(true);
+            getContent().setPreferredSize(100f, 60f);
         }
     }
 
