@@ -227,6 +227,8 @@ public abstract class MapRenderer {
     private boolean tileAlphaOcclusionEnabled = true;
     private float tileAlphaOcclusionStrength = 0.30f;
     private float tileAlphaOcclusionRadius = 1.25f;
+    private TiledLighting lighting;
+    private boolean lightingRequested;
   
     public static class RenderRef {
         TiledBase entry;
@@ -240,6 +242,7 @@ public abstract class MapRenderer {
         ArrayList<InstancedTileBatch> instancedBatches;
         int visibleTileSignature = Integer.MIN_VALUE;
         RenderingMode renderMode = RenderingMode.AUTO;
+        MatParamOverride layerLighting;
 
         final int maxTiles ;
         RenderRef(int maxTiles){
@@ -977,6 +980,17 @@ public abstract class MapRenderer {
         updateViewCull(camera);
         transientDebugRecords.clear();
         render(listener, tiledMap.getLayers(),tpf);
+        if (lightingRequested) {
+            if (lighting == null) {
+                // Allow tiles and objects to extend beyond the ground footprint.
+                float padding = Math.max(tileWidth, tileHeight) * 2f;
+                lighting = new TiledLighting(screenMinX - padding, screenMinY - padding,
+                    screenMaxX - screenMinX + 2f * padding, screenMaxY - screenMinY + 2f * padding);
+                rootNode.addMatParamOverride(new MatParamOverride(VarType.Texture2D, "LightMask", lighting.texture()));
+                rootNode.addMatParamOverride(new MatParamOverride(VarType.Vector4, "LightMaskRect", lighting.rect()));
+            }
+            lighting.update(tiledMap, coordinateSystem, this::getLayerRenderOffset);
+        }
         updateBatchDebugOverlay();
     }
 
@@ -1076,6 +1090,7 @@ public abstract class MapRenderer {
             }
 
             if (visual != null) {
+                applyLayerLighting(layer, visual);
                 float y = getLayerYIndex(layer);
                 Vector2f offset = getLayerRenderOffset(layer);
                 visual.setLocalTranslation(offset.x, y, offset.y);
@@ -1161,6 +1176,37 @@ public abstract class MapRenderer {
                     * (currentCamera.getLocation().z + tiledMap.getParallaxOriginY()));
         }
         return new Vector2f(x, y);
+    }
+
+    private void applyLayerLighting(TiledLayer layer, Spatial visual) {
+        boolean enabled = TiledLighting.layerMode(layer, tiledMap) == TiledLighting.DYNAMIC;
+        if (enabled) lightingRequested = true;
+        RenderRef ref = lrefs.get(layer);
+        if (ref == null) return;
+        if (ref.layerLighting == null) {
+            if (!enabled) return;
+            ref.layerLighting = new MatParamOverride(VarType.Float, "LayerLighting", 1f);
+            visual.addMatParamOverride(ref.layerLighting);
+        } else if (enabled != ((Float) ref.layerLighting.getValue() == 1f)) {
+            ref.layerLighting.setValue(enabled ? 1f : 0f);
+        }
+    }
+
+    int tileLightingMode(TiledBase entry, Tile tile) {
+        int mode = TiledLighting.tileMode(entry, tile);
+        if (mode == TiledLighting.DYNAMIC) lightingRequested = true;
+        return mode;
+    }
+
+    private void applyTileLighting(Material material, TiledBase entry, Tile tile) {
+        if (material == null || material.getMaterialDef().getMaterialParam("TileLightingMode") == null) return;
+        int mode = tileLightingMode(entry, tile);
+        com.jme3.material.MatParam parameter = material.getParam("TileLightingMode");
+        if (mode != TiledLighting.INHERIT || parameter != null) {
+            if (parameter == null || ((Float) parameter.getValue()).floatValue() != mode) {
+                material.setFloat("TileLightingMode", mode);
+            }
+        }
     }
 
     private void visitLayers(Consumer<TiledLayer> visitor, List<TiledLayer> layers){
@@ -1324,6 +1370,7 @@ public abstract class MapRenderer {
                     spriteFactory.applyProperties(tile, visual);
                     ref.clearTilePropertiesUpdateNeeded(index, propertyUpdateId);
                 }
+                applyTileLighting(visual.getMaterial(), entry, tile);
                 listener.afterEntityRender(tpf,tiledMap, layer, entry, visual);
             });   
         }
@@ -1834,6 +1881,7 @@ public abstract class MapRenderer {
 
         Material mat = visual.getMaterial();
         applyRenderedTileMaterial(materialFactory, mat, tile, entry.getRenderedTile());
+        applyTileLighting(mat, entry, tile);
         materialFactory.setTintColor(mat, layer.getTintColor());
         materialFactory.setLayerOpacity(mat, (float) layer.getOpacity());
         materialFactory.setBlendMode(mat, layer.getBlendMode());
@@ -2768,6 +2816,9 @@ public abstract class MapRenderer {
                     spriteFactory.applyProperties(layer, layerNode);
                     materialFactory.setOpacity(spatial, objectOpacity(obj));
                     ref.clearPropertiesUpdateNeeded(objectPropertyUpdateId);
+                }
+                if (spatial instanceof Geometry) {
+                    applyTileLighting(((Geometry) spatial).getMaterial(), obj, obj.getTile());
                 }
                 listener.afterEntityRender(tpf,tiledMap, layer, obj, spatial);
 

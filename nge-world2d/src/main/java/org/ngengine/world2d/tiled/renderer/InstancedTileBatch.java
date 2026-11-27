@@ -179,7 +179,8 @@ final class InstancedTileBatch {
             tileDataX = (float) source.getLayer(visualTile.getId());
             tileDataY = 0f;
         }
-        int flipFlags = getInstancedFlipFlags(tile);
+        int flipFlags = getInstancedFlipFlags(tile)
+            | renderer.tileLightingMode(entry, tile) << TiledLighting.INSTANCE_MODE_SHIFT;
         float imageWidth = (float) source.imageWidth;
         float imageHeight = (float) source.imageHeight;
         float uvWidth = (float) tile.getWidth();
@@ -226,7 +227,8 @@ final class InstancedTileBatch {
             tileDataX = (float) source.getLayer(visualTile.getId());
             tileDataY = 0f;
         }
-        int flipFlags = getInstancedFlipFlags(tile);
+        int flipFlags = getInstancedFlipFlags(tile)
+            | renderer.tileLightingMode(entry, tile) << TiledLighting.INSTANCE_MODE_SHIFT;
         float imageWidth = (float) source.imageWidth;
         float imageHeight = (float) source.imageHeight;
         float uvWidth = (float) tile.getWidth();

@@ -40,6 +40,10 @@ varying vec2 v_TilePos;
 #endif
 
 varying vec2 v_TexCoord;
+#ifdef HAS_LIGHT_MASK
+uniform vec4 m_LightMaskRect;
+varying vec2 v_LightMaskUV;
+#endif
 #if defined(HAS_DECAL_MAP) || defined(HAS_DECAL_ARRAY)
 varying vec2 v_DecalTexCoord;
 #endif
@@ -85,5 +89,8 @@ void main() {
 #endif
     vec4 modelSpacePos = vec4(position, 1.0);
 
+#ifdef HAS_LIGHT_MASK
+    v_LightMaskUV = (TransformWorld(modelSpacePos).xz - m_LightMaskRect.xy) * m_LightMaskRect.zw;
+#endif
     gl_Position = TransformWorldViewProjection(modelSpacePos);
 }

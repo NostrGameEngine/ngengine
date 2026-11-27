@@ -37,6 +37,10 @@ MaterialDef Tiled {
         Boolean UseTileAlphaOcclusion : true
         Float TileAlphaOcclusionStrength : 0.30
         Float TileAlphaOcclusionRadius : 1.25
+        Texture2D LightMask
+        Vector4 LightMaskRect
+        Float LayerLighting : 0.0
+        Float TileLightingMode : 0.0
     }
 
     Technique {
@@ -47,6 +51,7 @@ MaterialDef Tiled {
             WorldViewProjectionMatrix
             ViewProjectionMatrix
             ViewMatrix
+            WorldMatrix
         }
 
         RenderState {
@@ -78,6 +83,7 @@ MaterialDef Tiled {
             HAS_OPACITY : Opacity
             HAS_LAYER_OPACITY : LayerOpacity
             USE_TILE_ALPHA_OCCLUSION : UseTileAlphaOcclusion
+            HAS_LIGHT_MASK : LightMask
         }
     }
 

@@ -123,6 +123,12 @@ varying vec2 v_TilePos;
 #endif
 
 varying vec2 v_TexCoord;
+#ifdef HAS_LIGHT_MASK
+uniform sampler2D m_LightMask;
+uniform float m_LayerLighting;
+uniform float m_TileLightingMode;
+varying vec2 v_LightMaskUV;
+#endif
 
 vec2 getTileUVClampedAt(vec2 texCoord, vec2 tilePos, vec2 tileSize, vec2 imageSize) {
     vec2 pixel = texCoord * tileSize + tilePos;
@@ -431,5 +437,14 @@ void main(){
     color.a *= m_Opacity;
     #endif
 
+#ifdef HAS_LIGHT_MASK
+    float lightingMode = m_TileLightingMode;
+    #if defined(INSTANCING) && defined(USE_TILESET_IMAGE)
+        lightingMode = floor((v_TileData.w + 0.5) / 8.0);
+    #endif
+    if (lightingMode == 1.0 || (lightingMode == 0.0 && m_LayerLighting > 0.5)) {
+        color.rgb *= texture2D(m_LightMask, v_LightMaskUV).rgb;
+    }
+#endif
     gl_FragColor = color;
 }
