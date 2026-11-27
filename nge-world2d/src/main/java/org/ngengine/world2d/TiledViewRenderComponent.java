@@ -85,6 +85,7 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
     private final Vector3f smoothCameraLoc = new Vector3f();
     private final Vector3f previousTargetCameraLoc = new Vector3f();
     private boolean cameraTargetReady;
+    private float cameraZoom = 1f;
     private boolean targetHistoryReady;
     private boolean cameraHoldActive;
     private int stableTargetFrames;
@@ -140,6 +141,10 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
      */
     @Override
     public void onEnable(ComponentManager mng, boolean firstTime) {
+        var settings = mng.getSettings();
+        if (settings != null) {
+            cameraZoom = validZoom(settings.getNumber("CameraZoom", 1f).floatValue());
+        }
         ensureRegistered();
     }
 
@@ -430,7 +435,7 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
         }
         Camera cam = viewPort.getCamera();
         float aspect = (float) cam.getWidth() / cam.getHeight();
-        float halfHeight = halfDistance;
+        float halfHeight = halfDistance / cameraZoom;
         float halfWidth = halfHeight * aspect;
 
         TiledWorld2d map = getCurrentMap();
@@ -450,6 +455,10 @@ public class TiledViewRenderComponent extends AbstractComponent implements PovRe
             up.set(0, 0, -1f);
             cam.lookAtDirection(dir, up);
         }
+    }
+
+    private static float validZoom(float zoom) {
+        return Float.isFinite(zoom) && zoom > 0f ? zoom : 1f;
     }
 
     /**
