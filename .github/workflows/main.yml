@@ -294,7 +294,7 @@ jobs:
           NGE_CAN_PUBLISH: ${{ steps.publication.outputs.allowed }}
           NGE_USE_SNAPSHOT_DEPENDENCIES: ${{ github.ref == 'refs/heads/next2' || github.base_ref == 'next2' }}
         run: |
-          # Normal build plus ZIP distribution and merged javadoc
+          # Build the engine and merged javadoc before publishing Maven artifacts.
           for attempt in 1 2 3; do
             if ./gradlew -PuseCommitHashAsVersionName=true \
               -PuseSnapshotDependencies="$NGE_USE_SNAPSHOT_DEPENDENCIES" \
@@ -309,14 +309,6 @@ jobs:
 
           if [ "${{ matrix.deploy }}" = "true" ] && [ "$NGE_CAN_PUBLISH" = "true" ];
           then
-            # We are going to need "zip"
-            sudo apt-get update
-            sudo apt-get install -y zip
-
-            # We prepare the release for deploy
-            mkdir -p ./dist/release/
-            mv build/distributions/*.zip dist/release/
-
             # Install maven artifacts to ./dist/maven and sign them if possible
             if [ "${{ secrets.SIGNING_PASSWORD }}" = "" ];
             then
