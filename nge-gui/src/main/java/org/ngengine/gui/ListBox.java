@@ -296,12 +296,27 @@ public class ListBox<T> extends Panel  {
         return grid;
     }
 
+    /** Sets the distance in input coordinates a finger must move before a tap becomes a swipe. */
     public void setTouchScrollSlop(float pixels) {
         touchScrollSlop = Math.max(0f, pixels);
     }
 
     public float getTouchScrollSlop() {
         return touchScrollSlop;
+    }
+
+    /** Changes the first visible row. Positive values reveal items farther down the list. */
+    public void scrollRows(int rows) {
+        scroll(-rows);
+    }
+
+    /** Returns the approximate height of a visible row in logical GUI coordinates. */
+    public float getTouchScrollRowHeight() {
+        float height = grid.getSize().y;
+        if (height <= 0f) {
+            height = grid.getPreferredSize().y;
+        }
+        return height / Math.max(1, grid.getVisibleRows());
     }
 
     /**
@@ -820,19 +835,6 @@ public class ListBox<T> extends Panel  {
         @Override
         public void focusScrollUpdate(Spatial target, ScrollDirection dir,  double value) {
             scroll((int)(dir==ScrollDirection.Up||dir==ScrollDirection.Right?value:-value));
-        }
-
-        private float getTouchScrollRowHeight() {
-            int rows = Math.max(1, grid.getVisibleRows());
-            Vector3f size = grid.getSize();
-            if (size != null && size.y > 0f) {
-                return Math.max(1f, size.y / rows);
-            }
-            Vector3f preferred = grid.getPreferredSize();
-            if (preferred != null && preferred.y > 0f) {
-                return Math.max(1f, preferred.y / rows);
-            }
-            return 1f;
         }
 
     }   

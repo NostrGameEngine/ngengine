@@ -47,6 +47,7 @@ import java.util.Set;
 import org.jetbrains.annotations.Nullable;
 import org.ngengine.gui.Axis;
 import org.ngengine.gui.GuiContext;
+import org.ngengine.gui.ListBox;
 import org.ngengine.gui.NGEGui;
 import org.ngengine.gui.Slider;
 
@@ -91,6 +92,10 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
     private MouseMotionEvent lastCursorMotionEvent;
     private Spatial pointerActionTarget;
     private boolean pointerActionPressed;
+    private int touchPointer = -1;
+    private Spatial touchListTapTarget;
+    private ListBox<?> touchList;
+    private TouchListDrag touchListDrag;
     private boolean navigatorActionPressed = false;
     private boolean consumeNextJoystickPress = false;
     private final Set<String> activeAxisActions = new HashSet<>();
@@ -234,6 +239,7 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
         lastCursorMotionEvent = null;
         pointerActionTarget = null;
         pointerActionPressed = false;
+        clearTouchGesture();
         leftStickX = 0f;
         leftStickY = 0f;
         simulatedCursorX = 0f;
@@ -256,6 +262,7 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
                 lastCursorMotionEvent = null;
                 pointerActionTarget = null;
                 pointerActionPressed = false;
+                clearTouchGesture();
                 leftStickX = 0f;
                 leftStickY = 0f;
                 simulatedCursorX = 0f;
@@ -272,6 +279,7 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
         lastCursorMotionEvent = null;
         pointerActionTarget = null;
         pointerActionPressed = false;
+        clearTouchGesture();
         leftStickX = 0f;
         leftStickY = 0f;
         simulatedCursorX = 0f;
@@ -748,17 +756,72 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
         double y = state.toGuiY(event.getY());
         // TAP is a gesture notification; DOWN/UP already drive the UI click.
         if (type == TouchEvent.Type.DOWN) {
-            pointerPressed(state, navigator, x, y);
+            if (touchPointer != -1) {
+                consume(event);
+                return true;
+            }
+            touchPointer = event.getPointerId();
+            Spatial picked = state.pick(x, y);
+            touchList = findTouchedList(picked);
+            if (touchList == null) {
+                pointerPressed(navigator, picked, x, y);
+            } else {
+                // A drag can start on an interactive row child, including a button.
+                // Dispatch its click only once we know the gesture was a tap.
+                touchListTapTarget = picked;
+                touchListDrag = new TouchListDrag(x, y, state.toGuiDistance(touchList.getTouchScrollSlop()),
+                    touchList.getTouchScrollRowHeight());
+            }
             consume(event);
-        } else if (type == TouchEvent.Type.UP) {
-            pointerReleased(state, navigator, x, y);
+        } else if (touchPointer != -1 && event.getPointerId() == touchPointer && type == TouchEvent.Type.UP) {
+            if (touchList == null) {
+                pointerReleased(state, navigator, x, y);
+            } else if (touchList.getParent() != null) {
+                scrollTouchedList(x, y);
+                if (!touchListDrag.isDragged() && touchListTapTarget == state.pick(x, y)) {
+                    pointerPressed(navigator, touchListTapTarget, x, y);
+                    pointerReleased(state, navigator, x, y);
+                }
+            }
+            clearTouchGesture();
             consume(event);
-        } else if (type == TouchEvent.Type.MOVE && pointerActionPressed) {
-            pointerDragged(x, y);
-            updatePointerFocusAt(state, navigator, x, y);
+        } else if (touchPointer != -1 && event.getPointerId() == touchPointer && type == TouchEvent.Type.MOVE) {
+            if (touchList != null && touchList.getParent() != null) {
+                scrollTouchedList(x, y);
+            } else if (pointerActionPressed) {
+                pointerDragged(x, y);
+                updatePointerFocusAt(state, navigator, x, y);
+            }
             consume(event);
         }
         return true;
+    }
+
+    private static ListBox<?> findTouchedList(Spatial picked) {
+        Spatial child = null;
+        for (Spatial current = picked; current != null; current = current.getParent()) {
+            if (current instanceof ListBox<?>) {
+                ListBox<?> list = (ListBox<?>) current;
+                // Leave the scrollbar and its thumb on the normal pointer path.
+                return child == list.getGridPanel() ? list : null;
+            }
+            child = current;
+        }
+        return null;
+    }
+
+    private void scrollTouchedList(double x, double y) {
+        int rows = touchListDrag.move(x, y);
+        if (rows != 0) {
+            touchList.scrollRows(rows);
+        }
+    }
+
+    private void clearTouchGesture() {
+        touchPointer = -1;
+        touchList = null;
+        touchListTapTarget = null;
+        touchListDrag = null;
     }
 
     private void navigateOrAdjustSlider(Navigator navigator, TraversalDirection dir, InputEvent<?> event) {
@@ -820,7 +883,11 @@ public class DefaultNavigatorInputHandler implements NavigatorInputHandler {
     }
 
     private boolean pointerPressed(GuiContext state, Navigator navigator, double x, double y) {
-        pointerActionTarget = state.pick(x, y);
+        return pointerPressed(navigator, state.pick(x, y), x, y);
+    }
+
+    private boolean pointerPressed(Navigator navigator, Spatial picked, double x, double y) {
+        pointerActionTarget = picked;
         if (pointerActionTarget != null) {
             navigator.focusPointer(pointerActionTarget);
             FocusTarget target = NGEGui.findFocusTarget(pointerActionTarget);
